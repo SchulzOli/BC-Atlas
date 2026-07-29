@@ -1,0 +1,58 @@
+direction: right
+title: "AL call architecture" {
+  shape: text
+  near: top-center
+  style.font-size: 28
+}
+
+g0: "Demo.Operations.Sales Operations" {
+  style.stroke-dash: 3
+  n1: "procedure\nHandlePosted" {
+    shape: rectangle
+    tooltip: "test\\fixtures\\Operations.al:17"
+    style.fill: "#F3F6FA"
+    style.stroke: "#55708F"
+  }
+  n0: "procedure\nProcess" {
+    shape: rectangle
+    tooltip: "test\\fixtures\\Operations.al:11"
+    style.fill: "#F3F6FA"
+    style.stroke: "#55708F"
+  }
+}
+
+g1: "Demo.Sales.Posts Sales" {
+  style.stroke-dash: 3
+  n2: "procedure\nPost" {
+    shape: rectangle
+    tooltip: "test\\fixtures\\Sales.al:5"
+    style.fill: "#F3F6FA"
+    style.stroke: "#55708F"
+  }
+}
+
+g2: "Demo.Sales.Sales Poster" {
+  style.stroke-dash: 3
+  n5: "event\nOnPosted" {
+    shape: rectangle
+    tooltip: "test\\fixtures\\Sales.al:32"
+    style.fill: "#F5E5FF"
+    style.stroke: "#77449A"
+  }
+  n3: "procedure\nPost" {
+    shape: rectangle
+    tooltip: "test\\fixtures\\Sales.al:22"
+    style.fill: "#F3F6FA"
+    style.stroke: "#55708F"
+  }
+  n4: "procedure\nValidate" {
+    shape: rectangle
+    tooltip: "test\\fixtures\\Sales.al:27"
+    style.fill: "#F3F6FA"
+    style.stroke: "#55708F"
+  }
+}
+
+g0.n0 -> g2.n3: "calls"
+g0.n1 -> g2.n5: "subscribes"
+g2.n3 -> g2.n4: "calls"

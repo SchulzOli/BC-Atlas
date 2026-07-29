@@ -1,0 +1,25 @@
+{
+  "view": "project",
+  "direction": "right",
+  "title": "Business Central architecture",
+  "groupBy": "role",
+  "namespaces": ["Contoso.**"],
+  "exclude": ["**/test/**"],
+  "moduleDepth": "auto",
+  "folderDepth": 1,
+  "includeUnresolvedCalls": false,
+  "maxEdges": 500,
+  "details": false,
+  "noExternal": false,
+  "layout": "elk",
+  "theme": 0,
+  "sourceUrl": "https://github.com/example/repo/blob/main/{file}#L{line}",
+  "forbiddenDependencies": [
+    {
+      "from": "Contoso.Core:**",
+      "to": "Contoso.UI:**",
+      "severity": "warning",
+      "message": "Core must not depend on UI"
+    }
+  ]
+}

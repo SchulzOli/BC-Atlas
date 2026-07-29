@@ -1,0 +1,39 @@
+{
+  "name": "ald2tree",
+  "version": "0.5.0",
+  "description": "Generate D2 architecture diagrams from Microsoft Dynamics 365 Business Central AL source.",
+  "type": "module",
+  "bin": {
+    "ald2tree": "./src/cli.js"
+  },
+  "files": [
+    "src/",
+    "scripts/",
+    "vendor/",
+    ".ald2tree.example.json",
+    "LICENSE",
+    "README.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "start": "node ./src/cli.js",
+    "test": "node --test",
+    "check": "node --check src/cli.js && node --check src/analyzer.js && node --check src/config.js && node --check src/d2.js && node --check src/insights.js && node --check src/resolver.js && node --check src/svg.js && node --check src/views.js",
+    "update:grammar": "node ./scripts/update-grammar.js"
+  },
+  "keywords": [
+    "al",
+    "business-central",
+    "d2",
+    "architecture",
+    "tree-sitter"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@terrastruct/d2": "^0.1.33",
+    "web-tree-sitter": "^0.25.10"
+  }
+}
