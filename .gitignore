@@ -2,6 +2,8 @@
 node_modules/
 dist/
 coverage/
+test-results/
+playwright-report/
 
 # Logs and temporary files
 *.log
@@ -29,3 +31,6 @@ Thumbs.db
 *.png
 *.pdf
 !docs/*.svg
+!docs/generated/images/
+!docs/generated/images/*.png
+!docs/generated/images/*.jpg

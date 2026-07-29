@@ -21,3 +21,17 @@ License 2.0. Source: <https://github.com/terrastruct/d2>
 The official D2 WebAssembly package is redistributed as an npm dependency for
 SVG rendering. The CLI can optionally invoke a separately installed D2
 executable for PNG and PDF output.
+
+## Playwright
+
+Copyright Microsoft Corporation. Licensed under the Apache License 2.0.
+Source: <https://github.com/microsoft/playwright>
+
+Playwright provides browser-based executable documentation and test reporting.
+
+## yaml
+
+Copyright Eemeli Aro. Licensed under the ISC License.
+Source: <https://github.com/eemeli/yaml>
+
+The `yaml` package parses executable-documentation scenario contracts.

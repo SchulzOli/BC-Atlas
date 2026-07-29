@@ -151,6 +151,23 @@ This keeps the core useful without D2 installed and allows additional diagram
 views without replacing the parser. See [plan.md](./plan.md) for the roadmap
 and design decisions.
 
+## Executable user documentation
+
+The experimental `docs` command family turns small Business Central scenario
+contracts into AI-generated Playwright tests. Passing customer-visible
+`test.step()` entries and screenshots are published as Markdown:
+
+```sh
+ald2tree docs generate scenarios/create-edi-partner.yml
+ald2tree docs run scenarios/create-edi-partner.yml
+ald2tree docs heal scenarios/create-edi-partner.yml
+```
+
+Generation and healing use Codex; deterministic execution and Markdown output
+use Playwright. See the
+[AI-generated documentation user guide](./docs/ai-playwright-user-guide.md)
+for scenario format, safety boundaries, browser setup, and CI usage.
+
 ## Current limits
 
 This is an architecture extractor, not the AL compiler or language server.

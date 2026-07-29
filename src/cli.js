@@ -12,6 +12,7 @@ import { addInsights } from "./insights.js";
 import { resolveModel } from "./resolver.js";
 import { renderSvg } from "./svg.js";
 import { createView, filterModel } from "./views.js";
+import { docsMain } from "./docs/cli.js";
 
 const HELP = `ald2tree - generate architecture diagrams from AL source
 
@@ -19,6 +20,7 @@ Usage:
   ald2tree [graph] [options] <file-or-directory>
   ald2tree inspect [options] <file-or-directory>
   ald2tree watch [options] <directory>
+  ald2tree docs <generate|run|heal> [options] <scenario.yml>
 
 Views:
   project (default)   AL objects grouped by namespace
@@ -302,6 +304,7 @@ async function watch(input, values) {
 }
 
 async function main() {
+  if (process.argv[2] === "docs") return docsMain(process.argv.slice(3));
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     strict: true,
