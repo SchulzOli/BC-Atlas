@@ -225,6 +225,9 @@ bca docs generate [options] <ui-test.al>
 ```
 
 Generates Markdown directly from a selected AL `[Test]` procedure.
+`[WHEN]` comments become numbered phases. Reachable local helpers containing
+`TestPage` operations are expanded with cycle and depth protection; repeated
+and conditional UI work is summarized as user-facing instructions.
 
 | Option | Value | Description |
 | --- | --- | --- |

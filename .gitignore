@@ -3,6 +3,7 @@ node_modules/
 dist/
 coverage/
 test-results/
+*.tgz
 
 # Logs and temporary files
 *.log
@@ -33,3 +34,5 @@ Thumbs.db
 !docs/generated/images/
 !docs/generated/images/*.png
 !docs/generated/images/*.jpg
+!examples/output/
+!examples/output/*.svg

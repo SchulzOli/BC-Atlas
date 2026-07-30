@@ -2,8 +2,30 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { Language, Parser } from "web-tree-sitter";
 
 const AL_TEST_PATTERN = /\[Test\](?:\s*\[[^\]]+\])*\s*procedure\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/giu;
+const TEST_PAGE_PATTERN =
+  /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*TestPage\s+(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))\s*;/gimu;
+const UI_OPERATION_PATTERN =
+  /^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\.(OpenNew|OpenEdit|OpenView|Close|New|Invoke|SetValue|GoToRecord)\((.*?)\);\s*$/gimu;
+const UI_OPERATION_DETECTOR =
+  /\.(?:OpenNew|OpenEdit|OpenView|Close|New|Invoke|SetValue|GoToRecord)\s*\(/iu;
+const GRAMMAR_PATH = fileURLToPath(
+  new URL("../../vendor/tree-sitter-al.wasm", import.meta.url)
+);
+let languagePromise;
+
+async function getLanguage() {
+  if (!languagePromise) {
+    languagePromise = (async () => {
+      await Parser.init();
+      return Language.load(GRAMMAR_PATH);
+    })();
+  }
+  return languagePromise;
+}
 
 function portablePath(filename) {
   return filename.replaceAll("\\", "/");
@@ -108,62 +130,145 @@ function contextual(parts, instruction) {
   return instruction.replace(/^[a-z]/u, (letter) => letter.toUpperCase());
 }
 
-function deriveGuidance(source) {
-  const testPages = new Map();
-  for (const match of source.matchAll(
-    /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*TestPage\s+(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))\s*;/gimu
-  )) {
+function collectTestPages(source, initial = new Map()) {
+  const testPages = new Map(initial);
+  for (const match of source.matchAll(TEST_PAGE_PATTERN)) {
     testPages.set(match[1], match[2] ?? humanizeIdentifier(match[3]));
   }
+  return testPages;
+}
+
+function operationGuidance(match, page) {
+  const parts = match[1].split(".");
+  parts.shift();
+  const operation = match[2];
+  if (operation === "OpenNew") {
+    return {
+      instruction: `Open **${page}** and create a new record.`,
+      creationTarget: singular(page)
+    };
+  }
+  if (operation === "OpenEdit") {
+    return { instruction: `Open **${page}** in edit mode.` };
+  }
+  if (operation === "OpenView") return { instruction: `Open **${page}**.` };
+  if (operation === "GoToRecord") {
+    return {
+      instruction: "Open the record you want to work with.",
+      record: humanizeIdentifier(match[3])
+    };
+  }
+  if (operation === "Close") {
+    return {
+      instruction: `Finish the entry and close **${page}**. Business Central saves the changes.`
+    };
+  }
+  if (operation === "New") {
+    return { instruction: contextual(parts, "add a new line.") };
+  }
+  if (operation === "Invoke") {
+    const action = parts.pop();
+    return { instruction: contextual(parts, `choose **${humanizeIdentifier(action)}**.`) };
+  }
+  if (operation === "SetValue") {
+    const field = humanizeIdentifier(parts.pop());
+    const example = exampleValue(match[3]);
+    if (example.kind === "boolean") {
+      return {
+        instruction: contextual(parts, `turn **${field}** ${example.value ? "on" : "off"}.`)
+      };
+    }
+    if (example.kind === "choice") {
+      return {
+        instruction: contextual(parts, `in **${field}**, select **${example.value}**.`),
+        hasExample: true
+      };
+    }
+    if (example.kind === "text") {
+      return {
+        instruction: contextual(
+          parts,
+          `in **${field}**, enter a suitable value (for example, **${example.value}**).`
+        ),
+        hasExample: true
+      };
+    }
+    return {
+      instruction: contextual(parts, `enter the required value in **${field}**.`)
+    };
+  }
+  return undefined;
+}
+
+function repeatRanges(source) {
+  return [...source.matchAll(/\brepeat\b[\s\S]*?\buntil\b[^;]*;/giu)]
+    .map((match) => ({
+      start: match.index,
+      end: match.index + match[0].length
+    }));
+}
+
+function isConditionalOperation(source, range, operationIndex) {
+  const prefix = source.slice(range.start, operationIndex);
+  const boundary = Math.max(prefix.lastIndexOf(";"), prefix.lastIndexOf("repeat"));
+  return /\bif\b[\s\S]*\bthen\s*$/iu.test(prefix.slice(boundary + 1));
+}
+
+function lowerInstruction(value) {
+  return value
+    .replace(/\.$/u, "")
+    .replace(/^[A-Z]/u, (letter) => letter.toLowerCase());
+}
+
+function repeatedGuidance(source, range, operations) {
+  const record = operations.find(({ detail }) => detail.record)?.detail.record ?? "record";
+  const instructions = operations.map(({ detail, index }, itemIndex) => {
+    let instruction = lowerInstruction(detail.instruction);
+    if (isConditionalOperation(source, range, index)) {
+      instruction = `when applicable, ${instruction}`;
+    } else if (itemIndex === operations.length - 1 && operations.length > 1) {
+      instruction = `then ${instruction}`;
+    }
+    return instruction;
+  });
+  return `For each **${record}** record, ${instructions.join("; ")}.`;
+}
+
+function deriveGuidance(source, knownTestPages = new Map()) {
+  const testPages = collectTestPages(source, knownTestPages);
 
   const steps = [];
   let creationTarget;
   let hasExamples = false;
-  const operationPattern =
-    /^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\.(OpenNew|OpenEdit|OpenView|Close|New|Invoke|SetValue|GoToRecord)\((.*?)\);\s*$/gimu;
-  for (const match of source.matchAll(operationPattern)) {
-    const parts = match[1].split(".");
-    const root = parts.shift();
+  const operations = [];
+  for (const match of source.matchAll(UI_OPERATION_PATTERN)) {
+    const root = match[1].split(".")[0];
     const page = testPages.get(root);
     if (!page) continue;
+    const detail = operationGuidance(match, page);
+    if (!detail) continue;
+    if (detail.creationTarget) creationTarget = detail.creationTarget;
+    if (detail.hasExample) hasExamples = true;
+    operations.push({ index: match.index, detail });
+  }
 
-    const operation = match[2];
-    if (operation === "OpenNew") {
-      creationTarget = singular(page);
-      steps.push(`Open **${page}** and create a new record.`);
-    } else if (operation === "OpenEdit") {
-      steps.push(`Open **${page}** in edit mode.`);
-    } else if (operation === "OpenView") {
-      steps.push(`Open **${page}**.`);
-    } else if (operation === "GoToRecord") {
-      steps.push("Open the record you want to work with.");
-    } else if (operation === "Close") {
-      steps.push(`Finish the entry and close **${page}**. Business Central saves the changes.`);
-    } else if (operation === "New") {
-      steps.push(contextual(parts, "add a new line."));
-    } else if (operation === "Invoke") {
-      const action = parts.pop();
-      steps.push(contextual(parts, `choose **${humanizeIdentifier(action)}**.`));
-    } else if (operation === "SetValue") {
-      const field = humanizeIdentifier(parts.pop());
-      const example = exampleValue(match[3]);
-      if (example.kind === "boolean") {
-        steps.push(contextual(parts, `turn **${field}** ${example.value ? "on" : "off"}.`));
-      } else if (example.kind === "choice") {
-        steps.push(contextual(parts, `in **${field}**, select **${example.value}**.`));
-        hasExamples = true;
-      } else if (example.kind === "text") {
-        steps.push(
-          contextual(
-            parts,
-            `in **${field}**, enter a suitable value (for example, **${example.value}**).`
-          )
-        );
-        hasExamples = true;
-      } else {
-        steps.push(contextual(parts, `enter the required value in **${field}**.`));
-      }
+  const ranges = repeatRanges(source);
+  const emittedRanges = new Set();
+  for (const operation of operations) {
+    const range = ranges.find(
+      ({ start, end }) => operation.index >= start && operation.index < end
+    );
+    if (!range) {
+      steps.push(operation.detail.instruction);
+      continue;
     }
+    if (emittedRanges.has(range)) continue;
+    emittedRanges.add(range);
+    steps.push(repeatedGuidance(
+      source,
+      range,
+      operations.filter(({ index }) => index >= range.start && index < range.end)
+    ));
   }
 
   return {
@@ -173,6 +278,89 @@ function deriveGuidance(source) {
     title: creationTarget ? `Create a new ${creationTarget}` : undefined,
     goal: creationTarget ? `Create a new ${creationTarget}.` : undefined
   };
+}
+
+async function procedureSources(source) {
+  const language = await getLanguage();
+  const parser = new Parser();
+  parser.setLanguage(language);
+  const tree = parser.parse(source);
+  const procedures = new Map();
+  const visit = (node) => {
+    if (node.type === "procedure") {
+      const nameNode = node.childForFieldName("name");
+      if (nameNode) {
+        const name = source.slice(nameNode.startIndex, nameNode.endIndex).toLowerCase();
+        procedures.set(name, source.slice(node.startIndex, node.endIndex));
+      }
+    }
+    for (const child of node.namedChildren) visit(child);
+  };
+  visit(tree.rootNode);
+  return procedures;
+}
+
+function bareProcedureCalls(source) {
+  return [...source.matchAll(
+    /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*\);\s*$/gimu
+  )];
+}
+
+function helperContainsUi(name, procedures, visiting = new Set(), depth = 0) {
+  if (depth >= 8 || visiting.has(name)) return false;
+  const source = procedures.get(name);
+  if (!source) return false;
+  if (UI_OPERATION_DETECTOR.test(source)) return true;
+  const next = new Set(visiting).add(name);
+  return bareProcedureCalls(source).some((match) =>
+    helperContainsUi(match[1].toLowerCase(), procedures, next, depth + 1)
+  );
+}
+
+function expandUiHelpers(source, procedures, visiting = new Set(), depth = 0) {
+  if (depth >= 8) return { source, expanded: [] };
+  const expanded = [];
+  const value = source.replace(
+    /^(\s*)([A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*\);\s*$/gimu,
+    (statement, indentation, rawName) => {
+      const name = rawName.toLowerCase();
+      if (
+        visiting.has(name) ||
+        !procedures.has(name) ||
+        !helperContainsUi(name, procedures)
+      ) return statement;
+      const nested = expandUiHelpers(
+        procedures.get(name),
+        procedures,
+        new Set(visiting).add(name),
+        depth + 1
+      );
+      expanded.push(rawName, ...nested.expanded);
+      return nested.source
+        .split(/\r?\n/u)
+        .map((line) => `${indentation}${line}`)
+        .join("\n");
+    }
+  );
+  return { source: value, expanded: [...new Set(expanded)] };
+}
+
+function whenBlocks(source) {
+  const markers = [...source.matchAll(
+    /^\s*\/\/\s*\[WHEN\](?:\/\[THEN\])?\s*(.*)$/gimu
+  )].filter((match) => match[1].trim());
+  return markers.map((marker, index) => {
+    const afterMarker = marker.index + marker[0].length;
+    const nextMarker = source.slice(afterMarker).search(
+      /^\s*\/\/\s*\[(?:WHEN|THEN)\](?:\/\[[A-Z]+\])?/gimu
+    );
+    const end = nextMarker < 0 ? source.length : afterMarker + nextMarker;
+    return {
+      title: marker[1].trim(),
+      source: source.slice(afterMarker, end),
+      index
+    };
+  });
 }
 
 function guidePrerequisites(items, creationTarget) {
@@ -193,7 +381,7 @@ function guideExpectedResults(items, creationTarget) {
   });
 }
 
-function parseAlUiTest(source, filename, requestedProcedure) {
+async function parseAlUiTest(source, filename, requestedProcedure) {
   const tests = [...source.matchAll(AL_TEST_PATTERN)];
   if (!tests.length) throw new Error(`${path.basename(filename)} contains no [Test] procedures`);
 
@@ -227,7 +415,18 @@ function parseAlUiTest(source, filename, requestedProcedure) {
 
   const goal = scenarios.join(" ").trim();
   const expected = commentValues(comments, "THEN");
-  const guidance = deriveGuidance(sourceText);
+  const procedures = await procedureSources(source);
+  const expanded = expandUiHelpers(sourceText, procedures);
+  const testPages = collectTestPages(expanded.source);
+  const guidance = deriveGuidance(expanded.source, testPages);
+  const guideSections = whenBlocks(sourceText).map((section) => {
+    const sectionExpansion = expandUiHelpers(section.source, procedures);
+    return {
+      title: section.title,
+      steps: deriveGuidance(sectionExpansion.source, testPages).steps,
+      expandedHelpers: sectionExpansion.expanded
+    };
+  });
   const prerequisites = commentValues(comments, "GIVEN");
   const permissions = [...new Set([
     ...commentValues(comments, "PERMISSIONS"),
@@ -240,6 +439,8 @@ function parseAlUiTest(source, filename, requestedProcedure) {
     goal,
     guideGoal: guidance.goal ?? goal,
     guideSteps: guidance.steps,
+    guideSections,
+    expandedHelpers: expanded.expanded,
     hasExampleValues: guidance.hasExamples,
     permissions,
     prerequisites,
@@ -269,7 +470,7 @@ export async function loadAlUiTest(reference, options = {}) {
     throw new Error(`cannot read AL UI-test source ${absolutePath}: ${error.message}`);
   }
 
-  const value = parseAlUiTest(content, absolutePath, selected.procedure);
+  const value = await parseAlUiTest(content, absolutePath, selected.procedure);
   return {
     path: absolutePath,
     relativePath: portablePath(path.relative(process.cwd(), absolutePath)),

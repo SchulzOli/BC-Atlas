@@ -35,10 +35,18 @@ export function renderDocumentation(source) {
         ""
       );
     }
-    lines.push(
-      ...procedure.map((action, index) => `${index + 1}. ${action}`),
-      ""
-    );
+    if (value.guideSections?.length) {
+      for (const [index, section] of value.guideSections.entries()) {
+        lines.push(`${index + 1}. ${section.title}`);
+        for (const step of section.steps) lines.push(`   - ${step}`);
+      }
+      lines.push("");
+    } else {
+      lines.push(
+        ...procedure.map((action, index) => `${index + 1}. ${action}`),
+        ""
+      );
+    }
   }
   lines.push(
     "## What should happen",

@@ -51,11 +51,20 @@ end;
 | `[PERMISSIONS]` | Required permission sets under “Before you start” |
 | `[GIVEN]` | User-friendly preparation guidance |
 | `TestPage` calls | Detailed page, field, action, and save steps |
-| `[WHEN]` | Procedure fallback when no supported TestPage calls exist |
+| `[WHEN]` | Numbered user phase and context for derived TestPage steps |
 | `[THEN]` | Expected results |
 
 When `[THEN]` has no text, the `[SCENARIO]` sentence is used as the expected
 result. Explicit `[THEN]` text is preferred.
+
+Each `[WHEN]` comment becomes a numbered phase. Supported `TestPage` operations
+following that comment are rendered as detailed steps beneath the phase.
+BC Atlas also follows reachable local procedure calls when a helper contains
+`TestPage` work. Setup-only helpers are not expanded.
+
+Within expanded UI helpers, `repeat` blocks are summarized as “for each record”
+instructions and UI operations guarded by `if` are described as conditional.
+Expansion is cycle-safe and limited to eight helper levels.
 
 `[PERMISSIONS]` is optional and may be repeated for multiple permission sets.
 `[PERMISSION]` is accepted as an alias. When neither tag is present, no

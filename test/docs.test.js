@@ -40,6 +40,49 @@ const AL_UI_TEST = `codeunit 50100 WidgetUITest
 }
 `;
 
+const HELPER_UI_TEST = `codeunit 50101 ConversionUITest
+{
+    Subtype = Test;
+
+    [Test]
+    procedure ResolveProviderConversions()
+    var
+        Exchanges: TestPage "EDI Exchanges";
+    begin
+        // [SCENARIO] Resolve every discovered provider conversion.
+
+        // [WHEN] The user runs the exchange until conversions block processing.
+        Exchanges.OpenView();
+        Exchanges.RunAllSteps.Invoke();
+
+        // [WHEN] The user maps every discovered provider value.
+        ResolveDiscoveredConversions();
+
+        // [WHEN] The user resumes processing.
+        Exchanges.RerunCurrentStep.Invoke();
+
+        // [THEN] Processing completes.
+    end;
+
+    local procedure ResolveDiscoveredConversions()
+    var
+        UnresolvedConversion: Record "Unresolved Conversion";
+        ConversionGuide: TestPage "Conversion Guide";
+        ResolvedValue: Text[100];
+        SecondaryResolvedValue: Text[100];
+    begin
+        ConversionGuide.OpenEdit();
+        repeat
+            ConversionGuide.GoToRecord(UnresolvedConversion);
+            ConversionGuide.ResolvedValue.SetValue(ResolvedValue);
+            if SecondaryResolvedValue <> '' then
+                ConversionGuide.SecondaryResolvedValue.SetValue(SecondaryResolvedValue);
+            ConversionGuide.SaveAndNext.Invoke();
+        until UnresolvedConversion.Next() = 0;
+    end;
+}
+`;
+
 test("derives documentation from a selected AL UI test", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
   const filename = path.join(directory, "WidgetUITest.Codeunit.al");
@@ -116,7 +159,8 @@ test("renders and writes deterministic Markdown directly from AL", async () => {
     assert.match(markdown, /## Before you start/u);
     assert.match(markdown, /Required permission: \*\*Widget, Edit\*\*/u);
     assert.match(markdown, /## Steps/u);
-    assert.match(markdown, /1\. Open \*\*Widgets\*\*/u);
+    assert.match(markdown, /1\. A user creates a widget from the list\./u);
+    assert.match(markdown, /   - Open \*\*Widgets\*\*/u);
     assert.match(markdown, /for example, \*\*W-UI\*\*/u);
     assert.match(markdown, /Business Central saves the changes/u);
     assert.match(markdown, /The widget persists with its code and name\./u);
@@ -128,6 +172,35 @@ test("renders and writes deterministic Markdown directly from AL", async () => {
     const filename = await writeDocumentation(source, output);
     assert.ok(existsSync(filename));
     assert.equal(readFileSync(filename, "utf8"), markdown);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("expands reachable UI helpers and summarizes loops under WHEN phases", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "ConversionUITest.Codeunit.al");
+  try {
+    writeFileSync(filename, HELPER_UI_TEST);
+    const source = await loadAlUiTest(filename);
+
+    assert.deepEqual(source.value.expandedHelpers, ["ResolveDiscoveredConversions"]);
+    assert.equal(source.value.guideSections.length, 3);
+    assert.deepEqual(source.value.guideSections[1].expandedHelpers, [
+      "ResolveDiscoveredConversions"
+    ]);
+    assert.deepEqual(source.value.guideSections[1].steps, [
+      "Open **Conversion Guide** in edit mode.",
+      "For each **Unresolved Conversion** record, open the record you want to work with; " +
+      "enter the required value in **Resolved Value**; when applicable, enter the required " +
+      "value in **Secondary Resolved Value**; then choose **Save And Next**."
+    ]);
+
+    const markdown = renderDocumentation(source);
+    assert.match(markdown, /2\. The user maps every discovered provider value\./u);
+    assert.match(markdown, /For each \*\*Unresolved Conversion\*\* record/u);
+    assert.match(markdown, /when applicable.+\*\*Secondary Resolved Value\*\*/u);
+    assert.match(markdown, /then choose \*\*Save And Next\*\*/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

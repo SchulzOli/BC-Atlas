@@ -2,6 +2,14 @@
   "name": "bc-atlas",
   "version": "0.5.0",
   "description": "BC Atlas generates D2 architecture diagrams and executable user documentation for Microsoft Dynamics 365 Business Central.",
+  "homepage": "https://github.com/SchulzOli/ALD2Tree#readme",
+  "bugs": {
+    "url": "https://github.com/SchulzOli/ALD2Tree/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SchulzOli/ALD2Tree.git"
+  },
   "type": "module",
   "bin": {
     "bca": "./src/cli.js"
@@ -10,6 +18,7 @@
     "src/",
     "scripts/",
     "vendor/",
+    "examples/",
     "docs/al-ui-test-documentation.md",
     "docs/cli-reference.md",
     ".bca.example.json",
@@ -20,7 +29,9 @@
   "scripts": {
     "start": "node ./src/cli.js",
     "test": "node --test",
-    "check": "node --check src/cli.js && node --check src/analyzer.js && node --check src/config.js && node --check src/d2.js && node --check src/insights.js && node --check src/resolver.js && node --check src/svg.js && node --check src/views.js && node --check src/workflow.js && node --check src/docs/cli.js && node --check src/docs/markdown.js && node --check src/docs/al-ui-source.js",
+    "check": "node --check src/cli.js && node --check src/analyzer.js && node --check src/config.js && node --check src/d2.js && node --check src/insights.js && node --check src/resolver.js && node --check src/svg.js && node --check src/views.js && node --check src/workflow.js && node --check src/docs/cli.js && node --check src/docs/markdown.js && node --check src/docs/al-ui-source.js && node --check scripts/generate-examples.js",
+    "examples": "node ./scripts/generate-examples.js",
+    "prepack": "npm run check && npm test",
     "update:grammar": "node ./scripts/update-grammar.js"
   },
   "keywords": [
@@ -28,9 +39,17 @@
     "business-central",
     "d2",
     "architecture",
+    "dependency-graph",
+    "documentation",
+    "dynamics-365",
+    "static-analysis",
     "tree-sitter"
   ],
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
     "node": ">=20"
   },

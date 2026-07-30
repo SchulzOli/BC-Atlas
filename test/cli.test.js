@@ -41,12 +41,14 @@ test("renders SVG with bundled D2 WASM and normalizes a conflicting extension", 
       {
         encoding: "utf8",
         env: { ...process.env, PATH: "" },
-        timeout: 30_000
+        // Cold-starting the D2 WebAssembly worker can exceed 30 seconds on
+        // GitHub's macOS runners, especially when the runner is under load.
+        timeout: 120_000
       }
     );
 
+    assert.equal(result.error, undefined, result.error?.stack);
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.error, undefined);
     assert.ok(existsSync(requestedD2), "D2 source should be retained");
     assert.ok(existsSync(expectedSvg), "SVG should use the requested format extension");
     assert.match(readFileSync(expectedSvg, "utf8"), /<svg\b/u);

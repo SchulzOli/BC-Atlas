@@ -1,15 +1,25 @@
 # BC Atlas
 
-BC Atlas (`bca`) is a lightweight CLI that parses Microsoft Dynamics 365 Business
-Central AL source with
+[![CI](https://github.com/SchulzOli/ALD2Tree/actions/workflows/ci.yml/badge.svg)](https://github.com/SchulzOli/ALD2Tree/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+
+Turn a Microsoft Dynamics 365 Business Central AL project into readable
+architecture diagrams, focused dependency views, workflow traces, and
+executable user documentation.
+
+BC Atlas (`bca`) is an open-source CLI that parses AL source with
 [`tree-sitter-al`](https://github.com/SShadowS/tree-sitter-al), builds a small
-architecture graph, and writes
-[`D2`](https://github.com/terrastruct/d2) diagram source.
+architecture graph, and writes [`D2`](https://github.com/terrastruct/d2), JSON,
+or SVG. The parser and SVG renderer are WebAssembly-based, so the standard
+workflow needs only Node.js.
 
 See the [complete CLI command and option reference](./docs/cli-reference.md)
 for every command, view, selector, option, default, and configuration setting.
 
-The CLI discovers AL objects, groups them by namespace, and shows:
+## What it shows
+
+The CLI discovers AL objects and relationships across a project, including:
 
 - extension and customization targets;
 - implemented interfaces;
@@ -20,19 +30,47 @@ The CLI discovers AL objects, groups them by namespace, and shows:
 - app metadata from `app.json`, resolution diagnostics, cycles, hubs, and
   orphan objects.
 
+Ten focused views keep larger diagrams useful: `project`, `module`, `object`,
+`data`, `call`, `boundary`, `contracts`, `events`, `ui`, and `workflow`.
+
+## Screenshots
+
+These images are generated from the checked-in
+[warehouse example](./examples/README.md), using BC Atlas itself.
+
+### Complete architecture
+
+![BC Atlas project view showing UI, service, data, contract, and security relationships](./docs/generated/images/project-view.png)
+
+### Workflow and UI views
+
+| Workflow trace | UI composition |
+| --- | --- |
+| ![Workflow trace showing calls, an event dispatch, and a table write](./docs/generated/images/workflow-view.png) | ![UI view showing a page extension, page action, and source table](./docs/generated/images/ui-view.png) |
+
+The matching editable [D2 and SVG outputs](./examples/output) are committed for
+inspection and can be regenerated with `npm run examples`.
+
 ## Quick start
 
-Requirements: Node.js 20 or later. Both the AL parser and SVG renderer run as
-WebAssembly, so no native compiler toolchain or separate D2 installation is
-needed for `.d2`, `.json`, or `.svg` output. PNG and PDF output still use the
-optional D2 executable.
+Requirements: Node.js 20 or later.
 
 ```sh
-npm install
+git clone https://github.com/SchulzOli/ALD2Tree.git
+cd ALD2Tree
+npm ci
 npm link
 
 bca ./path/to/al-project -o architecture.d2
 bca ./path/to/al-project -o architecture.svg
+```
+
+No native compiler toolchain or separate D2 installation is needed for `.d2`,
+`.json`, or `.svg` output. PNG and PDF output requires the optional D2 executable.
+You can also run the CLI without linking it:
+
+```sh
+node src/cli.js graph ./path/to/al-project --view project -o architecture.svg
 ```
 
 When `--format` conflicts with the output extension, the format wins:
@@ -131,6 +169,19 @@ Current views favor readability:
   `permits [RIMD]` edges.
 
 Run `bca --help` for the complete CLI reference.
+
+## Examples
+
+The repository includes a self-contained AL project with interfaces, enum
+implementations, pages, extensions, actions, events, data mutations, and
+permissions. Generate its project, workflow, and UI diagrams with:
+
+```sh
+npm run examples
+```
+
+See [examples/README.md](./examples/README.md) for the expected outputs and
+additional view commands.
 
 ## Configuration
 
@@ -242,7 +293,17 @@ The repository pins the upstream AL grammar artifact in
 `vendor/tree-sitter-al.wasm`. Maintainers can update it with
 `npm run update:grammar -- <tree-sitter-al tag>`.
 
+## Contributing and support
+
+Contributions are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md), and
+read the [Code of Conduct](./CODE_OF_CONDUCT.md). Use the issue forms for bugs
+and feature requests, [SUPPORT.md](./SUPPORT.md) for usage help, and
+[SECURITY.md](./SECURITY.md) for private vulnerability reporting.
+
+Release notes are maintained in [CHANGELOG.md](./CHANGELOG.md).
+
 ## License
 
-MIT. Dependencies retain their own licenses: `tree-sitter-al` is MIT,
-`web-tree-sitter` is MIT, and D2 is MPL-2.0.
+[MIT](./LICENSE). Dependencies retain their own licenses: `tree-sitter-al` is
+MIT, `web-tree-sitter` is MIT, and D2 is MPL-2.0. See
+[THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
