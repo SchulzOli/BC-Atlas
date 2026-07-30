@@ -97,7 +97,7 @@ test("renders namespaced D2 with internal and external dependencies", async () =
   assert.match(d2, /style\.fill: "#[A-F0-9]{6}"/);
   assert.match(d2, /"implements" \{style\.stroke: "#E69F00"\}/u);
   assert.match(d2, /"reads" \{style\.stroke: "#0072B2"\}/u);
-  assert.equal(model.apps[0].name, "ALD2Tree Fixture");
+  assert.equal(model.apps[0].name, "BC Atlas Fixture");
   assert.ok(model.objects.every((object) => object.location.line > 0));
   assert.ok(model.edges.some((edge) => edge.kind === "reads" && edge.to));
 });
@@ -188,4 +188,144 @@ test("projects boundary, contracts, events, and UI views", async () => {
     "events"
   );
   assert.match(renderD2(emptyEvents), /No event publishers or subscribers found/u);
+});
+
+test("projects bounded, configurable workflows with certainty, mutations, and cycles", async () => {
+  const source = `
+    namespace Demo;
+    table 50100 Buffer { }
+    codeunit 50101 Flow {
+      var
+        BufferRecord: Record Buffer;
+
+      procedure Start()
+      begin
+        Utility();
+      end;
+
+      procedure Utility()
+      begin
+        BufferRecord.Insert();
+        Publish();
+        LoopA();
+        Missing.Run();
+      end;
+
+      procedure LoopA()
+      begin
+        LoopB();
+      end;
+
+      procedure LoopB()
+      begin
+        LoopA();
+      end;
+
+      [IntegrationEvent(false, false)]
+      procedure Publish()
+      begin
+      end;
+
+      [EventSubscriber(ObjectType::Codeunit, Codeunit::Flow, 'Publish', '', false, false)]
+      local procedure HandlePublish()
+      begin
+      end;
+    }
+
+    page 50102 FlowCard {
+      var
+        Runner: Codeunit Flow;
+      actions {
+        area(Processing) {
+          action(RunFlow) {
+            trigger OnAction()
+            begin
+              Runner.Start();
+            end;
+          }
+        }
+      }
+    }
+  `;
+  const parsed = await testing.objectsFromSource(source, "workflow.al");
+  const model = resolveModel({
+    schemaVersion: 1,
+    files: 1,
+    apps: [],
+    diagnostics: [],
+    ...parsed
+  });
+  const workflow = createView(model, "workflow", {
+    entry: ["Start"],
+    depth: 10,
+    maxNodes: 20,
+    maxEdges: 30,
+    edgeTypes: ["calls", "events", "writes"],
+    phases: {
+      Processing: ["Start", "Utility", "Loop*"],
+      Notifications: ["Publish", "HandlePublish"]
+    }
+  });
+
+  assert.ok(workflow.objects.some(({ name }) => name === "Buffer"));
+  assert.ok(workflow.edges.some(({ kind }) => kind === "writes"));
+  assert.ok(
+    workflow.edges.some(
+      ({ kind, sequence }) => kind === "calls" && sequence === "definite"
+    )
+  );
+  assert.ok(
+    workflow.edges.some(
+      ({ kind, sequence }) => kind === "events" && sequence === "inferred"
+    )
+  );
+  assert.ok(workflow.edges.some(({ unresolved }) => unresolved?.name === "Missing.Run"));
+  assert.ok(workflow.edges.some(({ isCycle }) => isCycle));
+  assert.ok(workflow.objects.some(({ cycle }) => cycle));
+  assert.ok(workflow.objects.some(({ viewGroup }) => viewGroup === "Notifications"));
+  assert.deepEqual(workflow.workflow.edgeTypes, ["calls", "events", "writes"]);
+
+  const collapsed = createView(model, "workflow", {
+    entry: "Start",
+    collapse: ["Utility"],
+    maxNodes: 20
+  });
+  assert.ok(!collapsed.objects.some(({ name }) => name === "Utility"));
+  assert.ok(collapsed.workflow.collapsed.length === 1);
+  assert.ok(collapsed.edges.some(({ sequence }) => sequence === "inferred"));
+
+  const stopped = createView(model, "workflow", {
+    entry: "Start",
+    stop: ["Utility"]
+  });
+  assert.deepEqual(
+    stopped.objects.map(({ name }) => name).sort(),
+    ["Start", "Utility"]
+  );
+
+  const writesOnly = createView(model, "workflow", {
+    entry: "Utility",
+    edgeTypes: ["writes"]
+  });
+  assert.ok(writesOnly.edges.length > 0);
+  assert.ok(writesOnly.edges.every(({ kind }) => kind === "writes"));
+
+  const actionFlow = createView(model, "workflow", {
+    entry: "action:RunFlow",
+    depth: 2
+  });
+  assert.ok(actionFlow.objects.some(({ type, name }) => type === "action" && name === "RunFlow"));
+  assert.ok(actionFlow.edges.some(({ kind }) => kind === "starts"));
+
+  const limited = createView(model, "workflow", {
+    entry: "Start",
+    maxNodes: 2
+  });
+  assert.equal(limited.objects.length, 2);
+  assert.equal(limited.workflow.truncatedByNodes, true);
+
+  const d2 = renderD2(workflow, { title: "Workflow" });
+  assert.match(d2, /\[definite\]/u);
+  assert.match(d2, /\[inferred\]/u);
+  assert.match(d2, /\[cycle\]/u);
 });

@@ -7,7 +7,7 @@ export async function loadConfig(input, explicitPath) {
   const base = stat.isDirectory() ? inputPath : path.dirname(inputPath);
   const configPath = explicitPath
     ? path.resolve(explicitPath)
-    : path.join(base, ".ald2tree.json");
+    : path.join(base, ".bca.json");
   try {
     const text = await fs.readFile(configPath, "utf8");
     const config = JSON.parse(text);

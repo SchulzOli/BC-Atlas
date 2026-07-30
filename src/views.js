@@ -1,4 +1,5 @@
 import { normalizeIdentifier } from "./resolver.js";
+import { workflowView } from "./workflow.js";
 
 function globToRegExp(pattern) {
   const escaped = String(pattern)
@@ -665,6 +666,7 @@ export function createView(model, view = "project", options = {}) {
     case "contracts": return contractsView(model, options);
     case "events": return eventsView(model, options);
     case "ui": return uiView(model, options);
+    case "workflow": return workflowView(model, options);
     default: throw new Error(`Unsupported view: ${view}`);
   }
 }

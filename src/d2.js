@@ -37,7 +37,9 @@ const RELATION_STYLES = {
   part: { color: "#0891B2", dash: 3 },
   contains: { color: "#0891B2", dash: 3 },
   permits: { color: "#7C3AED" },
-  includes: { color: "#8B5CF6" }
+  includes: { color: "#8B5CF6" },
+  starts: { color: "#15803D" },
+  events: { color: "#A21CAF", dash: 3 }
 };
 
 function quote(value) {
@@ -52,7 +54,8 @@ function uniqueRelations(relations) {
   const combined = new Map();
   for (const relation of relations) {
     const key =
-      `${relation.from}|${relation.to}|${relation.kind}|${relation.access ?? ""}|${relation.label ?? ""}`;
+      `${relation.from}|${relation.to}|${relation.kind}|${relation.access ?? ""}|` +
+      `${relation.label ?? ""}|${relation.sequence ?? ""}|${relation.isCycle ?? ""}`;
     const existing = combined.get(key);
     if (existing) existing.weight = (existing.weight ?? 1) + (relation.weight ?? 1);
     else combined.set(key, { ...relation });
@@ -90,10 +93,13 @@ function memberSummary(items, limit = 8) {
   return shown.join(", ");
 }
 
-function relationStyle(kind) {
+function relationStyle(kind, sequence, isCycle) {
   const style = RELATION_STYLES[kind] ?? { color: "#64748B" };
-  const properties = [`style.stroke: ${quote(style.color)}`];
-  if (style.dash) properties.push(`style.stroke-dash: ${style.dash}`);
+  const properties = [`style.stroke: ${quote(isCycle ? "#B91C1C" : style.color)}`];
+  if (style.dash || sequence === "inferred") {
+    properties.push(`style.stroke-dash: ${style.dash ?? 4}`);
+  }
+  if (isCycle) properties.push("style.stroke-width: 3");
   return ` {${properties.join("; ")}}`;
 }
 
@@ -162,7 +168,13 @@ export function renderD2(model, options = {}) {
               : undefined
           ].filter(Boolean)
         : [];
-      const fullLabel = details.length ? `${label}\n${details.join(" • ")}` : label;
+      const annotations = [
+        object.workflowEntry ? "entry" : undefined,
+        object.cycle ? `cycle ${object.cycle}` : undefined,
+        object.shared ? `shared by ${object.shared} branches` : undefined
+      ].filter(Boolean);
+      const fullDetails = [...details, ...annotations];
+      const fullLabel = fullDetails.length ? `${label}\n${fullDetails.join(" • ")}` : label;
       const [fill, stroke] = TYPE_STYLES[object.type] ?? ["#F5F5F5", "#666666"];
       lines.push(`  ${key}: ${quote(fullLabel)} {`);
       lines.push("    shape: rectangle");
@@ -204,7 +216,9 @@ export function renderD2(model, options = {}) {
         kind: edge.kind,
         access: edge.access,
         label: edge.label,
-        weight: edge.weight
+        weight: edge.weight,
+        sequence: edge.sequence,
+        isCycle: edge.isCycle
       });
     }
   }
@@ -226,12 +240,19 @@ export function renderD2(model, options = {}) {
   for (const edge of uniqueRelations(edges)) {
     const arrow = edge.kind === "extends" || edge.kind === "implements" ? "-->" : "->";
     const relationLabel = edge.label ?? edge.kind;
-    const baseLabel = edge.access ? `${relationLabel} [${edge.access}]` : relationLabel;
+    const certainty = edge.sequence ? ` [${edge.sequence}]` : "";
+    const cycle = edge.isCycle ? " [cycle]" : "";
+    const baseLabel =
+      `${edge.access ? `${relationLabel} [${edge.access}]` : relationLabel}${certainty}${cycle}`;
     const label = edge.weight && edge.weight > 1
       ? `${baseLabel} (${edge.weight})`
       : baseLabel;
     lines.push(
-      `${edge.from} ${arrow} ${edge.to}: ${quote(label)}${relationStyle(edge.kind)}`
+      `${edge.from} ${arrow} ${edge.to}: ${quote(label)}${relationStyle(
+        edge.kind,
+        edge.sequence,
+        edge.isCycle
+      )}`
     );
   }
 

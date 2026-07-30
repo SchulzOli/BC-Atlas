@@ -1,0 +1,8 @@
+{
+  "id": "8ca2f385-ffba-4be3-94ad-84feaae0c397",
+  "name": "BC Atlas Warehouse Example",
+  "publisher": "BC Atlas contributors",
+  "version": "1.0.0.0",
+  "runtime": "13.0",
+  "dependencies": []
+}

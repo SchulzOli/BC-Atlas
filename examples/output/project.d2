@@ -1,0 +1,86 @@
+direction: right
+title: "Warehouse architecture" {
+  shape: text
+  near: top-center
+  style.font-size: 28
+}
+
+g0: "Contracts" {
+  style.stroke-dash: 3
+  n2: "interface\nHandles Warehouse Activity" {
+    shape: rectangle
+    tooltip: "Inventory.al:3"
+    style.fill: "#FFF8C9"
+    style.stroke: "#8B7400"
+  }
+  n5: "enum 50102\nWarehouse Handler" {
+    shape: rectangle
+    tooltip: "Inventory.al:40"
+    style.fill: "#EEEEEE"
+    style.stroke: "#555555"
+  }
+}
+
+g1: "Data" {
+  style.stroke-dash: 3
+  n3: "table 50100\nWarehouse Request" {
+    shape: rectangle
+    tooltip: "Inventory.al:8"
+    style.fill: "#DCEBFF"
+    style.stroke: "#2362A2"
+  }
+}
+
+g2: "Security" {
+  style.stroke-dash: 3
+  n1: "permissionset 50121\nWAREHOUSE PROCESS" {
+    shape: rectangle
+    tooltip: "Automation.al:18"
+    style.fill: "#F5F5F5"
+    style.stroke: "#666666"
+  }
+}
+
+g3: "Services" {
+  style.stroke-dash: 3
+  n0: "codeunit 50120\nWarehouse Notifications" {
+    shape: rectangle
+    tooltip: "Automation.al:5"
+    style.fill: "#FFF0D6"
+    style.stroke: "#A96300"
+  }
+  n4: "codeunit 50101\nWarehouse Processor" {
+    shape: rectangle
+    tooltip: "Inventory.al:18"
+    style.fill: "#FFF0D6"
+    style.stroke: "#A96300"
+  }
+}
+
+g4: "UI" {
+  style.stroke-dash: 3
+  n7: "pageextension 50111\nWarehouse Request Ext." {
+    shape: rectangle
+    tooltip: "WarehouseUI.al:27"
+    style.fill: "#E5F6E8"
+    style.stroke: "#31783B"
+    style.stroke-dash: 4
+  }
+  n6: "page 50110\nWarehouse Requests" {
+    shape: rectangle
+    tooltip: "WarehouseUI.al:5"
+    style.fill: "#E5F6E8"
+    style.stroke: "#31783B"
+  }
+}
+
+g3.n0 -> g3.n4: "reads" {style.stroke: "#0072B2"}
+g2.n1 -> g1.n3: "permits [RIMD]" {style.stroke: "#7C3AED"}
+g3.n4 --> g0.n2: "implements" {style.stroke: "#E69F00"}
+g3.n4 -> g1.n3: "uses" {style.stroke: "#6B7280"; style.stroke-dash: 3}
+g3.n4 -> g1.n3: "writes" {style.stroke: "#D55E00"}
+g0.n5 --> g0.n2: "implements" {style.stroke: "#E69F00"}
+g0.n5 -> g3.n4: "selects" {style.stroke: "#EA580C"}
+g4.n6 -> g1.n3: "reads" {style.stroke: "#0072B2"}
+g4.n6 -> g3.n4: "uses" {style.stroke: "#6B7280"; style.stroke-dash: 3}
+g4.n7 --> g4.n6: "extends" {style.stroke: "#CC79A7"}

@@ -129,7 +129,7 @@ the entire module to `BeTerna.Fashion`.
 
 ## Project and object readability
 
-- [ ] Allow custom role mappings in `.ald2tree.json`.
+- [ ] Allow custom role mappings in `.bca.json`.
 - [ ] Add optional source-code hyperlinks using repository-relative paths and
   commit/ref templates.
 - [ ] Show edge legends and confidence legends.
@@ -167,3 +167,8 @@ the entire module to `BeTerna.Fashion`.
 - [ ] Add output snapshots for every grouping mode.
 - [ ] Add deterministic whole-app stress tests with edge-density limits.
 
+## Documentation screenshots
+
+- [ ] Add optional screenshot generation for AL UI-test documentation without
+  introducing a second authoritative test implementation. Screenshot capture
+  must remain opt-in and must consume the AL-derived documentation contract.

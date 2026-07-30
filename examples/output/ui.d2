@@ -1,0 +1,47 @@
+direction: right
+title: "Warehouse UI composition" {
+  shape: text
+  near: top-center
+  style.font-size: 28
+}
+
+g0: "Actions" {
+  style.stroke-dash: 3
+  n3: "action\nProcessRequest" {
+    shape: rectangle
+    tooltip: "WarehouseUI.al:14"
+    style.fill: "#E5F6E8"
+    style.stroke: "#31783B"
+  }
+}
+
+g1: "Pages" {
+  style.stroke-dash: 3
+  n2: "pageextension 50111\nWarehouse Request Ext." {
+    shape: rectangle
+    tooltip: "WarehouseUI.al:27"
+    style.fill: "#E5F6E8"
+    style.stroke: "#31783B"
+    style.stroke-dash: 4
+  }
+  n1: "page 50110\nWarehouse Requests" {
+    shape: rectangle
+    tooltip: "WarehouseUI.al:5"
+    style.fill: "#E5F6E8"
+    style.stroke: "#31783B"
+  }
+}
+
+g2: "Source tables" {
+  style.stroke-dash: 3
+  n0: "table 50100\nWarehouse Request" {
+    shape: rectangle
+    tooltip: "Inventory.al:8"
+    style.fill: "#DCEBFF"
+    style.stroke: "#2362A2"
+  }
+}
+
+g1.n1 -> g0.n3: "action" {style.stroke: "#0891B2"; style.stroke-dash: 3}
+g1.n1 -> g2.n0: "source table" {style.stroke: "#0072B2"}
+g1.n2 --> g1.n1: "extends" {style.stroke: "#CC79A7"}

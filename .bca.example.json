@@ -9,6 +9,19 @@
   "folderDepth": 1,
   "includeUnresolvedCalls": false,
   "maxEdges": 500,
+  "workflow": {
+    "entries": ["ProcessDocument"],
+    "depth": 8,
+    "maxNodes": 100,
+    "maxEdges": 250,
+    "edgeTypes": ["calls", "events", "writes"],
+    "phases": {
+      "Validation": ["Validate*"],
+      "Processing": ["Process*", "Post*"]
+    },
+    "stop": ["Finalize*"],
+    "collapse": ["*Telemetry*"]
+  },
   "details": false,
   "noExternal": false,
   "layout": "elk",

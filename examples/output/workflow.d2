@@ -1,0 +1,56 @@
+direction: right
+title: "Request processing flow" {
+  shape: text
+  near: top-center
+  style.font-size: 28
+}
+
+g0: "Data mutations" {
+  style.stroke-dash: 3
+  n5: "table 50100\nWarehouse Request" {
+    shape: rectangle
+    tooltip: "Inventory.al:8"
+    style.fill: "#DCEBFF"
+    style.stroke: "#2362A2"
+  }
+}
+
+g1: "Workflow" {
+  style.stroke-dash: 3
+  n0: "procedure\nNotifyRequestProcessed" {
+    shape: rectangle
+    tooltip: "Automation.al:8"
+    style.fill: "#F3F6FA"
+    style.stroke: "#55708F"
+  }
+  n4: "event\nOnRequestProcessed" {
+    shape: rectangle
+    tooltip: "Inventory.al:35"
+    style.fill: "#F5E5FF"
+    style.stroke: "#77449A"
+  }
+  n2: "procedure\nProcess\nentry" {
+    shape: rectangle
+    tooltip: "Inventory.al:23"
+    style.fill: "#F3F6FA"
+    style.stroke: "#55708F"
+  }
+  n1: "procedure\nSendNotification" {
+    shape: rectangle
+    tooltip: "Automation.al:13"
+    style.fill: "#F3F6FA"
+    style.stroke: "#55708F"
+  }
+  n3: "procedure\nValidateRequest" {
+    shape: rectangle
+    tooltip: "Inventory.al:30"
+    style.fill: "#F3F6FA"
+    style.stroke: "#55708F"
+  }
+}
+
+g1.n2 -> g1.n3: "calls #1 [definite]" {style.stroke: "#4C78A8"}
+g1.n2 -> g0.n5: "Modify #2 [definite]" {style.stroke: "#D55E00"}
+g1.n2 -> g1.n4: "calls #3 [definite]" {style.stroke: "#4C78A8"}
+g1.n4 -> g1.n0: "dispatches event [inferred]" {style.stroke: "#A21CAF"; style.stroke-dash: 3}
+g1.n0 -> g1.n1: "calls #1 [definite]" {style.stroke: "#4C78A8"}

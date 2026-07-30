@@ -25,10 +25,16 @@ jobs:
       - run: npm test
       - run: node src/cli.js graph test/fixtures --view project --output dist/architecture.d2
       - run: node src/cli.js inspect test/fixtures --output dist/model.json
+      - if: matrix.os == 'ubuntu-latest' && matrix.node == 22
+        run: npm run examples
+      - if: matrix.os == 'ubuntu-latest' && matrix.node == 22
+        run: git diff --exit-code -- examples/output
+      - if: matrix.os == 'ubuntu-latest' && matrix.node == 22
+        run: npm pack --dry-run
 
   container:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t ald2tree:test .
-      - run: docker run --rm ald2tree:test --version
+      - run: docker build -t bc-atlas:test .
+      - run: docker run --rm bc-atlas:test --version
