@@ -20,7 +20,7 @@ Usage:
   ald2tree [graph] [options] <file-or-directory>
   ald2tree inspect [options] <file-or-directory>
   ald2tree watch [options] <directory>
-  ald2tree docs <generate|run|heal> [options] <scenario.yml>
+  ald2tree docs generate [options] <ui-test.al>
 
 Views:
   project (default)   AL objects grouped by namespace

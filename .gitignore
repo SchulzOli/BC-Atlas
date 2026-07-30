@@ -3,7 +3,6 @@ node_modules/
 dist/
 coverage/
 test-results/
-playwright-report/
 
 # Logs and temporary files
 *.log

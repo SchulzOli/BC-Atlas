@@ -153,20 +153,19 @@ and design decisions.
 
 ## Executable user documentation
 
-The experimental `docs` command family turns small Business Central scenario
-contracts into AI-generated Playwright tests. Passing customer-visible
-`test.step()` entries and screenshots are published as Markdown:
+The `docs generate` command turns an AL `[Test]` procedure into goal-oriented
+Markdown directly. It combines `[SCENARIO]`, `[GIVEN]`, `[WHEN]`, and `[THEN]`
+comments with `TestPage` operations to produce concrete page, field, action,
+save, and outcome guidance:
 
 ```sh
-ald2tree docs generate scenarios/create-edi-partner.yml
-ald2tree docs run scenarios/create-edi-partner.yml
-ald2tree docs heal scenarios/create-edi-partner.yml
+ald2tree docs generate ../app-test/src/PartnerUITest.Codeunit.al \
+  --procedure PartnersList_NewPartner_PersistsGeneralFields
 ```
 
-Generation and healing use Codex; deterministic execution and Markdown output
-use Playwright. See the
-[AI-generated documentation user guide](./docs/ai-playwright-user-guide.md)
-for scenario format, safety boundaries, browser setup, and CI usage.
+No browser test or second implementation of the scenario is generated. See the
+[AL UI-test documentation guide](./docs/al-ui-test-documentation.md) for source
+conventions and CI usage.
 
 ## Current limits
 

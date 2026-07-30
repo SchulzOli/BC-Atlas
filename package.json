@@ -10,8 +10,7 @@
     "src/",
     "scripts/",
     "vendor/",
-    "docs/ai-playwright-user-guide.md",
-    "playwright.docs.config.js",
+    "docs/al-ui-test-documentation.md",
     ".ald2tree.example.json",
     "LICENSE",
     "README.md",
@@ -20,7 +19,7 @@
   "scripts": {
     "start": "node ./src/cli.js",
     "test": "node --test",
-    "check": "node --check src/cli.js && node --check src/analyzer.js && node --check src/config.js && node --check src/d2.js && node --check src/insights.js && node --check src/resolver.js && node --check src/svg.js && node --check src/views.js && node --check src/docs/cli.js && node --check src/docs/process.js && node --check src/docs/prompts.js && node --check src/docs/reporter.js && node --check src/docs/scenario.js && node --check playwright.docs.config.js && node --check docs-tests/generated/create-edi-partner.spec.js",
+    "check": "node --check src/cli.js && node --check src/analyzer.js && node --check src/config.js && node --check src/d2.js && node --check src/insights.js && node --check src/resolver.js && node --check src/svg.js && node --check src/views.js && node --check src/docs/cli.js && node --check src/docs/markdown.js && node --check src/docs/al-ui-source.js",
     "update:grammar": "node ./scripts/update-grammar.js"
   },
   "keywords": [
@@ -35,9 +34,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@playwright/test": "^1.62.0",
     "@terrastruct/d2": "^0.1.33",
-    "web-tree-sitter": "^0.25.10",
-    "yaml": "^2.9.0"
+    "web-tree-sitter": "^0.25.10"
   }
 }

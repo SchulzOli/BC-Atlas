@@ -11,165 +11,166 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import MarkdownDocumentationReporter from "../src/docs/reporter.js";
-import { loadScenario, validateScenario } from "../src/docs/scenario.js";
-import { generationPrompt, healingPrompt } from "../src/docs/prompts.js";
+import { renderDocumentation, writeDocumentation } from "../src/docs/markdown.js";
+import { loadAlUiTest } from "../src/docs/al-ui-source.js";
 
-const CONTRACT = `id: create-widget
-title: Create a widget
-description: Create a widget with a code and name.
-goal: Create one widget.
-start:
-  url: https://bc.example/
-prerequisites:
-  - A test company is selected.
-expected:
-  - The widget is visible in the list.
-constraints:
-  - Do not post documents.
+const AL_UI_TEST = `codeunit 50100 WidgetUITest
+{
+    Subtype = Test;
+
+    [Test]
+    procedure WidgetsList_NewWidget_PersistsGeneralFields()
+    var
+        Widgets: TestPage Widgets;
+    begin
+        // [FEATURE] [widgets]
+        // [SCENARIO] Creating a widget from the Widgets list persists its general fields.
+        // [PERMISSIONS] Widget, Edit
+
+        // [GIVEN] No widget exists yet.
+
+        // [WHEN] A user creates a widget from the list.
+        Widgets.OpenNew();
+        Widgets.Code.SetValue('W-UI');
+        Widgets.Name.SetValue('UI Widget');
+        Widgets.Close();
+
+        // [THEN] The widget persists with its code and name.
+    end;
+}
 `;
 
-test("validates and loads documentation scenarios", async () => {
+test("derives documentation from a selected AL UI test", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
-  const filename = path.join(directory, "create-widget.yml");
+  const filename = path.join(directory, "WidgetUITest.Codeunit.al");
   try {
-    writeFileSync(filename, CONTRACT);
-    const scenario = await loadScenario(filename);
-    assert.equal(scenario.value.id, "create-widget");
-    assert.deepEqual(scenario.value.expected, ["The widget is visible in the list."]);
-    assert.throws(
-      () => validateScenario({ id: "Bad ID", title: "Bad", goal: "Bad", expected: ["x"] }),
-      /kebab-case/u
-    );
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
-test("generation and healing prompts preserve the scenario contract", async () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
-  const filename = path.join(directory, "create-widget.yml");
-  try {
-    writeFileSync(filename, CONTRACT);
-    const scenario = await loadScenario(filename);
-    const options = {
-      scenario,
-      testPath: path.join(directory, "create-widget.spec.js"),
-      bcUrl: "https://bc.example/"
-    };
-    const generated = generationPrompt(options);
-    const healed = healingPrompt(options);
-    assert.match(generated, /Prove every expected outcome/u);
-    assert.match(generated, /The widget is visible in the list/u);
-    assert.match(healed, /Do not delete assertions/u);
-    assert.match(healed, /semantic product change/u);
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
-test("Markdown reporter publishes passing documented tests", () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
-  const scenarioFile = path.join(directory, "create-widget.yml");
-  const output = path.join(directory, "output");
-  try {
-    writeFileSync(scenarioFile, CONTRACT);
-    const reporter = new MarkdownDocumentationReporter({ outputDir: output });
-    reporter.onTestEnd({
-      title: "Create a widget",
-      annotations: [{ type: "scenario", description: scenarioFile }]
-    }, {
-      status: "passed",
-      steps: [{
-        category: "test.step",
-        title: "Open Widgets",
-        steps: []
-      }, {
-        category: "test.step",
-        title: "Create the widget",
-        steps: []
-      }, {
-        category: "test.step",
-        title: "Verify: The widget is visible in the list.",
-        steps: []
-      }],
-      attachments: [{
-        name: "result",
-        contentType: "image/png",
-        body: Buffer.from("png")
-      }]
+    writeFileSync(filename, AL_UI_TEST);
+    const source = await loadAlUiTest(filename, {
+      procedure: "WidgetsList_NewWidget_PersistsGeneralFields"
     });
 
-    const markdownFile = path.join(output, "create-widget.md");
-    assert.ok(existsSync(markdownFile));
-    const markdown = readFileSync(markdownFile, "utf8");
-    assert.match(markdown, /1\. Open Widgets/u);
-    assert.match(markdown, /2\. Create the widget/u);
-    assert.match(markdown, /The widget is visible in the list/u);
-    assert.ok(existsSync(path.join(output, "images", "create-widget-result.png")));
+    assert.equal(source.value.id, "widgets-list-new-widget-persists-general-fields");
+    assert.equal(source.value.title, "Create a new Widget");
+    assert.equal(source.value.guideGoal, "Create a new Widget.");
+    assert.deepEqual(source.value.permissions, ["Widget, Edit"]);
+    assert.deepEqual(source.value.prerequisites, ["No widget exists yet."]);
+    assert.deepEqual(source.value.guidePrerequisites, [
+      "Make sure the Widget you want to create does not already exist."
+    ]);
+    assert.deepEqual(source.value.actions, ["A user creates a widget from the list."]);
+    assert.deepEqual(source.value.expected, ["The widget persists with its code and name."]);
+    assert.deepEqual(source.value.guideExpected, ["The widget persists with its code and name."]);
+    assert.deepEqual(source.value.guideSteps, [
+      "Open **Widgets** and create a new record.",
+      "In **Code**, enter a suitable value (for example, **W-UI**).",
+      "In **Name**, enter a suitable value (for example, **UI Widget**).",
+      "Finish the entry and close **Widgets**. Business Central saves the changes."
+    ]);
+    assert.match(source.reference, /WidgetUITest\.Codeunit\.al#WidgetsList_NewWidget/u);
+    assert.match(source.value.sourceHash, /^[a-f0-9]{64}$/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
-test("docs generate dry-run emits an agent prompt without opening a browser", () => {
-  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
-  const scenario = fileURLToPath(new URL("../scenarios/create-edi-partner.yml", import.meta.url));
-  const result = spawnSync(process.execPath, [
-    cli,
-    "docs",
-    "generate",
-    scenario,
-    "--dry-run"
-  ], { encoding: "utf8" });
-
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /Playwright test generator/u);
-  assert.match(result.stdout, /create-edi-partner\.spec\.js/u);
-  assert.match(result.stdout, /Do not configure message profiles/u);
+test("requires a procedure when an AL file contains multiple tests", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
+  const filename = path.join(directory, "WidgetUITest.Codeunit.al");
+  try {
+    writeFileSync(filename, AL_UI_TEST.replace(
+      "\n}\n",
+      `\n    [Test]\n    procedure OtherScenario()\n    begin\n        // [SCENARIO] Another scenario.\n        // [THEN] Another outcome.\n    end;\n}\n`
+    ));
+    await assert.rejects(loadAlUiTest(filename), /select one with --procedure/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
-test("docs run executes Playwright and publishes Markdown", () => {
-  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
-  const directory = mkdtempSync(path.join(process.cwd(), ".ald2tree-docs-test-"));
-  const scenario = path.join(directory, "create-widget.yml");
-  const executableTest = path.join(directory, "create-widget.spec.js");
+test("uses SCENARIO as the expected result when THEN has no text", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
+  const filename = path.join(directory, "WidgetUITest.Codeunit.al");
+  try {
+    writeFileSync(filename, AL_UI_TEST.replace(
+      "// [THEN] The widget persists with its code and name.",
+      "// [WHEN]/[THEN]"
+    ));
+    const source = await loadAlUiTest(filename);
+    assert.deepEqual(source.value.expected, [
+      "Creating a widget from the Widgets list persists its general fields."
+    ]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("renders and writes deterministic Markdown directly from AL", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
+  const sourceFile = path.join(directory, "WidgetUITest.Codeunit.al");
   const output = path.join(directory, "output");
   try {
-    writeFileSync(scenario, CONTRACT);
-    writeFileSync(executableTest, `import { test } from "@playwright/test";
-test("Create a widget", {
-  annotation: { type: "scenario", description: ${JSON.stringify(scenario)} }
-}, async ({}, testInfo) => {
-  await test.step("Open Widgets", async () => {});
-  await test.step("Create the widget", async () => {});
-  await test.step("Verify: The widget is visible in the list.", async () => {});
-  await testInfo.attach("result", {
-    body: Buffer.from("png"),
-    contentType: "image/png"
-  });
+    writeFileSync(sourceFile, AL_UI_TEST);
+    const source = await loadAlUiTest(sourceFile);
+    const markdown = renderDocumentation(source);
+    assert.match(markdown, /# Create a new Widget/u);
+    assert.match(markdown, /## Before you start/u);
+    assert.match(markdown, /Required permission: \*\*Widget, Edit\*\*/u);
+    assert.match(markdown, /## Steps/u);
+    assert.match(markdown, /1\. Open \*\*Widgets\*\*/u);
+    assert.match(markdown, /for example, \*\*W-UI\*\*/u);
+    assert.match(markdown, /Business Central saves the changes/u);
+    assert.match(markdown, /The widget persists with its code and name\./u);
+    assert.match(markdown, /File: `WidgetUITest\.Codeunit\.al`/u);
+    assert.match(markdown, /Function: `WidgetsList_NewWidget_PersistsGeneralFields`/u);
+    assert.doesNotMatch(markdown, new RegExp(directory.replaceAll("\\", "\\\\"), "u"));
+    assert.match(markdown, /Source SHA-256: [a-f0-9]{64}/u);
+
+    const filename = await writeDocumentation(source, output);
+    assert.ok(existsSync(filename));
+    assert.equal(readFileSync(filename, "utf8"), markdown);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
-`);
+
+test("omits permissions when the UI test does not specify them", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
+  const filename = path.join(directory, "WidgetUITest.Codeunit.al");
+  try {
+    writeFileSync(filename, AL_UI_TEST.replace(
+      "        // [PERMISSIONS] Widget, Edit\n",
+      ""
+    ));
+    const source = await loadAlUiTest(filename);
+    assert.deepEqual(source.value.permissions, []);
+    assert.doesNotMatch(renderDocumentation(source), /Required permission/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("docs generate writes Markdown without a browser or agent", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
+  const source = path.join(directory, "WidgetUITest.Codeunit.al");
+  const output = path.join(directory, "output");
+  try {
+    writeFileSync(source, AL_UI_TEST);
     const result = spawnSync(process.execPath, [
       cli,
       "docs",
-      "run",
-      scenario,
-      "--test",
-      executableTest
-    ], {
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        BC_DOCS_OUTPUT: output,
-        BC_DOCS_RESULTS: path.join(directory, "results")
-      },
-      timeout: 30_000
-    });
+      "generate",
+      source,
+      "--output-dir",
+      output
+    ], { encoding: "utf8" });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.ok(existsSync(path.join(output, "create-widget.md")));
-    assert.ok(existsSync(path.join(output, "images", "create-widget-result.png")));
+    assert.match(result.stdout, /wrote/u);
+    assert.ok(existsSync(path.join(
+      output,
+      "widgets-list-new-widget-persists-general-fields.md"
+    )));
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
