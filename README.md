@@ -1,10 +1,13 @@
-# ald2tree
+# BC Atlas
 
-`ald2tree` is a lightweight CLI that parses Microsoft Dynamics 365 Business
+BC Atlas (`bca`) is a lightweight CLI that parses Microsoft Dynamics 365 Business
 Central AL source with
 [`tree-sitter-al`](https://github.com/SShadowS/tree-sitter-al), builds a small
 architecture graph, and writes
 [`D2`](https://github.com/terrastruct/d2) diagram source.
+
+See the [complete CLI command and option reference](./docs/cli-reference.md)
+for every command, view, selector, option, default, and configuration setting.
 
 The CLI discovers AL objects, groups them by namespace, and shows:
 
@@ -28,8 +31,8 @@ optional D2 executable.
 npm install
 npm link
 
-ald2tree ./path/to/al-project -o architecture.d2
-ald2tree ./path/to/al-project -o architecture.svg
+bca ./path/to/al-project -o architecture.d2
+bca ./path/to/al-project -o architecture.svg
 ```
 
 When `--format` conflicts with the output extension, the format wins:
@@ -40,50 +43,54 @@ When `--format` conflicts with the output extension, the format wins:
 
 ```sh
 # Whole project
-ald2tree graph ./app --view project -o project.d2
+bca graph ./app --view project -o project.d2
 
 # Aggregated namespace modules
-ald2tree graph ./app --view module -o modules.d2
+bca graph ./app --view module -o modules.d2
 
 # Folder-based modules instead of namespaces
-ald2tree graph ./app --view module --group-by folder -o folders.d2
+bca graph ./app --view module --group-by folder -o folders.d2
 
 # One object plus its neighbors
-ald2tree graph ./app --view object --object codeunit:50100 -o posting.d2
+bca graph ./app --view object --object codeunit:50100 -o posting.d2
 
 # Tables and data-oriented references
-ald2tree graph ./app --view data -o data.d2
+bca graph ./app --view data -o data.d2
 
 # Procedures, triggers, and syntactically resolvable calls
-ald2tree graph ./app --view call -o calls.d2
+bca graph ./app --view call -o calls.d2
 
 # Include unresolved/external calls for investigation
-ald2tree graph ./app --view call --include-unresolved-calls -o all-calls.d2
+bca graph ./app --view call --include-unresolved-calls -o all-calls.d2
 
 # Dependencies crossing a namespace, folder, app, or object boundary
-ald2tree graph ./app --view boundary \
+bca graph ./app --view boundary \
   --scope namespace:Contoso.Sales -o boundary.svg
 
 # Interfaces, direct implementations, and enum-mediated implementations
-ald2tree graph ./app --view contracts -o contracts.svg
+bca graph ./app --view contracts -o contracts.svg
 
 # Event publishers and subscribers
-ald2tree graph ./app --view events --focus OnPosted -o events.svg
+bca graph ./app --view events --focus OnPosted -o events.svg
 
 # Page composition, source tables, actions, and navigation
-ald2tree graph ./app --view ui --focus "Sales Order" -o ui.svg
+bca graph ./app --view ui --focus "Sales Order" -o ui.svg
+
+# Trace a generic execution flow from one or more entry points
+bca graph ./app --view workflow \
+  --entry "ProcessDocument" --entry "action:Release" -o workflow.svg
 
 # Machine-readable graph, diagnostics, app metadata, and insights
-ald2tree inspect ./app -o model.json
+bca inspect ./app -o model.json
 
 # Rebuild after AL/config/app.json changes
-ald2tree watch ./app --view project -o architecture.d2
+bca watch ./app --view project -o architecture.d2
 ```
 
 Filters are repeatable and work in CI:
 
 ```sh
-ald2tree ./app \
+bca ./app \
   --namespace "Contoso.Sales.**" \
   --type table,codeunit \
   --exclude "**/test/**" \
@@ -110,6 +117,10 @@ Current views favor readability:
   retain unresolved subscriptions;
 - UI diagrams separate pages, actions, source tables, parts, and navigation
   targets;
+- workflow diagrams start at procedures, triggers, actions, or event publishers
+  and combine resolved calls, event dispatch, record mutations, cycles, and
+  unresolved branches. Direct call order is labelled `definite`; event
+  dispatch and collapsed paths are labelled `inferred`;
 - relation colors are consistent across every view: calls are blue, reads are
   dark blue, writes are orange-red, data relations are green, extensions are
   pink, implementations are amber, events are magenta, navigation is green,
@@ -119,18 +130,50 @@ Current views favor readability:
 - permission-set and codeunit `Permissions` declarations are represented as
   `permits [RIMD]` edges.
 
-Run `ald2tree --help` for the complete CLI reference.
+Run `bca --help` for the complete CLI reference.
 
 ## Configuration
 
-Place `.ald2tree.json` at the input root or pass `--config`. Command-line
+Place `.bca.json` at the input root or pass `--config`. Command-line
 options override configuration. See
-[`.ald2tree.example.json`](./.ald2tree.example.json) for view, layout, filters,
+[`.bca.example.json`](./.bca.example.json) for view, layout, filters,
 theme, density, and forbidden-dependency policy examples.
 
 Forbidden dependency patterns match
 `Namespace:ObjectType:ObjectName`. Policy violations appear in JSON diagnostics
 and cause `--strict` to fail when configured as warnings or errors.
+
+Workflow configuration can select entries, label phases, stop traversal, and
+collapse utility procedures without relying on a particular domain or naming
+scheme:
+
+```json
+{
+  "view": "workflow",
+  "workflow": {
+    "entries": ["ProcessDocument", "action:Release"],
+    "depth": 8,
+    "maxNodes": 100,
+    "maxEdges": 250,
+    "edgeTypes": ["calls", "events", "writes"],
+    "phases": {
+      "Validation": ["Validate*", "*.Check*"],
+      "Posting": ["Post*", "Finalize*"]
+    },
+    "stop": ["FinalizeDocument", "event:OnCompleted"],
+    "collapse": ["*Telemetry*", "*FeatureFlag*"]
+  }
+}
+```
+
+Pass it explicitly with
+`bca graph src --view workflow --config bca.workflow.json`.
+Selectors accept exact names, owner-qualified names, `*`/`?` globs, and the
+optional `procedure:`, `trigger:`, `action:`, or `event:` prefix. With no
+entries, the view infers roots from actions, triggers, event publishers, and
+procedures without inbound calls. Reused nodes are emitted once and annotated
+when multiple branches converge. The depth, node, edge, and allowed-edge-type
+limits apply before rendering and are also reported under `workflow` in JSON.
 
 Open the generated `.d2` file in the D2 playground or render it locally:
 
@@ -159,7 +202,7 @@ comments with `TestPage` operations to produce concrete page, field, action,
 save, and outcome guidance:
 
 ```sh
-ald2tree docs generate ../app-test/src/PartnerUITest.Codeunit.al \
+bca docs generate ../app-test/src/PartnerUITest.Codeunit.al \
   --procedure PartnersList_NewPartner_PersistsGeneralFields
 ```
 
@@ -191,8 +234,8 @@ npm pack --dry-run
 Container usage:
 
 ```sh
-docker build -t ald2tree .
-docker run --rm -v "$PWD:/workspace" ald2tree /workspace -o /workspace/architecture.d2
+docker build -t bc-atlas .
+docker run --rm -v "$PWD:/workspace" bc-atlas /workspace -o /workspace/architecture.d2
 ```
 
 The repository pins the upstream AL grammar artifact in

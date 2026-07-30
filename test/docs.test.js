@@ -41,7 +41,7 @@ const AL_UI_TEST = `codeunit 50100 WidgetUITest
 `;
 
 test("derives documentation from a selected AL UI test", async () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
   const filename = path.join(directory, "WidgetUITest.Codeunit.al");
   try {
     writeFileSync(filename, AL_UI_TEST);
@@ -74,7 +74,7 @@ test("derives documentation from a selected AL UI test", async () => {
 });
 
 test("requires a procedure when an AL file contains multiple tests", async () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
   const filename = path.join(directory, "WidgetUITest.Codeunit.al");
   try {
     writeFileSync(filename, AL_UI_TEST.replace(
@@ -88,7 +88,7 @@ test("requires a procedure when an AL file contains multiple tests", async () =>
 });
 
 test("uses SCENARIO as the expected result when THEN has no text", async () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
   const filename = path.join(directory, "WidgetUITest.Codeunit.al");
   try {
     writeFileSync(filename, AL_UI_TEST.replace(
@@ -105,7 +105,7 @@ test("uses SCENARIO as the expected result when THEN has no text", async () => {
 });
 
 test("renders and writes deterministic Markdown directly from AL", async () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
   const sourceFile = path.join(directory, "WidgetUITest.Codeunit.al");
   const output = path.join(directory, "output");
   try {
@@ -134,7 +134,7 @@ test("renders and writes deterministic Markdown directly from AL", async () => {
 });
 
 test("omits permissions when the UI test does not specify them", async () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
   const filename = path.join(directory, "WidgetUITest.Codeunit.al");
   try {
     writeFileSync(filename, AL_UI_TEST.replace(
@@ -151,7 +151,7 @@ test("omits permissions when the UI test does not specify them", async () => {
 
 test("docs generate writes Markdown without a browser or agent", () => {
   const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
-  const directory = mkdtempSync(path.join(os.tmpdir(), "ald2tree-docs-"));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
   const source = path.join(directory, "WidgetUITest.Codeunit.al");
   const output = path.join(directory, "output");
   try {

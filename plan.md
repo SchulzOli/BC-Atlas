@@ -1,8 +1,8 @@
-# Future ald2tree CLI view types
+# Future BC Atlas CLI view types
 
 ## Purpose
 
-This roadmap covers new, reusable visualization modes for `ald2tree`. The views
+This roadmap covers new, reusable visualization modes for BC Atlas (`bca`). The views
 must work across AL applications and must not encode application-specific object
 names, folders, workflows, or business domains.
 
@@ -49,8 +49,8 @@ folder, namespace, application, or explicit object set.
 Example:
 
 ```text
-ald2tree graph src --view boundary --scope namespace:My.App.Sales
-ald2tree graph src --view boundary --scope folder:Integration
+bca graph src --view boundary --scope namespace:My.App.Sales
+bca graph src --view boundary --scope folder:Integration
 ```
 
 The view should:
@@ -74,8 +74,8 @@ Shows abstractions and their implementations.
 Example:
 
 ```text
-ald2tree graph src --view contracts
-ald2tree graph src --view contracts --focus "Interface Name"
+bca graph src --view contracts
+bca graph src --view contracts --focus "Interface Name"
 ```
 
 The view should include:
@@ -99,8 +99,8 @@ Shows event publishers and subscribers.
 Example:
 
 ```text
-ald2tree graph src --view events
-ald2tree graph src --view events --focus "OnAfterPosting"
+bca graph src --view events
+bca graph src --view events --focus "OnAfterPosting"
 ```
 
 The view should include:
@@ -124,8 +124,8 @@ Shows how AL extension objects modify or augment base objects.
 Example:
 
 ```text
-ald2tree graph src --view extensions
-ald2tree graph src --view extensions --focus "Sales Order"
+bca graph src --view extensions
+bca graph src --view extensions --focus "Sales Order"
 ```
 
 The view should cover:
@@ -151,8 +151,8 @@ Shows permission sets, included permission sets, and access to AL objects.
 Example:
 
 ```text
-ald2tree graph src --view permissions
-ald2tree graph src --view permissions --focus "Warehouse User"
+bca graph src --view permissions
+bca graph src --view permissions --focus "Warehouse User"
 ```
 
 The view should:
@@ -169,30 +169,6 @@ Acceptance criteria:
 - Cycles in included permission sets are highlighted.
 - Inferred access gaps are clearly marked as diagnostics, not facts.
 
-### 6. `ui` — implemented in 0.5.0
-
-Shows page composition and user navigation.
-
-Example:
-
-```text
-ald2tree graph src --view ui
-ald2tree graph src --view ui --focus "Customer Card"
-```
-
-The view should include:
-
-- pages and their source tables;
-- page extensions and extended pages;
-- parts and subpages;
-- actions and resolved `RunObject` targets;
-- page fields and source expressions when member detail is enabled.
-
-Acceptance criteria:
-
-- Composition and navigation use different edge styles.
-- Page parts resolve their target pages where possible.
-- The default rendering omits field-level detail for large projects.
 
 ### 7. `workspace`
 
@@ -201,8 +177,8 @@ Shows relationships among multiple AL applications in a workspace.
 Example:
 
 ```text
-ald2tree graph . --view workspace
-ald2tree graph . --view workspace --include-platform
+bca graph . --view workspace
+bca graph . --view workspace --include-platform
 ```
 
 The view should use `app.json` files and resolved references to show:
@@ -227,8 +203,8 @@ This is a general trace-oriented view, not a hardcoded business-process diagram.
 Example:
 
 ```text
-ald2tree graph src --view workflow --entry "ProcessDocument"
-ald2tree graph src --view workflow --config ald2tree.workflow.json
+bca graph src --view workflow --entry "ProcessDocument"
+bca graph src --view workflow --config bca.workflow.json
 ```
 
 The view should:
@@ -244,157 +220,3 @@ Acceptance criteria:
 - The same engine works for any domain and naming scheme.
 - Inferred sequence is labeled separately from definite call order.
 - Depth, node count, and edge-type limits prevent unusable graphs.
-
-### 9. `state`
-
-Shows state-bearing fields and detected transitions.
-
-Example:
-
-```text
-ald2tree graph src --view state --table "Document Header" --field Status
-```
-
-The view should:
-
-- use a selected enum, option, or state-like field;
-- render declared values;
-- find assignments and validated transitions;
-- link transitions to the responsible procedure, trigger, or object;
-- accept configuration when static analysis cannot identify the state field.
-
-Acceptance criteria:
-
-- The state source is always explicit in the output.
-- Possible transitions are distinguished from proven transitions.
-- Dynamic or unresolved assignments produce diagnostics.
-
-### 10. `tests`
-
-Shows test coverage relationships at the AL object and procedure level.
-
-Example:
-
-```text
-ald2tree graph src --view tests
-ald2tree graph src --view tests --focus "Posting"
-```
-
-The view should include:
-
-- test codeunits and test procedures;
-- objects and procedures directly invoked by tests;
-- handler functions and handler attributes;
-- unreferenced production objects as an optional overlay;
-- configurable naming heuristics only as a fallback.
-
-Acceptance criteria:
-
-- Attribute-based test and handler detection does not depend on names.
-- Direct calls and heuristic coverage are visually distinct.
-- Users can disable all heuristic relationships.
-
-### 11. `diagnostics`
-
-Turns architecture findings into a renderable graph.
-
-Example:
-
-```text
-ald2tree graph src --view diagnostics
-ald2tree graph src --view diagnostics --rules ald2tree.rules.json
-```
-
-Potential findings include:
-
-- unresolved and ambiguous references;
-- dependency cycles;
-- isolated objects;
-- high-coupling hubs;
-- cross-boundary access;
-- forbidden dependency directions;
-- unused interfaces, events, or extension points.
-
-Acceptance criteria:
-
-- Every finding includes a rule identifier and supporting relationship.
-- Thresholds and architectural rules are configurable.
-- Diagnostic severity affects styling but not graph semantics.
-
-### 12. `diff`
-
-Shows architectural changes between two source snapshots or saved models.
-
-Example:
-
-```text
-ald2tree graph . --view diff --base main --target HEAD
-ald2tree graph . --view diff --base-model before.json --target-model after.json
-```
-
-The view should show:
-
-- added, removed, and changed objects;
-- added and removed dependency edges;
-- changed public procedures, fields, events, and implementations;
-- moved objects when identity can be established;
-- confidence for inferred renames.
-
-Acceptance criteria:
-
-- The view can compare two serialized ald2tree models without Git.
-- Added, removed, and unchanged graph elements are visually distinct.
-- Rename detection never silently replaces add/remove facts.
-
-## Delivery order
-
-### Phase 1: structural relationships
-
-1. `extensions`
-2. `permissions`
-
-`boundary` and `contracts` shipped in 0.5.0. The remaining views build mainly
-on syntax and symbol relationships that AL declares explicitly.
-
-### Phase 2: application composition
-
-1. `workspace`
-
-`events` and `ui` shipped in 0.5.0. `workspace` requires additional
-multi-project resolution.
-
-### Phase 3: analysis views
-
-1. `workflow`
-2. `state`
-3. `tests`
-4. `diagnostics`
-5. `diff`
-
-These need confidence tracking, configuration, graph comparison, or deeper
-control-flow analysis.
-
-## Shared implementation work
-
-Before or alongside the new views:
-
-- define typed relationship kinds in the intermediate model;
-- retain source locations and confidence on nodes and edges;
-- add stable filters and scope selectors shared by every view;
-- support model export and import for reproducible rendering and `diff`;
-- add configurable aggregation and expansion;
-- add fixtures covering interfaces, events, extensions, permissions, page
-  composition, multiple apps, and AL tests;
-- document which relationships are exact, inferred, or unresolved.
-
-## Definition of done for a new view
-
-A view is complete when:
-
-- it is exposed through `ald2tree graph --view <name>`;
-- CLI help and README examples are present;
-- D2 and SVG generation are tested;
-- output is deterministic;
-- focused and project-wide fixtures are covered;
-- unresolved references do not abort rendering;
-- application-specific conventions are optional configuration, never defaults.

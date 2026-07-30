@@ -3,10 +3,10 @@ import { parseArgs } from "node:util";
 import { writeDocumentation } from "./markdown.js";
 import { loadAlUiTest } from "./al-ui-source.js";
 
-const HELP = `ald2tree docs - generate Markdown from an AL UI test
+const HELP = `BC Atlas docs - generate Markdown from an AL UI test
 
 Usage:
-  ald2tree docs generate [options] <ui-test.al>
+  bca docs generate [options] <ui-test.al>
 
 Options:
       --procedure <name>     [Test] procedure to document

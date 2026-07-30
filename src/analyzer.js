@@ -283,6 +283,20 @@ function attributesFor(node, source) {
   return [...block.matchAll(/\[[^\]\r\n]+\]/gu)].map(([attribute]) => attribute);
 }
 
+function enclosingActionName(node, source) {
+  const actionTypes = new Set([
+    "action_declaration",
+    "customaction_declaration",
+    "systemaction_declaration"
+  ]);
+  let parent = node.parent;
+  while (parent) {
+    if (actionTypes.has(parent.type)) return fieldText(parent, "name", source);
+    parent = parent.parent;
+  }
+  return undefined;
+}
+
 function membersFor(objectNode, source, file) {
   const procedures = [];
   const fields = [];
@@ -309,7 +323,10 @@ function membersFor(objectNode, source, file) {
               : "procedure",
           location: locationFor(node, file),
           calls: callsFor(node, source, file),
-          attributes
+          attributes,
+          action: node.type === "trigger_declaration"
+            ? enclosingActionName(node, source)
+            : undefined
         });
       }
     }
@@ -325,7 +342,8 @@ function membersFor(objectNode, source, file) {
       const name = fieldText(node, "name", source);
       actions.push({
         name: name ?? `(action ${actions.length + 1})`,
-        location: locationFor(node, file)
+        location: locationFor(node, file),
+        calls: callsFor(node, source, file)
       });
     }
     if (node.type === "variable_declaration") {

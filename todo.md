@@ -129,7 +129,7 @@ the entire module to `BeTerna.Fashion`.
 
 ## Project and object readability
 
-- [ ] Allow custom role mappings in `.ald2tree.json`.
+- [ ] Allow custom role mappings in `.bca.json`.
 - [ ] Add optional source-code hyperlinks using repository-relative paths and
   commit/ref templates.
 - [ ] Show edge legends and confidence legends.

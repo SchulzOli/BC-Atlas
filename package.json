@@ -1,17 +1,18 @@
 {
-  "name": "ald2tree",
+  "name": "bc-atlas",
   "version": "0.5.0",
-  "description": "Generate D2 architecture diagrams and executable user documentation for Microsoft Dynamics 365 Business Central.",
+  "description": "BC Atlas generates D2 architecture diagrams and executable user documentation for Microsoft Dynamics 365 Business Central.",
   "type": "module",
   "bin": {
-    "ald2tree": "./src/cli.js"
+    "bca": "./src/cli.js"
   },
   "files": [
     "src/",
     "scripts/",
     "vendor/",
     "docs/al-ui-test-documentation.md",
-    ".ald2tree.example.json",
+    "docs/cli-reference.md",
+    ".bca.example.json",
     "LICENSE",
     "README.md",
     "THIRD_PARTY_NOTICES.md"
@@ -19,7 +20,7 @@
   "scripts": {
     "start": "node ./src/cli.js",
     "test": "node --test",
-    "check": "node --check src/cli.js && node --check src/analyzer.js && node --check src/config.js && node --check src/d2.js && node --check src/insights.js && node --check src/resolver.js && node --check src/svg.js && node --check src/views.js && node --check src/docs/cli.js && node --check src/docs/markdown.js && node --check src/docs/al-ui-source.js",
+    "check": "node --check src/cli.js && node --check src/analyzer.js && node --check src/config.js && node --check src/d2.js && node --check src/insights.js && node --check src/resolver.js && node --check src/svg.js && node --check src/views.js && node --check src/workflow.js && node --check src/docs/cli.js && node --check src/docs/markdown.js && node --check src/docs/al-ui-source.js",
     "update:grammar": "node ./scripts/update-grammar.js"
   },
   "keywords": [

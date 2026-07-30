@@ -1,10 +1,10 @@
 # Generate documentation from AL UI tests
 
-`ald2tree docs generate` converts one AL `[Test]` procedure directly into
+`bca docs generate` converts one AL `[Test]` procedure directly into
 Markdown. The AL UI test remains the only executable implementation.
 
 ```text
-AL TestPage test -> ald2tree -> Markdown
+AL TestPage test -> BC Atlas -> Markdown
 ```
 
 No browser automation, generated JavaScript test, AI agent, or YAML scenario is
@@ -66,7 +66,7 @@ permission entry is generated and documentation generation continues normally.
 ```powershell
 $uiTest = "C:\Repos\App-Test\src\Partner\UITest\EDIPartnerCardUITest.Codeunit.al"
 
-ald2tree docs generate $uiTest `
+bca docs generate $uiTest `
   --procedure EDIPartnersList_NewPartner_PersistsGeneralFields
 ```
 
@@ -80,7 +80,7 @@ path/to/UITest.Codeunit.al#ProcedureName
 The default output directory is `docs/generated`. Override it with:
 
 ```powershell
-ald2tree docs generate $uiTest `
+bca docs generate $uiTest `
   --procedure EDIPartnersList_NewPartner_PersistsGeneralFields `
   --output-dir artifacts/docs
 ```

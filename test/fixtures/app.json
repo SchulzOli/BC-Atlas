@@ -1,7 +1,7 @@
 {
   "id": "11111111-1111-1111-1111-111111111111",
-  "name": "ALD2Tree Fixture",
-  "publisher": "ald2tree",
+  "name": "BC Atlas Fixture",
+  "publisher": "bc-atlas",
   "version": "1.0.0.0",
   "runtime": "13.0",
   "dependencies": []

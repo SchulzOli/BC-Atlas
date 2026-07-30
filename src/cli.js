@@ -14,13 +14,13 @@ import { renderSvg } from "./svg.js";
 import { createView, filterModel } from "./views.js";
 import { docsMain } from "./docs/cli.js";
 
-const HELP = `ald2tree - generate architecture diagrams from AL source
+const HELP = `BC Atlas - generate architecture diagrams from AL source
 
 Usage:
-  ald2tree [graph] [options] <file-or-directory>
-  ald2tree inspect [options] <file-or-directory>
-  ald2tree watch [options] <directory>
-  ald2tree docs generate [options] <ui-test.al>
+  bca [graph] [options] <file-or-directory>
+  bca inspect [options] <file-or-directory>
+  bca watch [options] <directory>
+  bca docs generate [options] <ui-test.al>
 
 Views:
   project (default)   AL objects grouped by namespace
@@ -32,12 +32,20 @@ Views:
   contracts           Interfaces and direct/enum implementations
   events              Event publishers and subscribers
   ui                  Pages, source tables, parts, actions, and navigation
+  workflow            Trace calls, events, and data mutations from entry points
 
 Options:
-  -o, --output <path>       Output path (default: al-architecture.d2)
+  -o, --output <path>       Output path (default: bc-atlas.d2)
   -f, --format <format>     d2, json, svg, png, or pdf
       --view <view>         project, module, object, data, call, boundary,
-                            contracts, events, or ui
+                            contracts, events, ui, or workflow
+      --entry <selector>    Workflow entry procedure, trigger, action, or event
+                            (repeatable)
+      --workflow-depth <n>  Workflow traversal depth (default: 8)
+      --workflow-max-nodes <n>
+                            Workflow node cap (default: 100)
+      --workflow-edge-types <types>
+                            calls,events,writes,reads (default: calls,events,writes)
       --object <selector>   Object selector, e.g. codeunit:50100
       --scope <selector>    Boundary scope: namespace:, folder:, app:, or
                             object: (repeatable)
@@ -57,7 +65,7 @@ Options:
       --source-url <tmpl>   Node link template with {file} and {line}
       --details             Show member counts in nodes
       --no-external         Hide unresolved/external dependencies
-      --config <path>       Configuration file (default: .ald2tree.json)
+      --config <path>       Configuration file (default: .bca.json)
       --strict              Fail on parse or resolution diagnostics
       --debounce <ms>       Watch rebuild debounce (default: 250)
   -h, --help                Show help
@@ -71,6 +79,7 @@ const OPTIONS = {
   output: { type: "string", short: "o" },
   format: { type: "string", short: "f" },
   view: { type: "string" },
+  entry: { type: "string", multiple: true },
   object: { type: "string" },
   scope: { type: "string", multiple: true },
   focus: { type: "string" },
@@ -82,6 +91,9 @@ const OPTIONS = {
   "module-depth": { type: "string" },
   "folder-depth": { type: "string" },
   "include-unresolved-calls": { type: "boolean" },
+  "workflow-depth": { type: "string" },
+  "workflow-max-nodes": { type: "string" },
+  "workflow-edge-types": { type: "string" },
   "max-edges": { type: "string" },
   direction: { type: "string" },
   title: { type: "string" },
@@ -96,7 +108,7 @@ const OPTIONS = {
 };
 
 function fail(message, code = 1) {
-  console.error(`ald2tree: ${message}`);
+  console.error(`bca: ${message}`);
   process.exitCode = code;
 }
 
@@ -116,7 +128,8 @@ function mergeOptions(config, values) {
     types: values.type ?? config.types ?? [],
     include: values.include ?? config.include ?? [],
     exclude: values.exclude ?? config.exclude ?? [],
-    scope: values.scope ?? config.scope ?? []
+    scope: values.scope ?? config.scope ?? [],
+    entry: values.entry ?? config.entry ?? config.entries
   };
 }
 
@@ -153,7 +166,7 @@ function outputPaths(options, command) {
   let finalOutput = requested ?? (
     command === "inspect" && !options.output
       ? undefined
-      : path.resolve(`al-architecture.${format}`)
+      : path.resolve(`bc-atlas.${format}`)
   );
   if (finalOutput && options.format && inferred !== format) {
     finalOutput = inferred
@@ -191,6 +204,7 @@ async function build(input, command, cliValues, quiet = false) {
   let model = resolveModel(await analyze(input));
   model = filterModel(model, options);
   model = addInsights(model, options.forbiddenDependencies ?? []);
+  const workflow = options.workflow ?? {};
   model = createView(model, view, {
     object: options.object,
     groupBy,
@@ -203,7 +217,21 @@ async function build(input, command, cliValues, quiet = false) {
     includeUnresolvedCalls:
       options["include-unresolved-calls"] ?? options.includeUnresolvedCalls ?? false,
     scope: options.scope,
-    focus: options.focus
+    focus: options.focus,
+    entry: options.entry ?? workflow.entry ?? workflow.entries,
+    depth: options["workflow-depth"] ?? options.workflowDepth ?? workflow.depth,
+    maxNodes:
+      options["workflow-max-nodes"] ?? options.workflowMaxNodes ?? workflow.maxNodes,
+    maxEdges:
+      cliValues["max-edges"] ?? workflow.maxEdges ??
+      options["max-edges"] ?? options.maxEdges,
+    edgeTypes:
+      options["workflow-edge-types"] ?? options.workflowEdgeTypes ?? workflow.edgeTypes,
+    phases: options.phases ?? workflow.phases,
+    stop: options.stop ?? options.stopConditions ?? workflow.stop ?? workflow.stopConditions,
+    collapse:
+      options.collapse ?? options.collapseUtilities ??
+      workflow.collapse ?? workflow.collapseUtilities
   });
   model = addInsights(model);
   if (!model.objects.length && !model.emptyMessage) {
@@ -282,7 +310,7 @@ async function watch(input, values) {
     try {
       await build(input, "graph", values);
     } catch (error) {
-      console.error(`ald2tree: rebuild failed: ${error.message}`);
+      console.error(`bca: rebuild failed: ${error.message}`);
     } finally {
       building = false;
       if (pending) {
@@ -295,11 +323,11 @@ async function watch(input, values) {
   const watcher = fsWatch(path.resolve(input), { recursive: true }, (_event, filename) => {
     if (filename && !filename.toLowerCase().endsWith(".al") &&
         path.basename(filename) !== "app.json" &&
-        path.basename(filename) !== ".ald2tree.json") return;
+        path.basename(filename) !== ".bca.json") return;
     clearTimeout(timer);
     timer = setTimeout(rebuild, debounce);
   });
-  watcher.on("error", (error) => console.error(`ald2tree: watcher error: ${error.message}`));
+  watcher.on("error", (error) => console.error(`bca: watcher error: ${error.message}`));
   console.log("Watching for AL changes. Press Ctrl+C to stop.");
 }
 
