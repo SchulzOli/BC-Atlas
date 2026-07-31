@@ -56,13 +56,19 @@ inspection and can be regenerated with `npm run examples`.
 Requirements: Node.js 20 or later.
 
 ```sh
+npm install --global bc-atlas
+
+bca ./path/to/al-project -o architecture.d2
+bca ./path/to/al-project -o architecture.svg
+```
+
+For local development, clone the repository and link the checkout:
+
+```sh
 git clone https://github.com/SchulzOli/ALD2Tree.git
 cd ALD2Tree
 npm ci
 npm link
-
-bca ./path/to/al-project -o architecture.d2
-bca ./path/to/al-project -o architecture.svg
 ```
 
 No native compiler toolchain or separate D2 installation is needed for `.d2`,
@@ -169,6 +175,19 @@ Current views favor readability:
   `permits [RIMD]` edges.
 
 Run `bca --help` for the complete CLI reference.
+
+## Publishing releases
+
+Publishing is manual through the `Publish npm package` GitHub Actions workflow.
+Before running it, update and commit the version in `package.json` and
+`package-lock.json`, then enter that exact version in the workflow form. The
+workflow rejects version mismatches and versions that already exist on npm,
+runs all checks and tests, inspects the package contents, and publishes with the
+selected npm distribution tag.
+
+The initial publication requires a repository Actions secret named
+`NPM_TOKEN`. Use a granular npm access token with read/write package access and
+2FA bypass enabled. Never commit the token to this repository.
 
 ## Examples
 

@@ -1,0 +1,82 @@
+name: Publish npm package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact package.json version to publish
+        required: true
+        type: string
+      dist_tag:
+        description: npm distribution tag
+        required: true
+        default: latest
+        type: choice
+        options:
+          - latest
+          - next
+          - beta
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Use npm with trusted publishing support
+        run: npm install --global npm@11
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Confirm requested version
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          node --input-type=commonjs <<'NODE'
+          const pkg = require("./package.json");
+          if (pkg.version !== process.env.EXPECTED_VERSION) {
+            console.error(`Requested ${process.env.EXPECTED_VERSION}, but package.json contains ${pkg.version}.`);
+            process.exit(1);
+          }
+          NODE
+
+      - name: Confirm version is unpublished
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          PACKAGE_NAME=$(node --input-type=commonjs -p "require('./package.json').name")
+          OUTPUT=$(npm view "${PACKAGE_NAME}@${EXPECTED_VERSION}" version 2>&1) && {
+            echo "${PACKAGE_NAME}@${EXPECTED_VERSION} is already published."
+            exit 1
+          }
+          echo "$OUTPUT" | grep -q "E404" || {
+            echo "$OUTPUT"
+            echo "Could not verify that the version is unpublished."
+            exit 1
+          }
+
+      - name: Validate package
+        run: |
+          npm run check
+          npm test
+          npm pack --dry-run
+
+      - name: Publish package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DIST_TAG: ${{ inputs.dist_tag }}
+        run: npm publish --access public --tag "$DIST_TAG"
