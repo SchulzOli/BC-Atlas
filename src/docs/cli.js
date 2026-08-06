@@ -1,5 +1,6 @@
 import path from "node:path";
 import { parseArgs } from "node:util";
+import { createAutomationPlan } from "./automation.js";
 import { loadAlUiTest } from "./al-ui-source.js";
 import { writeCorpusDocumentation, writeDocumentation } from "./markdown.js";
 import { loadCorpus, scenarioSummary } from "./model.js";
@@ -16,6 +17,7 @@ Usage:
   bca docs generate [options] <file-or-directory>
   bca docs set [options] <file-or-directory>
   bca docs unset [options] <file-or-directory>
+  bca docs automation [options] <file-or-directory>
   bca docs glossary [options]
   bca docs serve [options] <file-or-directory>
 
@@ -30,6 +32,7 @@ Options:
       --expected-hash <hash> Reject writes if the AL file has changed
       --dry-run              Preview without writing the AL file
       --port <number>        Local server port (default: available port)
+      --provider <name>      github or azure-devops (default: github)
       --strict               Fail validation on warnings as well as errors
   -h, --help                 Show help
 `;
@@ -45,6 +48,7 @@ const OPTIONS = {
   "expected-hash": { type: "string" },
   "dry-run": { type: "boolean" },
   port: { type: "string" },
+  provider: { type: "string" },
   strict: { type: "boolean" },
   help: { type: "boolean", short: "h" }
 };
@@ -142,6 +146,16 @@ function glossaryCommand(values) {
   }
 }
 
+async function automationCommand(input, values) {
+  const plan = await createAutomationPlan(await loadCorpus(input), {
+    provider: values.provider,
+    inputPath: input,
+    outputDirectory: values["output-dir"]
+  });
+  if (outputFormat(values) === "json") return printJson(plan);
+  console.log(plan.pipeline.content);
+}
+
 async function mutationCommand(input, values, remove) {
   if (!values.id) throw new Error("--id is required");
   if (!values.tag) throw new Error("--tag is required");
@@ -198,6 +212,7 @@ export async function docsMain(args) {
   if (command === "show") return operation(() => showCommand(positionals[0], values));
   if (command === "validate") return operation(() => validateCommand(positionals[0], values));
   if (command === "generate") return operation(() => generateCommand(positionals[0], values));
+  if (command === "automation") return operation(() => automationCommand(positionals[0], values));
   if (command === "set") return operation(() => mutationCommand(positionals[0], values, false));
   if (command === "unset") return operation(() => mutationCommand(positionals[0], values, true));
   if (command === "serve") return operation(() => serveCommand(positionals[0], values));

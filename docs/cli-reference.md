@@ -230,6 +230,7 @@ terminal output and HTTP transport; BC Atlas does not create scenario JSON.
 | `docs show` | Show one scenario selected by `--id`. |
 | `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
 | `docs generate` | Generate one scenario or a complete Markdown catalog. |
+| `docs automation` | Generate a checked CLI workflow for GitHub Actions or Azure Pipelines. |
 | `docs set` | Add or replace AL documentation metadata. |
 | `docs unset` | Remove matching AL documentation metadata. |
 | `docs glossary` | Print the built-in tag vocabulary, descriptions, value types, and cardinality. |
@@ -248,6 +249,7 @@ Common documentation options:
 | `--expected-hash` | SHA-256 | Rejects a mutation when the AL file changed after reading. |
 | `--dry-run` | flag | Plans a mutation without writing AL. |
 | `--port` | integer | Port for `serve`; the default chooses an available port. |
+| `--provider` | `github` or `azure-devops` | Selects the pipeline format for `automation`. |
 
 Successful commands exit with `0`. Validation or operation failures exit with
 `1`; invalid command usage exits with `2`. Data is written to standard output.
@@ -279,6 +281,27 @@ bca docs generate test/PartnerUITest.Codeunit.al \
 Directory generation writes one `<document-id>.md` file per scenario and a
 generated `index.md`. Use `docs validate` before generation in CI.
 
+### `docs automation`
+
+```text
+bca docs automation test/UITest --provider github --output-dir docs/generated
+```
+
+This command loads the real AL documentation corpus. Readiness requires at
+least one scenario, explicit stable IDs for every scenario, and no diagnostics.
+The generated pipeline validates in strict mode, regenerates the Markdown, and
+fails when the committed output differs:
+
+```text
+bca docs validate 'test/UITest' --strict
+bca docs generate 'test/UITest' --output-dir 'docs/generated'
+git diff --exit-code -- 'docs/generated'
+```
+
+Use `--format json` to receive the checks, local commands, target filename, and
+pipeline content as structured output. The Automation view consumes the same
+command result.
+
 ### `docs set` and `docs unset`
 
 ```text
@@ -296,5 +319,6 @@ bca docs serve test/UITest --port 0
 The server prints its loopback URL and remains attached to the terminal. Its
 web UI has no independent storage; each read reloads AL and each mutation uses
 the same validated writer as `docs set` and `docs unset`. The dashboard maps
-its overview, scenario workspace, quality view, glossary, and generation action
-to docs commands. `serve` hosts the interface and remains terminal-controlled.
+its overview, scenario workspace, quality view, automation workflow, glossary,
+and generation action to docs commands. `serve` hosts the interface and remains
+terminal-controlled.

@@ -38,6 +38,11 @@ export const DOCUMENTATION_TAGS = Object.freeze({
     value: "sentence",
     description: "States the observable result that confirms the workflow completed successfully."
   },
+  TEARDOWN: {
+    cardinality: "many",
+    value: "sentence",
+    description: "Describes test cleanup that is excluded from the generated user workflow."
+  },
   REQUIRES: {
     cardinality: "many",
     value: "document-id",

@@ -55,6 +55,7 @@ end;
 | `TestPage` calls | Detailed page, field, action, and save steps |
 | `[WHEN]` | Numbered user phase and context for derived TestPage steps |
 | `[THEN]` | Expected results |
+| `[TEARDOWN]` | Recognized test cleanup; omitted from the user guide |
 
 When `[THEN]` has no text, the `[SCENARIO]` sentence is used as the expected
 result. Explicit `[THEN]` text is preferred.
@@ -88,6 +89,7 @@ permission entry is generated and documentation generation continues normally.
 | `[GIVEN] [STATE]` | sentence | Required business state. |
 | `[WHEN]` | sentence | User phase or action. |
 | `[THEN]` | sentence | Expected result. |
+| `[TEARDOWN]` | sentence | Test cleanup that is excluded from the generated workflow. |
 | `[REQUIRES]` | document ID | Hard prerequisite guide. Cycles are invalid. |
 | `[NEXT]` | document ID | Recommended next guide. |
 | `[RELATED]` | document ID | Related guide. |
@@ -144,6 +146,7 @@ All metadata operations work in a terminal and support machine-readable output:
 bca docs list test/UITest --format json
 bca docs show test/UITest --id edi-partner-create --format json
 bca docs glossary --format json
+bca docs automation test/UITest --provider github --format json
 bca docs set test/UITest --id edi-partner-create --tag RELATED --value edi-partner-edit
 bca docs unset test/UITest --id edi-partner-create --tag RELATED --value edi-partner-edit
 ```
@@ -161,8 +164,9 @@ bca docs serve test/UITest
 The command prints its `127.0.0.1` URL. The browser UI reads and updates AL
 through the same operations as the CLI; it has no database or independent
 scenario store. The central dashboard uses `list`, `show`, `validate`,
-`generate`, `set`, `unset`, and `glossary` for its overview, scenario workspace,
-quality view, glossary, and generation actions. `serve` remains
+`generate`, `set`, `unset`, `glossary`, and `automation` for its overview,
+scenario workspace, quality view, automation workflow, glossary, and generation
+actions. `serve` remains
 terminal-controlled because it hosts the interface itself.
 
 ## Verification and CI
@@ -183,6 +187,10 @@ generate its documentation and check that the repository remains clean:
 
 The test repository should be checked out at the revision corresponding to the
 application being documented.
+
+`bca docs automation <root>` produces the same three-step workflow for GitHub
+Actions or Azure Pipelines. It checks the live corpus before presenting the
+pipeline and does not maintain a separate automation configuration.
 
 ## Screenshots
 

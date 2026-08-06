@@ -119,6 +119,31 @@ test("derives documentation from a selected AL UI test", async () => {
   }
 });
 
+test("keeps the scenario title when the workflow creates different record types", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "OnboardingUITest.Codeunit.al");
+  try {
+    writeFileSync(filename, AL_UI_TEST
+      .replace("        Widgets: TestPage Widgets;", [
+        "        Widgets: TestPage Widgets;",
+        "        Categories: TestPage Categories;"
+      ].join("\n"))
+      .replace("Creating a widget from the Widgets list persists its general fields.",
+        "Process an uploaded catalog and create its master data.")
+      .replace("        Widgets.Close();", [
+        "        Widgets.Close();",
+        "        Categories.OpenNew();"
+      ].join("\n")));
+
+    const source = await loadAlUiTest(filename);
+
+    assert.equal(source.value.title, "Process an uploaded catalog and create its master data");
+    assert.equal(source.value.guideGoal, "Process an uploaded catalog and create its master data.");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("requires a procedure when an AL file contains multiple tests", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
   const filename = path.join(directory, "WidgetUITest.Codeunit.al");
@@ -145,6 +170,25 @@ test("uses SCENARIO as the expected result when THEN has no text", async () => {
     assert.deepEqual(source.value.expected, [
       "Creating a widget from the Widgets list persists its general fields."
     ]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("accepts teardown metadata without publishing it as a user action", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "WidgetUITest.Codeunit.al");
+  try {
+    writeFileSync(filename, AL_UI_TEST.replace(
+      "        // [THEN] The widget persists with its code and name.",
+      "        // [THEN] The widget persists with its code and name.\n" +
+      "        // [TEARDOWN] Close the page and remove the fixture."
+    ));
+
+    const source = await loadAlUiTest(filename);
+
+    assert.equal(source.value.diagnostics.length, 0);
+    assert.deepEqual(source.value.actions, ["A user creates a widget from the list."]);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -306,6 +350,24 @@ test("loads and validates a linked documentation corpus", async () => {
   }
 });
 
+test("loads only documented UI tests into the corpus", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  try {
+    writeFileSync(path.join(directory, "WidgetUITest.al"), AL_UI_TEST);
+    writeFileSync(path.join(directory, "WidgetUnitTest.al"), AL_UI_TEST
+      .replace("WidgetsList_NewWidget_PersistsGeneralFields", "WidgetProcessor_CreatesWidget")
+      .replace("        Widgets: TestPage Widgets;\n", "")
+      .replace("        Widgets.OpenNew();", "        WidgetProcessor.Create();"));
+
+    const corpus = await loadCorpus(directory);
+
+    assert.equal(corpus.scenarios.length, 1);
+    assert.equal(corpus.scenarios[0].value.procedure, "WidgetsList_NewWidget_PersistsGeneralFields");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("reports broken links and duplicate document IDs", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
   try {
@@ -424,6 +486,14 @@ test("controls documentation CLI operations through the web API", async () => {
     const listed = await run({ command: "list" });
     assert.equal(listed.length, 1);
     assert.deepEqual(await run({ command: "validate" }), []);
+    const automation = await run({ command: "automation", provider: "github" });
+    assert.equal(automation.provider, "github");
+    assert.equal(automation.ready, false);
+    assert.ok(automation.commands[0].includes(`'${automation.inputPath}'`));
+    assert.match(automation.pipeline.content, /bca docs validate '\.' --strict/u);
+    assert.ok(!automation.pipeline.content.includes(`'${automation.inputPath}'`));
+    assert.match(automation.pipeline.content, /bca docs validate/u);
+    assert.match(automation.pipeline.content, /git diff --exit-code/u);
     const glossary = await run({ command: "glossary" });
     assert.ok(glossary.length > 0);
     assert.ok(glossary.every(({ description }) => description.length > 0));
@@ -472,6 +542,22 @@ test("docs CLI exposes pipe-safe JSON reads and dry-run mutations", () => {
     const glossaryItems = JSON.parse(glossary.stdout);
     assert.ok(glossaryItems.some(({ tag }) => tag === "REQUIRES"));
     assert.ok(glossaryItems.every(({ description }) => description.length > 0));
+
+    const automation = spawnSync(process.execPath, [
+      cli,
+      "docs",
+      "automation",
+      directory,
+      "--provider",
+      "azure-devops",
+      "--format",
+      "json"
+    ], { encoding: "utf8" });
+    assert.equal(automation.status, 0, automation.stderr);
+    const plan = JSON.parse(automation.stdout);
+    assert.equal(plan.provider, "azure-devops");
+    assert.match(plan.pipeline.content, /NodeTool@0/u);
+    assert.equal(plan.checks.scenarios, 1);
 
     const dryRun = spawnSync(process.execPath, [
       cli, "docs", "set", directory,

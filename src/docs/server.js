@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createAutomationPlan } from "./automation.js";
 import { planMetadataEdit, writeMetadataEdit } from "./al-ui-writer.js";
 import { renderDocumentation, writeCorpusDocumentation } from "./markdown.js";
 import { loadCorpus, scenarioSummary } from "./model.js";
@@ -48,15 +49,22 @@ function scenarioDetails(scenario, corpus) {
   };
 }
 
-const WEB_COMMANDS = ["list", "show", "validate", "generate", "set", "unset", "glossary"];
+const WEB_COMMANDS = ["list", "show", "validate", "generate", "set", "unset", "glossary", "automation"];
 
-async function executeCommand(root, body) {
+async function executeCommand(root, body, defaults = {}) {
   if (!WEB_COMMANDS.includes(body.command)) throw new Error(`unsupported command: ${body.command}`);
   if (body.command === "glossary") return documentationGlossary();
 
   const corpus = await loadCorpus(root);
   if (body.command === "list") return corpus.scenarios.map(scenarioSummary);
   if (body.command === "validate") return corpus.diagnostics;
+  if (body.command === "automation") {
+    return createAutomationPlan(corpus, {
+      provider: body.provider,
+      inputPath: body.inputPath ?? defaults.inputPath,
+      outputDirectory: body.outputDirectory
+    });
+  }
   if (body.command === "generate") {
     const files = await writeCorpusDocumentation(corpus, body.outputDirectory);
     return { files };
@@ -87,12 +95,12 @@ async function executeCommand(root, body) {
   };
 }
 
-async function apiResponse(request, response, pathname, root) {
+async function apiResponse(request, response, pathname, root, defaults) {
   if (request.method === "GET" && pathname === "/api/commands") {
     return sendJson(response, 200, WEB_COMMANDS);
   }
   if (request.method === "POST" && pathname === "/api/commands") {
-    return sendJson(response, 200, await executeCommand(root, await requestJson(request)));
+    return sendJson(response, 200, await executeCommand(root, await requestJson(request), defaults));
   }
   return sendJson(response, 404, { error: "API route not found" });
 }
@@ -123,11 +131,12 @@ async function staticResponse(response, pathname) {
 
 export async function startDocsServer(root, options = {}) {
   const resolvedRoot = path.resolve(root);
+  const inputPath = path.relative(process.cwd(), resolvedRoot).replaceAll("\\", "/") || ".";
   const server = http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, "http://127.0.0.1");
       if (url.pathname.startsWith("/api/")) {
-        await apiResponse(request, response, url.pathname, resolvedRoot);
+        await apiResponse(request, response, url.pathname, resolvedRoot, { inputPath });
       } else {
         await staticResponse(response, url.pathname);
       }

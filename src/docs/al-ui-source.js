@@ -326,7 +326,7 @@ function deriveGuidance(source, knownTestPages = new Map()) {
   const testPages = collectTestPages(source, knownTestPages);
 
   const steps = [];
-  let creationTarget;
+  const creationTargets = new Set();
   let hasExamples = false;
   const operations = [];
   for (const match of source.matchAll(UI_OPERATION_PATTERN)) {
@@ -335,7 +335,7 @@ function deriveGuidance(source, knownTestPages = new Map()) {
     if (!page) continue;
     const detail = operationGuidance(match, page);
     if (!detail) continue;
-    if (detail.creationTarget) creationTarget = detail.creationTarget;
+    if (detail.creationTarget) creationTargets.add(detail.creationTarget);
     if (detail.hasExample) hasExamples = true;
     operations.push({ index: match.index, detail });
   }
@@ -359,6 +359,9 @@ function deriveGuidance(source, knownTestPages = new Map()) {
     ));
   }
 
+  const creationTarget = creationTargets.size === 1
+    ? creationTargets.values().next().value
+    : undefined;
   return {
     steps,
     hasExamples,
@@ -583,6 +586,7 @@ export async function loadAlUiTest(reference, options = {}) {
 export async function loadAlUiTests(filename) {
   const absolutePath = path.resolve(filename);
   const content = await fs.readFile(absolutePath, "utf8");
+  if (!collectTestPages(content).size) return [];
   const procedures = [...content.matchAll(AL_TEST_PATTERN)].map((match) => match[1]);
   const scenarios = [];
   for (const procedure of procedures) {

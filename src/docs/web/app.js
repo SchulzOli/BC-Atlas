@@ -5,6 +5,7 @@ const state = {
   scenarios: [],
   diagnostics: [],
   glossary: [],
+  automation: undefined,
   selected: undefined,
   previewMode: "rendered"
 };
@@ -183,6 +184,20 @@ function renderGlossary() {
   }));
 }
 
+function renderAutomation(plan) {
+  elements.automationStatus.textContent = plan.ready ? "Ready to automate" : "Needs attention";
+  elements.automationStatus.className = plan.ready ? "badge success" : "badge warning";
+  elements.automationScenarios.textContent = plan.checks.scenarios;
+  elements.automationStableIds.textContent = plan.checks.stableIds;
+  elements.automationIssues.textContent = plan.checks.issues;
+  elements.automationCommands.textContent = plan.commands.join("\n");
+  elements.pipelineFilename.textContent = plan.pipeline.filename;
+  elements.pipelineCode.textContent = plan.pipeline.content;
+  elements.automationProvider.value = plan.provider;
+  elements.automationInput.value = plan.inputPath;
+  elements.automationOutput.value = plan.outputDirectory;
+}
+
 function renderMetadata(scenario) {
   elements.metadata.replaceChildren(...scenario.metadata.map(({ tag, value, qualifier }) => {
     const row = document.createElement("div");
@@ -233,16 +248,18 @@ function renderScenario(scenario) {
 async function loadWorkspace() {
   setBusy(true, "Refreshing");
   try {
-    [state.scenarios, state.diagnostics, state.glossary] = await Promise.all([
+    [state.scenarios, state.diagnostics, state.glossary, state.automation] = await Promise.all([
       command("list"),
       command("validate"),
-      command("glossary")
+      command("glossary"),
+      command("automation")
     ]);
     refreshScenarioOptions();
     renderScenarioNavigation();
     renderOverview();
     renderQuality();
     renderGlossary();
+    renderAutomation(state.automation);
   } catch (error) {
     toast(error.message, true);
   } finally {
@@ -331,6 +348,32 @@ async function validateDocumentation() {
   }
 }
 
+async function buildAutomation(event) {
+  event?.preventDefault();
+  setBusy(true, "Building workflow");
+  try {
+    state.automation = await command("automation", {
+      provider: elements.automationProvider.value,
+      inputPath: elements.automationInput.value,
+      outputDirectory: elements.automationOutput.value
+    });
+    renderAutomation(state.automation);
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function copyText(value, message) {
+  try {
+    await navigator.clipboard.writeText(value);
+    toast(message);
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
 function refreshScenarioOptions() {
   const options = state.scenarios.map(({ id }) => option(id));
   elements.scenarioIds.replaceChildren(...options);
@@ -349,6 +392,7 @@ elements.search.addEventListener("input", renderScenarioNavigation);
 elements.refresh.addEventListener("click", loadWorkspace);
 elements.generate.addEventListener("click", generateDocumentation);
 elements.runValidation.addEventListener("click", validateDocumentation);
+elements.automationForm.addEventListener("submit", buildAutomation);
 elements.metadataForm.addEventListener("submit", saveMetadata);
 elements.tag.addEventListener("change", updateMetadataForm);
 elements.backToOverview.addEventListener("click", () => showView("overview"));
@@ -359,13 +403,16 @@ elements.browseScenarios.addEventListener("click", () => {
   elements.search.scrollIntoView({ behavior: "smooth", block: "center" });
 });
 elements.copyPreview.addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText(state.selected.markdown);
-    toast("Markdown copied");
-  } catch (error) {
-    toast(error.message, true);
-  }
+  await copyText(state.selected.markdown, "Markdown copied");
 });
+elements.copyCommands.addEventListener("click", () => copyText(
+  state.automation.commands.join("\n"),
+  "Commands copied"
+));
+elements.copyPipeline.addEventListener("click", () => copyText(
+  state.automation.pipeline.content,
+  "Pipeline copied"
+));
 
 await loadWorkspace();
 elements.tag.replaceChildren(...state.glossary.map(({ tag }) => option(tag, `[${tag}]`)));
