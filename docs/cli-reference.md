@@ -10,6 +10,7 @@ file.
 bca [graph] [options] <file-or-directory>
 bca inspect [options] <file-or-directory>
 bca watch [options] <directory>
+bca serve [options] <app-directory>
 bca docs <list|show|validate|generate|set|unset|serve> [options] <file-or-directory>
 bca docs glossary [options]
 ```
@@ -19,10 +20,23 @@ bca docs glossary [options]
 | `graph` | Analyze AL source and write a diagram. This is the default command when no command is specified. |
 | `inspect` | Analyze AL source and emit the selected graph as JSON. Without `--output`, JSON is written to standard output. |
 | `watch` | Generate a graph, watch an AL project, and rebuild after relevant source or configuration changes. |
+| `serve` | Start the combined architecture and documentation Control Center. |
 | `docs` | Inspect, validate, edit, generate, and locally browse AL-backed UI-test documentation. |
 
 Use `bca --help`, `bca --version`, or
 `bca docs --help` for the built-in summaries.
+
+### Combined Control Center
+
+```text
+bca serve <app-directory> --tests <test-directory> --port 0
+```
+
+`--tests` is required and identifies the AL UI-test documentation source. The
+application directory remains the architecture source. `--port` accepts an
+integer from `0` to `65535`; `0` chooses an available loopback port. The server
+exposes documentation and in-memory architecture rendering through the same
+command-only HTTP API.
 
 ## Architecture commands
 

@@ -29,7 +29,7 @@
   "scripts": {
     "start": "node ./src/cli.js",
     "test": "node --test",
-    "check": "node --check src/cli.js && node --check src/analyzer.js && node --check src/config.js && node --check src/d2.js && node --check src/insights.js && node --check src/resolver.js && node --check src/svg.js && node --check src/views.js && node --check src/workflow.js && node --check src/docs/automation.js && node --check src/docs/cli.js && node --check src/docs/markdown.js && node --check src/docs/al-ui-source.js && node --check src/docs/al-ui-writer.js && node --check src/docs/model.js && node --check src/docs/server.js && node --check src/docs/tags.js && node --check src/docs/web/app.js && node --check scripts/generate-examples.js",
+    "check": "node --check src/cli.js && node --check src/analyzer.js && node --check src/architecture.js && node --check src/config.js && node --check src/d2.js && node --check src/insights.js && node --check src/resolver.js && node --check src/svg.js && node --check src/views.js && node --check src/workflow.js && node --check src/docs/automation.js && node --check src/docs/cli.js && node --check src/docs/markdown.js && node --check src/docs/al-ui-source.js && node --check src/docs/al-ui-writer.js && node --check src/docs/model.js && node --check src/docs/server.js && node --check src/docs/tags.js && node --check src/docs/web/app.js && node --check scripts/generate-examples.js",
     "examples": "node ./scripts/generate-examples.js",
     "prepack": "npm run check && npm test",
     "update:grammar": "node ./scripts/update-grammar.js"

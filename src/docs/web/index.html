@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BC Atlas Documentation</title>
+  <title>BC Atlas Control Center</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="app-bar">
-    <div class="brand"><strong>BC Atlas</strong><span>Documentation Center</span></div>
+    <div class="brand"><strong>BC Atlas</strong><span>Control Center</span></div>
     <div class="header-actions">
       <span id="sync-status" class="sync-status">Ready</span>
       <button id="refresh" class="secondary" type="button">Refresh</button>
@@ -19,6 +19,7 @@
     <aside class="sidebar">
       <nav class="primary-nav" aria-label="Workspace">
         <button class="nav-item active" type="button" data-view="overview">Overview</button>
+        <button id="architecture-nav" class="nav-item" type="button" data-view="architecture" hidden>Architecture</button>
         <button class="nav-item" type="button" data-view="quality">Quality <span id="nav-issue-count">0</span></button>
         <button class="nav-item" type="button" data-view="automation">Automation</button>
         <button class="nav-item" type="button" data-view="glossary">Glossary</button>
@@ -50,6 +51,42 @@
           <div class="section-heading"><h2>Recent scenarios</h2><button id="browse-scenarios" class="link-button" type="button">Browse all</button></div>
           <div id="recent-scenarios" class="scenario-table"></div>
         </section>
+      </section>
+
+      <section id="architecture-view" class="view architecture-view" hidden>
+        <div class="page-heading">
+          <div><p class="eyebrow">Application model</p><h1>Architecture</h1></div>
+          <span id="architecture-status" class="badge success">Ready</span>
+        </div>
+        <form id="architecture-form" class="architecture-form">
+          <label>View<select id="architecture-view-select">
+            <option value="project">Project</option>
+            <option value="module">Modules</option>
+            <option value="data">Data</option>
+            <option value="call">Calls</option>
+            <option value="contracts">Contracts</option>
+            <option value="events">Events</option>
+            <option value="ui">UI</option>
+            <option value="workflow">Workflow</option>
+          </select></label>
+          <label>Selector<input id="architecture-selector" placeholder="Optional focus or workflow entry"></label>
+          <label>Direction<select id="architecture-direction">
+            <option value="right">Right</option>
+            <option value="down">Down</option>
+            <option value="left">Left</option>
+            <option value="up">Up</option>
+          </select></label>
+          <button type="submit">Render diagram</button>
+        </form>
+        <div class="architecture-metrics">
+          <span><strong id="architecture-files">0</strong> files</span>
+          <span><strong id="architecture-nodes">0</strong> nodes</span>
+          <span><strong id="architecture-edges">0</strong> edges</span>
+          <span><strong id="architecture-diagnostics">0</strong> diagnostics</span>
+        </div>
+        <div id="architecture-canvas" class="architecture-canvas" aria-live="polite">
+          <p>Select a view to render the application model.</p>
+        </div>
       </section>
 
       <section id="scenario-view" class="view" hidden>

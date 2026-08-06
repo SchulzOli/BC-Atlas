@@ -1,0 +1,112 @@
+import { analyze } from "./analyzer.js";
+import { loadConfig } from "./config.js";
+import { addInsights } from "./insights.js";
+import { resolveModel } from "./resolver.js";
+import { createView, filterModel } from "./views.js";
+
+export function positiveInteger(value, name, fallback) {
+  const number = value === undefined ? fallback : Number(value);
+  if (!Number.isInteger(number) || number < 1) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+  return number;
+}
+
+export function mergeArchitectureOptions(config, values) {
+  return {
+    ...config,
+    ...Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined)),
+    namespaces: values.namespace ?? config.namespaces ?? [],
+    types: values.type ?? config.types ?? [],
+    include: values.include ?? config.include ?? [],
+    exclude: values.exclude ?? config.exclude ?? [],
+    scope: values.scope ?? config.scope ?? [],
+    entry: values.entry ?? config.entry ?? config.entries
+  };
+}
+
+export async function createArchitectureModel(input, values = {}) {
+  const config = await loadConfig(input, values.config);
+  const options = mergeArchitectureOptions(config.values, values);
+  const direction = options.direction ?? "right";
+  const view = options.view ?? "project";
+  const groupBy = options["group-by"] ?? options.groupBy ?? (
+    view === "project" ? "role" : "namespace"
+  );
+  if (!["right", "down", "left", "up"].includes(direction)) {
+    throw new Error(`unsupported direction: ${direction}`);
+  }
+  if (!["namespace", "folder", "type", "role"].includes(groupBy)) {
+    throw new Error(`unsupported group-by mode: ${groupBy}`);
+  }
+  if (view === "module" && !["namespace", "folder"].includes(groupBy)) {
+    throw new Error("module view supports --group-by namespace or folder");
+  }
+  const requestedModuleDepth = options["module-depth"] ?? options.moduleDepth ?? "auto";
+  const moduleDepth = requestedModuleDepth === "auto"
+    ? "auto"
+    : positiveInteger(requestedModuleDepth, "module-depth");
+
+  let model = resolveModel(await analyze(input));
+  model = filterModel(model, options);
+  model = addInsights(model, options.forbiddenDependencies ?? []);
+  const workflow = options.workflow ?? {};
+  model = createView(model, view, {
+    object: options.object,
+    groupBy,
+    moduleDepth,
+    folderDepth: positiveInteger(
+      options["folder-depth"] ?? options.folderDepth,
+      "folder-depth",
+      1
+    ),
+    includeUnresolvedCalls:
+      options["include-unresolved-calls"] ?? options.includeUnresolvedCalls ?? false,
+    scope: options.scope,
+    focus: options.focus,
+    entry: options.entry ?? workflow.entry ?? workflow.entries,
+    depth: options["workflow-depth"] ?? options.workflowDepth ?? workflow.depth,
+    maxNodes:
+      options["workflow-max-nodes"] ?? options.workflowMaxNodes ?? workflow.maxNodes,
+    maxEdges:
+      values["max-edges"] ?? workflow.maxEdges ??
+      options["max-edges"] ?? options.maxEdges,
+    edgeTypes:
+      options["workflow-edge-types"] ?? options.workflowEdgeTypes ?? workflow.edgeTypes,
+    phases: options.phases ?? workflow.phases,
+    stop: options.stop ?? options.stopConditions ?? workflow.stop ?? workflow.stopConditions,
+    collapse:
+      options.collapse ?? options.collapseUtilities ??
+      workflow.collapse ?? workflow.collapseUtilities
+  });
+  model = addInsights(model);
+  if (!model.objects.length && !model.emptyMessage) {
+    throw new Error("no AL objects matched");
+  }
+
+  const seriousDiagnostics = model.diagnostics.filter(
+    ({ severity }) => severity === "error" || severity === "warning"
+  );
+  if (options.strict && seriousDiagnostics.length) {
+    throw new Error(
+      `${seriousDiagnostics.length} diagnostic(s) in strict mode; run inspect for details`
+    );
+  }
+
+  return {
+    model,
+    options,
+    view,
+    seriousDiagnostics,
+    renderOptions: {
+      direction,
+      title: options.title ?? `AL ${view} architecture`,
+      includeExternal: !(options["no-external"] ?? options.noExternal ?? false),
+      details: options.details ?? false,
+      memberNames: view === "object",
+      groupBy: view === "module" ? "namespace" : groupBy,
+      sourceUrlTemplate: options["source-url"] ?? options.sourceUrl,
+      maxEdges: positiveInteger(options["max-edges"] ?? options.maxEdges, "max-edges", 500)
+    }
+  };
+}

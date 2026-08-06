@@ -6,6 +6,8 @@ const state = {
   diagnostics: [],
   glossary: [],
   automation: undefined,
+  architecture: undefined,
+  commands: [],
   selected: undefined,
   previewMode: "rendered"
 };
@@ -17,15 +19,23 @@ const elements = Object.fromEntries(
   ])
 );
 
-async function command(name, options = {}) {
-  const response = await fetch("/api/commands", {
+async function api(body) {
+  const response = await fetch("/api/commands", body ? {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ command: name, ...options })
-  });
+    body: JSON.stringify(body)
+  } : undefined);
   const value = await response.json();
-  if (!response.ok) throw new Error(value.error ?? `${name} failed`);
+  if (!response.ok) throw new Error(value.error ?? "Command failed");
   return value;
+}
+
+async function command(name, options = {}) {
+  return api({ command: name, ...options });
+}
+
+async function availableCommands() {
+  return api();
 }
 
 function setBusy(busy, label = "Working") {
@@ -198,6 +208,44 @@ function renderAutomation(plan) {
   elements.automationOutput.value = plan.outputDirectory;
 }
 
+function renderArchitecture(result) {
+  state.architecture = result;
+  elements.architectureFiles.textContent = result.files;
+  elements.architectureNodes.textContent = result.nodes;
+  elements.architectureEdges.textContent = result.edges;
+  elements.architectureDiagnostics.textContent = result.diagnostics.length;
+  elements.architectureStatus.textContent = result.diagnostics.length ? "Diagnostics" : "Ready";
+  elements.architectureStatus.className = result.diagnostics.length
+    ? "badge warning"
+    : "badge success";
+  const svg = DOMPurify.sanitize(result.svg, {
+    USE_PROFILES: { svg: true, svgFilters: true }
+  });
+  elements.architectureCanvas.innerHTML = svg;
+}
+
+async function buildArchitecture(event) {
+  event?.preventDefault();
+  setBusy(true, "Rendering architecture");
+  try {
+    const view = elements.architectureViewSelect.value;
+    const selector = elements.architectureSelector.value.trim() || undefined;
+    const result = await command("graph", {
+      view,
+      direction: elements.architectureDirection.value,
+      focus: view === "workflow" ? undefined : selector,
+      entry: view === "workflow" ? selector : undefined
+    });
+    renderArchitecture(result);
+  } catch (error) {
+    elements.architectureStatus.textContent = "Failed";
+    elements.architectureStatus.className = "badge danger";
+    toast(error.message, true);
+  } finally {
+    setBusy(false);
+  }
+}
+
 function renderMetadata(scenario) {
   elements.metadata.replaceChildren(...scenario.metadata.map(({ tag, value, qualifier }) => {
     const row = document.createElement("div");
@@ -248,6 +296,9 @@ function renderScenario(scenario) {
 async function loadWorkspace() {
   setBusy(true, "Refreshing");
   try {
+    state.commands = await availableCommands();
+    const hasArchitecture = state.commands.includes("graph");
+    elements.architectureNav.hidden = !hasArchitecture;
     [state.scenarios, state.diagnostics, state.glossary, state.automation] = await Promise.all([
       command("list"),
       command("validate"),
@@ -260,6 +311,7 @@ async function loadWorkspace() {
     renderQuality();
     renderGlossary();
     renderAutomation(state.automation);
+    if (hasArchitecture && !state.architecture) await buildArchitecture();
   } catch (error) {
     toast(error.message, true);
   } finally {
@@ -393,6 +445,7 @@ elements.refresh.addEventListener("click", loadWorkspace);
 elements.generate.addEventListener("click", generateDocumentation);
 elements.runValidation.addEventListener("click", validateDocumentation);
 elements.automationForm.addEventListener("submit", buildAutomation);
+elements.architectureForm.addEventListener("submit", buildArchitecture);
 elements.metadataForm.addEventListener("submit", saveMetadata);
 elements.tag.addEventListener("change", updateMetadataForm);
 elements.backToOverview.addEventListener("click", () => showView("overview"));

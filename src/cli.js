@@ -5,14 +5,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
-import { analyze } from "./analyzer.js";
-import { loadConfig } from "./config.js";
+import { createArchitectureModel, positiveInteger } from "./architecture.js";
 import { renderD2 } from "./d2.js";
-import { addInsights } from "./insights.js";
-import { resolveModel } from "./resolver.js";
 import { renderSvg } from "./svg.js";
-import { createView, filterModel } from "./views.js";
 import { docsMain } from "./docs/cli.js";
+import { startDocsServer } from "./docs/server.js";
 
 const HELP = `BC Atlas - generate architecture diagrams from AL source
 
@@ -20,6 +17,7 @@ Usage:
   bca [graph] [options] <file-or-directory>
   bca inspect [options] <file-or-directory>
   bca watch [options] <directory>
+  bca serve [options] <app-directory>
   bca docs <command> [options] <file-or-directory>
 
 Views:
@@ -68,6 +66,8 @@ Options:
       --config <path>       Configuration file (default: .bca.json)
       --strict              Fail on parse or resolution diagnostics
       --debounce <ms>       Watch rebuild debounce (default: 250)
+        --tests <directory>   AL UI-test root for the combined Control Center
+        --port <number>       Control Center port (default: available port)
   -h, --help                Show help
   -V, --version             Show version
 
@@ -103,6 +103,8 @@ const OPTIONS = {
   config: { type: "string" },
   strict: { type: "boolean" },
   debounce: { type: "string" },
+  tests: { type: "string" },
+  port: { type: "string" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "V" }
 };
@@ -110,27 +112,6 @@ const OPTIONS = {
 function fail(message, code = 1) {
   console.error(`bca: ${message}`);
   process.exitCode = code;
-}
-
-function positiveInteger(value, name, fallback) {
-  const number = value === undefined ? fallback : Number(value);
-  if (!Number.isInteger(number) || number < 1) {
-    throw new Error(`${name} must be a positive integer`);
-  }
-  return number;
-}
-
-function mergeOptions(config, values) {
-  return {
-    ...config,
-    ...Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined)),
-    namespaces: values.namespace ?? config.namespaces ?? [],
-    types: values.type ?? config.types ?? [],
-    include: values.include ?? config.include ?? [],
-    exclude: values.exclude ?? config.exclude ?? [],
-    scope: values.scope ?? config.scope ?? [],
-    entry: values.entry ?? config.entry ?? config.entries
-  };
 }
 
 function runD2(source, output, options) {
@@ -180,72 +161,8 @@ function outputPaths(options, command) {
 }
 
 async function build(input, command, cliValues, quiet = false) {
-  const config = await loadConfig(input, cliValues.config);
-  const options = mergeOptions(config.values, cliValues);
-  const direction = options.direction ?? "right";
-  const view = options.view ?? "project";
-  const groupBy = options["group-by"] ?? options.groupBy ?? (
-    view === "project" ? "role" : "namespace"
-  );
-  if (!["right", "down", "left", "up"].includes(direction)) {
-    throw new Error(`unsupported direction: ${direction}`);
-  }
-  if (!["namespace", "folder", "type", "role"].includes(groupBy)) {
-    throw new Error(`unsupported group-by mode: ${groupBy}`);
-  }
-  if (view === "module" && !["namespace", "folder"].includes(groupBy)) {
-    throw new Error("module view supports --group-by namespace or folder");
-  }
-  const requestedModuleDepth = options["module-depth"] ?? options.moduleDepth ?? "auto";
-  const moduleDepth = requestedModuleDepth === "auto"
-    ? "auto"
-    : positiveInteger(requestedModuleDepth, "module-depth");
-
-  let model = resolveModel(await analyze(input));
-  model = filterModel(model, options);
-  model = addInsights(model, options.forbiddenDependencies ?? []);
-  const workflow = options.workflow ?? {};
-  model = createView(model, view, {
-    object: options.object,
-    groupBy,
-    moduleDepth,
-    folderDepth: positiveInteger(
-      options["folder-depth"] ?? options.folderDepth,
-      "folder-depth",
-      1
-    ),
-    includeUnresolvedCalls:
-      options["include-unresolved-calls"] ?? options.includeUnresolvedCalls ?? false,
-    scope: options.scope,
-    focus: options.focus,
-    entry: options.entry ?? workflow.entry ?? workflow.entries,
-    depth: options["workflow-depth"] ?? options.workflowDepth ?? workflow.depth,
-    maxNodes:
-      options["workflow-max-nodes"] ?? options.workflowMaxNodes ?? workflow.maxNodes,
-    maxEdges:
-      cliValues["max-edges"] ?? workflow.maxEdges ??
-      options["max-edges"] ?? options.maxEdges,
-    edgeTypes:
-      options["workflow-edge-types"] ?? options.workflowEdgeTypes ?? workflow.edgeTypes,
-    phases: options.phases ?? workflow.phases,
-    stop: options.stop ?? options.stopConditions ?? workflow.stop ?? workflow.stopConditions,
-    collapse:
-      options.collapse ?? options.collapseUtilities ??
-      workflow.collapse ?? workflow.collapseUtilities
-  });
-  model = addInsights(model);
-  if (!model.objects.length && !model.emptyMessage) {
-    throw new Error("no AL objects matched");
-  }
-
-  const seriousDiagnostics = model.diagnostics.filter(
-    ({ severity }) => severity === "error" || severity === "warning"
-  );
-  if (options.strict && seriousDiagnostics.length) {
-    throw new Error(
-      `${seriousDiagnostics.length} diagnostic(s) in strict mode; run inspect for details`
-    );
-  }
+  const architecture = await createArchitectureModel(input, cliValues);
+  const { model, options, view, seriousDiagnostics, renderOptions } = architecture;
 
   const paths = outputPaths(options, command);
   if (paths.format === "json") {
@@ -257,16 +174,7 @@ async function build(input, command, cliValues, quiet = false) {
       process.stdout.write(json);
     }
   } else {
-    const source = renderD2(model, {
-      direction,
-      title: options.title ?? `AL ${view} architecture`,
-      includeExternal: !(options["no-external"] ?? options.noExternal ?? false),
-      details: options.details ?? false,
-      memberNames: view === "object",
-      groupBy: view === "module" ? "namespace" : groupBy,
-      sourceUrlTemplate: options["source-url"] ?? options.sourceUrl,
-      maxEdges: positiveInteger(options["max-edges"] ?? options.maxEdges, "max-edges", 500)
-    });
+    const source = renderD2(model, renderOptions);
     await fs.mkdir(path.dirname(paths.d2Output), { recursive: true });
     await fs.writeFile(paths.d2Output, source);
     if (paths.format === "svg") {
@@ -331,6 +239,16 @@ async function watch(input, values) {
   console.log("Watching for AL changes. Press Ctrl+C to stop.");
 }
 
+async function serve(input, values) {
+  if (!values.tests) throw new Error("--tests is required for the combined Control Center");
+  const port = values.port === undefined ? 0 : Number(values.port);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error("--port must be an integer from 0 to 65535");
+  }
+  const { url } = await startDocsServer(values.tests, { appRoot: input, port });
+  console.log(`BC Atlas Control Center: ${url}`);
+}
+
 async function main() {
   if (process.argv[2] === "docs") return docsMain(process.argv.slice(3));
   const { values, positionals } = parseArgs({
@@ -344,13 +262,14 @@ async function main() {
     return console.log(pkg.version);
   }
 
-  const commands = new Set(["graph", "inspect", "watch"]);
+  const commands = new Set(["graph", "inspect", "watch", "serve"]);
   const command = commands.has(positionals[0]) ? positionals.shift() : "graph";
   if (positionals.length !== 1) {
     console.log(HELP);
     throw new Error("expected exactly one AL file or project directory");
   }
   if (command === "watch") return watch(positionals[0], values);
+  if (command === "serve") return serve(positionals[0], values);
   return build(positionals[0], command, values);
 }
 

@@ -485,6 +485,8 @@ test("controls documentation CLI operations through the web API", async () => {
 
     const listed = await run({ command: "list" });
     assert.equal(listed.length, 1);
+    const commands = await (await fetch(`${started.url}/api/commands`)).json();
+    assert.ok(!commands.includes("graph"));
     assert.deepEqual(await run({ command: "validate" }), []);
     const automation = await run({ command: "automation", provider: "github" });
     assert.equal(automation.provider, "github");
@@ -517,6 +519,35 @@ test("controls documentation CLI operations through the web API", async () => {
     assert.deepEqual([...webApp.matchAll(/fetch\("(\/api\/[^"]+)"/gu)].map((match) => match[1]), [
       "/api/commands"
     ]);
+  } finally {
+    await new Promise((resolve) => server ? server.close(resolve) : resolve());
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("serves architecture diagrams through the shared command API", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const appRoot = fileURLToPath(new URL("./fixtures", import.meta.url));
+  let server;
+  try {
+    writeFileSync(path.join(directory, "WidgetUITest.Codeunit.al"), AL_UI_TEST);
+    const started = await startDocsServer(directory, { appRoot });
+    server = started.server;
+
+    const commands = await (await fetch(`${started.url}/api/commands`)).json();
+    assert.ok(commands.includes("graph"));
+
+    const response = await fetch(`${started.url}/api/commands`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ command: "graph", view: "ui" })
+    });
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.view, "ui");
+    assert.ok(result.nodes > 0);
+    assert.ok(result.edges > 0);
+    assert.match(result.svg, /<svg\b/u);
   } finally {
     await new Promise((resolve) => server ? server.close(resolve) : resolve());
     rmSync(directory, { recursive: true, force: true });

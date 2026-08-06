@@ -2,6 +2,9 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createArchitectureModel } from "../architecture.js";
+import { renderD2 } from "../d2.js";
+import { renderSvg } from "../svg.js";
 import { createAutomationPlan } from "./automation.js";
 import { planMetadataEdit, writeMetadataEdit } from "./al-ui-writer.js";
 import { renderDocumentation, writeCorpusDocumentation } from "./markdown.js";
@@ -49,10 +52,38 @@ function scenarioDetails(scenario, corpus) {
   };
 }
 
-const WEB_COMMANDS = ["list", "show", "validate", "generate", "set", "unset", "glossary", "automation"];
+const DOC_COMMANDS = ["list", "show", "validate", "generate", "set", "unset", "glossary", "automation"];
 
-async function executeCommand(root, body, defaults = {}) {
-  if (!WEB_COMMANDS.includes(body.command)) throw new Error(`unsupported command: ${body.command}`);
+async function executeCommand(root, body, defaults = {}, appRoot) {
+  const commands = appRoot ? [...DOC_COMMANDS, "graph"] : DOC_COMMANDS;
+  if (!commands.includes(body.command)) throw new Error(`unsupported command: ${body.command}`);
+  if (body.command === "graph") {
+    const architecture = await createArchitectureModel(appRoot, {
+      view: body.view,
+      object: body.object,
+      scope: body.scope,
+      focus: body.focus,
+      entry: body.entry,
+      direction: body.direction,
+      details: body.details,
+      groupBy: body.groupBy,
+      moduleDepth: body.moduleDepth,
+      folderDepth: body.folderDepth,
+      workflowDepth: body.workflowDepth,
+      workflowMaxNodes: body.workflowMaxNodes,
+      workflowEdgeTypes: body.workflowEdgeTypes,
+      maxEdges: body.maxEdges
+    });
+    const source = renderD2(architecture.model, architecture.renderOptions);
+    return {
+      view: architecture.view,
+      files: architecture.model.files,
+      nodes: architecture.model.objects.length,
+      edges: architecture.model.edges.length,
+      diagnostics: architecture.model.diagnostics,
+      svg: await renderSvg(source, architecture.options)
+    };
+  }
   if (body.command === "glossary") return documentationGlossary();
 
   const corpus = await loadCorpus(root);
@@ -95,12 +126,16 @@ async function executeCommand(root, body, defaults = {}) {
   };
 }
 
-async function apiResponse(request, response, pathname, root, defaults) {
+async function apiResponse(request, response, pathname, root, defaults, appRoot) {
   if (request.method === "GET" && pathname === "/api/commands") {
-    return sendJson(response, 200, WEB_COMMANDS);
+    return sendJson(response, 200, appRoot ? [...DOC_COMMANDS, "graph"] : DOC_COMMANDS);
   }
   if (request.method === "POST" && pathname === "/api/commands") {
-    return sendJson(response, 200, await executeCommand(root, await requestJson(request), defaults));
+    return sendJson(
+      response,
+      200,
+      await executeCommand(root, await requestJson(request), defaults, appRoot)
+    );
   }
   return sendJson(response, 404, { error: "API route not found" });
 }
@@ -131,12 +166,13 @@ async function staticResponse(response, pathname) {
 
 export async function startDocsServer(root, options = {}) {
   const resolvedRoot = path.resolve(root);
+  const appRoot = options.appRoot ? path.resolve(options.appRoot) : undefined;
   const inputPath = path.relative(process.cwd(), resolvedRoot).replaceAll("\\", "/") || ".";
   const server = http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, "http://127.0.0.1");
       if (url.pathname.startsWith("/api/")) {
-        await apiResponse(request, response, url.pathname, resolvedRoot, { inputPath });
+        await apiResponse(request, response, url.pathname, resolvedRoot, { inputPath }, appRoot);
       } else {
         await staticResponse(response, url.pathname);
       }
