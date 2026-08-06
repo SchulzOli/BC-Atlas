@@ -56,6 +56,6 @@
     "@terrastruct/d2": "^0.1.33",
     "dompurify": "^3.4.13",
     "marked": "^18.0.9",
-    "web-tree-sitter": "^0.25.10"
+    "web-tree-sitter": "^0.26.11"
   }
 }
