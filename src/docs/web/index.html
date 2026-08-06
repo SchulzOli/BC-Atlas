@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BC Atlas Documentation</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="app-bar">
+    <div class="brand"><strong>BC Atlas</strong><span>Documentation Center</span></div>
+    <div class="header-actions">
+      <span id="sync-status" class="sync-status">Ready</span>
+      <button id="refresh" class="secondary" type="button">Refresh</button>
+      <button id="generate" type="button">Generate Markdown</button>
+    </div>
+  </header>
+  <main>
+    <aside class="sidebar">
+      <nav class="primary-nav" aria-label="Workspace">
+        <button class="nav-item active" type="button" data-view="overview">Overview</button>
+        <button class="nav-item" type="button" data-view="quality">Quality <span id="nav-issue-count">0</span></button>
+        <button class="nav-item" type="button" data-view="glossary">Glossary</button>
+      </nav>
+      <div class="scenario-heading">
+        <label for="search">Scenarios</label>
+        <span id="scenario-total">0</span>
+      </div>
+      <input id="search" type="search" placeholder="Search scenarios">
+      <nav id="scenarios" aria-live="polite"></nav>
+    </aside>
+    <section id="workspace">
+      <section id="overview-view" class="view">
+        <div class="page-heading">
+          <div><p class="eyebrow">Workspace</p><h1>Documentation overview</h1></div>
+          <span id="health-badge" class="badge success">Healthy</span>
+        </div>
+        <div class="metrics">
+          <article><span>Scenarios</span><strong id="scenario-count">0</strong></article>
+          <article><span>Stable IDs</span><strong id="stable-id-count">0</strong></article>
+          <article><span>Features</span><strong id="feature-count">0</strong></article>
+          <article><span>Issues</span><strong id="issue-count">0</strong></article>
+        </div>
+        <section class="section-block">
+          <div class="section-heading"><h2>Features</h2><span>Scenario coverage</span></div>
+          <div id="feature-list" class="feature-list"></div>
+        </section>
+        <section class="section-block">
+          <div class="section-heading"><h2>Recent scenarios</h2><button id="browse-scenarios" class="link-button" type="button">Browse all</button></div>
+          <div id="recent-scenarios" class="scenario-table"></div>
+        </section>
+      </section>
+
+      <section id="scenario-view" class="view" hidden>
+        <button id="back-to-overview" class="back-button" type="button">Back to overview</button>
+        <div class="page-heading">
+          <div><p id="source" class="eyebrow"></p><h1 id="title"></h1></div>
+          <span id="status" class="badge success"></span>
+        </div>
+        <section class="panel">
+          <div class="section-heading"><h2>Metadata</h2><span id="document-id"></span></div>
+          <form id="metadata-form">
+            <label>Tag<select id="tag" required></select></label>
+            <label id="qualifier-field" hidden>Type<select id="qualifier"></select></label>
+            <label>Value<input id="value" required placeholder="Metadata value" list="scenario-ids"></label>
+            <datalist id="scenario-ids"></datalist>
+            <button type="submit">Save</button>
+          </form>
+          <div id="metadata" class="metadata-list"></div>
+        </section>
+        <section class="panel">
+          <div class="section-heading preview-heading">
+            <h2>Markdown</h2>
+            <div class="preview-actions">
+              <div class="segmented-control" role="group" aria-label="Markdown view">
+                <button id="show-rendered" class="active" type="button" aria-pressed="true">Preview</button>
+                <button id="show-source" type="button" aria-pressed="false">Code</button>
+              </div>
+              <button id="copy-preview" class="link-button" type="button">Copy</button>
+            </div>
+          </div>
+          <article id="preview-rendered" class="markdown-preview"></article>
+          <pre id="preview-source" class="markdown-source" hidden></pre>
+        </section>
+      </section>
+
+      <section id="quality-view" class="view" hidden>
+        <div class="page-heading">
+          <div><p class="eyebrow">Validation</p><h1>Documentation quality</h1></div>
+          <button id="run-validation" type="button">Run validation</button>
+        </div>
+        <div id="quality-summary" class="quality-summary"></div>
+        <div id="diagnostics" class="diagnostics"></div>
+      </section>
+
+      <section id="glossary-view" class="view" hidden>
+        <div class="page-heading"><div><p class="eyebrow">Reference</p><h1>Metadata glossary</h1></div></div>
+        <div id="glossary-list" class="glossary-list"></div>
+      </section>
+    </section>
+  </main>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="busy" class="busy" hidden><span></span>Working</div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

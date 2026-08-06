@@ -20,7 +20,7 @@ Usage:
   bca [graph] [options] <file-or-directory>
   bca inspect [options] <file-or-directory>
   bca watch [options] <directory>
-  bca docs generate [options] <ui-test.al>
+  bca docs <command> [options] <file-or-directory>
 
 Views:
   project (default)   AL objects grouped by namespace
@@ -354,4 +354,4 @@ async function main() {
   return build(positionals[0], command, values);
 }
 
-main().catch((error) => fail(error.message, 2));
+main().catch((error) => fail(error.message, error.exitCode ?? 2));

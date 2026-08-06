@@ -20,5 +20,6 @@ permissionset 50121 "WAREHOUSE PROCESS"
     Assignable = true;
     Permissions =
         tabledata "Warehouse Request" = RIMD,
-        codeunit "Warehouse Processor" = X;
+        codeunit "Warehouse Processor" = X,
+        page "Warehouse Requests" = X;
 }

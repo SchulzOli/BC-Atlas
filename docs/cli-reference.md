@@ -10,7 +10,8 @@ file.
 bca [graph] [options] <file-or-directory>
 bca inspect [options] <file-or-directory>
 bca watch [options] <directory>
-bca docs generate [options] <ui-test.al>
+bca docs <list|show|validate|generate|set|unset|serve> [options] <file-or-directory>
+bca docs glossary [options]
 ```
 
 | Command | Purpose |
@@ -18,7 +19,7 @@ bca docs generate [options] <ui-test.al>
 | `graph` | Analyze AL source and write a diagram. This is the default command when no command is specified. |
 | `inspect` | Analyze AL source and emit the selected graph as JSON. Without `--output`, JSON is written to standard output. |
 | `watch` | Generate a graph, watch an AL project, and rebuild after relevant source or configuration changes. |
-| `docs generate` | Generate Markdown documentation from one `[Test]` procedure in an AL UI-test file. |
+| `docs` | Inspect, validate, edit, generate, and locally browse AL-backed UI-test documentation. |
 
 Use `bca --help`, `bca --version`, or
 `bca docs --help` for the built-in summaries.
@@ -218,7 +219,40 @@ debounce interval.
 bca watch src --view module --debounce 500 -o modules.svg
 ```
 
-## `docs generate`
+## Documentation commands
+
+AL UI-test files are the only persisted scenario source. JSON is available as
+terminal output and HTTP transport; BC Atlas does not create scenario JSON.
+
+| Command | Purpose |
+| --- | --- |
+| `docs list` | List documented scenarios under a file or directory. |
+| `docs show` | Show one scenario selected by `--id`. |
+| `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
+| `docs generate` | Generate one scenario or a complete Markdown catalog. |
+| `docs set` | Add or replace AL documentation metadata. |
+| `docs unset` | Remove matching AL documentation metadata. |
+| `docs glossary` | Print the built-in tag vocabulary, descriptions, value types, and cardinality. |
+| `docs serve` | Start the local control center on `127.0.0.1`. |
+
+Common documentation options:
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--id` | document ID | Selects a scenario by stable `[DOC-ID]`. |
+| `--format` | `text` or `json` | Selects human-readable or pipe-safe output. |
+| `--strict` | flag | Treats validation warnings as failures. |
+| `--tag` | tag | Tag used by `set` or `unset`. |
+| `--value` | text | Tag value used by `set`, or matching value for `unset`. |
+| `--qualifier` | type | Typed `[GIVEN]` qualifier. |
+| `--expected-hash` | SHA-256 | Rejects a mutation when the AL file changed after reading. |
+| `--dry-run` | flag | Plans a mutation without writing AL. |
+| `--port` | integer | Port for `serve`; the default chooses an available port. |
+
+Successful commands exit with `0`. Validation or operation failures exit with
+`1`; invalid command usage exits with `2`. Data is written to standard output.
+
+### `docs generate`
 
 ```text
 bca docs generate [options] <ui-test.al>
@@ -232,6 +266,7 @@ and conditional UI work is summarized as user-facing instructions.
 | Option | Value | Description |
 | --- | --- | --- |
 | `--procedure` | name | Selects the `[Test]` procedure to document. Required when the file contains multiple test procedures. |
+| `--id` | document ID | Generates one scenario from a corpus. |
 | `--output-dir` | path | Markdown output directory. Default: `docs/generated`. |
 | `-h`, `--help` | flag | Shows docs command help. |
 
@@ -240,3 +275,26 @@ bca docs generate test/PartnerUITest.Codeunit.al \
   --procedure PartnersList_NewPartner_PersistsGeneralFields \
   --output-dir docs/generated
 ```
+
+Directory generation writes one `<document-id>.md` file per scenario and a
+generated `index.md`. Use `docs validate` before generation in CI.
+
+### `docs set` and `docs unset`
+
+```text
+bca docs set test/UITest --id partner-create --tag GIVEN \
+  --qualifier MASTER-DATA --value "A posting group exists."
+bca docs unset test/UITest --id partner-create --tag RELATED --value partner-edit
+```
+
+### `docs serve`
+
+```text
+bca docs serve test/UITest --port 0
+```
+
+The server prints its loopback URL and remains attached to the terminal. Its
+web UI has no independent storage; each read reloads AL and each mutation uses
+the same validated writer as `docs set` and `docs unset`. The dashboard maps
+its overview, scenario workspace, quality view, glossary, and generation action
+to docs commands. `serve` hosts the interface and remains terminal-controlled.

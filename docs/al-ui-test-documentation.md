@@ -1,7 +1,8 @@
 # Generate documentation from AL UI tests
 
-`bca docs generate` converts one AL `[Test]` procedure directly into
-Markdown. The AL UI test remains the only executable implementation.
+BC Atlas converts AL `[Test]` procedures directly into Markdown. AL UI-test
+files are the only persisted source for scenarios and documentation metadata.
+The CLI and local control center use the same JavaScript application functions.
 
 ```text
 AL TestPage test -> BC Atlas -> Markdown
@@ -22,7 +23,8 @@ var
     EDIPartner: Record EDIPartner;
     EDIPartnersList: TestPage EDIPartners;
 begin
-    // [FEATURE] [edi-partner]
+    // [DOC-ID] edi-partner-create
+    // [FEATURE] edi-partner
     // [SCENARIO] Creating a new partner from the EDI Partners list persists the general fields.
     // [PERMISSIONS] EDI Partner, Edit
 
@@ -46,7 +48,7 @@ end;
 
 | AL source | Markdown |
 | --- | --- |
-| Procedure name | Stable output filename |
+| `[DOC-ID]` | Stable identity and output filename |
 | `[SCENARIO]` | Title and summary |
 | `[PERMISSIONS]` | Required permission sets under “Before you start” |
 | `[GIVEN]` | User-friendly preparation guidance |
@@ -69,6 +71,32 @@ Expansion is cycle-safe and limited to eight helper levels.
 `[PERMISSIONS]` is optional and may be repeated for multiple permission sets.
 `[PERMISSION]` is accepted as an alias. When neither tag is present, no
 permission entry is generated and documentation generation continues normally.
+
+## Metadata tags
+
+| Tag | Value | Purpose |
+| --- | --- | --- |
+| `[DOC-ID]` | lowercase hyphenated ID | Stable scenario identity, independent of procedure renames. |
+| `[FEATURE]` | text | Feature or domain classification. |
+| `[SCENARIO]` | sentence | Scenario title and goal. |
+| `[PERMISSIONS]` | text | Required permission set. `[PERMISSION]` is an alias. |
+| `[GIVEN]` | sentence | General prerequisite. |
+| `[GIVEN] [SETUP]` | sentence | Required application setup. |
+| `[GIVEN] [MASTER-DATA]` | sentence | Required master data. |
+| `[GIVEN] [ENVIRONMENT]` | sentence | Required environment condition. |
+| `[GIVEN] [FEATURE-FLAG]` | sentence | Required feature state. |
+| `[GIVEN] [STATE]` | sentence | Required business state. |
+| `[WHEN]` | sentence | User phase or action. |
+| `[THEN]` | sentence | Expected result. |
+| `[REQUIRES]` | document ID | Hard prerequisite guide. Cycles are invalid. |
+| `[NEXT]` | document ID | Recommended next guide. |
+| `[RELATED]` | document ID | Related guide. |
+| `[ALTERNATIVE]` | document ID | Alternative path. |
+
+Use one fact per comment. Use exact document IDs for relationships. Do not
+invent a target ID: `bca docs list <root>` shows available IDs, and
+`bca docs validate <root>` reports duplicate IDs, invalid IDs, broken or
+self-referencing links, and `[REQUIRES]` cycles.
 
 ## Generate Markdown
 
@@ -99,6 +127,43 @@ fingerprint; it does not expose a local repository path. It is deterministic:
 generating from unchanged AL produces the same file. Literal test values are
 presented as examples so readers know to choose values appropriate for their
 environment.
+
+For a directory, BC Atlas generates every documented scenario plus
+`index.md`:
+
+```powershell
+bca docs validate test/UITest
+bca docs generate test/UITest --output-dir docs/generated
+```
+
+## Inspect and edit metadata
+
+All metadata operations work in a terminal and support machine-readable output:
+
+```powershell
+bca docs list test/UITest --format json
+bca docs show test/UITest --id edi-partner-create --format json
+bca docs glossary --format json
+bca docs set test/UITest --id edi-partner-create --tag RELATED --value edi-partner-edit
+bca docs unset test/UITest --id edi-partner-create --tag RELATED --value edi-partner-edit
+```
+
+Add `--dry-run` to preview a mutation without writing AL. Mutations only alter
+documentation comments inside the selected test procedure. The writer reparses
+and validates the result before atomically replacing the source file.
+
+Start the optional local control center with:
+
+```powershell
+bca docs serve test/UITest
+```
+
+The command prints its `127.0.0.1` URL. The browser UI reads and updates AL
+through the same operations as the CLI; it has no database or independent
+scenario store. The central dashboard uses `list`, `show`, `validate`,
+`generate`, `set`, `unset`, and `glossary` for its overview, scenario workspace,
+quality view, glossary, and generation actions. `serve` remains
+terminal-controlled because it hosts the interface itself.
 
 ## Verification and CI
 

@@ -13,6 +13,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderDocumentation, writeDocumentation } from "../src/docs/markdown.js";
 import { loadAlUiTest } from "../src/docs/al-ui-source.js";
+import { loadCorpus } from "../src/docs/model.js";
+import { planMetadataEdit, writeMetadataEdit } from "../src/docs/al-ui-writer.js";
+import { startDocsServer } from "../src/docs/server.js";
 
 const AL_UI_TEST = `codeunit 50100 WidgetUITest
 {
@@ -244,6 +247,248 @@ test("docs generate writes Markdown without a browser or agent", () => {
       output,
       "widgets-list-new-widget-persists-general-fields.md"
     )));
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("parses stable IDs, typed prerequisites, and document links", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "WidgetUITest.Codeunit.al");
+  try {
+    writeFileSync(filename, AL_UI_TEST
+      .replace(
+        "        // [FEATURE] [widgets]",
+        "        // [DOC-ID] widget-create\n        // [FEATURE] widgets"
+      )
+      .replace(
+        "        // [GIVEN] No widget exists yet.",
+        "        // [GIVEN] [MASTER-DATA] No widget exists yet."
+      )
+      .replace(
+        "        // [THEN] The widget persists with its code and name.",
+        "        // [THEN] The widget persists with its code and name.\n" +
+        "        // [RELATED] widget-edit"
+      ));
+    const source = await loadAlUiTest(filename);
+
+    assert.equal(source.value.id, "widget-create");
+    assert.equal(source.value.idSource, "explicit");
+    assert.deepEqual(source.value.typedPrerequisites, [
+      { type: "master-data", text: "No widget exists yet." }
+    ]);
+    assert.deepEqual(source.value.links.related, ["widget-edit"]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("loads and validates a linked documentation corpus", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  try {
+    writeFileSync(path.join(directory, "Create.al"), AL_UI_TEST
+      .replace("[FEATURE] [widgets]", "[DOC-ID] widget-create\n        // [FEATURE] widgets")
+      .replace("[THEN] The widget persists with its code and name.",
+        "[THEN] The widget persists with its code and name.\n        // [NEXT] widget-edit"));
+    writeFileSync(path.join(directory, "Edit.al"), AL_UI_TEST
+      .replace("WidgetsList_NewWidget_PersistsGeneralFields", "WidgetsList_EditWidget")
+      .replace("[FEATURE] [widgets]", "[DOC-ID] widget-edit\n        // [FEATURE] widgets"));
+
+    const corpus = await loadCorpus(directory);
+    assert.equal(corpus.scenarios.length, 2);
+    assert.equal(corpus.diagnostics.length, 0);
+    const markdown = renderDocumentation(corpus.byId.get("widget-create"), {
+      catalog: corpus.byId
+    });
+    assert.match(markdown, /\[Create a new Widget\]\(\.\/widget-edit\.md\)/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("reports broken links and duplicate document IDs", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  try {
+    const source = AL_UI_TEST
+      .replace("[FEATURE] [widgets]", "[DOC-ID] widget-create\n        // [FEATURE] widgets")
+      .replace("[THEN] The widget persists with its code and name.",
+        "[THEN] The widget persists with its code and name.\n        // [REQUIRES] missing-guide");
+    writeFileSync(path.join(directory, "One.al"), source);
+    writeFileSync(path.join(directory, "Two.al"), source.replace(
+      "WidgetsList_NewWidget_PersistsGeneralFields",
+      "WidgetsList_NewWidgetAgain"
+    ));
+
+    const corpus = await loadCorpus(directory);
+    assert.ok(corpus.diagnostics.some(({ code }) => code === "duplicate-document-id"));
+    assert.ok(corpus.diagnostics.some(({ code }) => code === "broken-document-link"));
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("sets and unsets metadata without changing executable AL", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "WidgetUITest.Codeunit.al");
+  try {
+    writeFileSync(filename, AL_UI_TEST);
+    const corpus = await loadCorpus(directory);
+    const documentId = corpus.scenarios[0].value.id;
+    const setPlan = await planMetadataEdit(directory, documentId, {
+      tag: "DOC-ID",
+      value: "widget-create"
+    });
+    assert.match(setPlan.after, /\/\/ \[DOC-ID\] widget-create/u);
+    assert.match(setPlan.after, /Widgets\.OpenNew\(\);/u);
+    await writeMetadataEdit(setPlan);
+
+    const unsetPlan = await planMetadataEdit(directory, "widget-create", {
+      tag: "PERMISSIONS",
+      value: "Widget, Edit",
+      remove: true
+    });
+    await writeMetadataEdit(unsetPlan);
+    const updated = readFileSync(filename, "utf8");
+    assert.doesNotMatch(updated, /\[PERMISSIONS\]/u);
+    assert.match(updated, /Widgets\.Code\.SetValue\('W-UI'\);/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("serves and mutates the same AL-backed documentation model", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  let server;
+  try {
+    writeFileSync(path.join(directory, "WidgetUITest.Codeunit.al"), AL_UI_TEST);
+    const started = await startDocsServer(directory);
+    server = started.server;
+    const run = (body) => fetch(`${started.url}/api/commands`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const scenarios = await (await run({ command: "list" })).json();
+    assert.equal(scenarios.length, 1);
+
+    const markedAsset = await fetch(`${started.url}/assets/marked.js`);
+    const purifyAsset = await fetch(`${started.url}/assets/dompurify.js`);
+    assert.equal(markedAsset.status, 200);
+    assert.equal(purifyAsset.status, 200);
+    assert.match(markedAsset.headers.get("content-type"), /text\/javascript/u);
+
+    const scenario = await (await run({ command: "show", id: scenarios[0].id })).json();
+    assert.match(scenario.markdown, /^<!-- Generated by BC Atlas docs/mu);
+    const response = await run({
+      command: "set",
+      id: scenario.id,
+      tag: "DOC-ID",
+      value: "widget-api-create",
+      expectedFileHash: scenario.fileHash
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).documentId, "widget-api-create");
+
+    const staleResponse = await run({
+      command: "set",
+      id: "widget-api-create",
+      tag: "FEATURE",
+      value: "api",
+      expectedFileHash: scenario.fileHash
+    });
+    assert.equal(staleResponse.status, 422);
+  } finally {
+    await new Promise((resolve) => server ? server.close(resolve) : resolve());
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("controls documentation CLI operations through the web API", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "WidgetUITest.Codeunit.al");
+  let server;
+  try {
+    writeFileSync(filename, AL_UI_TEST);
+    const started = await startDocsServer(directory);
+    server = started.server;
+    const run = async (body) => {
+      const response = await fetch(`${started.url}/api/commands`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      assert.equal(response.status, 200);
+      return response.json();
+    };
+
+    const listed = await run({ command: "list" });
+    assert.equal(listed.length, 1);
+    assert.deepEqual(await run({ command: "validate" }), []);
+    const glossary = await run({ command: "glossary" });
+    assert.ok(glossary.length > 0);
+    assert.ok(glossary.every(({ description }) => description.length > 0));
+    assert.equal((await fetch(`${started.url}/api/scenarios`)).status, 404);
+
+    const before = readFileSync(filename, "utf8");
+    const dryRun = await run({
+      command: "set",
+      id: listed[0].id,
+      tag: "DOC-ID",
+      value: "widget-web-command",
+      dryRun: true
+    });
+    assert.equal(dryRun.written, false);
+    assert.match(dryRun.preview, /widget-web-command/u);
+    assert.equal(readFileSync(filename, "utf8"), before);
+    const webApp = readFileSync(
+      fileURLToPath(new URL("../src/docs/web/app.js", import.meta.url)),
+      "utf8"
+    );
+    assert.deepEqual([...webApp.matchAll(/fetch\("(\/api\/[^"]+)"/gu)].map((match) => match[1]), [
+      "/api/commands"
+    ]);
+  } finally {
+    await new Promise((resolve) => server ? server.close(resolve) : resolve());
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("docs CLI exposes pipe-safe JSON reads and dry-run mutations", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  try {
+    writeFileSync(path.join(directory, "WidgetUITest.Codeunit.al"), AL_UI_TEST);
+    const listed = spawnSync(process.execPath, [cli, "docs", "list", directory, "--format", "json"], {
+      encoding: "utf8"
+    });
+    assert.equal(listed.status, 0, listed.stderr);
+    const scenarios = JSON.parse(listed.stdout);
+    assert.equal(scenarios.length, 1);
+
+    const glossary = spawnSync(process.execPath, [cli, "docs", "glossary", "--format", "json"], {
+      encoding: "utf8"
+    });
+    assert.equal(glossary.status, 0, glossary.stderr);
+    const glossaryItems = JSON.parse(glossary.stdout);
+    assert.ok(glossaryItems.some(({ tag }) => tag === "REQUIRES"));
+    assert.ok(glossaryItems.every(({ description }) => description.length > 0));
+
+    const dryRun = spawnSync(process.execPath, [
+      cli, "docs", "set", directory,
+      "--id", scenarios[0].id,
+      "--tag", "DOC-ID",
+      "--value", "widget-create",
+      "--dry-run",
+      "--format", "json"
+    ], { encoding: "utf8" });
+    assert.equal(dryRun.status, 0, dryRun.stderr);
+    assert.equal(JSON.parse(dryRun.stdout).written, false);
+    assert.doesNotMatch(readFileSync(path.join(directory, "WidgetUITest.Codeunit.al"), "utf8"), /widget-create/u);
+
+    const invalid = spawnSync(process.execPath, [cli, "docs", "set", directory], {
+      encoding: "utf8"
+    });
+    assert.equal(invalid.status, 2);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

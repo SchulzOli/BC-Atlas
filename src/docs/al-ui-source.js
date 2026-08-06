@@ -4,6 +4,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Language, Parser } from "web-tree-sitter";
+import {
+  canonicalTag,
+  DOCUMENTATION_TAGS,
+  isDocumentId,
+  PREREQUISITE_TYPES,
+  RELATION_TAGS
+} from "./tags.js";
 
 const AL_TEST_PATTERN = /\[Test\](?:\s*\[[^\]]+\])*\s*procedure\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/giu;
 const TEST_PAGE_PATTERN =
@@ -57,8 +64,8 @@ function splitReference(reference, procedure) {
   return { filename: reference, procedure: undefined };
 }
 
-function taggedComments(source) {
-  const tags = new Map();
+function taggedEntries(source) {
+  const entries = [];
   let current = [];
   for (const line of source.split(/\r?\n/u)) {
     const comment = line.match(/^\s*\/\/\s?(.*)$/u);
@@ -66,27 +73,108 @@ function taggedComments(source) {
       current = [];
       continue;
     }
-    const tagged = comment[1].match(/^\[([A-Z]+)\](?:\/\[([A-Z]+)\])?\s*(.*)$/u);
+    const tagged = comment[1].match(
+      /^\[([A-Z-]+)\](?:\/\[([A-Z-]+)\])?(?:\s+\[([A-Z-]+)\])?\s*(.*)$/u
+    );
     if (tagged) {
-      current = [tagged[1], tagged[2]].filter(Boolean);
-      for (const tag of current) {
-        const items = tags.get(tag) ?? [];
-        items.push(tagged[3].trim());
-        tags.set(tag, items);
-      }
+      current = [tagged[1], tagged[2]].filter(Boolean).map((tag) => {
+        const entry = { tag, qualifier: tagged[3], text: tagged[4].trim() };
+        entries.push(entry);
+        return entry;
+      });
       continue;
     }
     if (!current.length || !comment[1].trim()) continue;
-    for (const tag of current) {
-      const items = tags.get(tag);
-      items[items.length - 1] = `${items.at(-1)} ${comment[1].trim()}`;
+    for (const entry of current) {
+      entry.text = `${entry.text} ${comment[1].trim()}`;
     }
+  }
+  return entries;
+}
+
+function taggedComments(entries) {
+  const tags = new Map();
+  for (const entry of entries) {
+    const tag = canonicalTag(entry.tag) ?? entry.tag;
+    const items = tags.get(tag) ?? [];
+    items.push(entry.text);
+    tags.set(tag, items);
   }
   return tags;
 }
 
 function commentValues(comments, tag) {
   return (comments.get(tag) ?? []).map((item) => item.trim()).filter(Boolean);
+}
+
+function uniqueValues(values) {
+  return [...new Set(values)];
+}
+
+function parsedLinks(comments) {
+  return Object.fromEntries(
+    Object.entries(RELATION_TAGS).map(([tag, relation]) => [
+      relation,
+      uniqueValues(commentValues(comments, tag))
+    ])
+  );
+}
+
+function parsedPrerequisites(entries) {
+  return entries
+    .filter(({ tag }) => canonicalTag(tag) === "GIVEN")
+    .map(({ qualifier, text }) => ({
+      type: PREREQUISITE_TYPES[qualifier] ?? "general",
+      text
+    }))
+    .filter(({ text }) => text);
+}
+
+function tagDiagnostics(entries) {
+  const diagnostics = [];
+  for (const entry of entries) {
+    const tag = canonicalTag(entry.tag);
+    if (!tag && !PREREQUISITE_TYPES[entry.tag]) {
+      diagnostics.push({
+        severity: "warning",
+        code: "unknown-documentation-tag",
+        message: `Unknown documentation tag [${entry.tag}]`
+      });
+    } else if (
+      entry.qualifier &&
+      !DOCUMENTATION_TAGS[tag]?.qualifiers?.includes(entry.qualifier)
+    ) {
+      diagnostics.push({
+        severity: "warning",
+        code: "unknown-prerequisite-type",
+        message: `Unsupported [${entry.qualifier}] qualifier for [${entry.tag}]`
+      });
+    }
+  }
+  return diagnostics;
+}
+
+function documentIdentity(comments, procedure, diagnostics) {
+  const values = commentValues(comments, "DOC-ID");
+  if (values.length > 1) {
+    diagnostics.push({
+      severity: "error",
+      code: "duplicate-document-id-tag",
+      message: `${procedure} has more than one [DOC-ID] tag`
+    });
+  }
+  const explicit = values[0];
+  if (explicit && !isDocumentId(explicit)) {
+    diagnostics.push({
+      severity: "error",
+      code: "invalid-document-id",
+      message: `Invalid document ID "${explicit}"; use lowercase kebab case`
+    });
+  }
+  return {
+    id: explicit || slug(procedure),
+    idSource: explicit ? "explicit" : "procedure"
+  };
 }
 
 function humanizeIdentifier(value) {
@@ -381,7 +469,7 @@ function guideExpectedResults(items, creationTarget) {
   });
 }
 
-async function parseAlUiTest(source, filename, requestedProcedure) {
+export async function parseAlUiTest(source, filename, requestedProcedure) {
   const tests = [...source.matchAll(AL_TEST_PATTERN)];
   if (!tests.length) throw new Error(`${path.basename(filename)} contains no [Test] procedures`);
 
@@ -407,7 +495,9 @@ async function parseAlUiTest(source, filename, requestedProcedure) {
     ? source.length
     : selected.index + selected[0].length + boundary;
   const sourceText = source.slice(selected.index, end).trim().replace(/\n\s*\}\s*$/u, "");
-  const comments = taggedComments(sourceText);
+  const entries = taggedEntries(sourceText);
+  const comments = taggedComments(entries);
+  const diagnostics = tagDiagnostics(entries);
   const scenarios = commentValues(comments, "SCENARIO");
   if (!scenarios.length) {
     throw new Error(`${selected[1]} must have a // [SCENARIO] comment`);
@@ -433,8 +523,9 @@ async function parseAlUiTest(source, filename, requestedProcedure) {
     ...commentValues(comments, "PERMISSION")
   ])];
   const expectedResults = expected.length ? expected : [goal];
+  const identity = documentIdentity(comments, selected[1], diagnostics);
   return {
-    id: slug(selected[1]),
+    ...identity,
     title: guidance.title ?? goal.replace(/[.\s]+$/u, ""),
     goal,
     guideGoal: guidance.goal ?? goal,
@@ -444,12 +535,21 @@ async function parseAlUiTest(source, filename, requestedProcedure) {
     hasExampleValues: guidance.hasExamples,
     permissions,
     prerequisites,
+    typedPrerequisites: parsedPrerequisites(entries),
     guidePrerequisites: guidePrerequisites(prerequisites, guidance.creationTarget),
     actions: commentValues(comments, "WHEN"),
     expected: expectedResults,
     guideExpected: guideExpectedResults(expectedResults, guidance.creationTarget),
     features: commentValues(comments, "FEATURE"),
+    links: parsedLinks(comments),
+    metadata: entries.map(({ tag, qualifier, text }) => ({
+      tag: canonicalTag(tag) ?? tag,
+      qualifier,
+      value: text
+    })),
+    diagnostics,
     procedure: selected[1],
+    sourceRange: { start: selected.index, end },
     sourceText,
     sourceHash: createHash("sha256").update(sourceText).digest("hex")
   };
@@ -475,8 +575,31 @@ export async function loadAlUiTest(reference, options = {}) {
     path: absolutePath,
     relativePath: portablePath(path.relative(process.cwd(), absolutePath)),
     reference: sourceReference(absolutePath, value.procedure),
+    fileHash: createHash("sha256").update(content).digest("hex"),
     value
   };
+}
+
+export async function loadAlUiTests(filename) {
+  const absolutePath = path.resolve(filename);
+  const content = await fs.readFile(absolutePath, "utf8");
+  const procedures = [...content.matchAll(AL_TEST_PATTERN)].map((match) => match[1]);
+  const scenarios = [];
+  for (const procedure of procedures) {
+    try {
+      const value = await parseAlUiTest(content, absolutePath, procedure);
+      scenarios.push({
+        path: absolutePath,
+        relativePath: portablePath(path.relative(process.cwd(), absolutePath)),
+        reference: sourceReference(absolutePath, value.procedure),
+        fileHash: createHash("sha256").update(content).digest("hex"),
+        value
+      });
+    } catch (error) {
+      if (!/must have a \/\/ \[SCENARIO\] comment/u.test(error.message)) throw error;
+    }
+  }
+  return scenarios;
 }
 
 export function generatedDocumentationPath(value, outputDirectory = "docs/generated") {
