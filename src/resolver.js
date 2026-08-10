@@ -104,6 +104,12 @@ export function resolveModel(model) {
         property: relation.property,
         member: relation.member,
         contract: relation.contract,
+        relatedField: relation.relatedField,
+        condition: relation.condition,
+        filters: relation.filters,
+        temporary: relation.temporary,
+        conditionalSymbols: relation.conditionalSymbols,
+        via: relation.via,
         confidence: target ? "resolved" : "syntactic",
         location: relation.location
       });

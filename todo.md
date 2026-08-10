@@ -72,25 +72,25 @@ Partner boundary measurements from whole-app analysis:
 
 ## AL semantic extraction
 
-- [ ] Replace heuristic table-relation parsing with tree-sitter queries over
+- [x] Replace heuristic table-relation parsing with tree-sitter queries over
   every conditional branch.
-- [ ] Capture relation conditions and related fields, not only table targets.
-- [ ] Resolve implicit `Rec`, `xRec`, `CurrPage`, `Report`, and `Database`
+- [x] Capture relation conditions and related fields, not only table targets.
+- [x] Resolve implicit `Rec`, `xRec`, `CurrPage`, `Report`, and `Database`
   receivers.
-- [ ] Track lexical variable scope. The current object-level variable index can
+- [x] Track lexical variable scope. The current object-level variable index can
   confuse local variables with the same name.
-- [ ] Resolve procedure overloads and parameters by signature.
-- [ ] Resolve qualified calls, chained member calls, and interface dispatch.
-- [ ] Detect temporary records and label them separately from persisted access.
-- [ ] Detect writes performed through helper procedures and `ModifyAll`.
-- [ ] Distinguish filter construction from actual reads.
-- [ ] Extract query data items, report data items, XMLport table elements, and
+- [x] Resolve procedure overloads and parameters by signature.
+- [x] Resolve qualified calls, chained member calls, and interface dispatch.
+- [x] Detect temporary records and label them separately from persisted access.
+- [x] Detect writes performed through helper procedures and `ModifyAll`.
+- [x] Distinguish filter construction from actual reads.
+- [x] Extract query data items, report data items, XMLport table elements, and
   CalcFormula dependencies.
-- [ ] Extract page parts, subpages, views, and action references.
-- [ ] Extract execute permissions and non-table permission targets.
-- [ ] Handle all `EventSubscriber` argument forms and namespace-qualified
+- [x] Extract page parts, subpages, views, and action references.
+- [x] Extract execute permissions and non-table permission targets.
+- [x] Handle all `EventSubscriber` argument forms and namespace-qualified
   publisher objects.
-- [ ] Evaluate conditional compilation symbols or annotate conditional edges.
+- [x] Evaluate conditional compilation symbols or annotate conditional edges.
 
 ## Call-view precision and scale
 
@@ -269,16 +269,10 @@ Read [](file:///c%3A/Users/Oliver.Schulz/Desktop/ALD2Tree/test/docs.test.js)
 
 Understood. The improvement target is **enterprise-grade documentation generated from AL UI tests**.
 
-**Key Ideas**
-1. **Document interlinks**  
-   Add `[REQUIRES]`, `[NEXT]`, `[RELATED]`, and `[ALTERNATIVE]` links between scenarios.
-3. **Stable document IDs**  
-   Use explicit `[DOC-ID]` values so links survive procedure renames.
-17. **Prerequisite types**  
-    Separate permissions, setup, master data, environment, feature flags, and previous process state.
-
-
-
+1. [x] **Complete user documentation**  
+   The `docs` folder now explains how to install, configure, and use the whole
+   project. `docs/TOC.md` provides the table of contents. `npm run docs` and
+   `npm run docs:check` synchronize the CLI capability summary with source code.
 
 2. **End-to-end journeys**  
    Combine multiple UI tests into one business process, such as setup → create → approve → post → monitor.

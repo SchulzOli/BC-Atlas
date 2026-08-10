@@ -84,6 +84,256 @@ test("extracts semantic data, permissions, page members, and parent app context"
   assert.equal(contextModel.apps[0].name, "Parent App");
 });
 
+test("extracts every conditional table relation branch with fields and filters", async () => {
+  const source = `
+    table 50100 Child {
+      fields {
+        field(1; ParentCode; Code[20]) {
+          TableRelation = if (Kind = const(Item)) Item.Number where(Blocked = const(false))
+            else if (Kind = const(Customer)) Customer.Number
+            else Resource.Number;
+        }
+      }
+    }
+  `;
+  const result = await testing.objectsFromSource(source, "relations.al");
+  const relations = result.objects[0].relations.filter(({ kind }) => kind === "relates");
+
+  assert.deepEqual(
+    relations.map(({ target, relatedField, condition }) => ({ target, relatedField, condition })),
+    [
+      { target: "Item", relatedField: "Number", condition: "Kind = const(Item)" },
+      {
+        target: "Customer",
+        relatedField: "Number",
+        condition: "not (Kind = const(Item)) and Kind = const(Customer)"
+      },
+      {
+        target: "Resource",
+        relatedField: "Number",
+        condition: "not (Kind = const(Item)) and not (Kind = const(Customer))"
+      }
+    ]
+  );
+  assert.deepEqual(relations[0].filters, [
+    { field: "Blocked", value: "false", expression: "Blocked = const(false)" }
+  ]);
+});
+
+test("resolves lexical record scope, parameters, implicit records, and temporary access", async () => {
+  const source = `
+    table 50100 Persisted { }
+    table 50101 Buffer { }
+    table 50102 Owner {
+      var Shared: Record Persisted;
+
+      procedure UseLocal(Shared: Record Buffer temporary)
+      begin
+        Shared.Modify();
+        Rec.Modify();
+        xRec.Get();
+      end;
+
+      procedure UseGlobal()
+      begin
+        Shared.Modify();
+      end;
+    }
+  `;
+  const result = await testing.objectsFromSource(source, "scope.al");
+  const owner = result.objects.find(({ name }) => name === "Owner");
+  const accesses = owner.relations.filter(({ kind }) => ["reads", "writes"].includes(kind));
+
+  assert.ok(accesses.some(({ target, kind, temporary }) =>
+    target === "Buffer" && kind === "writes" && temporary
+  ));
+  assert.ok(accesses.some(({ target, kind, temporary }) =>
+    target === "Persisted" && kind === "writes" && !temporary
+  ));
+  assert.ok(accesses.some(({ target, kind }) => target === "Owner" && kind === "writes"));
+  assert.ok(accesses.some(({ target, kind }) => target === "Owner" && kind === "reads"));
+  assert.equal(owner.procedures.find(({ name }) => name === "UseLocal").signature,
+    "UseLocal(Record Buffer temporary)");
+});
+
+test("resolves overloads and interface calls by signature", async () => {
+  const source = `
+    interface WorkerContract {
+      procedure Execute(Value: Integer);
+    }
+    codeunit 50100 Caller {
+      procedure Run(Worker: Interface WorkerContract)
+      begin
+        Execute(1);
+        Execute(1, 2);
+        Worker.Execute(1);
+      end;
+      procedure Execute(Value: Integer)
+      begin
+      end;
+      procedure Execute(Left: Integer; Right: Integer)
+      begin
+      end;
+    }
+  `;
+  const parsed = await testing.objectsFromSource(source, "overloads.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  const calls = createView(model, "call");
+  const executeTargets = calls.edges
+    .filter(({ kind, to }) => kind === "calls" && to)
+    .map(({ to }) => calls.objects.find(({ key }) => key === to)?.signature);
+
+  assert.ok(executeTargets.includes("Execute(Integer)"));
+  assert.ok(executeTargets.includes("Execute(Integer, Integer)"));
+  assert.equal(calls.edges.filter(({ confidence }) => confidence === "resolved").length, 3);
+});
+
+test("extracts data items, formulas, execute permissions, action refs, and conditions", async () => {
+  const source = `
+    table 50100 Ledger { }
+    table 50101 Summary {
+      fields {
+        field(1; Total; Decimal) { CalcFormula = sum(Ledger.Amount); }
+      }
+    }
+    report 50102 LedgerReport {
+      dataset { dataitem(Lines; Ledger) { } }
+    }
+    query 50103 LedgerQuery {
+      elements { dataitem(Lines; Ledger) { column(Amount; Amount) { } } }
+    }
+    xmlport 50104 LedgerPort {
+      schema { tableelement(Lines; Ledger) { } }
+    }
+    page 50105 SummaryCard {
+      actions { area(Processing) { action(SourceAction) { } actionref(Promoted; SourceAction) { } } }
+    }
+    permissionset 50106 Operators {
+      Permissions = tabledata Ledger = R, codeunit 50107 = X, page SummaryCard = X;
+    }
+    #if FEATURE
+    codeunit 50107 Worker {
+      var LedgerRecord: Record Ledger;
+    }
+    #endif
+  `;
+  const result = await testing.objectsFromSource(source, "declarations.al");
+  const summary = result.objects.find(({ name }) => name === "Summary");
+  const permissions = result.objects.find(({ name }) => name === "Operators");
+  const page = result.objects.find(({ name }) => name === "SummaryCard");
+  const worker = result.objects.find(({ name }) => name === "Worker");
+
+  assert.ok(summary.relations.some(({ target, property, relatedField }) =>
+    target === "Ledger" && property === "calcformula" && relatedField === "Amount"
+  ));
+  for (const objectName of ["LedgerReport", "LedgerQuery", "LedgerPort"]) {
+    assert.ok(result.objects.find(({ name }) => name === objectName).relations.some(
+      ({ target, kind }) => target === "Ledger" && kind === "reads"
+    ));
+  }
+  assert.ok(permissions.relations.some(({ targetType, target, access }) =>
+    targetType === "codeunit" && target === "50107" && access === "X"
+  ));
+  assert.ok(permissions.relations.some(({ targetType, target }) =>
+    targetType === "page" && target === "SummaryCard"
+  ));
+  assert.ok(page.actions.some(({ kind, target }) =>
+    kind === "action-ref" && target === "SourceAction"
+  ));
+  assert.deepEqual(worker.relations.find(({ target }) => target === "Ledger").conditionalSymbols,
+    ["FEATURE"]);
+});
+
+test("resolves namespace-qualified EventSubscriber publisher arguments", async () => {
+  const source = `
+    namespace Demo;
+    table 50100 "Publisher Table" {
+      [IntegrationEvent(false, false)]
+      procedure OnChanged()
+      begin
+      end;
+    }
+    codeunit 50101 Subscriber {
+      [EventSubscriber(ObjectType::Table, Database::Demo."Publisher Table", 'OnChanged', '', false, false)]
+      local procedure HandleChanged()
+      begin
+      end;
+    }
+  `;
+  const parsed = await testing.objectsFromSource(source, "events.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  const events = createView(model, "events");
+
+  assert.ok(events.edges.some(({ kind, to }) => kind === "publishes" && to));
+});
+
+test("resolves chained calls through procedure return types", async () => {
+  const source = `
+    codeunit 50100 Service {
+      procedure Execute()
+      begin
+      end;
+    }
+    codeunit 50101 Factory {
+      procedure Create(): Codeunit Service
+      begin
+      end;
+    }
+    codeunit 50102 Caller {
+      var ServiceFactory: Codeunit Factory;
+      procedure Run()
+      begin
+        ServiceFactory.Create().Execute();
+      end;
+    }
+  `;
+  const parsed = await testing.objectsFromSource(source, "chains.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  const calls = createView(model, "call");
+  const caller = calls.objects.find(({ name, namespace }) =>
+    name === "Run" && namespace.endsWith(".Caller")
+  );
+  const execute = calls.objects.find(({ name, namespace }) =>
+    name === "Execute" && namespace.endsWith(".Service")
+  );
+
+  assert.ok(calls.edges.some(({ from, to }) => from === caller.key && to === execute.key));
+});
+
+test("propagates helper writes and extracts page views", async () => {
+  const source = `
+    table 50100 Ledger { }
+    codeunit 50101 Writer {
+      procedure Run()
+      begin
+        WriteLedger();
+        Run();
+      end;
+      local procedure WriteLedger()
+      var
+        LedgerRecord: Record Ledger;
+      begin
+        LedgerRecord.ModifyAll(Amount, 0);
+      end;
+    }
+    page 50102 LedgerList {
+      SourceTable = Ledger;
+      views {
+        view(OpenEntries) { }
+      }
+    }
+  `;
+  const result = await testing.objectsFromSource(source, "helpers.al");
+  const writer = result.objects.find(({ name }) => name === "Writer");
+  const page = result.objects.find(({ name }) => name === "LedgerList");
+
+  assert.ok(writer.relations.some(({ target, operation, member, via }) =>
+    target === "Ledger" && operation === "ModifyAll" && member === "Run()" &&
+    via.includes("WriteLedger()")
+  ));
+  assert.deepEqual(page.views.map(({ name }) => name), ["OpenEntries"]);
+});
+
 test("renders namespaced D2 with internal and external dependencies", async () => {
   const model = resolveModel(
     await analyze(fileURLToPath(new URL("./fixtures", import.meta.url)))

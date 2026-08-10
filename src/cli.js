@@ -6,6 +6,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
 import { createArchitectureModel, positiveInteger } from "./architecture.js";
+import { createCapabilities } from "./capabilities.js";
 import { renderD2 } from "./d2.js";
 import { renderSvg } from "./svg.js";
 import { docsMain } from "./docs/cli.js";
@@ -18,6 +19,7 @@ Usage:
   bca inspect [options] <file-or-directory>
   bca watch [options] <directory>
   bca serve [options] <app-directory>
+  bca capabilities
   bca docs <command> [options] <file-or-directory>
 
 Views:
@@ -112,6 +114,15 @@ const OPTIONS = {
 function fail(message, code = 1) {
   console.error(`bca: ${message}`);
   process.exitCode = code;
+}
+
+async function operation(action) {
+  try {
+    return await action();
+  } catch (error) {
+    error.exitCode ??= 1;
+    throw error;
+  }
 }
 
 function runD2(source, output, options) {
@@ -240,10 +251,16 @@ async function watch(input, values) {
 }
 
 async function serve(input, values) {
-  if (!values.tests) throw new Error("--tests is required for the combined Control Center");
+  if (!values.tests) {
+    const error = new Error("--tests is required for the combined Control Center");
+    error.exitCode = 2;
+    throw error;
+  }
   const port = values.port === undefined ? 0 : Number(values.port);
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
-    throw new Error("--port must be an integer from 0 to 65535");
+    const error = new Error("--port must be an integer from 0 to 65535");
+    error.exitCode = 2;
+    throw error;
   }
   const { url } = await startDocsServer(values.tests, { appRoot: input, port });
   console.log(`BC Atlas Control Center: ${url}`);
@@ -251,6 +268,11 @@ async function serve(input, values) {
 
 async function main() {
   if (process.argv[2] === "docs") return docsMain(process.argv.slice(3));
+  if (process.argv[2] === "capabilities") {
+    if (process.argv.length !== 3) throw new Error("capabilities accepts no arguments");
+    const pkg = JSON.parse(await fs.readFile(new URL("../package.json", import.meta.url)));
+    return process.stdout.write(`${JSON.stringify(createCapabilities(pkg.version), null, 2)}\n`);
+  }
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     strict: true,
@@ -268,9 +290,9 @@ async function main() {
     console.log(HELP);
     throw new Error("expected exactly one AL file or project directory");
   }
-  if (command === "watch") return watch(positionals[0], values);
-  if (command === "serve") return serve(positionals[0], values);
-  return build(positionals[0], command, values);
+  if (command === "watch") return operation(() => watch(positionals[0], values));
+  if (command === "serve") return operation(() => serve(positionals[0], values));
+  return operation(() => build(positionals[0], command, values));
 }
 
 main().catch((error) => fail(error.message, error.exitCode ?? 2));

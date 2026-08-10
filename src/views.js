@@ -184,12 +184,21 @@ function callView(model, options = {}) {
 
   for (const owner of model.objects) {
     objectIndex.set(`${owner.type}:${normalizeIdentifier(owner.name)}`, owner);
+    objectIndex.set(
+      `${owner.type}:${normalizeIdentifier(`${owner.namespace}.${owner.name}`)}`,
+      owner
+    );
     if (owner.id) objectIndex.set(`${owner.type}:${owner.id}`, owner);
-    for (const procedure of owner.procedures ?? []) {
-      const key = `${owner.key}::procedure::${normalizeIdentifier(procedure.name)}`;
+    for (const [index, procedure] of (owner.procedures ?? []).entries()) {
+      const key = `${owner.key}::procedure::${normalizeIdentifier(procedure.name)}::${procedure.location?.line ?? index}`;
       const item = {
         key,
         name: procedure.name,
+        signature: procedure.signature,
+        procedureName: procedure.name,
+        arity: procedure.arity ?? 0,
+        returnTargetType: procedure.returnTargetType,
+        returnTarget: procedure.returnTarget,
         type: procedure.kind,
         namespace: `${owner.namespace}.${owner.name}`,
         file: owner.file,
@@ -197,59 +206,87 @@ function callView(model, options = {}) {
         relations: []
       };
       objects.push(item);
-      procedureIndex.set(`${owner.key}:${normalizeIdentifier(procedure.name)}`, item);
+      const lookup = `${owner.key}:${normalizeIdentifier(procedure.name)}`;
+      const candidates = procedureIndex.get(lookup) ?? [];
+      candidates.push(item);
+      procedureIndex.set(lookup, candidates);
     }
   }
 
+  const variableFor = (owner, call) => (owner.variables ?? [])
+    .filter(({ name, scope }) =>
+      normalizeIdentifier(name) === normalizeIdentifier(call.receiver) &&
+      (scope === undefined || scope === call.scope)
+    )
+    .at(-1);
+  const targetOwnerFor = (owner, call) => {
+    if (!call.receiver) return owner;
+    if (call.receiverCall) {
+      const receiverOwner = targetOwnerFor(owner, call.receiverCall);
+      const candidates = receiverOwner
+        ? procedureIndex.get(
+          `${receiverOwner.key}:${normalizeIdentifier(call.receiverCall.name)}`
+        ) ?? []
+        : [];
+      const matches = candidates.filter(({ arity }) => arity === call.receiverCall.arity);
+      const returned = matches.length === 1 ? matches[0] : undefined;
+      return returned?.returnTarget
+        ? objectIndex.get(
+          `${returned.returnTargetType}:${normalizeIdentifier(returned.returnTarget)}`
+        )
+        : undefined;
+    }
+    if (/^(rec|xrec|currpage|report)$/iu.test(call.receiver)) return owner;
+    const variable = variableFor(owner, call);
+    return variable?.target
+      ? objectIndex.get(`${variable.targetType}:${normalizeIdentifier(variable.target)}`)
+        ?? objectIndex.get(`${variable.targetType}:${variable.target}`)
+      : objectIndex.get(`codeunit:${normalizeIdentifier(call.receiver)}`)
+        ?? objectIndex.get(`interface:${normalizeIdentifier(call.receiver)}`);
+  };
+
   for (const owner of model.objects) {
     for (const procedure of owner.procedures ?? []) {
-      const from = procedureIndex.get(`${owner.key}:${normalizeIdentifier(procedure.name)}`);
+      const from = procedureIndex
+        .get(`${owner.key}:${normalizeIdentifier(procedure.name)}`)
+        ?.find(({ location }) => location.line === procedure.location.line);
       if (!from) continue;
       for (const call of procedure.calls ?? []) {
-        let targetOwner = owner;
-        if (call.receiver) {
-          const variable = (owner.variables ?? []).find(
-            ({ name }) => normalizeIdentifier(name) === normalizeIdentifier(call.receiver)
-          );
-          targetOwner = variable?.target
-            ? objectIndex.get(
-                `${variable.targetType}:${normalizeIdentifier(variable.target)}`
-              ) ?? objectIndex.get(`${variable.targetType}:${variable.target}`)
-            : objectIndex.get(`codeunit:${normalizeIdentifier(call.receiver)}`);
-        }
-        const to = targetOwner
-          ? procedureIndex.get(`${targetOwner.key}:${normalizeIdentifier(call.name)}`)
-          : undefined;
+        const targetOwner = targetOwnerFor(owner, call);
+        const candidates = targetOwner
+          ? procedureIndex.get(`${targetOwner.key}:${normalizeIdentifier(call.name)}`) ?? []
+          : [];
+        const arityMatches = candidates.filter(({ arity }) => arity === call.arity);
+        const to = arityMatches.length === 1 ? arityMatches[0] : undefined;
         edges.push({
           id: `c${edges.length}`,
           from: from.key,
           to: to?.key,
           unresolved: to ? undefined : {
             name: call.receiver ? `${call.receiver}.${call.name}` : call.name,
-            type: "procedure"
+            type: arityMatches.length > 1 ? "ambiguous procedure" : "procedure"
           },
           kind: "calls",
-          confidence: to ? "resolved" : "syntactic",
+          confidence: to ? "resolved" : arityMatches.length > 1 ? "ambiguous" : "syntactic",
           location: call.location
         });
       }
       for (const attribute of procedure.attributes ?? []) {
-        const subscriber = attribute.match(
-          /EventSubscriber\s*\(\s*ObjectType::(\w+)\s*,\s*(?:\w+::)?(?:"([^"]+)"|([^,\s]+))\s*,\s*'([^']+)'/iu
-        );
+        const subscriber = subscriberAttribute(attribute);
         if (!subscriber) continue;
         const targetOwner = objectIndex.get(
-          `${subscriber[1].toLowerCase()}:${normalizeIdentifier(subscriber[2] ?? subscriber[3])}`
+          `${subscriber.type}:${normalizeIdentifier(subscriber.target)}`
         );
-        const to = targetOwner
-          ? procedureIndex.get(`${targetOwner.key}:${normalizeIdentifier(subscriber[4])}`)
-          : undefined;
+        const candidates = targetOwner
+          ? procedureIndex.get(`${targetOwner.key}:${normalizeIdentifier(subscriber.event)}`) ?? []
+          : [];
+        const to = candidates.length === 1 ? candidates[0] : undefined;
         edges.push({
           id: `s${edges.length}`,
           from: from.key,
           to: to?.key,
           unresolved: to ? undefined : {
-            name: `${subscriber[2] ?? subscriber[3]}.${subscriber[4]}`,
+            name: `${subscriber.target}.${subscriber.event}`,
             type: "event"
           },
           kind: "subscribes",
@@ -436,9 +473,24 @@ function contractsView(model, options = {}) {
 }
 
 function subscriberAttribute(attribute) {
-  return attribute.match(
-    /EventSubscriber\s*\(\s*ObjectType::(\w+)\s*,\s*(?:\w+::)?(?:"([^"]+)"|([^,\s]+))\s*,\s*'([^']+)'/iu
+  const match = attribute.match(
+    /EventSubscriber\s*\(\s*ObjectType::([\w.]+)\s*,\s*([^,]+?)\s*,\s*'((?:''|[^'])*)'/iu
   );
+  if (!match) return undefined;
+  const reference = match[2].trim();
+  const separator = reference.indexOf("::");
+  return {
+    type: match[1].split(".").at(-1).toLowerCase(),
+    target: cleanSubscriberReference(separator >= 0 ? reference.slice(separator + 2) : reference),
+    event: match[3].replaceAll("''", "'")
+  };
+}
+
+function cleanSubscriberReference(value) {
+  const text = value.trim();
+  return text.startsWith('"') && text.endsWith('"')
+    ? text.slice(1, -1).replaceAll('""', '"')
+    : text;
 }
 
 function eventsView(model, options = {}) {
@@ -449,6 +501,10 @@ function eventsView(model, options = {}) {
 
   for (const owner of model.objects) {
     objectIndex.set(`${owner.type}:${normalizeIdentifier(owner.name)}`, owner);
+    objectIndex.set(
+      `${owner.type}:${normalizeIdentifier(`${owner.namespace}.${owner.name}`)}`,
+      owner
+    );
     if (owner.id) objectIndex.set(`${owner.type}:${owner.id}`, owner);
     for (const procedure of owner.procedures ?? []) {
       if (procedure.kind !== "event") continue;
@@ -496,13 +552,13 @@ function eventsView(model, options = {}) {
           subscribers.set(subscriberKey, subscriber);
           objects.push(subscriber);
         }
-        const targetName = match[2] ?? match[3];
+        const targetName = match.target;
         const targetOwner = objectIndex.get(
-          `${match[1].toLowerCase()}:${normalizeIdentifier(targetName)}`
+          `${match.type}:${normalizeIdentifier(targetName)}`
         );
         const publisher = targetOwner
           ? publisherIndex.get(
-              `${targetOwner.key}:${normalizeIdentifier(match[4])}`
+              `${targetOwner.key}:${normalizeIdentifier(match.event)}`
             )
           : undefined;
         edges.push({
@@ -510,7 +566,7 @@ function eventsView(model, options = {}) {
           from: publisher?.key ?? subscriber.key,
           to: publisher ? subscriber.key : undefined,
           unresolved: publisher ? undefined : {
-            name: `${targetName}.${match[4]}`,
+            name: `${targetName}.${match.event}`,
             type: "event"
           },
           kind: publisher ? "publishes" : "subscribes",

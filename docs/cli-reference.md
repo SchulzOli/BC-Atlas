@@ -11,6 +11,7 @@ bca [graph] [options] <file-or-directory>
 bca inspect [options] <file-or-directory>
 bca watch [options] <directory>
 bca serve [options] <app-directory>
+bca capabilities
 bca docs <list|show|validate|generate|set|unset|serve> [options] <file-or-directory>
 bca docs glossary [options]
 ```
@@ -21,10 +22,29 @@ bca docs glossary [options]
 | `inspect` | Analyze AL source and emit the selected graph as JSON. Without `--output`, JSON is written to standard output. |
 | `watch` | Generate a graph, watch an AL project, and rebuild after relevant source or configuration changes. |
 | `serve` | Start the combined architecture and documentation Control Center. |
+| `capabilities` | Emit the versioned machine contract for LLM and tool integrations as JSON. |
 | `docs` | Inspect, validate, edit, generate, and locally browse AL-backed UI-test documentation. |
 
 Use `bca --help`, `bca --version`, or
 `bca docs --help` for the built-in summaries.
+
+### Machine contract
+
+```text
+bca capabilities
+```
+
+This command needs no project path and writes only UTF-8 JSON to standard
+output. The response declares `schemaVersion`, the installed package version,
+exit codes, invocation conventions, and every supported command. Each command
+contains an exact `argv` template, its accepted options and CLI tokens,
+required values, enumerations, output type, and conditional rules.
+
+LLM tools must pass arguments as an array, not interpolate a shell command.
+For machine-readable operations, use `inspect` or append `--format json` to a
+documentation command. Parse stdout only after exit code `0`. For `docs set`
+and `docs unset`, first use `--dry-run`; on the subsequent write, pass the
+latest `--expected-hash` when available.
 
 ### Combined Control Center
 

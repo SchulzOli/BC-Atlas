@@ -88,27 +88,70 @@ function walk(node, visit) {
   }
 }
 
-function tableRelationTargets(value) {
-  const targets = [];
-  const seen = new Set();
-  const add = (raw) => {
-    const target = cleanName(raw);
-    const normalized = target.toLowerCase();
-    if (!target || ["if", "else", "where", "const", "field"].includes(normalized)) return;
-    if (!seen.has(normalized)) {
-      seen.add(normalized);
-      targets.push(target);
-    }
-  };
+function containsNode(parent, child) {
+  return child.startIndex >= parent.startIndex && child.endIndex <= parent.endIndex;
+}
 
-  for (const match of value.matchAll(/("[^"]*(?:""[^"]*)*"|[A-Za-z_][\w]*)\s*\./gu)) {
-    add(match[1]);
+function tableRelationCondition(node, source) {
+  const branches = [];
+  let current = node.parent;
+  while (current) {
+    if (current.type === "if_table_relation") {
+      const conditionNode = current.namedChildren.find((child) => child.type === "where_conditions");
+      const thenNode = current.childForFieldName("then_relation");
+      if (conditionNode) {
+        branches.unshift({
+          expression: source.slice(conditionNode.startIndex, conditionNode.endIndex).trim(),
+          matches: Boolean(thenNode && containsNode(thenNode, node))
+        });
+      }
+    }
+    if (current.type === "property") break;
+    current = current.parent;
   }
-  if (!targets.length) {
-    const simple = value.match(/^\s*(?:"((?:""|[^"])*)"|([A-Za-z_][\w]*))/u);
-    if (simple) add(simple[1] ?? simple[2]);
-  }
-  return targets;
+  return branches.length
+    ? branches
+      .map(({ expression, matches }) => matches ? expression : `not (${expression})`)
+      .join(" and ")
+    : undefined;
+}
+
+function tableRelationFilters(node, source) {
+  const whereClause = node.namedChildren.find((child) => child.type === "where_clause");
+  if (!whereClause) return undefined;
+  const filters = [];
+  walk(whereClause, (child) => {
+    if (child.type !== "where_condition") return;
+    filters.push({
+      field: fieldText(child, "field", source),
+      value: fieldText(child, "value", source),
+      expression: source.slice(child.startIndex, child.endIndex).trim()
+    });
+  });
+  return filters;
+}
+
+function tableRelationRelations(valueNode, source, add) {
+  walk(valueNode, (node) => {
+    if (node.type !== "simple_table_relation") return;
+    const references = typeof node.childrenForFieldName === "function"
+      ? node.childrenForFieldName("table")
+      : [node.childForFieldName("table")].filter(Boolean);
+    const parts = references
+      .map((reference) => cleanName(
+        source.slice(reference.startIndex, reference.endIndex)
+      ).replace(/^\.+|\.+$/gu, ""))
+      .filter(Boolean);
+    if (!parts.length) return;
+    add(node, {
+      target: parts.length > 1 ? parts.slice(0, -1).join(".") : parts[0],
+      targetType: "table",
+      kind: "relates",
+      relatedField: parts.length > 1 ? parts.at(-1) : undefined,
+      condition: tableRelationCondition(node, source),
+      filters: tableRelationFilters(node, source)
+    });
+  });
 }
 
 function permissionRelations(value, node, add) {
@@ -156,13 +199,114 @@ function implementationRelations(value, node, source, add) {
   }
 }
 
+function preprocessorConditions(node, source) {
+  const conditions = [];
+  let current = node;
+  while (current.parent) {
+    const parent = current.parent;
+    if (parent.type.startsWith("preproc_")) {
+      const markers = parent.namedChildren.filter(
+        (child) => ["preproc_if", "preproc_elif", "preproc_else"].includes(child.type) &&
+          child.startIndex <= node.startIndex
+      );
+      const marker = markers.at(-1);
+      const conditionNode = marker?.childForFieldName("condition");
+      if (conditionNode) {
+        conditions.unshift(source.slice(conditionNode.startIndex, conditionNode.endIndex).trim());
+      } else if (marker?.type === "preproc_else") {
+        conditions.unshift("else");
+      }
+    }
+    current = parent;
+  }
+  return conditions.length ? conditions : undefined;
+}
+
+function permissionRelation(node, source, add) {
+  const target = fieldText(node, "table_name", source);
+  const permission = fieldText(node, "permission", source);
+  const type = source.slice(node.startIndex, node.endIndex).trim().match(/^([A-Za-z]+)\b/u)?.[1];
+  if (!target || !permission || !type) return;
+  add(node, {
+    target,
+    targetType: type.toLowerCase() === "tabledata" ? "table" : type.toLowerCase(),
+    kind: "permits",
+    access: permission.toUpperCase()
+  });
+}
+
+function memberExpressionParts(node, source) {
+  if (node.type !== "member_expression") {
+    return [cleanName(source.slice(node.startIndex, node.endIndex))];
+  }
+  const object = node.childForFieldName("object");
+  const member = node.childForFieldName("member");
+  return [
+    ...(object ? memberExpressionParts(object, source) : []),
+    ...(member ? [cleanName(source.slice(member.startIndex, member.endIndex))] : [])
+  ];
+}
+
+function calcFormulaRelation(valueNode, source, add) {
+  let targetNode;
+  walk(valueNode, (node) => {
+    if (targetNode) return;
+    if (node.type === "calc_field_reference") targetNode = node;
+    if (node.type === "member_expression" && node.parent?.type !== "member_expression") {
+      targetNode = node;
+    }
+  });
+  if (!targetNode) return;
+  const parts = targetNode.type === "member_expression"
+    ? memberExpressionParts(targetNode, source)
+    : source.slice(targetNode.startIndex, targetNode.endIndex)
+      .split(".")
+      .map(cleanName)
+      .filter(Boolean);
+  if (parts.length < 2) return;
+  add(targetNode, {
+    target: parts.slice(0, -1).join("."),
+    targetType: "table",
+    kind: "reads",
+    property: "calcformula",
+    relatedField: parts.at(-1)
+  });
+}
+
 function referencesFor(objectNode, source, file) {
   const references = [];
   const add = (node, relation) => {
-    references.push({ ...relation, location: locationFor(node, file) });
+    references.push({
+      ...relation,
+      conditionalSymbols: preprocessorConditions(node, source),
+      location: locationFor(node, file)
+    });
   };
   walk(objectNode, (node) => {
     if (node === objectNode) return;
+
+    if (node.type === "tabledata_permission") {
+      permissionRelation(node, source, add);
+      return;
+    }
+
+    if (["report_dataitem", "query_dataitem"].includes(node.type)) {
+      const target = fieldText(node, "table_name", source);
+      if (target) add(node, { target, targetType: "table", kind: "reads", property: "dataitem" });
+      return;
+    }
+
+    if (node.type === "xmlport_element") {
+      const elementType = source.slice(node.startIndex, node.endIndex)
+        .trim()
+        .match(/^([A-Za-z]+)/u)?.[1]
+        ?.toLowerCase();
+      const target = fieldText(node, "source", source);
+      if (elementType === "tableelement" && target) {
+        add(node, { target, targetType: "table", kind: "reads", property: "tableelement" });
+      }
+      return;
+    }
 
     if (node.type === "part_section") {
       const target = fieldText(node, "source", source);
@@ -204,7 +348,10 @@ function referencesFor(objectNode, source, file) {
 
     if (node.type === "database_reference") {
       const target = fieldText(node, "table_name", source);
-      if (target) add(node, { target, targetType: "table", kind: "reads" });
+      const keyword = fieldText(node, "keyword", source)?.toLowerCase();
+      if (target && keyword === "database") {
+        add(node, { target, targetType: "table", kind: "uses", property: "database" });
+      }
       return;
     }
 
@@ -225,12 +372,15 @@ function referencesFor(objectNode, source, file) {
         });
       }
       if (name === "tablerelation") {
-        for (const table of tableRelationTargets(value)) {
-          add(node, { target: table, targetType: "table", kind: "relates" });
-        }
+        tableRelationRelations(valueNode, source, add);
+      }
+      if (name === "calcformula") {
+        calcFormulaRelation(valueNode, source, add);
       }
       if (name === "permissions") {
-        permissionRelations(value, node, add);
+        if (!valueNode.namedChildren.some((child) => child.type === "tabledata_permission")) {
+          permissionRelations(value, node, add);
+        }
       }
       if (name === "includedpermissionsets" && target) {
         add(node, { target, targetType: "permissionset", kind: "includes" });
@@ -262,17 +412,34 @@ function referencesFor(objectNode, source, file) {
 
 function callsFor(node, source, file) {
   const calls = [];
+  const describe = (callNode) => {
+    const functionNode = callNode.childForFieldName("function");
+    if (!functionNode) return undefined;
+    const memberNode = functionNode.type === "member_expression"
+      ? functionNode.childForFieldName("member")
+      : undefined;
+    const receiverNode = functionNode.type === "member_expression"
+      ? functionNode.childForFieldName("object")
+      : undefined;
+    const argumentsNode = callNode.childForFieldName("arguments");
+    return {
+      name: cleanName(source.slice(
+        (memberNode ?? functionNode).startIndex,
+        (memberNode ?? functionNode).endIndex
+      )),
+      receiver: receiverNode
+        ? cleanName(source.slice(receiverNode.startIndex, receiverNode.endIndex))
+        : undefined,
+      receiverCall: receiverNode?.type === "call_expression" ? describe(receiverNode) : undefined,
+      arity: argumentsNode?.namedChildCount ?? 0,
+      scope: node.startPosition.row + 1,
+      location: locationFor(callNode, file)
+    };
+  };
   walk(node, (child) => {
     if (child.type !== "call_expression") return;
-    const functionNode = child.childForFieldName("function");
-    if (!functionNode) return;
-    const raw = source.slice(functionNode.startIndex, functionNode.endIndex).trim();
-    const parts = raw.split(".");
-    calls.push({
-      name: cleanName(parts.at(-1)),
-      receiver: parts.length > 1 ? cleanName(parts.slice(0, -1).join(".")) : undefined,
-      location: locationFor(child, file)
-    });
+    const call = describe(child);
+    if (call) calls.push(call);
   });
   return calls;
 }
@@ -297,15 +464,55 @@ function enclosingActionName(node, source) {
   return undefined;
 }
 
+function enclosingRoutine(node) {
+  const routineTypes = new Set([
+    "procedure",
+    "trigger_declaration",
+    "event_declaration",
+    "interface_procedure"
+  ]);
+  let parent = node.parent;
+  while (parent) {
+    if (routineTypes.has(parent.type)) return parent;
+    parent = parent.parent;
+  }
+  return undefined;
+}
+
+function declaredType(type) {
+  const match = type?.match(
+    /^(record|codeunit|page|report|query|xmlport|interface|enum)\s+(.+?)(?:\s+(temporary))?$/iu
+  );
+  return {
+    type,
+    targetType: match?.[1]?.toLowerCase(),
+    target: match ? cleanName(match[2]) : undefined,
+    temporary: Boolean(match?.[3])
+  };
+}
+
+function variableType(node, source) {
+  const typeNode = node.childForFieldName("type");
+  const type = typeNode
+    ? source.slice(typeNode.startIndex, typeNode.endIndex).trim()
+    : undefined;
+  return declaredType(type);
+}
+
 function membersFor(objectNode, source, file) {
   const procedures = [];
   const fields = [];
   const actions = [];
+  const views = [];
   const variables = [];
   walk(objectNode, (node) => {
     if (["procedure", "trigger_declaration", "event_declaration", "interface_procedure"].includes(node.type)) {
       const name = fieldText(node, "name", source);
       if (name) {
+        const returnTypeNode = node.childForFieldName("return_type");
+        const returnType = returnTypeNode
+          ? declaredType(source.slice(returnTypeNode.startIndex, returnTypeNode.endIndex).trim())
+          : {};
         const attributes = [
           ...node.namedChildren
           .filter((child) => child.type === "attribute_item")
@@ -314,6 +521,7 @@ function membersFor(objectNode, source, file) {
         ];
         procedures.push({
           name,
+          scope: node.startPosition.row + 1,
           kind: node.type === "trigger_declaration"
             ? "trigger"
             : node.type === "event_declaration"
@@ -324,6 +532,9 @@ function membersFor(objectNode, source, file) {
           location: locationFor(node, file),
           calls: callsFor(node, source, file),
           attributes,
+          returnType: returnType.type,
+          returnTargetType: returnType.targetType,
+          returnTarget: returnType.target,
           action: node.type === "trigger_declaration"
             ? enclosingActionName(node, source)
             : undefined
@@ -346,42 +557,85 @@ function membersFor(objectNode, source, file) {
         calls: callsFor(node, source, file)
       });
     }
+    if (node.type === "actionref_declaration") {
+      const name = fieldText(node, "promoted_name", source);
+      actions.push({
+        name: name ?? `(action ${actions.length + 1})`,
+        kind: "action-ref",
+        target: fieldText(node, "action_name", source),
+        location: locationFor(node, file),
+        calls: []
+      });
+    }
+    if (node.type === "view_definition") {
+      views.push({
+        name: fieldText(node, "name", source) ?? `(view ${views.length + 1})`,
+        location: locationFor(node, file)
+      });
+    }
     if (node.type === "variable_declaration") {
       const names = typeof node.childrenForFieldName === "function"
         ? node.childrenForFieldName("name")
         : [node.childForFieldName("name")].filter(Boolean);
-      const typeNode = node.childForFieldName("type");
-      const typeText = typeNode
-        ? source.slice(typeNode.startIndex, typeNode.endIndex).trim()
-        : undefined;
-      const match = typeText?.match(
-        /^(record|codeunit|page|report|query|xmlport|interface|enum)\s+(.+)$/iu
-      );
+      const routine = enclosingRoutine(node);
+      const type = variableType(node, source);
       for (const nameNode of names) {
         variables.push({
           name: cleanName(source.slice(nameNode.startIndex, nameNode.endIndex)),
-          type: typeText,
-          targetType: match?.[1]?.toLowerCase(),
-          target: match ? cleanName(match[2]) : undefined,
+          ...type,
+          scope: routine ? routine.startPosition.row + 1 : undefined,
+          location: locationFor(node, file)
+        });
+      }
+    }
+    if (node.type === "parameter") {
+      const routine = enclosingRoutine(node);
+      const name = fieldText(node, "name", source);
+      if (routine && name) {
+        variables.push({
+          name,
+          ...variableType(node, source),
+          parameter: true,
+          scope: routine.startPosition.row + 1,
           location: locationFor(node, file)
         });
       }
     }
   });
-  return { procedures, fields, actions, variables };
+  for (const procedure of procedures) {
+    procedure.parameters = variables.filter(
+      ({ parameter, scope }) => parameter && scope === procedure.scope
+    );
+    procedure.arity = procedure.parameters.length;
+    procedure.signature = `${procedure.name}(${procedure.parameters.map(({ type }) => type).join(", ")})`;
+  }
+  return { procedures, fields, actions, views, variables };
 }
 
-function dataOperationRelations(members) {
+function dataOperationRelations(members, object) {
   const reads = /^(get|find|findfirst|findlast|findset|isempty|count|calcfields|calcsums|next)$/iu;
   const writes = /^(insert|modify|modifyall|delete|deleteall|rename)$/iu;
-  const variables = new Map(
-    members.variables
-      .filter(({ targetType, target }) => targetType === "record" && target)
-      .map((variable) => [variable.name.toLowerCase(), variable])
-  );
   const relations = [];
+  const sourceTable = object.type === "table"
+    ? object.name
+    : object.type === "tableextension"
+      ? object.base
+      : object.relations.find(
+        ({ kind, property }) => kind === "reads" && property === "sourcetable"
+      )?.target;
 
   for (const procedure of members.procedures) {
+    const variables = new Map(
+      members.variables
+        .filter(({ targetType, target, scope }) =>
+          targetType === "record" && target && (scope === undefined || scope === procedure.scope)
+        )
+        .map((variable) => [variable.name.toLowerCase(), variable])
+    );
+    if (sourceTable) {
+      variables.set("rec", { target: sourceTable, temporary: false });
+      variables.set("xrec", { target: sourceTable, temporary: false });
+    }
     for (const call of procedure.calls) {
       if (!call.receiver) continue;
       const variable = variables.get(call.receiver.toLowerCase());
@@ -393,11 +647,59 @@ function dataOperationRelations(members) {
         targetType: "table",
         kind,
         operation: call.name,
+        temporary: variable.temporary,
+        member: procedure.signature,
         location: call.location
       });
     }
   }
   return relations;
+}
+
+function helperDataOperationRelations(members, directRelations) {
+  const procedures = new Map();
+  for (const procedure of members.procedures) {
+    const key = `${procedure.name.toLowerCase()}:${procedure.arity}`;
+    const candidates = procedures.get(key) ?? [];
+    candidates.push(procedure);
+    procedures.set(key, candidates);
+  }
+  const effects = new Map();
+  for (const relation of directRelations) {
+    const current = effects.get(relation.member) ?? [];
+    current.push(relation);
+    effects.set(relation.member, current);
+  }
+  const propagated = [];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const caller of members.procedures) {
+      const callerEffects = effects.get(caller.signature) ?? [];
+      for (const call of caller.calls.filter(({ receiver }) => !receiver)) {
+        const callees = procedures.get(`${call.name.toLowerCase()}:${call.arity}`) ?? [];
+        if (callees.length !== 1) continue;
+        for (const effect of effects.get(callees[0].signature) ?? []) {
+          const via = [callees[0].signature, ...(effect.via ?? [])];
+          if (via.includes(caller.signature)) continue;
+          const key = `${effect.target}:${effect.kind}:${effect.operation}:${via.join(">")}`;
+          if (callerEffects.some((item) => item.effectKey === key)) continue;
+          const relation = {
+            ...effect,
+            member: caller.signature,
+            via,
+            effectKey: key,
+            location: call.location
+          };
+          callerEffects.push(relation);
+          propagated.push(relation);
+          changed = true;
+        }
+      }
+      effects.set(caller.signature, callerEffects);
+    }
+  }
+  return propagated.map(({ effectKey: _effectKey, ...relation }) => relation);
 }
 
 async function objectsFromSource(source, file) {
@@ -439,7 +741,8 @@ async function objectsFromSource(source, file) {
       });
     }
     const members = membersFor(node, source, file);
-    relations.push(...dataOperationRelations(members));
+    const dataRelations = dataOperationRelations(members, { type, name, base, relations });
+    relations.push(...dataRelations, ...helperDataOperationRelations(members, dataRelations));
 
     objects.push({
       id,
@@ -452,6 +755,7 @@ async function objectsFromSource(source, file) {
       procedures: members.procedures,
       fields: members.fields,
       actions: members.actions,
+      views: members.views,
       variables: members.variables,
       location: locationFor(node, file),
       parseError: node.hasError

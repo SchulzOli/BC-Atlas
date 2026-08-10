@@ -239,7 +239,7 @@ export function renderD2(model, options = {}) {
 
   for (const edge of uniqueRelations(edges)) {
     const arrow = edge.kind === "extends" || edge.kind === "implements" ? "-->" : "->";
-    const relationLabel = edge.label ?? edge.kind;
+    const relationLabel = edge.label ?? (edge.temporary ? `${edge.kind} (temporary)` : edge.kind);
     const certainty = edge.sequence ? ` [${edge.sequence}]` : "";
     const cycle = edge.isCycle ? " [cycle]" : "";
     const baseLabel =

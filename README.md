@@ -14,8 +14,9 @@ architecture graph, and writes [`D2`](https://github.com/terrastruct/d2), JSON,
 or SVG. The parser and SVG renderer are WebAssembly-based, so the standard
 workflow needs only Node.js.
 
-See the [complete CLI command and option reference](./docs/cli-reference.md)
-for every command, view, selector, option, default, and configuration setting.
+Start with the [documentation table of contents](./docs/TOC.md). See the
+[complete CLI command and option reference](./docs/cli-reference.md) for every
+command, view, selector, option, default, and configuration setting.
 
 ## What it shows
 
@@ -175,6 +176,24 @@ Current views favor readability:
   `permits [RIMD]` edges.
 
 Run `bca --help` for the complete CLI reference.
+
+## LLM and agent use
+
+Agents should discover the installed CLI contract before constructing a
+command:
+
+```sh
+bca capabilities
+```
+
+The command writes only versioned JSON to standard output. It describes exact
+`argv` templates, option tokens, types, enumerations, required values, output
+contracts, mutation safeguards, and exit codes. An agent should pass arguments
+as an array rather than a shell string, use `inspect` or `docs ... --format
+json` for reads, check for exit code `0` before parsing stdout, and run metadata
+changes with `--dry-run` before writing. This contract is the stable integration
+surface for LLM tools; an MCP adapter can consume it without becoming a second
+implementation of BC Atlas.
 
 ## Publishing releases
 

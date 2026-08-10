@@ -126,3 +126,29 @@ test("package exposes BC Atlas through the bca command", () => {
   assert.equal(pkg.name, "bc-atlas");
   assert.deepEqual(pkg.bin, { bca: "./src/cli.js" });
 });
+
+test("exposes a versioned machine-readable CLI contract for agents", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const result = spawnSync(process.execPath, [cli, "capabilities"], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  const contract = JSON.parse(result.stdout);
+  assert.equal(contract.schemaVersion, 1);
+  assert.equal(contract.name, "bc-atlas");
+  assert.equal(contract.transport.stdout, "json");
+  assert.deepEqual(contract.exitCodes, { success: 0, operation: 1, usage: 2 });
+  assert.ok(contract.commands.some(({ argv }) => argv.join(" ") === "bca inspect <app-root>"));
+  assert.ok(contract.commands.some(({ argv }) =>
+    argv.join(" ") === "bca docs validate <test-root>"));
+  const workflow = contract.commands.find(({ id }) => id === "graph.workflow");
+  assert.equal(workflow.options.view.const, "workflow");
+  assert.equal(workflow.options.entry.required, true);
+  assert.equal(workflow.output.type, "file");
+  const set = contract.commands.find(({ id }) => id === "docs.set");
+  assert.equal(set.options.expectedHash.cli, "--expected-hash");
+  assert.equal(set.options.dryRun.cli, "--dry-run");
+
+  const invalid = spawnSync(process.execPath, [cli, "capabilities", "extra"], {
+    encoding: "utf8"
+  });
+  assert.equal(invalid.status, 2);
+});
