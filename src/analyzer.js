@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Language, Parser } from "web-tree-sitter";
+import { loadSymbolPackages } from "./symbols.js";
 
 const GRAMMAR_PATH = fileURLToPath(
   new URL("../vendor/tree-sitter-al.wasm", import.meta.url)
@@ -808,6 +809,7 @@ async function readAppManifest(file, root, cache) {
         publisher: data.publisher,
         version: data.version,
         path: path.relative(boundary, candidate) || "app.json",
+        root: path.dirname(candidate),
         dependencies: data.dependencies ?? []
       };
       cache.set(candidate, app);
@@ -861,11 +863,17 @@ export async function analyze(input) {
     }
   }
 
+  const symbols = await loadSymbolPackages(base);
+  objects.push(...symbols.objects);
+  diagnostics.push(...symbols.diagnostics);
+  for (const app of symbols.packages) apps.set(app.id ?? app.name, app);
+
   return {
     schemaVersion: 1,
     root,
     files: files.length,
     apps: [...apps.values()],
+    symbolPackages: symbols.packages,
     objects,
     parseErrors,
     diagnostics

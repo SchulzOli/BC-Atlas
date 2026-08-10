@@ -119,12 +119,15 @@ test("CLI reference lists every help-exposed command and option", () => {
   }
 });
 
-test("package exposes BC Atlas through the bca command", () => {
+test("package exposes the BC Atlas CLI and MCP server", () => {
   const pkg = JSON.parse(
     readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8")
   );
   assert.equal(pkg.name, "bc-atlas");
-  assert.deepEqual(pkg.bin, { bca: "./src/cli.js" });
+  assert.deepEqual(pkg.bin, {
+    bca: "./src/cli.js",
+    "bca-mcp": "./src/mcp.js"
+  });
 });
 
 test("exposes a versioned machine-readable CLI contract for agents", () => {

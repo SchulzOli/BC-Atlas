@@ -23,6 +23,7 @@ const sections = [
   ]],
   ["Integration and support", [
     ["Agent integration", "agent-integration.md"],
+    ["MCP JSON example", "examples/mcp.json"],
     ["Troubleshooting", "troubleshooting.md"]
   ]],
   ["Reference", [

@@ -52,15 +52,15 @@ whole-app analysis is therefore necessary for accurate boundary diagrams.
 
 ## Whole-app context and focus
 
-- [ ] Add an explicit project/app root separate from the selected focus path.
-- [ ] Analyze all app symbols while rendering only a selected folder or
+- [x] Add an explicit project/app root separate from the selected focus path.
+- [x] Analyze all app symbols while rendering only a selected folder or
   namespace.
-- [ ] Preserve adjacent objects as aggregated boundary nodes instead of
+- [x] Preserve adjacent objects as aggregated boundary nodes instead of
   discarding them through `--include`.
-- [ ] Resolve symbols from `.alpackages` for Microsoft and dependent apps.
-- [ ] Classify unresolved targets as Microsoft base app, declared dependency,
+- [x] Resolve symbols from `.alpackages` for Microsoft and dependent apps.
+- [x] Classify unresolved targets as Microsoft base app, declared dependency,
   same app outside focus, or genuinely unknown.
-- [ ] Support multi-app workspaces with duplicate object names and IDs.
+- [x] Support multi-app workspaces with duplicate object names and IDs.
 
 Partner boundary measurements from whole-app analysis:
 

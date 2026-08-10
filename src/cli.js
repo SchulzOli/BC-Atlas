@@ -50,6 +50,8 @@ Options:
       --scope <selector>    Boundary scope: namespace:, folder:, app:, or
                             object: (repeatable)
       --focus <text>        Focus contracts, events, or UI on a matching name
+      --project-root <path> Analyze this app/workspace root; use the positional
+                            path only as the rendered folder focus
       --namespace <glob>    Namespace filter (repeatable)
       --type <types>        Object type filter, comma-separated/repeatable
       --include <glob>      Include file/object glob (repeatable)
@@ -85,6 +87,7 @@ const OPTIONS = {
   object: { type: "string" },
   scope: { type: "string", multiple: true },
   focus: { type: "string" },
+  "project-root": { type: "string" },
   namespace: { type: "string", multiple: true },
   type: { type: "string", multiple: true },
   include: { type: "string", multiple: true },
@@ -239,7 +242,7 @@ async function watch(input, values) {
     }
   };
 
-  const watcher = fsWatch(path.resolve(input), { recursive: true }, (_event, filename) => {
+  const watcher = fsWatch(path.resolve(values["project-root"] ?? input), { recursive: true }, (_event, filename) => {
     if (filename && !filename.toLowerCase().endsWith(".al") &&
         path.basename(filename) !== "app.json" &&
         path.basename(filename) !== ".bca.json") return;

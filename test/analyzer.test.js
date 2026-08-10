@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { zipSync, strToU8 } from "fflate";
 import { analyze, testing } from "../src/analyzer.js";
+import { createArchitectureModel } from "../src/architecture.js";
 import { renderD2 } from "../src/d2.js";
 import { resolveModel } from "../src/resolver.js";
 import { createView, filterModel } from "../src/views.js";
@@ -578,4 +583,91 @@ test("projects bounded, configurable workflows with certainty, mutations, and cy
   assert.match(d2, /\[definite\]/u);
   assert.match(d2, /\[inferred\]/u);
   assert.match(d2, /\[cycle\]/u);
+});
+
+test("analyzes a multi-app root, resolves packages, and aggregates focus boundaries", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "bc-atlas-workspace-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const appA = path.join(root, "AppA");
+  const focus = path.join(appA, "src", "focus");
+  const modelFolder = path.join(appA, "src", "model");
+  const appB = path.join(root, "AppB", "src");
+  const packages = path.join(appA, ".alpackages");
+  await Promise.all([focus, modelFolder, appB, packages].map((directory) =>
+    fs.mkdir(directory, { recursive: true })
+  ));
+  await fs.writeFile(path.join(appA, "app.json"), JSON.stringify({
+    id: "app-a", name: "App A", publisher: "Example", version: "1.0.0.0",
+    dependencies: [
+      { id: "app-b", name: "App B", publisher: "Example", version: "1.0.0.0" },
+      { id: "ms-base", name: "Base Application", publisher: "Microsoft", version: "1.0.0.0" }
+    ]
+  }));
+  await fs.writeFile(path.join(root, "AppB", "app.json"), JSON.stringify({
+    id: "app-b", name: "App B", publisher: "Example", version: "1.0.0.0"
+  }));
+  await fs.writeFile(path.join(modelFolder, "Shared.al"),
+    "namespace Common; table 50100 Shared { }");
+  await fs.writeFile(path.join(appB, "Dependencies.al"), `
+    namespace Dependency.Model;
+    table 50100 Shared { }
+    table 50200 "Dependency One" { }
+    table 50201 "Dependency Two" { }
+  `);
+  await fs.writeFile(path.join(focus, "Caller.al"), `
+    namespace App.Focus;
+    codeunit 50101 Caller {
+      var
+        SharedRecord: Record Shared;
+        DependencyOneRecord: Record "Dependency One";
+        DependencyTwoRecord: Record "Dependency Two";
+        CustomerRecord: Record Customer;
+        MissingRecord: Record Missing;
+    }
+  `);
+  const symbols = {
+    AppId: "ms-base",
+    Name: "Base Application",
+    Publisher: "Microsoft Corporation",
+    Version: "1.0.0.0",
+    Tables: [{ Id: 18, Name: "Customer", Namespace: "Microsoft.Sales.Customer" }]
+  };
+  const archive = zipSync({ "SymbolReference.json": strToU8(JSON.stringify(symbols)) });
+  const navxHeader = new Uint8Array([0x4e, 0x41, 0x56, 0x58, 0, 0, 0, 0]);
+  const appPackage = new Uint8Array(navxHeader.length + archive.length);
+  appPackage.set(navxHeader);
+  appPackage.set(archive, navxHeader.length);
+  await fs.writeFile(path.join(packages, "Microsoft_Base.app"), appPackage);
+  await fs.writeFile(path.join(packages, "Broken.app"), "not an app package");
+
+  const full = resolveModel(await analyze(root));
+  const sharedObjects = full.objects.filter(({ name }) => name === "Shared");
+  assert.equal(sharedObjects.length, 2);
+  assert.notEqual(sharedObjects[0].key, sharedObjects[1].key);
+  const caller = full.objects.find(({ name }) => name === "Caller");
+  const callerEdges = full.edges.filter(({ from }) => from === caller.key);
+  const resolvedShared = callerEdges
+    .map(({ to }) => full.objects.find(({ key }) => key === to))
+    .find(({ name } = {}) => name === "Shared");
+  assert.equal(resolvedShared?.app.id, "app-a", JSON.stringify({ caller, callerEdges }));
+  assert.ok(full.symbolPackages.some(({ id }) => id === "ms-base"));
+  assert.ok(full.diagnostics.some(({ code }) => code === "symbol-package-error"));
+  assert.ok(callerEdges.some(({ targetOrigin }) => targetOrigin === "microsoft-base-app"));
+
+  const focused = (await createArchitectureModel(focus, { projectRoot: root })).model;
+  assert.ok(focused.objects.some(({ name }) => name === "Caller"));
+  assert.ok(!focused.objects.some(({ name }) => name === "Shared"));
+  assert.equal(
+    focused.objects.find(({ boundaryCategory }) => boundaryCategory === "declared-dependency").members.length,
+    2
+  );
+  assert.ok(focused.objects.some(({ boundaryCategory }) =>
+    boundaryCategory === "same-app-outside-focus"
+  ));
+  assert.ok(focused.objects.some(({ boundaryCategory }) =>
+    boundaryCategory === "microsoft-base-app"
+  ));
+  assert.ok(focused.edges.some(({ targetOrigin, unresolved }) =>
+    targetOrigin === "unknown" && unresolved?.name === "Missing"
+  ));
 });

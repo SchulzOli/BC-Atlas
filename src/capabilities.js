@@ -10,6 +10,9 @@ const architectureOptions = {
   object: string("Object name, ID, key, or typed selector such as codeunit:50100."),
   scope: string("Boundary selector prefixed with namespace:, folder:, app:, or object:.", { repeatable: true }),
   focus: string("Name fragment for contracts, events, or UI views."),
+  projectRoot: string("App or multi-app workspace root analyzed before focus filtering.", {
+    cli: "--project-root"
+  }),
   entry: string("Workflow procedure, trigger, action, or event selector.", { repeatable: true }),
   namespace: string("Namespace glob.", { repeatable: true }),
   type: string("Comma-separated AL object types.", { repeatable: true }),
@@ -119,6 +122,13 @@ export function createCapabilities(version) {
           port: string("Integer from 0 to 65535.", { default: "0" })
         },
         { type: "process", readiness: "stdout URL", termination: "SIGINT" }
+      ),
+      command(
+        "mcp",
+        ["bca-mcp"],
+        "Expose BC Atlas tools through an MCP stdio server.",
+        {},
+        { type: "process", transport: "stdio", termination: "SIGINT" }
       ),
       command("docs.list", ["bca", "docs", "list", "<test-root>"], "List scenarios.",
         { format: docsFormat }, { type: "json", when: "--format json" }),

@@ -96,6 +96,9 @@ bca graph ./app --view module -o modules.d2
 # Folder-based modules instead of namespaces
 bca graph ./app --view module --group-by folder -o folders.d2
 
+# Analyze the whole workspace, but render one folder and its boundary
+bca graph ./apps/Sales/src/Posting --project-root . -o posting-boundary.d2
+
 # One object plus its neighbors
 bca graph ./app --view object --object codeunit:50100 -o posting.d2
 
@@ -194,6 +197,15 @@ json` for reads, check for exit code `0` before parsing stdout, and run metadata
 changes with `--dry-run` before writing. This contract is the stable integration
 surface for LLM tools; an MCP adapter can consume it without becoming a second
 implementation of BC Atlas.
+
+BC Atlas also includes a local MCP stdio server:
+
+```sh
+bca-mcp
+```
+
+See the [agent integration guide](./docs/agent-integration.md) for host setup,
+available tools, write safeguards, and MCP Inspector commands.
 
 ## Publishing releases
 
@@ -303,7 +315,10 @@ conventions and CI usage.
 
 This is an architecture extractor, not the AL compiler or language server.
 Project-local references are resolved by object type, ID, name, namespace, app
-preference, and declared app dependencies. Direct calls, calls through typed
+preference, and declared app dependencies. Symbols in `.alpackages` are also
+indexed. Focused folder and namespace diagrams retain aggregated boundary nodes
+for Microsoft symbols, declared dependencies, and same-app objects outside the
+focus. Direct calls, calls through typed
 object variables, and common `EventSubscriber` attributes are resolved where
 possible. Dynamic calls, interface dispatch, and unusual subscriber forms
 remain syntactic/unresolved when the source does not provide enough

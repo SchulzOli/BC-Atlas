@@ -18,6 +18,7 @@ The generated CLI capability reference comes directly from the source code.
 ## Integration and support
 
 - [Agent integration](./agent-integration.md)
+- [MCP JSON example](./examples/mcp.json)
 - [Troubleshooting](./troubleshooting.md)
 
 ## Reference

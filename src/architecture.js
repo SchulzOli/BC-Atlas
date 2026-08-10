@@ -1,3 +1,4 @@
+import path from "node:path";
 import { analyze } from "./analyzer.js";
 import { loadConfig } from "./config.js";
 import { addInsights } from "./insights.js";
@@ -26,8 +27,16 @@ export function mergeArchitectureOptions(config, values) {
 }
 
 export async function createArchitectureModel(input, values = {}) {
-  const config = await loadConfig(input, values.config);
+  const config = await loadConfig(values.projectRoot ?? values["project-root"] ?? input, values.config);
   const options = mergeArchitectureOptions(config.values, values);
+  const projectRoot = path.resolve(options.projectRoot ?? options["project-root"] ?? input);
+  const selectedPath = path.resolve(input);
+  const relativeFocus = path.relative(projectRoot, selectedPath);
+  if (relativeFocus.startsWith("..") || path.isAbsolute(relativeFocus)) {
+    throw new Error(`selected focus path must be inside project root: ${projectRoot}`);
+  }
+  options.projectRoot = projectRoot;
+  options.focusPath = relativeFocus ? relativeFocus.replaceAll("\\", "/") : undefined;
   const direction = options.direction ?? "right";
   const view = options.view ?? "project";
   const groupBy = options["group-by"] ?? options.groupBy ?? (
@@ -47,7 +56,9 @@ export async function createArchitectureModel(input, values = {}) {
     ? "auto"
     : positiveInteger(requestedModuleDepth, "module-depth");
 
-  let model = resolveModel(await analyze(input));
+  let model = resolveModel(await analyze(projectRoot));
+  model.projectRoot = projectRoot;
+  model.selectedPath = selectedPath;
   model = filterModel(model, options);
   model = addInsights(model, options.forbiddenDependencies ?? []);
   const workflow = options.workflow ?? {};

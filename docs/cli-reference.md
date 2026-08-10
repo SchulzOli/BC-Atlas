@@ -12,6 +12,7 @@ bca inspect [options] <file-or-directory>
 bca watch [options] <directory>
 bca serve [options] <app-directory>
 bca capabilities
+bca-mcp
 bca docs <list|show|validate|generate|set|unset|serve> [options] <file-or-directory>
 bca docs glossary [options]
 ```
@@ -23,6 +24,7 @@ bca docs glossary [options]
 | `watch` | Generate a graph, watch an AL project, and rebuild after relevant source or configuration changes. |
 | `serve` | Start the combined architecture and documentation Control Center. |
 | `capabilities` | Emit the versioned machine contract for LLM and tool integrations as JSON. |
+| `bca-mcp` | Start the local MCP stdio server for agent integrations. |
 | `docs` | Inspect, validate, edit, generate, and locally browse AL-backed UI-test documentation. |
 
 Use `bca --help`, `bca --version`, or
@@ -70,6 +72,7 @@ The `graph`, `inspect`, and `watch` commands share the following options.
 | `--object` | selector | Required by the `object` view. Accepts an object name, ID, key, or typed selector such as `codeunit:50100`. |
 | `--scope` | selector | Boundary scope. Accepts `namespace:`, `folder:`, `app:`, or `object:` selectors. Repeatable. |
 | `--focus` | text | Restricts the `contracts`, `events`, or `ui` view to matching names. |
+| `--project-root` | path | Analyzes this app or multi-app workspace before using the positional path as the rendered folder focus. |
 | `--entry` | selector | Workflow entry procedure, trigger, action, or event publisher. Repeatable. |
 | `--workflow-depth` | positive integer | Maximum workflow traversal depth. Default: `8`. |
 | `--workflow-max-nodes` | positive integer | Maximum number of workflow nodes. Default: `100`. |
@@ -98,6 +101,7 @@ Options described as repeatable can be supplied more than once:
 
 ```text
 bca graph src \
+  --project-root . \
   --namespace "Contoso.Sales.**" \
   --type table,codeunit \
   --type page \
@@ -189,10 +193,17 @@ bca graph src --config bca.workflow.json
 
 The configuration root accepts the long-form equivalents of the architecture
 options, normally in camel case: `view`, `output`, `format`, `object`, `scope`,
-`focus`, `namespaces`, `types`, `include`, `exclude`, `groupBy`,
+`focus`, `projectRoot`, `namespaces`, `types`, `include`, `exclude`, `groupBy`,
 `moduleDepth`, `folderDepth`, `includeUnresolvedCalls`, `maxEdges`,
 `direction`, `title`, `sourceUrl`, `details`, `noExternal`, `strict`, and
 `debounce`.
+
+BC Atlas resolves the complete `projectRoot` before it applies a folder,
+namespace, or include focus. References that cross the focus become aggregated
+boundary nodes. Their `boundaryCategory` is `microsoft-base-app`,
+`declared-dependency`, `same-app-outside-focus`, or `unknown`. Dependency
+symbols are loaded from `.app` files under `.alpackages`; a package that cannot
+be read produces a `symbol-package-error` diagnostic.
 
 These renderer and policy settings are configuration-only:
 

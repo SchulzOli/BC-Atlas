@@ -23,6 +23,30 @@ function lookupKeys(object) {
   ]);
 }
 
+function appIdentity(app) {
+  return normalizeIdentifier(app?.id ?? app?.name);
+}
+
+function dependencyIds(app) {
+  return new Set((app?.dependencies ?? []).flatMap((dependency) =>
+    [dependency.id, dependency.appId, dependency.name]
+      .filter(Boolean)
+      .map(normalizeIdentifier)
+  ));
+}
+
+function targetOrigin(source, target) {
+  if (!target) return "unknown";
+  if (target.externalSymbol && /microsoft/iu.test(target.app?.publisher ?? "")) {
+    return "microsoft-base-app";
+  }
+  if (dependencyIds(source.app).has(appIdentity(target.app))) return "declared-dependency";
+  if (appIdentity(source.app) && appIdentity(source.app) === appIdentity(target.app)) {
+    return "same-app";
+  }
+  return target.externalSymbol ? "unknown" : "workspace-app";
+}
+
 export function resolveModel(model) {
   const diagnostics = [...(model.diagnostics ?? [])];
   const index = new Map();
@@ -42,24 +66,22 @@ export function resolveModel(model) {
       index.get(`${relation.targetType ?? "*"}:${target}`) ??
       index.get(`*:${target}`) ??
       [];
+    if (candidates.length > 1 && source.app) {
+      const sameApp = candidates.filter(
+        (candidate) => appIdentity(candidate.app) === appIdentity(source.app)
+      );
+      if (sameApp.length) candidates = sameApp;
+    }
     if (candidates.length > 1) {
       const sameNamespace = candidates.filter(
         (candidate) => candidate.namespace === source.namespace
       );
       if (sameNamespace.length) candidates = sameNamespace;
     }
-    if (candidates.length > 1 && source.app) {
-      const sameApp = candidates.filter(
-        (candidate) => candidate.app?.id === source.app.id
-      );
-      if (sameApp.length) candidates = sameApp;
-    }
     if (candidates.length > 1 && source.app?.dependencies?.length) {
-      const dependencyIds = new Set(
-        source.app.dependencies.flatMap((dependency) => [dependency.id, dependency.appId])
-      );
+      const declaredIds = dependencyIds(source.app);
       const dependencyCandidates = candidates.filter(
-        (candidate) => candidate.app?.id && dependencyIds.has(candidate.app.id)
+        (candidate) => declaredIds.has(appIdentity(candidate.app))
       );
       if (dependencyCandidates.length) candidates = dependencyCandidates;
     }
@@ -111,6 +133,12 @@ export function resolveModel(model) {
         conditionalSymbols: relation.conditionalSymbols,
         via: relation.via,
         confidence: target ? "resolved" : "syntactic",
+        targetOrigin: targetOrigin(object, target),
+        targetApp: target?.app ? {
+          id: target.app.id,
+          name: target.app.name,
+          publisher: target.app.publisher
+        } : undefined,
         location: relation.location
       });
     }

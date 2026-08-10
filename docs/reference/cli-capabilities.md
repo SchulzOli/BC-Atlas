@@ -15,6 +15,7 @@ Run `npm run docs` after a capability changes.
 | `inspect` | `bca inspect <app-root>` | Read the resolved architecture model. |
 | `watch` | `bca watch <app-root>` | Rebuild a diagram when AL source changes. |
 | `serve` | `bca serve <app-root>` | Start the combined local Control Center. |
+| `mcp` | `bca-mcp` | Expose BC Atlas tools through an MCP stdio server. |
 | `docs.list` | `bca docs list <test-root>` | List scenarios. |
 | `docs.show` | `bca docs show <test-root>` | Read one scenario. |
 | `docs.validate` | `bca docs validate <test-root>` | Validate the documentation corpus. |

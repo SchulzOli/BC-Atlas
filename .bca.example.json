@@ -1,5 +1,6 @@
 {
   "view": "project",
+  "projectRoot": ".",
   "direction": "right",
   "title": "Business Central architecture",
   "groupBy": "role",

@@ -25,20 +25,89 @@ export function filterModel(model, options = {}) {
   const namespaces = options.namespaces ?? [];
   const include = options.include ?? [];
   const exclude = options.exclude ?? [];
+  const focusPath = options.focusPath?.replaceAll("\\", "/").replace(/^\.\//u, "");
 
   const objects = model.objects.filter((object) => {
+    if (object.externalSymbol) return false;
     const searchable = `${object.type}:${object.id ?? ""}:${object.name}`;
     if (types.size && !types.has(object.type)) return false;
     if (namespaces.length && !matchesAny(object.namespace, namespaces)) return false;
     const file = object.file.replaceAll("\\", "/");
+    if (focusPath && file !== focusPath && !file.startsWith(`${focusPath.replace(/\/$/u, "")}/`)) {
+      return false;
+    }
     if (include.length && !matchesAny(file, include) && !matchesAny(searchable, include)) {
       return false;
     }
     return !matchesAny(file, exclude) && !matchesAny(searchable, exclude);
   });
   const keys = new Set(objects.map(({ key }) => key));
-  const edges = model.edges.filter((edge) => keys.has(edge.from) && (!edge.to || keys.has(edge.to)));
-  return { ...model, objects, edges };
+  const objectByKey = new Map(model.objects.map((object) => [object.key, object]));
+  const boundaryObjects = new Map();
+
+  function boundaryFor(adjacent, focus, edge) {
+    let category = edge.targetOrigin;
+    if (adjacent.externalSymbol && /microsoft/iu.test(adjacent.app?.publisher ?? "")) {
+      category = "microsoft-base-app";
+    } else if (adjacent.app?.id && focus.app?.dependencies?.some((dependency) =>
+      [dependency.id, dependency.appId].includes(adjacent.app.id)
+    )) {
+      category = "declared-dependency";
+    } else if (adjacent.app?.id && adjacent.app.id === focus.app?.id) {
+      category = "same-app-outside-focus";
+    } else if (!category || category === "same-app" || category === "workspace-app") {
+      category = "unknown";
+    }
+    const appName = adjacent.app?.name ?? "Unknown app";
+    const namespace = adjacent.namespace ?? "(global)";
+    const key = `boundary::${category}::${normalizeIdentifier(appName)}::${normalizeIdentifier(namespace)}`;
+    if (!boundaryObjects.has(key)) {
+      boundaryObjects.set(key, {
+        key,
+        name: `${category.replaceAll("-", " ")}: ${appName} / ${namespace}`,
+        type: "module",
+        namespace: "(boundary)",
+        file: "",
+        relations: [],
+        members: [],
+        boundaryCategory: category,
+        isBoundary: true,
+        viewGroup: "Adjacent context"
+      });
+    }
+    const boundary = boundaryObjects.get(key);
+    if (!boundary.members.includes(adjacent.key)) boundary.members.push(adjacent.key);
+    return boundary;
+  }
+
+  const edges = [];
+  for (const edge of model.edges) {
+    const fromInside = keys.has(edge.from);
+    const toInside = edge.to ? keys.has(edge.to) : false;
+    if (fromInside && (!edge.to || toInside)) {
+      edges.push(edge);
+      continue;
+    }
+    if (fromInside && edge.to) {
+      const adjacent = objectByKey.get(edge.to);
+      if (!adjacent) continue;
+      const boundary = boundaryFor(adjacent, objectByKey.get(edge.from), edge);
+      edges.push({ ...edge, to: boundary.key, targetOrigin: boundary.boundaryCategory });
+      continue;
+    }
+    if (toInside) {
+      const adjacent = objectByKey.get(edge.from);
+      if (!adjacent) continue;
+      const boundary = boundaryFor(adjacent, objectByKey.get(edge.to), edge);
+      edges.push({ ...edge, from: boundary.key, targetOrigin: boundary.boundaryCategory });
+    }
+  }
+  return {
+    ...model,
+    focusPath,
+    objects: [...objects, ...boundaryObjects.values()],
+    edges
+  };
 }
 
 function selectObject(model, selector) {
