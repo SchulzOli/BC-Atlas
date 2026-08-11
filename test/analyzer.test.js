@@ -183,7 +183,7 @@ test("resolves overloads and interface calls by signature", async () => {
   `;
   const parsed = await testing.objectsFromSource(source, "overloads.al");
   const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
-  const calls = createView(model, "call");
+  const calls = createView(model, "call", { expandProcedures: true });
   const executeTargets = calls.edges
     .filter(({ kind, to }) => kind === "calls" && to)
     .map(({ to }) => calls.objects.find(({ key }) => key === to)?.signature);
@@ -294,7 +294,7 @@ test("resolves chained calls through procedure return types", async () => {
   `;
   const parsed = await testing.objectsFromSource(source, "chains.al");
   const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
-  const calls = createView(model, "call");
+  const calls = createView(model, "call", { expandProcedures: true });
   const caller = calls.objects.find(({ name, namespace }) =>
     name === "Run" && namespace.endsWith(".Caller")
   );
@@ -377,13 +377,16 @@ test("filters and projects existing views", async () => {
   assert.ok(data.edges.every((edge) => ["reads", "writes", "uses", "extends"].includes(edge.kind)));
 
   const calls = createView(filtered, "call");
-  assert.ok(calls.objects.some(({ name }) => name === "Validate"));
+  assert.ok(calls.objects.some(({ name }) => name === "Sales Poster"));
+  assert.equal(calls.callGraph.level, "object");
   assert.ok(calls.edges.some((edge) => edge.kind === "calls" && edge.to));
   assert.ok(calls.edges.filter((edge) => edge.to).length >= 2);
   assert.ok(calls.edges.some((edge) => edge.kind === "subscribes" && edge.to));
   assert.ok(calls.edges.every(({ to }) => to));
   const callsWithUnresolved = createView(filtered, "call", {
-    includeUnresolvedCalls: true
+    includeUnresolvedCalls: true,
+    expandProcedures: true,
+    expandFrameworkCalls: true
   });
   assert.ok(callsWithUnresolved.edges.some(({ to }) => !to));
   assert.ok(model.insights.hubs.length > 0);
@@ -670,4 +673,319 @@ test("analyzes a multi-app root, resolves packages, and aggregates focus boundar
   assert.ok(focused.edges.some(({ targetOrigin, unresolved }) =>
     targetOrigin === "unknown" && unresolved?.name === "Missing"
   ));
+});
+
+test("filters, aggregates, expands, and marks focused call subgraphs", async () => {
+  const source = `
+    codeunit 50100 A {
+      var BUnit: Codeunit B; AmbUnit: Codeunit Amb;
+      procedure Start()
+      begin
+        BUnit.Step();
+        AmbUnit.Run(1);
+        Message('started');
+      end;
+    }
+    codeunit 50101 B {
+      var CUnit: Codeunit C;
+      procedure Step()
+      begin
+        CUnit.Finish();
+      end;
+    }
+    codeunit 50102 C {
+      var BUnit: Codeunit B;
+      procedure Finish()
+      begin
+        BUnit.Step();
+        Recurse();
+      end;
+      procedure Recurse()
+      begin
+        Recurse();
+      end;
+    }
+    codeunit 50103 Inbound {
+      var AUnit: Codeunit A;
+      procedure CallStart()
+      begin
+        AUnit.Start();
+      end;
+    }
+    codeunit 50104 Amb {
+      procedure Run(Value: Integer) begin end;
+      procedure Run(Value: Text) begin end;
+    }
+  `;
+  const parsed = await testing.objectsFromSource(source, "calls.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+
+  const outgoing = createView(model, "call", {
+    rootProcedure: "A.Start",
+    callDepth: 1,
+    callDirection: "outgoing"
+  });
+  assert.deepEqual(
+    outgoing.objects.filter(({ frameworkCalls }) => !frameworkCalls).map(({ name }) => name).sort(),
+    ["A", "B"]
+  );
+  assert.ok(outgoing.objects.some(({ frameworkCalls }) => frameworkCalls));
+  assert.ok(outgoing.edges.some(({ confidence }) => confidence === "ambiguous"));
+  assert.deepEqual(outgoing.callGraph.roots, [outgoing.objects.find(({ name }) => name === "A").key]);
+
+  const incoming = createView(model, "call", {
+    rootProcedure: "A.Start",
+    callDepth: 1,
+    callDirection: "incoming"
+  });
+  assert.deepEqual(incoming.objects.map(({ name }) => name).sort(), ["A", "Inbound"]);
+
+  const expanded = createView(model, "call", {
+    rootProcedure: "A.Start",
+    callDepth: 4,
+    callDirection: "outgoing",
+    expandProcedures: true,
+    expandFrameworkCalls: true,
+    includeUnresolvedCalls: true
+  });
+  assert.equal(expanded.callGraph.level, "procedure");
+  assert.ok(expanded.callGraph.cycles.length >= 2);
+  assert.ok(expanded.objects.some(({ name, cycle }) => name === "Recurse" && cycle));
+  assert.ok(expanded.edges.some(({ isCycle }) => isCycle));
+
+  const d2 = renderD2(expanded, { title: "Calls" });
+  assert.match(d2, /\[ambiguous\]/u);
+  assert.match(d2, /style\.stroke: "#B45309"/u);
+  assert.match(d2, /style\.stroke: "#6B7280"/u);
+  assert.match(d2, /\[cycle\]/u);
+});
+
+test("controls object depth, member visibility, roles, legends, and source links", async () => {
+  const node = (key) => ({
+    key,
+    name: key,
+    type: "codeunit",
+    namespace: "Demo",
+    file: `src/${key}.al`,
+    location: { line: 1 },
+    relations: [],
+    procedures: [],
+    fields: [],
+    actions: []
+  });
+  const objects = ["Inbound2", "Inbound1", "Center", "Outbound1", "Outbound2"].map(node);
+  const edges = [
+    ["Inbound2", "Inbound1"],
+    ["Inbound1", "Center"],
+    ["Center", "Outbound1"],
+    ["Outbound1", "Outbound2"]
+  ].map(([from, to], index) => ({
+    id: `depth${index}`, from, to, kind: "calls", confidence: "resolved"
+  }));
+  const depthModel = { objects, edges, apps: [], diagnostics: [] };
+  assert.deepEqual(
+    createView(depthModel, "object", {
+      object: "Center", objectInboundDepth: 0, objectOutboundDepth: 2
+    }).objects.map(({ name }) => name).sort(),
+    ["Center", "Outbound1", "Outbound2"]
+  );
+  assert.deepEqual(
+    createView(depthModel, "object", {
+      object: "Center", objectInboundDepth: 2, objectOutboundDepth: 0
+    }).objects.map(({ name }) => name).sort(),
+    ["Center", "Inbound1", "Inbound2"]
+  );
+
+  const parsed = await testing.objectsFromSource(`
+    namespace Demo;
+    page 50100 Visible {
+      layout { area(Content) { field(Name; Rec.SystemId) { } } }
+      actions { area(Processing) { action(Run) { } } }
+      procedure PublicWork() begin end;
+      internal procedure InternalWork() begin end;
+      local procedure LocalWork() begin end;
+      [IntegrationEvent(false, false)]
+      procedure Changed() begin end;
+      trigger OnOpenPage() begin end;
+    }
+  `, "src/Visible.al");
+  const visible = parsed.objects[0];
+  assert.deepEqual(
+    visible.procedures.filter(({ kind }) => kind === "procedure")
+      .map(({ name, visibility }) => [name, visibility]),
+    [["PublicWork", "public"], ["InternalWork", "internal"], ["LocalWork", "local"]]
+  );
+  const memberModel = createView(resolveModel({
+    objects: parsed.objects, edges: [], apps: [], diagnostics: []
+  }), "object", { object: "Visible" });
+  const d2 = renderD2(memberModel, {
+    groupBy: "role",
+    roleMappings: { Domain: ["Demo:page:*"] },
+    memberNames: true,
+    members: ["procedures"],
+    sourceUrlTemplate: "https://example.test/repo/blob/{ref}/{file}#L{line}",
+    sourceRef: "abc123",
+    sourcePathPrefix: "apps/Main"
+  });
+  assert.match(d2, /g0: "Domain"/u);
+  assert.match(d2, /Procedures: \[public\] PublicWork, \[internal\] InternalWork, \[local\] LocalWork/u);
+  assert.doesNotMatch(d2, /Fields:/u);
+  assert.doesNotMatch(d2, /Actions:/u);
+  assert.match(d2, /https:\/\/example\.test\/repo\/blob\/abc123\/apps\/Main\/src\/Visible\.al#L/u);
+  assert.match(d2, /Confidence overlay: resolved = relation style/u);
+});
+
+test("preserves data evidence, aggregates access, infers safe cardinality, and finds commits", async () => {
+  const parsed = await testing.objectsFromSource(`
+    table 50100 Parent {
+      fields { field(1; Code; Code[20]) { } }
+      keys { key(PK; Code) { Clustered = true; } }
+    }
+    table 50101 Other {
+      fields { field(1; Code; Code[20]) { } field(2; Description; Text[100]) { } }
+      keys { key(PK; Code) { Clustered = true; } }
+    }
+    table 50102 Child {
+      fields {
+        field(1; ParentCode; Code[20]) { TableRelation = Parent.Code; }
+        field(2; OtherDescription; Text[100]) { TableRelation = Other.Description; }
+      }
+    }
+    table 50103 WriteOnly { }
+    table 50104 Unused { }
+    codeunit 50105 DataUser {
+      var
+        ParentRecord: Record Parent;
+        OtherRecord: Record Other;
+        WriteRecord: Record WriteOnly;
+      procedure Process()
+      begin
+        ParentRecord.Get();
+        ParentRecord.Insert();
+        Commit();
+        ParentRecord.Modify();
+        OtherRecord.FindFirst();
+        WriteRecord.Insert();
+      end;
+    }
+  `, "data-accuracy.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  const user = model.objects.find(({ name }) => name === "DataUser");
+  const process = user.procedures.find(({ name }) => name === "Process");
+  assert.equal(process.transactionSegments, 2);
+  assert.equal(process.transactionBoundaries.length, 1);
+  assert.equal(user.transactionBoundaries[0].procedure, "Process()");
+
+  const directWrite = model.edges.find(({ operation }) => operation === "Modify");
+  assert.equal(directWrite.sourceProcedure, "Process()");
+  assert.equal(directWrite.transactionSegment, 2);
+
+  const parentRelation = model.edges.find(({ kind, cardinality, to }) =>
+    kind === "relates" && cardinality && model.objects.find(({ key }) => key === to)?.name === "Parent"
+  );
+  assert.equal(parentRelation.cardinality, "0..* -> 0..1");
+  assert.match(parentRelation.cardinalityEvidence, /primary key Code/u);
+  assert.equal(model.edges.find(({ kind, to }) =>
+    kind === "relates" && model.objects.find(({ key }) => key === to)?.name === "Other"
+  ).cardinality, undefined);
+
+  const data = createView(model, "data");
+  const parent = data.objects.find(({ name }) => name === "Parent");
+  const other = data.objects.find(({ name }) => name === "Other");
+  const writeOnly = data.objects.find(({ name }) => name === "WriteOnly");
+  const unused = data.objects.find(({ name }) => name === "Unused");
+  assert.deepEqual(
+    [parent.dataAccess, other.dataAccess, writeOnly.dataAccess, unused.dataAccess],
+    ["read-write", "read-only", "write-only", "never-accessed"]
+  );
+  assert.deepEqual([parent.readCount, parent.writeCount], [1, 2]);
+  const parentWrites = data.edges.find(({ kind, to }) => kind === "writes" && to === parent.key);
+  assert.equal(parentWrites.weight, 2);
+  assert.deepEqual(parentWrites.operations.sort(), ["Insert", "Modify"]);
+  assert.deepEqual(parentWrites.sourceProcedures, ["Process()"]);
+  assert.deepEqual(parentWrites.occurrences.map(({ transactionSegment }) => transactionSegment), [1, 2]);
+
+  const d2 = renderD2(data, { title: "Data" });
+  assert.match(d2, /Operations: Insert, Modify/u);
+  assert.match(d2, /Source procedures: Process\(\)/u);
+  assert.match(d2, /Cardinality: 0\.\.\* -> 0\.\.1/u);
+  assert.match(d2, /Data: schema = dashed; runtime access = solid/u);
+  assert.match(d2, /never-accessed; reads 0; writes 0/u);
+});
+
+test("models execute, tabledata, composed, internal, and dependent permission sets", async (t) => {
+  const parsed = await testing.objectsFromSource(`
+    table 50100 Ledger { }
+    report 50101 ReportTarget { Permissions = tabledata Ledger = R; dataset { } }
+    page 50102 PageTarget { Permissions = tabledata Ledger = RI; layout { } }
+    codeunit 50103 CodeunitTarget { Permissions = tabledata Ledger = RIMD; }
+    query 50104 QueryTarget { Permissions = tabledata Ledger = R; elements { } }
+    xmlport 50105 XmlportTarget { Permissions = tabledata Ledger = R; schema { } }
+    permissionset 50110 InternalSet {
+      Access = Internal;
+      Assignable = false;
+      Permissions = tabledata Ledger = R;
+    }
+    permissionset 50111 UserSet {
+      Assignable = true;
+      IncludedPermissionSets = InternalSet;
+      Permissions = report ReportTarget = X, page PageTarget = X,
+        codeunit CodeunitTarget = X, query QueryTarget = X, xmlport XmlportTarget = X;
+    }
+  `, "permissions.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  for (const type of ["report", "page", "codeunit", "query", "xmlport"]) {
+    const object = model.objects.find(({ type: objectType }) => objectType === type);
+    assert.ok(object.relations.some(({ permissionKind, tableDataRights }) =>
+      permissionKind === "tabledata" && tableDataRights.includes("read")
+    ), type);
+  }
+  const userSet = model.objects.find(({ name }) => name === "UserSet");
+  const internalSet = model.objects.find(({ name }) => name === "InternalSet");
+  const grants = model.edges.filter(({ from, permissionKind }) =>
+    from === userSet.key && permissionKind === "execute"
+  );
+  assert.deepEqual(grants.map(({ execute }) => execute), [true, true, true, true, true]);
+  assert.ok(grants.every(({ tableDataRights }) => tableDataRights === undefined));
+  assert.deepEqual(userSet.permissionSetRoles, ["assignable"]);
+  assert.deepEqual(internalSet.permissionSetRoles, ["internal", "included"]);
+  assert.equal(internalSet.objectAccess, "internal");
+  assert.deepEqual(internalSet.includedBy, [userSet.key]);
+  const d2 = renderD2(model, { title: "Permissions" });
+  assert.match(d2, /executes \[X\]/u);
+  assert.match(d2, /permission set: internal, included/u);
+
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "bc-atlas-permissions-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.mkdir(path.join(root, ".alpackages"));
+  await fs.writeFile(path.join(root, "app.json"), JSON.stringify({
+    id: "main-app", name: "Main", publisher: "Example", version: "1.0.0.0",
+    dependencies: [{ id: "dependency-app", name: "Dependency", version: "1.0.0.0" }]
+  }));
+  await fs.writeFile(path.join(root, "Main.al"), `
+    permissionset 50200 MainSet {
+      Assignable = true;
+      IncludedPermissionSets = "Dependency Base";
+    }
+  `);
+  const symbols = {
+    AppId: "dependency-app",
+    Name: "Dependency",
+    Publisher: "Example",
+    Version: "1.0.0.0",
+    PermissionSets: [{
+      Id: 70000, Name: "Dependency Base", Assignable: false, Access: "Internal"
+    }]
+  };
+  await fs.writeFile(
+    path.join(root, ".alpackages", "Dependency.app"),
+    zipSync({ "SymbolReference.json": strToU8(JSON.stringify(symbols)) })
+  );
+  const workspace = resolveModel(await analyze(root));
+  const mainSet = workspace.objects.find(({ name }) => name === "MainSet");
+  const dependencySet = workspace.objects.find(({ name }) => name === "Dependency Base");
+  const inclusion = workspace.edges.find(({ from, kind }) => from === mainSet.key && kind === "includes");
+  assert.equal(inclusion.to, dependencySet.key);
+  assert.equal(inclusion.targetOrigin, "declared-dependency");
+  assert.deepEqual(dependencySet.permissionSetRoles, ["internal", "included"]);
 });

@@ -35,6 +35,27 @@ Copy [`.bca.example.json`](../.bca.example.json) to your AL project as `.bca.jso
 
 Use `phases` to group steps. Use `stop` to show a node without expanding it. Use `collapse` to bypass utility procedures.
 
+## Customize roles and source links
+
+Role mappings are evaluated in declaration order. A pattern can match an
+object type, `type:name`, `namespace:type:name`, or source file path.
+
+```json
+{
+  "groupBy": "role",
+  "roleMappings": {
+    "Domain": ["Contoso.Sales:table:*", "Contoso.Sales:codeunit:*"],
+    "Adapters": ["**/Integration/**"]
+  },
+  "sourceUrl": "https://github.com/example/repo/blob/{ref}/{file}#L{line}",
+  "sourceRef": "main",
+  "sourcePathPrefix": "apps/Sales"
+}
+```
+
+The source file is relative to `projectRoot`. Use `sourcePathPrefix` when that
+root is inside a larger repository.
+
 ## Check dependency rules
 
 Add a `forbiddenDependencies` array to detect invalid architectural dependencies:

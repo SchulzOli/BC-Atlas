@@ -17,6 +17,45 @@ Use a view that answers one question. Large all-purpose diagrams become difficul
 | How do pages connect to data and actions? | `ui` | `bca graph ./app --view ui -o ui.svg` |
 | What happens after an entry point? | `workflow` | `bca graph ./app --view workflow --entry ProcessDocument -o workflow.svg` |
 
+## Read a data view
+
+Data views keep schema relationships separate from runtime access. Dashed
+`relates` edges come from AL schema declarations such as `TableRelation`;
+solid `reads` and `writes` edges come from detected record operations.
+
+Repeated runtime access is aggregated without losing evidence. JSON edges
+include separate read or write `weight` values, `operations`,
+`sourceProcedures`, and per-occurrence locations and transaction segments.
+Table nodes include `readCount`, `writeCount`, and a `dataAccess` value of
+`read-only`, `write-only`, `read-write`, or `never-accessed`. The top-level
+`dataSummary` counts tables in each state.
+
+BC Atlas adds cardinality only when a `TableRelation` explicitly names the
+target field and that field is the target table's single-field primary key.
+Otherwise it leaves cardinality unspecified instead of guessing.
+
+Explicit `Commit()` and `Database.Commit()` calls are preserved as transaction
+boundaries on procedures and owning objects. Runtime access occurrences include
+their transaction segment. This is static evidence about explicit commits; it
+does not claim to model implicit runtime transaction starts, ends, or rollbacks.
+
+In D2 and SVG output, hover an access edge to see its operation names, source
+procedures, relation class, transaction segments, and cardinality evidence.
+
+## Read permissions
+
+Permission edges keep table-data rights separate from execute access. JSON
+uses `permissionKind: "tabledata"` with expanded `tableDataRights` for `RIMD`
+grants, and `permissionKind: "execute"` with `execute: true` for `X` grants on
+reports, pages, codeunits, queries, and XMLports. Diagrams label these edges as
+`tabledata` and `executes`.
+
+Permission-set nodes expose `assignable`, `objectAccess`, `included`,
+`includedBy`, and `permissionSetRoles`. Included permission sets resolve against
+workspace apps and symbols loaded from dependent `.app` packages. This keeps
+assignable sets, internal building blocks, and sets included by other sets
+visible as separate facts.
+
 ## Reduce a large diagram
 
 Apply filters before you increase the edge limit:

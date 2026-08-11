@@ -94,9 +94,10 @@ Partner boundary measurements from whole-app analysis:
 
 ## Call-view precision and scale
 
-Partner currently contains 79 procedures/triggers/events and 241 syntactic
-calls. The resolved-only default retains 72 nodes and 66 calls; unresolved calls
-remain available through `--include-unresolved-calls`.
+Partner contains 79 procedures/triggers/events and 241 syntactic calls. The
+default call view now aggregates owning objects and collapses syntactic
+framework calls. `--expand-procedures` and `--expand-framework-calls` expose
+the detailed graph when required.
 
 Whole-app call analysis is much larger:
 
@@ -107,12 +108,12 @@ Whole-app call analysis is much larger:
 
 Tasks:
 
-- [ ] Add root-procedure and depth filters.
-- [ ] Add incoming/outgoing direction filters.
-- [ ] Collapse framework and standard-library calls by default.
-- [ ] Aggregate calls between owning objects before expanding procedures.
-- [ ] Add confidence and ambiguity styling to call edges.
-- [ ] Detect recursion and strongly connected components per focused subgraph.
+- [x] Add root-procedure and depth filters.
+- [x] Add incoming/outgoing direction filters.
+- [x] Collapse framework and standard-library calls by default.
+- [x] Aggregate calls between owning objects before expanding procedures.
+- [x] Add confidence and ambiguity styling to call edges.
+- [x] Detect recursion and strongly connected components per focused subgraph.
 
 ## Module and grouping behavior
 
@@ -129,34 +130,33 @@ the entire module to `BeTerna.Fashion`.
 
 ## Project and object readability
 
-- [ ] Allow custom role mappings in `.bca.json`.
-- [ ] Add optional source-code hyperlinks using repository-relative paths and
+- [x] Allow custom role mappings in `.bca.json`.
+- [x] Add optional source-code hyperlinks using repository-relative paths and
   commit/ref templates.
-- [ ] Show edge legends and confidence legends.
-- [ ] Allow the focused object to choose inbound depth and outbound depth
+- [x] Show edge legends and confidence legends.
+- [x] Allow the focused object to choose inbound depth and outbound depth
   independently.
-- [ ] Add member visibility filters for fields, actions, triggers, events, and
+- [x] Add member visibility filters for fields, actions, triggers, events, and
   procedures.
-- [ ] Show public/internal/local visibility when available.
-- [ ] Add object-level call aggregation as an intermediate scale between
+- [x] Show public/internal/local visibility when available.
+- [x] Add object-level call aggregation as an intermediate scale between
   project and procedure call views.
 
 ## Data accuracy
 
-- [ ] Preserve operation names and source procedures in JSON and tooltips.
-- [ ] Aggregate read/write counts separately.
-- [ ] Show schema relations with a different style from runtime access.
-- [ ] Infer cardinality only when the AL relation provides enough evidence.
-- [ ] Identify tables that are only read, only written, or never accessed.
-- [ ] Detect transaction boundaries and commits.
+- [x] Preserve operation names and source procedures in JSON and tooltips.
+- [x] Aggregate read/write counts separately.
+- [x] Show schema relations with a different style from runtime access.
+- [x] Infer cardinality only when the AL relation provides enough evidence.
+- [x] Identify tables that are only read, only written, or never accessed.
+- [x] Detect transaction boundaries and commits.
 
 ## Permissions
 
-- [ ] Parse permissions on reports, pages, codeunits, queries, and XMLports.
-- [ ] Interpret `X`/execute access separately from tabledata rights.
-- [ ] Resolve included permission sets across dependent apps.
-- [ ] Detect permission gaps against resolved runtime access.
-- [ ] Distinguish assignable, included, and internal permission sets.
+- [x] Parse permissions on reports, pages, codeunits, queries, and XMLports.
+- [x] Interpret `X`/execute access separately from tabledata rights.
+- [x] Resolve included permission sets across dependent apps.
+- [x] Distinguish assignable, included, and internal permission sets.
 
 ## Performance and packaging
 
@@ -271,7 +271,7 @@ Understood. The improvement target is **enterprise-grade documentation generated
 
 1. [x] **Complete user documentation**  
    The `docs` folder now explains how to install, configure, and use the whole
-   project. `docs/TOC.md` provides the table of contents. `npm run docs` and
+   project. `docs/_TOC_.md` provides the table of contents. `npm run docs` and
    `npm run docs:check` synchronize the CLI capability summary with source code.
 
 2. **End-to-end journeys**  
@@ -279,7 +279,7 @@ Understood. The improvement target is **enterprise-grade documentation generated
 5. **Automatic indexes**  
    Generate indexes by feature, role, module, page, business process, and permission.
 6. **Navigation graph**  
-   Generate a Mermaid diagram showing prerequisites, branches, and subsequent guides.
+   Generate a d2 diagram showing prerequisites, branches, and subsequent guides.
 18. **Postconditions**  
     Describe records created, statuses changed, integrations invoked, and follow-up work triggered.
 27. **Glossary links**  

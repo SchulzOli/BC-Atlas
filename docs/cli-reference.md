@@ -70,6 +70,9 @@ The `graph`, `inspect`, and `watch` commands share the following options.
 | `-f`, `--format` | format | `d2`, `json`, `svg`, `png`, or `pdf`. The output extension is used when the option is omitted. |
 | `--view` | view | Selects `project`, `module`, `object`, `data`, `call`, `boundary`, `contracts`, `events`, `ui`, or `workflow`. Default: `project`. |
 | `--object` | selector | Required by the `object` view. Accepts an object name, ID, key, or typed selector such as `codeunit:50100`. |
+| `--object-inbound-depth` | non-negative integer | Incoming dependency depth for the focused object. Default: `1`. |
+| `--object-outbound-depth` | non-negative integer | Outgoing dependency depth for the focused object. Default: `1`. |
+| `--members` | categories | Focused-object members to show: `fields`, `actions`, `triggers`, `events`, and/or `procedures`. |
 | `--scope` | selector | Boundary scope. Accepts `namespace:`, `folder:`, `app:`, or `object:` selectors. Repeatable. |
 | `--focus` | text | Restricts the `contracts`, `events`, or `ui` view to matching names. |
 | `--project-root` | path | Analyzes this app or multi-app workspace before using the positional path as the rendered folder focus. |
@@ -85,10 +88,18 @@ The `graph`, `inspect`, and `watch` commands share the following options.
 | `--module-depth` | positive integer or `auto` | Namespace segments retained by the module view. Default: `auto`. |
 | `--folder-depth` | positive integer | Folder segments retained by a folder-grouped module view. Default: `1`. |
 | `--include-unresolved-calls` | flag | Includes unresolved calls and isolated procedures in the `call` view. |
+| `--root-procedure` | selector | Starts a focused call subgraph at a procedure name, `Owner.Procedure`, signature, or key. Repeatable. |
+| `--call-depth` | non-negative integer | Traversal depth from each call root. Default: `3`. |
+| `--call-direction` | direction | Traverses `incoming`, `outgoing`, or `both` call directions. Default: `outgoing`. |
+| `--expand-procedures` | flag | Expands default owning-object call aggregates into procedure nodes. |
+| `--expand-framework-calls` | flag | Expands the default framework/standard-library aggregate into individual unresolved calls. |
 | `--max-edges` | positive integer | Caps diagram edges. Default: `500`. For workflows this also caps projected workflow edges unless a nested workflow value is configured. |
 | `--direction` | value | Diagram direction: `right`, `down`, `left`, or `up`. Default: `right`. |
 | `--title` | text | Diagram title. |
-| `--source-url` | template | Adds node links. Supports `{file}` and `{line}` placeholders. |
+| `--source-url` | template | Adds node links. Supports `{file}`, `{line}`, and `{ref}` placeholders. `{file}` is project-root-relative. |
+| `--source-ref` | text | Commit, tag, or branch substituted for `{ref}`. Default: `main`. |
+| `--source-path-prefix` | path | Repository-relative path prepended to `{file}` when the project root is below the repository root. |
+| `--no-legend` | flag | Hides the edge-kind and confidence legend. |
 | `--details` | flag | Shows available member counts and focused-object member summaries. |
 | `--no-external` | flag | Hides external and unresolved target nodes in rendered diagrams. Unresolved edges remain available in JSON. |
 | `--config` | path | Explicit JSON configuration path. Without it, `<input-root>/.bca.json` is loaded when present. |
@@ -123,9 +134,9 @@ bca graph src \
 | --- | --- | --- |
 | `project` | AL objects and resolved or unresolved architectural relations. | General filters and grouping options. |
 | `module` | Aggregated namespace or folder dependencies. | `--group-by namespace\|folder`, `--module-depth`, and `--folder-depth`. |
-| `object` | One object and its incoming and outgoing neighbors. | Requires `--object`. |
+| `object` | One object, independently selected incoming/outgoing neighborhoods, and filtered member details with visibility. | Requires `--object`; supports object depths and `--members`. |
 | `data` | Tables and table-oriented reads, writes, relations, and extensions. | General filters. |
-| `call` | Procedures, triggers, resolved calls, and event subscriptions. | `--include-unresolved-calls`. |
+| `call` | Calls aggregated between owning objects, with focused traversal, confidence, ambiguity, and SCC annotations. | `--root-procedure`, `--call-depth`, `--call-direction`, and `--expand-procedures`. |
 | `boundary` | Dependencies crossing one or more selected boundaries. | Requires repeatable `--scope`. |
 | `contracts` | Interfaces, direct implementations, and enum-mediated implementations. | Optional `--focus`. |
 | `events` | Event publishers and subscriber procedures. | Optional `--focus`. |
@@ -194,8 +205,10 @@ bca graph src --config bca.workflow.json
 The configuration root accepts the long-form equivalents of the architecture
 options, normally in camel case: `view`, `output`, `format`, `object`, `scope`,
 `focus`, `projectRoot`, `namespaces`, `types`, `include`, `exclude`, `groupBy`,
-`moduleDepth`, `folderDepth`, `includeUnresolvedCalls`, `maxEdges`,
-`direction`, `title`, `sourceUrl`, `details`, `noExternal`, `strict`, and
+`moduleDepth`, `folderDepth`, `includeUnresolvedCalls`, `rootProcedure`,
+`callDepth`, `callDirection`, `expandProcedures`, `expandFrameworkCalls`, `maxEdges`,
+`objectInboundDepth`, `objectOutboundDepth`, `members`, `direction`, `title`,
+`sourceUrl`, `sourceRef`, `sourcePathPrefix`, `noLegend`, `details`, `noExternal`, `strict`, and
 `debounce`.
 
 BC Atlas resolves the complete `projectRoot` before it applies a folder,
@@ -209,6 +222,7 @@ These renderer and policy settings are configuration-only:
 
 | Property | Description |
 | --- | --- |
+| `roleMappings` | Maps a custom role label to object globs. Globs can match type, `type:name`, `namespace:type:name`, or repository-relative file path. The first matching role wins. |
 | `layout` | D2 layout engine passed to the external renderer for PNG or PDF. |
 | `theme` | D2 theme passed to the external renderer for PNG or PDF. |
 | `forbiddenDependencies` | Dependency policy rules evaluated during analysis. |

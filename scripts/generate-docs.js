@@ -95,7 +95,7 @@ const capabilityReference = [
 ].join("\n");
 
 const outputs = new Map([
-  [path.join(docsRoot, "TOC.md"), toc.join("\n")],
+  [path.join(docsRoot, "_TOC_.md"), toc.join("\n")],
   [path.join(docsRoot, "reference", "cli-capabilities.md"), capabilityReference]
 ]);
 

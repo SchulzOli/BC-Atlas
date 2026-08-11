@@ -1,3 +1,5 @@
+import { classifyPermissionSet } from "./permission-semantics.js";
+
 export function normalizeIdentifier(value) {
   return String(value ?? "")
     .trim()
@@ -47,6 +49,21 @@ function targetOrigin(source, target) {
   return target.externalSymbol ? "unknown" : "workspace-app";
 }
 
+function inferredCardinality(target, relation) {
+  if (
+    relation.property !== "tablerelation" ||
+    !relation.sourceField ||
+    !relation.relatedField ||
+    target?.primaryKeyFields?.length !== 1 ||
+    (relation.relatedField &&
+      normalizeIdentifier(relation.relatedField) !== normalizeIdentifier(target.primaryKeyFields[0]))
+  ) return {};
+  return {
+    cardinality: "0..* -> 0..1",
+    cardinalityEvidence: `TableRelation ${relation.sourceField} -> primary key ${target.primaryKeyFields[0]}`
+  };
+}
+
 export function resolveModel(model) {
   const diagnostics = [...(model.diagnostics ?? [])];
   const index = new Map();
@@ -66,6 +83,10 @@ export function resolveModel(model) {
       index.get(`${relation.targetType ?? "*"}:${target}`) ??
       index.get(`*:${target}`) ??
       [];
+    if (relation.targetAppId) {
+      const targetAppId = normalizeIdentifier(relation.targetAppId);
+      candidates = candidates.filter((candidate) => appIdentity(candidate.app) === targetAppId);
+    }
     if (candidates.length > 1 && source.app) {
       const sameApp = candidates.filter(
         (candidate) => appIdentity(candidate.app) === appIdentity(source.app)
@@ -103,6 +124,7 @@ export function resolveModel(model) {
   for (const object of model.objects) {
     for (const relation of object.relations) {
       const target = resolve(object, relation);
+      const cardinality = inferredCardinality(target, relation);
       if (!target) {
         diagnostics.push({
           severity: "info",
@@ -122,7 +144,19 @@ export function resolveModel(model) {
         },
         kind: relation.kind,
         access: relation.access,
+        permissionKind: relation.permissionKind,
+        tableDataRights: relation.tableDataRights,
+        execute: relation.execute,
+        permissionSetRelation: relation.permissionSetRelation,
+        targetAppId: relation.targetAppId,
         operation: relation.operation,
+        operations: relation.operations,
+        sourceProcedure: relation.sourceProcedure ?? relation.member,
+        sourceProcedures: relation.sourceProcedures,
+        relationClass: relation.relationClass,
+        ...cardinality,
+        sourceField: relation.sourceField,
+        transactionSegment: relation.transactionSegment,
         property: relation.property,
         member: relation.member,
         contract: relation.contract,
@@ -144,5 +178,16 @@ export function resolveModel(model) {
     }
   }
 
-  return { ...model, edges, diagnostics };
+  const includedBy = new Map();
+  for (const edge of edges.filter(({ kind, to }) => kind === "includes" && to)) {
+    const sources = includedBy.get(edge.to) ?? [];
+    sources.push(edge.from);
+    includedBy.set(edge.to, sources);
+  }
+  const objects = model.objects.map((object) => {
+    if (!["permissionset", "permissionsetextension"].includes(object.type)) return object;
+    return classifyPermissionSet(object, includedBy.get(object.key) ?? []);
+  });
+
+  return { ...model, objects, edges, diagnostics };
 }

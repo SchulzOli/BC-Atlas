@@ -8,6 +8,9 @@ const architectureOptions = {
   output: string("Output file path.", { cli: "--output", short: "-o" }),
   format: string("Output format.", { enum: ["d2", "json", "svg", "png", "pdf"] }),
   object: string("Object name, ID, key, or typed selector such as codeunit:50100."),
+  objectInboundDepth: string("Non-negative incoming depth for object focus."),
+  objectOutboundDepth: string("Non-negative outgoing depth for object focus."),
+  members: string("Comma-separated fields,actions,triggers,events,procedures."),
   scope: string("Boundary selector prefixed with namespace:, folder:, app:, or object:.", { repeatable: true }),
   focus: string("Name fragment for contracts, events, or UI views."),
   projectRoot: string("App or multi-app workspace root analyzed before focus filtering.", {
@@ -25,6 +28,13 @@ const architectureOptions = {
   moduleDepth: string("Positive integer or auto.", { cli: "--module-depth" }),
   folderDepth: string("Positive integer.", { cli: "--folder-depth" }),
   includeUnresolvedCalls: flag("Include unresolved and isolated calls."),
+  rootProcedure: string("Call root procedure selector.", { repeatable: true }),
+  callDepth: string("Non-negative call traversal depth."),
+  callDirection: string("Call traversal direction.", {
+    enum: ["incoming", "outgoing", "both"]
+  }),
+  expandProcedures: flag("Expand owning-object call aggregates into procedures."),
+  expandFrameworkCalls: flag("Show individual framework and standard-library calls."),
   workflowDepth: string("Positive traversal depth.", { cli: "--workflow-depth" }),
   workflowMaxNodes: string("Positive workflow node cap.", { cli: "--workflow-max-nodes" }),
   workflowEdgeTypes: string("Comma-separated calls,events,writes,reads.", { cli: "--workflow-edge-types" }),
@@ -32,6 +42,9 @@ const architectureOptions = {
   direction: string("Diagram direction.", { enum: ["right", "down", "left", "up"] }),
   title: string("Diagram title."),
   sourceUrl: string("Node-link template containing {file} and optionally {line}.", { cli: "--source-url" }),
+  sourceRef: string("Commit or branch substituted for {ref} in source links."),
+  sourcePathPrefix: string("Repository-relative prefix prepended to {file}."),
+  noLegend: flag("Hide edge and confidence legends."),
   details: flag("Show member counts."),
   noExternal: flag("Hide unresolved and external dependencies."),
   config: string("Configuration file path."),

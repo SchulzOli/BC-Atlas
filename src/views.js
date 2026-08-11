@@ -1,5 +1,7 @@
 import { normalizeIdentifier } from "./resolver.js";
-import { workflowView } from "./workflow.js";
+import { aggregateRelations } from "./relation-aggregation.js";
+import { createCallResolver } from "./call-analysis.js";
+import { markCycles, workflowView } from "./workflow.js";
 
 function globToRegExp(pattern) {
   const escaped = String(pattern)
@@ -131,13 +133,38 @@ function selectObject(model, selector) {
   return matches[0];
 }
 
-function objectView(model, selector) {
+function objectView(model, options = {}) {
+  const selector = options.object;
   if (!selector) throw new Error("--object is required for the object view");
   const focus = selectObject(model, selector);
   const keys = new Set([focus.key]);
-  for (const edge of model.edges) {
-    if (edge.from === focus.key && edge.to) keys.add(edge.to);
-    if (edge.to === focus.key) keys.add(edge.from);
+  for (const [direction, requestedDepth] of [
+    ["outbound", options.objectOutboundDepth ?? 1],
+    ["inbound", options.objectInboundDepth ?? 1]
+  ]) {
+    const depth = Number(requestedDepth);
+    if (!Number.isInteger(depth) || depth < 0) {
+      throw new Error(`object ${direction} depth must be a non-negative integer`);
+    }
+    const visited = new Set([focus.key]);
+    let frontier = new Set([focus.key]);
+    for (let level = 0; level < depth; level++) {
+      const next = new Set();
+      for (const edge of model.edges) {
+        const candidate = direction === "outbound" && frontier.has(edge.from)
+          ? edge.to
+          : direction === "inbound" && edge.to && frontier.has(edge.to)
+            ? edge.from
+            : undefined;
+        if (candidate && !visited.has(candidate)) {
+          visited.add(candidate);
+          keys.add(candidate);
+          next.add(candidate);
+        }
+      }
+      frontier = next;
+      if (!frontier.size) break;
+    }
   }
   return {
     ...model,
@@ -151,21 +178,62 @@ function objectView(model, selector) {
 
 function dataView(model) {
   const dataTypes = new Set(["table", "tableextension", "query", "report", "xmlport", "page"]);
-  const relevantEdges = model.edges.filter(
+  const selectedEdges = model.edges.filter(
     (edge) => ["reads", "writes", "relates", "extends"].includes(edge.kind)
   );
+  const relevantEdges = aggregateRelations(selectedEdges, {
+    identity: (edge) => [
+      edge.from,
+      edge.to ?? `${edge.unresolved?.type}:${edge.unresolved?.name}`,
+      edge.kind,
+      edge.relationClass ?? "unspecified",
+      edge.temporary ? "temporary" : "persisted"
+    ].join("|"),
+    occurrence: (edge) => ({
+      operation: edge.operation,
+      sourceProcedure: edge.sourceProcedure ?? edge.member,
+      transactionSegment: edge.transactionSegment,
+      location: edge.location,
+      via: edge.via
+    })
+  });
   const relevantKeys = new Set();
+  const access = new Map();
+  for (const object of model.objects.filter(({ type }) => type === "table")) {
+    relevantKeys.add(object.key);
+    access.set(object.key, { reads: 0, writes: 0 });
+  }
   for (const edge of relevantEdges) {
     const source = model.objects.find(({ key }) => key === edge.from);
     const target = model.objects.find(({ key }) => key === edge.to);
     if (source && (dataTypes.has(source.type) || target?.type === "table")) relevantKeys.add(source.key);
     if (target?.type === "table") relevantKeys.add(target.key);
+    if (target?.type === "table" && ["reads", "writes"].includes(edge.kind)) {
+      const counts = access.get(target.key);
+      if (counts) counts[edge.kind] += edge.weight ?? 1;
+    }
   }
+  const objects = model.objects
+    .filter(({ key }) => relevantKeys.has(key))
+    .map((object) => {
+      const counts = access.get(object.key);
+      if (!counts) return object;
+      const dataAccess = counts.reads && counts.writes
+        ? "read-write"
+        : counts.reads ? "read-only" : counts.writes ? "write-only" : "never-accessed";
+      return { ...object, dataAccess, readCount: counts.reads, writeCount: counts.writes };
+    });
   return {
     ...model,
-    objects: model.objects.filter(({ key }) => relevantKeys.has(key)),
+    objects,
     edges: relevantEdges.filter(
       (edge) => relevantKeys.has(edge.from) && (!edge.to || relevantKeys.has(edge.to))
+    ),
+    dataSummary: Object.fromEntries(
+      ["read-only", "write-only", "read-write", "never-accessed"].map((state) => [
+        state,
+        objects.filter(({ dataAccess }) => dataAccess === state).length
+      ])
     )
   };
 }
@@ -224,46 +292,97 @@ function moduleView(model, options = {}) {
     modules.get(name).members.push(object.key);
     keyToModule.set(object.key, modules.get(name).key);
   }
-  const combined = new Map();
-  for (const edge of model.edges) {
-    if (!edge.to) continue;
-    const from = keyToModule.get(edge.from);
-    const to = keyToModule.get(edge.to);
-    if (!from || !to || from === to) continue;
-    const key = `${from}|${to}|${edge.kind}`;
-    const current = combined.get(key) ?? {
-      id: `m${combined.size}`,
-      from,
-      to,
-      kind: edge.kind,
-      confidence: "resolved",
-      weight: 0
-    };
-    current.weight++;
-    combined.set(key, current);
+  const edges = aggregateRelations(model.edges, {
+    project: (edge) => {
+      if (!edge.to) return undefined;
+      const from = keyToModule.get(edge.from);
+      const to = keyToModule.get(edge.to);
+      if (!from || !to || from === to) return undefined;
+      return { ...edge, from, to, confidence: "resolved" };
+    },
+    identity: (edge) => `${edge.from}|${edge.to}|${edge.kind}`
+  }).map((edge, index) => ({ ...edge, id: `m${index}` }));
+  return { ...model, objects: [...modules.values()], edges };
+}
+
+function callSelectorMatches(node, selector) {
+  const wanted = normalizeIdentifier(selector);
+  const values = [node.name, node.signature, `${node.ownerName}.${node.name}`, node.key]
+    .filter(Boolean)
+    .map(normalizeIdentifier);
+  if (wanted.includes("*") || wanted.includes("?")) {
+    const expression = globToRegExp(wanted);
+    return values.some((value) => expression.test(value));
   }
-  return { ...model, objects: [...modules.values()], edges: [...combined.values()] };
+  return values.includes(wanted);
+}
+
+function projectCalls(objects, edges, roots, depth, direction) {
+  if (!roots.length) return { objects, edges };
+  const selected = new Set(roots);
+  let frontier = [...roots];
+  for (let level = 0; level < depth && frontier.length; level++) {
+    const next = [];
+    const frontierKeys = new Set(frontier);
+    for (const edge of edges) {
+      if (direction !== "incoming" && frontierKeys.has(edge.from) && edge.to && !selected.has(edge.to)) {
+        selected.add(edge.to);
+        next.push(edge.to);
+      }
+      if (direction !== "outgoing" && edge.to && frontierKeys.has(edge.to) && !selected.has(edge.from)) {
+        selected.add(edge.from);
+        next.push(edge.from);
+      }
+    }
+    frontier = next;
+  }
+  return {
+    objects: objects.filter(({ key }) => selected.has(key)),
+    edges: edges.filter(({ from, to }) =>
+      selected.has(from) && (!to || selected.has(to))
+    )
+  };
+}
+
+function aggregateOwnerCalls(model, procedures, edges) {
+  const owners = new Map(model.objects.map((object) => [object.key, object]));
+  const ownerForProcedure = new Map(procedures.map((procedure) => [procedure.key, procedure.ownerKey]));
+  for (const procedure of procedures) {
+    if (!procedure.ownerKey) owners.set(procedure.key, procedure);
+  }
+  const usedOwners = new Set(procedures.map(({ ownerKey, key }) => ownerKey ?? key));
+  const ownerEdges = aggregateRelations(edges, {
+    project: (edge) => {
+      const from = ownerForProcedure.get(edge.from);
+      const to = edge.to ? ownerForProcedure.get(edge.to) ?? edge.to : undefined;
+      if (!from) return undefined;
+      usedOwners.add(from);
+      if (to && owners.has(to)) usedOwners.add(to);
+      return { ...edge, from, to };
+    },
+    identity: (edge) =>
+      `${edge.from}|${edge.to ?? edge.unresolved?.name}|${edge.kind}|${edge.confidence}`
+  });
+  return {
+    objects: [...usedOwners].map((key) => owners.get(key)).filter(Boolean),
+    edges: ownerEdges
+  };
 }
 
 function callView(model, options = {}) {
   const objects = [];
   const edges = [];
-  const procedureIndex = new Map();
-  const objectIndex = new Map();
+  const procedureRecords = [];
 
   for (const owner of model.objects) {
-    objectIndex.set(`${owner.type}:${normalizeIdentifier(owner.name)}`, owner);
-    objectIndex.set(
-      `${owner.type}:${normalizeIdentifier(`${owner.namespace}.${owner.name}`)}`,
-      owner
-    );
-    if (owner.id) objectIndex.set(`${owner.type}:${owner.id}`, owner);
     for (const [index, procedure] of (owner.procedures ?? []).entries()) {
       const key = `${owner.key}::procedure::${normalizeIdentifier(procedure.name)}::${procedure.location?.line ?? index}`;
       const item = {
         key,
         name: procedure.name,
         signature: procedure.signature,
+        ownerKey: owner.key,
+        ownerName: owner.name,
         procedureName: procedure.name,
         arity: procedure.arity ?? 0,
         returnTargetType: procedure.returnTargetType,
@@ -275,80 +394,36 @@ function callView(model, options = {}) {
         relations: []
       };
       objects.push(item);
-      const lookup = `${owner.key}:${normalizeIdentifier(procedure.name)}`;
-      const candidates = procedureIndex.get(lookup) ?? [];
-      candidates.push(item);
-      procedureIndex.set(lookup, candidates);
+      procedureRecords.push({ owner, procedure, node: item });
     }
   }
-
-  const variableFor = (owner, call) => (owner.variables ?? [])
-    .filter(({ name, scope }) =>
-      normalizeIdentifier(name) === normalizeIdentifier(call.receiver) &&
-      (scope === undefined || scope === call.scope)
-    )
-    .at(-1);
-  const targetOwnerFor = (owner, call) => {
-    if (!call.receiver) return owner;
-    if (call.receiverCall) {
-      const receiverOwner = targetOwnerFor(owner, call.receiverCall);
-      const candidates = receiverOwner
-        ? procedureIndex.get(
-          `${receiverOwner.key}:${normalizeIdentifier(call.receiverCall.name)}`
-        ) ?? []
-        : [];
-      const matches = candidates.filter(({ arity }) => arity === call.receiverCall.arity);
-      const returned = matches.length === 1 ? matches[0] : undefined;
-      return returned?.returnTarget
-        ? objectIndex.get(
-          `${returned.returnTargetType}:${normalizeIdentifier(returned.returnTarget)}`
-        )
-        : undefined;
-    }
-    if (/^(rec|xrec|currpage|report)$/iu.test(call.receiver)) return owner;
-    const variable = variableFor(owner, call);
-    return variable?.target
-      ? objectIndex.get(`${variable.targetType}:${normalizeIdentifier(variable.target)}`)
-        ?? objectIndex.get(`${variable.targetType}:${variable.target}`)
-      : objectIndex.get(`codeunit:${normalizeIdentifier(call.receiver)}`)
-        ?? objectIndex.get(`interface:${normalizeIdentifier(call.receiver)}`);
-  };
+  const callResolver = createCallResolver(model, procedureRecords);
 
   for (const owner of model.objects) {
     for (const procedure of owner.procedures ?? []) {
-      const from = procedureIndex
-        .get(`${owner.key}:${normalizeIdentifier(procedure.name)}`)
-        ?.find(({ location }) => location.line === procedure.location.line);
+      const from = callResolver.nodeFor(owner, procedure);
       if (!from) continue;
       for (const call of procedure.calls ?? []) {
-        const targetOwner = targetOwnerFor(owner, call);
-        const candidates = targetOwner
-          ? procedureIndex.get(`${targetOwner.key}:${normalizeIdentifier(call.name)}`) ?? []
-          : [];
-        const arityMatches = candidates.filter(({ arity }) => arity === call.arity);
-        const to = arityMatches.length === 1 ? arityMatches[0] : undefined;
+        const resolved = callResolver.resolveCall(owner, call);
+        const to = resolved.target;
         edges.push({
           id: `c${edges.length}`,
           from: from.key,
           to: to?.key,
           unresolved: to ? undefined : {
             name: call.receiver ? `${call.receiver}.${call.name}` : call.name,
-            type: arityMatches.length > 1 ? "ambiguous procedure" : "procedure"
+            type: resolved.confidence === "ambiguous" ? "ambiguous procedure" : "procedure"
           },
           kind: "calls",
-          confidence: to ? "resolved" : arityMatches.length > 1 ? "ambiguous" : "syntactic",
+          confidence: resolved.confidence,
           location: call.location
         });
       }
       for (const attribute of procedure.attributes ?? []) {
         const subscriber = subscriberAttribute(attribute);
         if (!subscriber) continue;
-        const targetOwner = objectIndex.get(
-          `${subscriber.type}:${normalizeIdentifier(subscriber.target)}`
-        );
-        const candidates = targetOwner
-          ? procedureIndex.get(`${targetOwner.key}:${normalizeIdentifier(subscriber.event)}`) ?? []
-          : [];
+        const targetOwner = callResolver.object(subscriber.type, subscriber.target);
+        const candidates = callResolver.candidates(targetOwner, subscriber.event);
         const to = candidates.length === 1 ? candidates[0] : undefined;
         edges.push({
           id: `s${edges.length}`,
@@ -365,15 +440,70 @@ function callView(model, options = {}) {
       }
     }
   }
-  if (options.includeUnresolvedCalls) return { ...model, objects, edges };
-  const resolvedEdges = edges.filter(({ to }) => to);
-  const connected = new Set(
-    resolvedEdges.flatMap(({ from, to }) => [from, to])
-  );
+  const rootSelectors = asArray(options.rootProcedure);
+  const roots = objects
+    .filter((object) => rootSelectors.some((selector) => callSelectorMatches(object, selector)))
+    .map(({ key }) => key);
+  if (rootSelectors.length && !roots.length) {
+    throw new Error(`Call root did not match a procedure: ${rootSelectors.join(", ")}`);
+  }
+  const depth = Number(options.callDepth ?? 3);
+  if (!Number.isInteger(depth) || depth < 0) throw new Error("call depth must be a non-negative integer");
+  const direction = options.callDirection ?? "outgoing";
+  if (!["incoming", "outgoing", "both"].includes(direction)) {
+    throw new Error("call direction must be incoming, outgoing, or both");
+  }
+
+  const frameworkKey = "call-framework";
+  const framework = {
+    key: frameworkKey,
+    name: "Framework / standard library",
+    type: "module",
+    namespace: "(calls)",
+    file: "",
+    relations: [],
+    members: [],
+    frameworkCalls: true
+  };
+  let callEdges = edges;
+  if (!options.expandFrameworkCalls) {
+    callEdges = edges.map((edge) => edge.confidence === "syntactic"
+      ? { ...edge, to: frameworkKey, unresolved: undefined, frameworkCollapsed: true }
+      : edge
+    );
+    if (callEdges.some(({ to }) => to === frameworkKey)) objects.push(framework);
+  }
+
+  const projection = projectCalls(objects, callEdges, roots, depth, direction);
+  const retainedEdges = options.includeUnresolvedCalls || options.expandFrameworkCalls
+    ? projection.edges
+    : projection.edges.filter(({ to, confidence }) => to || confidence === "ambiguous");
+  const connected = new Set(retainedEdges.flatMap(({ from, to }) => [from, to].filter(Boolean)));
+  let result = {
+    objects: options.includeUnresolvedCalls
+      ? projection.objects
+      : projection.objects.filter(({ key }) => connected.has(key) || roots.includes(key)),
+    edges: retainedEdges
+  };
+  const level = options.expandProcedures ? "procedure" : "object";
+  const rootOwners = result.objects
+    .filter(({ key }) => roots.includes(key))
+    .map(({ ownerKey, key }) => ownerKey ?? key);
+  if (level === "object") result = aggregateOwnerCalls(model, result.objects, result.edges);
+  const cycled = markCycles(result.objects, result.edges);
   return {
     ...model,
-    objects: objects.filter(({ key }) => connected.has(key)),
-    edges: resolvedEdges
+    objects: cycled.objects,
+    edges: cycled.edges,
+    callGraph: {
+      level,
+      roots: level === "object" ? [...new Set(rootOwners)] : roots,
+      rootProcedures: roots,
+      depth,
+      direction,
+      frameworkCollapsed: !options.expandFrameworkCalls,
+      cycles: cycled.cycles
+    }
   };
 }
 
@@ -784,7 +914,7 @@ export function createView(model, view = "project", options = {}) {
   switch (view) {
     case "project": return model;
     case "module": return moduleView(model, options);
-    case "object": return objectView(model, options.object);
+    case "object": return objectView(model, options);
     case "data": return dataView(model);
     case "call": return callView(model, options);
     case "boundary": return boundaryView(model, options);

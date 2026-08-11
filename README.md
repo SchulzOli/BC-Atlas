@@ -14,7 +14,7 @@ architecture graph, and writes [`D2`](https://github.com/terrastruct/d2), JSON,
 or SVG. The parser and SVG renderer are WebAssembly-based, so the standard
 workflow needs only Node.js.
 
-Start with the [documentation table of contents](./docs/TOC.md). See the
+Start with the [documentation table of contents](./docs/_TOC_.md). See the
 [complete CLI command and option reference](./docs/cli-reference.md) for every
 command, view, selector, option, default, and configuration setting.
 
@@ -102,11 +102,20 @@ bca graph ./apps/Sales/src/Posting --project-root . -o posting-boundary.d2
 # One object plus its neighbors
 bca graph ./app --view object --object codeunit:50100 -o posting.d2
 
+# Two levels of callers, one level of dependencies, and selected members
+bca graph ./app --view object --object codeunit:50100 \
+  --object-inbound-depth 2 --object-outbound-depth 1 \
+  --members actions,triggers,procedures -o posting.d2
+
 # Tables and data-oriented references
 bca graph ./app --view data -o data.d2
 
 # Procedures, triggers, and syntactically resolvable calls
 bca graph ./app --view call -o calls.d2
+
+# Expand procedures around one root, including callers and callees
+bca graph ./app --view call --root-procedure "Posting.Run" \
+  --call-depth 3 --call-direction both --expand-procedures -o posting-calls.d2
 
 # Include unresolved/external calls for investigation
 bca graph ./app --view call --include-unresolved-calls -o all-calls.d2
@@ -152,11 +161,16 @@ Current views favor readability:
   `Security`) unless `--group-by namespace|folder|type` is supplied;
 - module diagrams automatically keep the common namespace prefix and expose
   the first meaningful segment; numeric `--module-depth` remains available;
-- call diagrams show resolved calls by default;
-- data diagrams show table relations and detected reads/writes instead of
-  every `Record` declaration;
+- call diagrams aggregate calls between owning objects by default. Root,
+  depth, and direction filters select a subgraph; procedure expansion exposes
+  SCCs, recursion, confidence, and ambiguity styling;
+- data diagrams distinguish dashed schema relations from solid runtime access,
+  aggregate read and write evidence separately, classify table access, and
+  preserve operations, source procedures, explicit commit segments, and safe
+  cardinality evidence in JSON and tooltips;
 - object diagrams include field, action, and procedure names for the focused
-  object;
+  object, support independent inbound/outbound depths, and label procedure
+  visibility when AL exposes it;
 - boundary diagrams show inbound and outbound dependencies for repeatable
   `namespace:`, `folder:`, `app:`, and `object:` scopes;
 - contract diagrams distinguish direct `implements` relationships from enum
@@ -175,8 +189,10 @@ Current views favor readability:
   page composition is cyan, and permissions are purple; labels and dash
   patterns remain present so color is never the only signal;
 - repeated edges are aggregated and labelled with their count;
-- permission-set and codeunit `Permissions` declarations are represented as
-  `permits [RIMD]` edges.
+- permission declarations distinguish table-data `RIMD` rights from execute
+  access on reports, pages, codeunits, queries, and XMLports; composed
+  permission sets resolve across dependent apps and show assignable, included,
+  and internal roles.
 
 Run `bca --help` for the complete CLI reference.
 
@@ -294,6 +310,12 @@ presentation:
 This keeps the core useful without D2 installed and allows additional diagram
 views without replacing the parser. See [plan.md](./plan.md) for the roadmap
 and design decisions.
+
+Shared domain rules live behind focused Modules: operation semantics classify
+data calls and commits, call analysis resolves procedure targets, relation
+aggregation preserves evidence and weights, and permission semantics normalize
+source and package declarations. The parser, views, workflow projection, symbol
+loader, resolver, and D2 renderer remain adapters around those seams.
 
 ## Executable user documentation
 

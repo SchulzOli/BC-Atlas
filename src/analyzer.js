@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Language, Parser } from "web-tree-sitter";
+import { isCommitCall, operationKind } from "./operation-semantics.js";
+import { includedPermissionSets, permissionGrant } from "./permission-semantics.js";
 import { loadSymbolPackages } from "./symbols.js";
 
 const GRAMMAR_PATH = fileURLToPath(
@@ -148,6 +150,9 @@ function tableRelationRelations(valueNode, source, add) {
       target: parts.length > 1 ? parts.slice(0, -1).join(".") : parts[0],
       targetType: "table",
       kind: "relates",
+      property: "tablerelation",
+      relationClass: "schema",
+      sourceField: enclosingMember(node, source, ["field_declaration"]),
       relatedField: parts.length > 1 ? parts.at(-1) : undefined,
       condition: tableRelationCondition(node, source),
       filters: tableRelationFilters(node, source)
@@ -161,11 +166,25 @@ function permissionRelations(value, node, add) {
   for (const match of value.matchAll(pattern)) {
     add(node, {
       target: (match[1] ?? match[2]).replaceAll('""', '"'),
-      targetType: "table",
       kind: "permits",
-      access: match[3].toUpperCase()
+      ...permissionGrant("tabledata", match[3])
     });
   }
+}
+
+function includedPermissionSetRelations(value, node, add) {
+  for (const relation of includedPermissionSets(value)) add(node, relation);
+}
+
+function propertyValueFor(objectNode, source, wantedName) {
+  let result;
+  walk(objectNode, (node) => {
+    if (result !== undefined || node.type !== "property") return;
+    if (fieldText(node, "name", source)?.toLowerCase() !== wantedName.toLowerCase()) return;
+    const value = node.childForFieldName("value");
+    if (value) result = cleanName(source.slice(value.startIndex, value.endIndex));
+  });
+  return result;
 }
 
 function enclosingMember(node, source, types) {
@@ -230,9 +249,8 @@ function permissionRelation(node, source, add) {
   if (!target || !permission || !type) return;
   add(node, {
     target,
-    targetType: type.toLowerCase() === "tabledata" ? "table" : type.toLowerCase(),
     kind: "permits",
-    access: permission.toUpperCase()
+    ...permissionGrant(type, permission)
   });
 }
 
@@ -270,6 +288,7 @@ function calcFormulaRelation(valueNode, source, add) {
     targetType: "table",
     kind: "reads",
     property: "calcformula",
+    relationClass: "schema",
     relatedField: parts.at(-1)
   });
 }
@@ -383,8 +402,8 @@ function referencesFor(objectNode, source, file) {
           permissionRelations(value, node, add);
         }
       }
-      if (name === "includedpermissionsets" && target) {
-        add(node, { target, targetType: "permissionset", kind: "includes" });
+      if (name === "includedpermissionsets") {
+        includedPermissionSetRelations(value, node, add);
       }
       if (name === "implementation") {
         implementationRelations(value, node, source, add);
@@ -440,7 +459,7 @@ function callsFor(node, source, file) {
   walk(node, (child) => {
     if (child.type !== "call_expression") return;
     const call = describe(child);
-    if (call) calls.push(call);
+    if (call) calls.push({ ...call, order: calls.length + 1 });
   });
   return calls;
 }
@@ -506,6 +525,7 @@ function membersFor(objectNode, source, file) {
   const actions = [];
   const views = [];
   const variables = [];
+  const keys = [];
   walk(objectNode, (node) => {
     if (["procedure", "trigger_declaration", "event_declaration", "interface_procedure"].includes(node.type)) {
       const name = fieldText(node, "name", source);
@@ -522,6 +542,9 @@ function membersFor(objectNode, source, file) {
         ];
         procedures.push({
           name,
+          visibility: node.type === "trigger_declaration"
+            ? undefined
+            : fieldText(node, "modifier", source)?.toLowerCase() ?? "public",
           scope: node.startPosition.row + 1,
           kind: node.type === "trigger_declaration"
             ? "trigger"
@@ -574,6 +597,15 @@ function membersFor(objectNode, source, file) {
         location: locationFor(node, file)
       });
     }
+    if (node.type === "key_declaration") {
+      const fieldsNode = node.childForFieldName("fields");
+      keys.push({
+        name: fieldText(node, "name", source),
+        fields: fieldsNode?.namedChildren.map((field) =>
+          cleanName(source.slice(field.startIndex, field.endIndex))
+        ) ?? []
+      });
+    }
     if (node.type === "variable_declaration") {
       const names = typeof node.childrenForFieldName === "function"
         ? node.childrenForFieldName("name")
@@ -609,13 +641,21 @@ function membersFor(objectNode, source, file) {
     );
     procedure.arity = procedure.parameters.length;
     procedure.signature = `${procedure.name}(${procedure.parameters.map(({ type }) => type).join(", ")})`;
+    procedure.transactionBoundaries = procedure.calls
+      .filter(isCommitCall)
+      .map(({ order, location }) => ({ kind: "commit", order, location }));
+    procedure.transactionSegments = procedure.transactionBoundaries.length + 1;
   }
-  return { procedures, fields, actions, views, variables };
+  const transactionBoundaries = procedures.flatMap((procedure) =>
+    procedure.transactionBoundaries.map((boundary) => ({
+      ...boundary,
+      procedure: procedure.signature
+    }))
+  );
+  return { procedures, fields, actions, views, variables, keys, transactionBoundaries };
 }
 
 function dataOperationRelations(members, object) {
-  const reads = /^(get|find|findfirst|findlast|findset|isempty|count|calcfields|calcsums|next)$/iu;
-  const writes = /^(insert|modify|modifyall|delete|deleteall|rename)$/iu;
   const relations = [];
   const sourceTable = object.type === "table"
     ? object.name
@@ -637,19 +677,27 @@ function dataOperationRelations(members, object) {
       variables.set("rec", { target: sourceTable, temporary: false });
       variables.set("xrec", { target: sourceTable, temporary: false });
     }
+    let transactionSegment = 1;
     for (const call of procedure.calls) {
+      if (isCommitCall(call)) {
+        transactionSegment++;
+        continue;
+      }
       if (!call.receiver) continue;
       const variable = variables.get(call.receiver.toLowerCase());
       if (!variable) continue;
-      const kind = reads.test(call.name) ? "reads" : writes.test(call.name) ? "writes" : undefined;
+      const kind = operationKind(call.name);
       if (!kind) continue;
       relations.push({
         target: variable.target,
         targetType: "table",
         kind,
+        relationClass: "runtime",
         operation: call.name,
         temporary: variable.temporary,
         member: procedure.signature,
+        sourceProcedure: procedure.signature,
+        transactionSegment,
         location: call.location
       });
     }
@@ -738,6 +786,7 @@ async function objectsFromSource(source, file) {
         target: base,
         targetType: type === "interface" ? "interface" : EXTENSION_TARGET[type],
         kind: "extends",
+        relationClass: "schema",
         location: locationFor(node, file)
       });
     }
@@ -745,6 +794,12 @@ async function objectsFromSource(source, file) {
     const dataRelations = dataOperationRelations(members, { type, name, base, relations });
     relations.push(...dataRelations, ...helperDataOperationRelations(members, dataRelations));
 
+    const assignableValue = type === "permissionset"
+      ? propertyValueFor(node, source, "assignable")
+      : undefined;
+    const objectAccess = ["permissionset", "permissionsetextension"].includes(type)
+      ? propertyValueFor(node, source, "access")?.toLowerCase() ?? "public"
+      : undefined;
     objects.push({
       id,
       name,
@@ -757,7 +812,12 @@ async function objectsFromSource(source, file) {
       fields: members.fields,
       actions: members.actions,
       views: members.views,
+      keys: members.keys,
+      primaryKeyFields: members.keys[0]?.fields ?? [],
       variables: members.variables,
+      transactionBoundaries: members.transactionBoundaries,
+      assignable: type === "permissionset" ? /^true$/iu.test(assignableValue ?? "false") : undefined,
+      objectAccess,
       location: locationFor(node, file),
       parseError: node.hasError
     });

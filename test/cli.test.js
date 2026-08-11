@@ -146,6 +146,14 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
   assert.equal(workflow.options.view.const, "workflow");
   assert.equal(workflow.options.entry.required, true);
   assert.equal(workflow.output.type, "file");
+  const graph = contract.commands.find(({ id }) => id === "graph");
+  assert.equal(graph.options.rootProcedure.cli, "--root-procedure");
+  assert.deepEqual(graph.options.callDirection.enum, ["incoming", "outgoing", "both"]);
+  assert.equal(graph.options.expandProcedures.type, "boolean");
+  assert.equal(graph.options.objectInboundDepth.cli, "--object-inbound-depth");
+  assert.equal(graph.options.objectOutboundDepth.cli, "--object-outbound-depth");
+  assert.equal(graph.options.sourceRef.cli, "--source-ref");
+  assert.equal(graph.options.noLegend.type, "boolean");
   const set = contract.commands.find(({ id }) => id === "docs.set");
   assert.equal(set.options.expectedHash.cli, "--expected-hash");
   assert.equal(set.options.dryRun.cli, "--dry-run");

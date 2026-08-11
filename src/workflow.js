@@ -1,8 +1,8 @@
 import { normalizeIdentifier } from "./resolver.js";
+import { operationKind } from "./operation-semantics.js";
+import { createCallResolver } from "./call-analysis.js";
 
 const DEFAULT_EDGE_TYPES = ["calls", "events", "writes"];
-const WRITE_OPERATIONS = /^(insert|modify|modifyall|delete|deleteall|rename)$/iu;
-const READ_OPERATIONS = /^(get|find|findfirst|findlast|findset|isempty|count|calcfields|calcsums|next)$/iu;
 
 function asArray(value) {
   if (value === undefined || value === null) return [];
@@ -89,53 +89,26 @@ function makeNode(owner, member, key, type = member.kind) {
   };
 }
 
-function targetOwnerFor(call, owner, objectIndex) {
-  if (!call.receiver) return owner;
-  const variable = (owner.variables ?? []).find(
-    ({ name }) => normalizeIdentifier(name) === normalizeIdentifier(call.receiver)
-  );
-  if (variable?.target) {
-    return objectIndex.get(`${variable.targetType}:${normalizeIdentifier(variable.target)}`)
-      ?? objectIndex.get(`${variable.targetType}:${variable.target}`);
-  }
-  return objectIndex.get(`codeunit:${normalizeIdentifier(call.receiver)}`);
-}
-
-function recordVariableFor(call, owner) {
-  if (!call.receiver) return undefined;
-  return (owner.variables ?? []).find(
-    (variable) =>
-      variable.targetType === "record" &&
-      normalizeIdentifier(variable.name) === normalizeIdentifier(call.receiver)
-  );
-}
-
 function addCallEdges({
   edges,
   from,
   calls,
   owner,
-  objectIndex,
-  procedureIndex,
+  callResolver,
   edgeTypes
 }) {
   for (const [index, call] of (calls ?? []).entries()) {
-    const record = recordVariableFor(call, owner);
-    const operationKind = WRITE_OPERATIONS.test(call.name)
-      ? "writes"
-      : READ_OPERATIONS.test(call.name)
-        ? "reads"
-        : undefined;
-    if (record && operationKind) {
-      if (!edgeTypes.has(operationKind)) continue;
-      const table = objectIndex.get(`table:${normalizeIdentifier(record.target)}`)
-        ?? objectIndex.get(`table:${record.target}`);
+    const record = callResolver.variableFor(owner, call, "record");
+    const dataKind = operationKind(call.name);
+    if (record && dataKind) {
+      if (!edgeTypes.has(dataKind)) continue;
+      const table = callResolver.object("table", record.target);
       edges.push({
         id: `workflow${edges.length}`,
         from,
         to: table?.key,
         unresolved: table ? undefined : { name: record.target, type: "table" },
-        kind: operationKind,
+        kind: dataKind,
         label: `${call.name} #${index + 1}`,
         confidence: table ? "resolved" : "syntactic",
         sequence: "definite",
@@ -145,22 +118,19 @@ function addCallEdges({
       continue;
     }
     if (!edgeTypes.has("calls")) continue;
-    const targetOwner = targetOwnerFor(call, owner, objectIndex);
-    const candidates = targetOwner
-      ? procedureIndex.get(`${targetOwner.key}:${normalizeIdentifier(call.name)}`) ?? []
-      : [];
-    const to = candidates.length === 1 ? candidates[0] : undefined;
+    const resolved = callResolver.resolveCall(owner, call);
+    const to = resolved.target;
     edges.push({
       id: `workflow${edges.length}`,
       from,
       to: to?.key,
       unresolved: to ? undefined : {
         name: call.receiver ? `${call.receiver}.${call.name}` : call.name,
-        type: candidates.length > 1 ? "ambiguous procedure" : "procedure"
+        type: resolved.confidence === "ambiguous" ? "ambiguous procedure" : "procedure"
       },
       kind: "calls",
       label: `calls #${index + 1}`,
-      confidence: to ? "resolved" : candidates.length > 1 ? "ambiguous" : "syntactic",
+      confidence: resolved.confidence,
       sequence: "definite",
       order: index + 1,
       location: call.location
@@ -323,7 +293,7 @@ function selectProjection(objects, edges, seeds, options) {
   };
 }
 
-function markCycles(objects, edges) {
+export function markCycles(objects, edges) {
   const keys = new Set(objects.map(({ key }) => key));
   const adjacency = new Map([...keys].map((key) => [key, []]));
   for (const edge of edges) {
@@ -389,23 +359,15 @@ function markCycles(objects, edges) {
 
 export function workflowView(model, options = {}) {
   const edgeTypes = normalizeEdgeTypes(options.edgeTypes);
-  const objectIndex = new Map();
   const nodes = [];
-  const procedureIndex = new Map();
   const procedureRecords = [];
   const actionRecords = [];
 
   for (const owner of model.objects) {
-    objectIndex.set(`${owner.type}:${normalizeIdentifier(owner.name)}`, owner);
-    if (owner.id) objectIndex.set(`${owner.type}:${owner.id}`, owner);
     for (const [index, procedure] of (owner.procedures ?? []).entries()) {
       const node = makeNode(owner, procedure, procedureKey(owner, procedure, index));
       nodes.push(node);
       procedureRecords.push({ owner, procedure, node });
-      const lookup = `${owner.key}:${normalizeIdentifier(procedure.name)}`;
-      const candidates = procedureIndex.get(lookup) ?? [];
-      candidates.push(node);
-      procedureIndex.set(lookup, candidates);
     }
     for (const [index, action] of (owner.actions ?? []).entries()) {
       const node = makeNode(owner, action, actionKey(owner, action, index), "action");
@@ -413,6 +375,7 @@ export function workflowView(model, options = {}) {
       actionRecords.push({ owner, action, node });
     }
   }
+  const callResolver = createCallResolver(model, procedureRecords);
 
   const edges = [];
   for (const { owner, procedure, node } of procedureRecords) {
@@ -421,8 +384,7 @@ export function workflowView(model, options = {}) {
       from: node.key,
       calls: procedure.calls,
       owner,
-      objectIndex,
-      procedureIndex,
+      callResolver,
       edgeTypes
     });
   }
@@ -450,8 +412,7 @@ export function workflowView(model, options = {}) {
         from: node.key,
         calls: action.calls,
         owner,
-        objectIndex,
-        procedureIndex,
+        callResolver,
         edgeTypes
       });
     }
@@ -464,14 +425,8 @@ export function workflowView(model, options = {}) {
           /EventSubscriber\s*\(\s*ObjectType::(\w+)\s*,\s*(?:\w+::)?(?:"([^"]+)"|([^,\s]+))\s*,\s*'([^']+)'/iu
         );
         if (!match) continue;
-        const publisherOwner = objectIndex.get(
-          `${match[1].toLowerCase()}:${normalizeIdentifier(match[2] ?? match[3])}`
-        );
-        const publisherCandidates = publisherOwner
-          ? procedureIndex.get(
-              `${publisherOwner.key}:${normalizeIdentifier(match[4])}`
-            ) ?? []
-          : [];
+        const publisherOwner = callResolver.object(match[1].toLowerCase(), match[2] ?? match[3]);
+        const publisherCandidates = callResolver.candidates(publisherOwner, match[4]);
         const publisher = publisherCandidates.length === 1 ? publisherCandidates[0] : undefined;
         edges.push({
           id: `workflow${edges.length}`,

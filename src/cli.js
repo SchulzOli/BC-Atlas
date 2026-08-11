@@ -47,6 +47,11 @@ Options:
       --workflow-edge-types <types>
                             calls,events,writes,reads (default: calls,events,writes)
       --object <selector>   Object selector, e.g. codeunit:50100
+      --object-inbound-depth <n>
+                            Incoming depth for object focus (default: 1)
+      --object-outbound-depth <n>
+                            Outgoing depth for object focus (default: 1)
+      --members <types>     fields,actions,triggers,events,procedures
       --scope <selector>    Boundary scope: namespace:, folder:, app:, or
                             object: (repeatable)
       --focus <text>        Focus contracts, events, or UI on a matching name
@@ -61,10 +66,20 @@ Options:
       --folder-depth <n>    Folder segments in module view (default: 1)
       --include-unresolved-calls
                             Include unresolved calls and isolated procedures
+      --root-procedure <sel> Call root procedure (repeatable)
+      --call-depth <n>       Call traversal depth from each root (default: 3)
+      --call-direction <dir> incoming, outgoing, or both (default: outgoing)
+      --expand-procedures    Show procedures instead of owning-object aggregates
+      --expand-framework-calls
+                            Show individual framework/standard-library calls
       --max-edges <n>       Diagram edge density cap (default: 500)
       --direction <value>   right, down, left, or up
       --title <text>        Diagram title
-      --source-url <tmpl>   Node link template with {file} and {line}
+      --source-url <tmpl>   Node link template with {file}, {line}, and {ref}
+      --source-ref <ref>    Commit/branch for {ref} in source URLs
+      --source-path-prefix <path>
+                            Repository-relative prefix before {file}
+      --no-legend           Hide edge and confidence legends
       --details             Show member counts in nodes
       --no-external         Hide unresolved/external dependencies
       --config <path>       Configuration file (default: .bca.json)
@@ -85,6 +100,9 @@ const OPTIONS = {
   view: { type: "string" },
   entry: { type: "string", multiple: true },
   object: { type: "string" },
+  "object-inbound-depth": { type: "string" },
+  "object-outbound-depth": { type: "string" },
+  members: { type: "string" },
   scope: { type: "string", multiple: true },
   focus: { type: "string" },
   "project-root": { type: "string" },
@@ -96,6 +114,11 @@ const OPTIONS = {
   "module-depth": { type: "string" },
   "folder-depth": { type: "string" },
   "include-unresolved-calls": { type: "boolean" },
+  "root-procedure": { type: "string", multiple: true },
+  "call-depth": { type: "string" },
+  "call-direction": { type: "string" },
+  "expand-procedures": { type: "boolean" },
+  "expand-framework-calls": { type: "boolean" },
   "workflow-depth": { type: "string" },
   "workflow-max-nodes": { type: "string" },
   "workflow-edge-types": { type: "string" },
@@ -103,6 +126,9 @@ const OPTIONS = {
   direction: { type: "string" },
   title: { type: "string" },
   "source-url": { type: "string" },
+  "source-ref": { type: "string" },
+  "source-path-prefix": { type: "string" },
+  "no-legend": { type: "boolean" },
   details: { type: "boolean" },
   "no-external": { type: "boolean" },
   config: { type: "string" },

@@ -1,4 +1,6 @@
 import { resolveModel } from "./resolver.js";
+import { aggregateRelations } from "./relation-aggregation.js";
+import { permissionRelationLabel } from "./permission-semantics.js";
 
 const TYPE_STYLES = {
   table: ["#DCEBFF", "#2362A2"],
@@ -51,34 +53,46 @@ function normalized(value) {
 }
 
 function uniqueRelations(relations) {
-  const combined = new Map();
-  for (const relation of relations) {
-    const key =
+  return aggregateRelations(relations, {
+    identity: (relation) =>
       `${relation.from}|${relation.to}|${relation.kind}|${relation.access ?? ""}|` +
-      `${relation.label ?? ""}|${relation.sequence ?? ""}|${relation.isCycle ?? ""}`;
-    const existing = combined.get(key);
-    if (existing) existing.weight = (existing.weight ?? 1) + (relation.weight ?? 1);
-    else combined.set(key, { ...relation });
-  }
-  return [...combined.values()];
+      `${relation.label ?? ""}|${relation.sequence ?? ""}|${relation.isCycle ?? ""}|` +
+      `${relation.confidence ?? ""}|${relation.relationClass ?? ""}|${relation.cardinality ?? ""}`
+  });
 }
 
-function roleFor(type) {
-  if (["table", "tableextension"].includes(type)) return "Data";
-  if (["page", "pageextension", "pagecustomization"].includes(type)) return "UI";
-  if (["codeunit"].includes(type)) return "Services";
-  if (["interface", "enum", "enumextension"].includes(type)) return "Contracts";
-  if (["permissionset", "permissionsetextension", "entitlement"].includes(type)) return "Security";
-  if (["report", "reportextension", "query", "xmlport"].includes(type)) {
+function rolePattern(pattern) {
+  const escaped = String(pattern).replace(/[.+^${}()|[\]\\]/gu, "\\$&").replaceAll("*", ".*");
+  return new RegExp(`^${escaped}$`, "iu");
+}
+
+function roleFor(object, mappings = {}) {
+  const values = [
+    object.type,
+    `${object.type}:${object.name}`,
+    `${object.namespace}:${object.type}:${object.name}`,
+    object.file.replaceAll("\\", "/")
+  ];
+  for (const [role, patterns] of Object.entries(mappings ?? {})) {
+    if ((Array.isArray(patterns) ? patterns : [patterns]).some((pattern) =>
+      values.some((value) => rolePattern(pattern).test(value))
+    )) return role;
+  }
+  if (["table", "tableextension"].includes(object.type)) return "Data";
+  if (["page", "pageextension", "pagecustomization"].includes(object.type)) return "UI";
+  if (["codeunit"].includes(object.type)) return "Services";
+  if (["interface", "enum", "enumextension"].includes(object.type)) return "Contracts";
+  if (["permissionset", "permissionsetextension", "entitlement"].includes(object.type)) return "Security";
+  if (["report", "reportextension", "query", "xmlport"].includes(object.type)) {
     return "Reporting & Integration";
   }
   return "Other";
 }
 
-function groupFor(object, groupBy) {
+function groupFor(object, groupBy, roleMappings) {
   if (object.viewGroup) return object.viewGroup;
   if (groupBy === "type") return object.type;
-  if (groupBy === "role") return roleFor(object.type);
+  if (groupBy === "role") return roleFor(object, roleMappings);
   if (groupBy === "folder") {
     const parts = object.file.replaceAll("\\", "/").split("/");
     return parts.length > 1 ? parts[0] : "(root)";
@@ -87,20 +101,54 @@ function groupFor(object, groupBy) {
 }
 
 function memberSummary(items, limit = 8) {
-  const names = items.map(({ name }) => name).filter(Boolean);
+  const names = items.map(({ name, visibility }) =>
+    name ? `${visibility ? `[${visibility}] ` : ""}${name}` : undefined
+  ).filter(Boolean);
   const shown = names.slice(0, limit);
   if (names.length > limit) shown.push(`+${names.length - limit} more`);
   return shown.join(", ");
 }
 
-function relationStyle(kind, sequence, isCycle) {
+function selectedMembers(object, category) {
+  if (category === "fields") return object.fields ?? [];
+  if (category === "actions") return object.actions ?? [];
+  const kind = category === "triggers" ? "trigger" : category === "events" ? "event" : "procedure";
+  return (object.procedures ?? []).filter((procedure) => procedure.kind === kind);
+}
+
+function relationStyle(kind, sequence, isCycle, confidence, relationClass, tooltip) {
   const style = RELATION_STYLES[kind] ?? { color: "#64748B" };
-  const properties = [`style.stroke: ${quote(isCycle ? "#B91C1C" : style.color)}`];
-  if (style.dash || sequence === "inferred") {
+  const confidenceColor = confidence === "ambiguous"
+    ? "#B45309"
+    : confidence === "syntactic" ? "#6B7280" : style.color;
+  const properties = [`style.stroke: ${quote(isCycle ? "#B91C1C" : confidenceColor)}`];
+  if (
+    style.dash || relationClass === "schema" || sequence === "inferred" ||
+    confidence === "ambiguous" || confidence === "syntactic"
+  ) {
     properties.push(`style.stroke-dash: ${style.dash ?? 4}`);
   }
   if (isCycle) properties.push("style.stroke-width: 3");
+  if (tooltip) properties.push(`tooltip: ${quote(tooltip)}`);
   return ` {${properties.join("; ")}}`;
+}
+
+function edgeTooltip(edge) {
+  return [
+    edge.permissionKind === "execute" ? "Permission: execute" : undefined,
+    edge.tableDataRights?.length
+      ? `Table data rights: ${edge.tableDataRights.join(", ")}`
+      : undefined,
+    edge.operations?.length ? `Operations: ${edge.operations.join(", ")}` : undefined,
+    edge.sourceProcedures?.length
+      ? `Source procedures: ${edge.sourceProcedures.join(", ")}`
+      : undefined,
+    edge.cardinality ? `Cardinality: ${edge.cardinality} (${edge.cardinalityEvidence})` : undefined,
+    edge.relationClass ? `Relation: ${edge.relationClass}` : undefined,
+    edge.transactionSegments?.length
+      ? `Transaction segments: ${edge.transactionSegments.join(", ")}`
+      : undefined
+  ].filter(Boolean).join("\n");
 }
 
 export function renderD2(model, options = {}) {
@@ -108,6 +156,9 @@ export function renderD2(model, options = {}) {
   const direction = options.direction ?? "right";
   const includeExternal = options.includeExternal ?? true;
   const maxEdges = Number(options.maxEdges ?? 500);
+  const memberCategories = new Set(options.members ?? [
+    "fields", "actions", "triggers", "events", "procedures"
+  ]);
   const lines = [
     `direction: ${direction}`,
     `title: ${quote(options.title ?? "AL architecture")} {`,
@@ -135,7 +186,7 @@ export function renderD2(model, options = {}) {
 
   const namespaces = new Map();
   for (const object of model.objects) {
-    const group = groupFor(object, options.groupBy ?? "namespace");
+    const group = groupFor(object, options.groupBy ?? "namespace", options.roleMappings);
     const list = namespaces.get(group) ?? [];
     list.push(object);
     namespaces.set(group, list);
@@ -151,27 +202,31 @@ export function renderD2(model, options = {}) {
       const label = object.id
         ? `${object.type} ${object.id}\n${object.name}`
         : `${object.type}\n${object.name}`;
-      const details = options.details
-        ? [
-            object.members?.length ? `${object.members.length} objects` : undefined,
-            object.fields?.length ? `${object.fields.length} fields` : undefined,
-            object.actions?.length ? `${object.actions.length} actions` : undefined,
-            object.procedures?.length ? `${object.procedures.length} procedures` : undefined,
-            options.memberNames && object.isFocus && object.fields?.length
-              ? `Fields: ${memberSummary(object.fields)}`
-              : undefined,
-            options.memberNames && object.isFocus && object.actions?.length
-              ? `Actions: ${memberSummary(object.actions)}`
-              : undefined,
-            options.memberNames && object.isFocus && object.procedures?.length
-              ? `Procedures: ${memberSummary(object.procedures, 10)}`
-              : undefined
-          ].filter(Boolean)
-        : [];
+      const details = [
+        options.details && object.members?.length ? `${object.members.length} objects` : undefined,
+        ...[...memberCategories].map((category) => {
+          const members = selectedMembers(object, category);
+          if (!members.length) return undefined;
+          if (options.memberNames && object.isFocus) {
+            return `${category[0].toUpperCase()}${category.slice(1)}: ${memberSummary(members, 10)}`;
+          }
+          return options.details ? `${members.length} ${category}` : undefined;
+        })
+      ].filter(Boolean);
       const annotations = [
         object.workflowEntry ? "entry" : undefined,
         object.cycle ? `cycle ${object.cycle}` : undefined,
-        object.shared ? `shared by ${object.shared} branches` : undefined
+        object.shared ? `shared by ${object.shared} branches` : undefined,
+        object.dataAccess
+          ? `${object.dataAccess}; reads ${object.readCount}; writes ${object.writeCount}`
+          : undefined,
+        object.transactionBoundaries?.length
+          ? `${object.transactionBoundaries.length} commit boundary`
+          : undefined,
+        object.permissionSetRoles?.length
+          ? `permission set: ${object.permissionSetRoles.join(", ")}`
+          : undefined,
+        object.objectAccess === "internal" ? "access: internal" : undefined
       ].filter(Boolean);
       const fullDetails = [...details, ...annotations];
       const fullLabel = fullDetails.length ? `${label}\n${fullDetails.join(" • ")}` : label;
@@ -183,9 +238,14 @@ export function renderD2(model, options = {}) {
         : object.file;
       if (source) lines.push(`    tooltip: ${quote(source)}`);
       if (options.sourceUrlTemplate && object.file) {
+        const sourceFile = [options.sourcePathPrefix, object.file.replaceAll("\\", "/")]
+          .filter(Boolean)
+          .join("/")
+          .replaceAll(/\/+/gu, "/");
         const link = options.sourceUrlTemplate
-          .replaceAll("{file}", object.file.replaceAll("\\", "/"))
-          .replaceAll("{line}", String(object.location?.line ?? 1));
+          .replaceAll("{file}", sourceFile)
+          .replaceAll("{line}", String(object.location?.line ?? 1))
+          .replaceAll("{ref}", options.sourceRef ?? "main");
         lines.push(`    link: ${quote(link)}`);
       }
       lines.push(`    style.fill: ${quote(fill)}`);
@@ -215,9 +275,24 @@ export function renderD2(model, options = {}) {
         to: targetKey,
         kind: edge.kind,
         access: edge.access,
+        permissionKind: edge.permissionKind,
+        tableDataRights: edge.tableDataRights,
+        execute: edge.execute,
         label: edge.label,
         weight: edge.weight,
         sequence: edge.sequence,
+        confidence: edge.confidence,
+        operation: edge.operation,
+        operations: edge.operations,
+        sourceProcedure: edge.sourceProcedure,
+        sourceProcedures: edge.sourceProcedures,
+        relationClass: edge.relationClass,
+        cardinality: edge.cardinality,
+        cardinalityEvidence: edge.cardinalityEvidence,
+        transactionSegments: [
+          edge.transactionSegment,
+          ...(edge.occurrences ?? []).map(({ transactionSegment }) => transactionSegment)
+        ].filter((value) => value !== undefined),
         isCycle: edge.isCycle
       });
     }
@@ -239,11 +314,18 @@ export function renderD2(model, options = {}) {
 
   for (const edge of uniqueRelations(edges)) {
     const arrow = edge.kind === "extends" || edge.kind === "implements" ? "-->" : "->";
-    const relationLabel = edge.label ?? (edge.temporary ? `${edge.kind} (temporary)` : edge.kind);
+    const permissionLabel = permissionRelationLabel(edge.permissionKind);
+    const relationLabel = edge.label ?? permissionLabel ??
+      (edge.temporary ? `${edge.kind} (temporary)` : edge.kind);
     const certainty = edge.sequence ? ` [${edge.sequence}]` : "";
     const cycle = edge.isCycle ? " [cycle]" : "";
+    const confidence = edge.confidence && edge.confidence !== "resolved"
+      ? ` [${edge.confidence}]`
+      : "";
+    const cardinality = edge.cardinality ? ` [${edge.cardinality}]` : "";
     const baseLabel =
-      `${edge.access ? `${relationLabel} [${edge.access}]` : relationLabel}${certainty}${cycle}`;
+      `${edge.access ? `${relationLabel} [${edge.access}]` : relationLabel}` +
+      `${cardinality}${certainty}${confidence}${cycle}`;
     const label = edge.weight && edge.weight > 1
       ? `${baseLabel} (${edge.weight})`
       : baseLabel;
@@ -251,9 +333,28 @@ export function renderD2(model, options = {}) {
       `${edge.from} ${arrow} ${edge.to}: ${quote(label)}${relationStyle(
         edge.kind,
         edge.sequence,
-        edge.isCycle
+        edge.isCycle,
+        edge.confidence,
+        edge.relationClass,
+        edgeTooltip(edge)
       )}`
     );
+  }
+
+  if (options.showLegend !== false) {
+    const kinds = [...new Set(edges.map(({ kind }) => kind))].sort();
+    const edgeLegend = kinds.map((kind) =>
+      `${kind} ${RELATION_STYLES[kind]?.color ?? "#64748B"}`
+    ).join(", ");
+    lines.push("", `legend: ${quote(
+      `Legend\nEdges: ${edgeLegend || "none"}\n` +
+      "Confidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; " +
+      "ambiguous = dashed amber #B45309; cycle = red #B91C1C\n" +
+      "Data: schema = dashed; runtime access = solid"
+    )} {`);
+    lines.push("  shape: text");
+    lines.push("  near: bottom-right");
+    lines.push("}");
   }
 
   if (model.edges.length > maxEdges) {

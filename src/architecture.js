@@ -55,6 +55,15 @@ export async function createArchitectureModel(input, values = {}) {
   const moduleDepth = requestedModuleDepth === "auto"
     ? "auto"
     : positiveInteger(requestedModuleDepth, "module-depth");
+  const members = (Array.isArray(options.members) ? options.members : [options.members])
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(","))
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  const invalidMembers = members.filter((member) =>
+    !["fields", "actions", "triggers", "events", "procedures"].includes(member)
+  );
+  if (invalidMembers.length) throw new Error(`unsupported member categories: ${invalidMembers.join(", ")}`);
 
   let model = resolveModel(await analyze(projectRoot));
   model.projectRoot = projectRoot;
@@ -64,6 +73,8 @@ export async function createArchitectureModel(input, values = {}) {
   const workflow = options.workflow ?? {};
   model = createView(model, view, {
     object: options.object,
+    objectInboundDepth: options["object-inbound-depth"] ?? options.objectInboundDepth,
+    objectOutboundDepth: options["object-outbound-depth"] ?? options.objectOutboundDepth,
     groupBy,
     moduleDepth,
     folderDepth: positiveInteger(
@@ -73,6 +84,12 @@ export async function createArchitectureModel(input, values = {}) {
     ),
     includeUnresolvedCalls:
       options["include-unresolved-calls"] ?? options.includeUnresolvedCalls ?? false,
+    rootProcedure: options["root-procedure"] ?? options.rootProcedure,
+    callDepth: options["call-depth"] ?? options.callDepth,
+    callDirection: options["call-direction"] ?? options.callDirection,
+    expandProcedures: options["expand-procedures"] ?? options.expandProcedures ?? false,
+    expandFrameworkCalls:
+      options["expand-framework-calls"] ?? options.expandFrameworkCalls ?? false,
     scope: options.scope,
     focus: options.focus,
     entry: options.entry ?? workflow.entry ?? workflow.entries,
@@ -115,8 +132,13 @@ export async function createArchitectureModel(input, values = {}) {
       includeExternal: !(options["no-external"] ?? options.noExternal ?? false),
       details: options.details ?? false,
       memberNames: view === "object",
+      members: members.length ? members : undefined,
       groupBy: view === "module" ? "namespace" : groupBy,
       sourceUrlTemplate: options["source-url"] ?? options.sourceUrl,
+      sourceRef: options["source-ref"] ?? options.sourceRef,
+      sourcePathPrefix: options["source-path-prefix"] ?? options.sourcePathPrefix,
+      roleMappings: options.roleMappings,
+      showLegend: !(options["no-legend"] ?? options.noLegend ?? false),
       maxEdges: positiveInteger(options["max-edges"] ?? options.maxEdges, "max-edges", 500)
     }
   };

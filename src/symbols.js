@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { unzipSync } from "fflate";
+import { includedPermissionSets } from "./permission-semantics.js";
 
 const SYMBOL_TYPES = new Map([
   ["tables", "table"],
@@ -47,18 +48,27 @@ function objectsFor(symbols, app, packagePath) {
     for (const symbol of collection) {
       const name = valueFor(symbol, "Name");
       if (!name) continue;
+      const assignable = type === "permissionset"
+        ? String(valueFor(symbol, "Assignable") ?? "false").toLowerCase() === "true"
+        : undefined;
       objects.push({
         id: String(valueFor(symbol, "Id") ?? "") || undefined,
         name,
         type,
         namespace: valueFor(symbol, "Namespace") ?? "(global)",
         file: `${packagePath}#SymbolReference.json`,
-        relations: [],
+        relations: ["permissionset", "permissionsetextension"].includes(type)
+          ? includedPermissionSets(valueFor(symbol, "IncludedPermissionSets"))
+          : [],
         procedures: [],
         fields: [],
         actions: [],
         views: [],
         variables: [],
+        assignable,
+        objectAccess: ["permissionset", "permissionsetextension"].includes(type)
+          ? String(valueFor(symbol, "Access") ?? "public").toLowerCase()
+          : undefined,
         app,
         externalSymbol: true
       });
