@@ -187,6 +187,71 @@ function propertyValueFor(objectNode, source, wantedName) {
   return result;
 }
 
+const PROPERTY_OWNER_TYPES = new Set([
+  ...OBJECT_TYPES.keys(),
+  "field_declaration",
+  "page_field",
+  "part_section",
+  "action_declaration",
+  "customaction_declaration",
+  "systemaction_declaration",
+  "actionref_declaration",
+  "key_declaration",
+  "enum_value_declaration",
+  "report_dataitem",
+  "report_column",
+  "query_dataitem",
+  "query_column",
+  "query_filter",
+  "xmlport_element",
+  "procedure",
+  "trigger_declaration",
+  "event_declaration",
+  "interface_procedure"
+]);
+
+function propertiesFor(ownerNode, source) {
+  const properties = [];
+  walk(ownerNode, (node) => {
+    if (node.type !== "property") return;
+    let owner = node.parent;
+    while (owner && !PROPERTY_OWNER_TYPES.has(owner.type)) owner = owner.parent;
+    if (
+      owner?.type !== ownerNode.type ||
+      owner.startIndex !== ownerNode.startIndex ||
+      owner.endIndex !== ownerNode.endIndex
+    ) return;
+    const valueNode = node.childForFieldName("value");
+    properties.push({
+      name: fieldText(node, "name", source),
+      value: valueNode
+        ? source.slice(valueNode.startIndex, valueNode.endIndex).trim()
+        : undefined
+    });
+  });
+  return properties;
+}
+
+function containerFor(node, source) {
+  let current = node.parent;
+  while (current) {
+    if (["area_section", "group_section", "action_area_section", "action_group_section"].includes(current.type)) {
+      const header = source.slice(current.startIndex, current.namedChildren.at(-1)?.startIndex ?? current.endIndex);
+      return cleanName(header.match(/\(([^)]*)\)/u)?.[1] ?? "") || undefined;
+    }
+    current = current.parent;
+  }
+  return undefined;
+}
+
+function procedureHeader(node, source) {
+  const body = node.namedChildren.find((child) =>
+    ["code_block", "statement_block", "declaration_body"].includes(child.type)
+  );
+  const end = body?.startIndex ?? node.endIndex;
+  return source.slice(node.startIndex, end).trim().replace(/\s+/gu, " ").replace(/;$/u, "");
+}
+
 function enclosingMember(node, source, types) {
   let current = node.parent;
   while (current) {
@@ -522,8 +587,10 @@ function variableType(node, source) {
 function membersFor(objectNode, source, file) {
   const procedures = [];
   const fields = [];
+  const parts = [];
   const actions = [];
   const views = [];
+  const elements = [];
   const variables = [];
   const keys = [];
   walk(objectNode, (node) => {
@@ -542,6 +609,7 @@ function membersFor(objectNode, source, file) {
         ];
         procedures.push({
           name,
+          header: procedureHeader(node, source),
           visibility: node.type === "trigger_declaration"
             ? undefined
             : fieldText(node, "modifier", source)?.toLowerCase() ?? "public",
@@ -561,15 +629,47 @@ function membersFor(objectNode, source, file) {
           returnTarget: returnType.target,
           action: node.type === "trigger_declaration"
             ? enclosingActionName(node, source)
-            : undefined
+            : undefined,
+          properties: propertiesFor(node, source)
         });
       }
     }
     if (node.type === "field_declaration" || node.type === "page_field") {
       const name = fieldText(node, "name", source);
+      const typeNode = node.childForFieldName("type");
+      const numberNode = node.type === "field_declaration"
+        ? node.namedChildren.find((child) => child.type === "integer")
+        : undefined;
+      const directValues = node.namedChildren.filter((child) =>
+        !["integer", "property", "declaration_body"].includes(child.type) &&
+        child !== node.childForFieldName("name") && child !== typeNode
+      );
       fields.push({
         name: name ?? `(field ${fields.length + 1})`,
         kind: node.type === "page_field" ? "page-field" : "field",
+        number: numberNode ? source.slice(numberNode.startIndex, numberNode.endIndex) : undefined,
+        type: typeNode ? source.slice(typeNode.startIndex, typeNode.endIndex).trim() : undefined,
+        sourceExpression: node.type === "page_field" && directValues.length
+          ? cleanName(source.slice(directValues.at(-1).startIndex, directValues.at(-1).endIndex))
+          : undefined,
+        container: node.type === "page_field" ? containerFor(node, source) : undefined,
+        properties: propertiesFor(node, source),
+        location: locationFor(node, file)
+      });
+    }
+    if (node.type === "part_section") {
+      const identifiers = node.namedChildren.filter((child) =>
+        !child.type.endsWith("_keyword") && child.type !== "property"
+      );
+      parts.push({
+        name: identifiers[0]
+          ? cleanName(source.slice(identifiers[0].startIndex, identifiers[0].endIndex))
+          : `(part ${parts.length + 1})`,
+        target: identifiers[1]
+          ? cleanName(source.slice(identifiers[1].startIndex, identifiers[1].endIndex))
+          : undefined,
+        container: containerFor(node, source),
+        properties: propertiesFor(node, source),
         location: locationFor(node, file)
       });
     }
@@ -577,6 +677,8 @@ function membersFor(objectNode, source, file) {
       const name = fieldText(node, "name", source);
       actions.push({
         name: name ?? `(action ${actions.length + 1})`,
+        container: containerFor(node, source),
+        properties: propertiesFor(node, source),
         location: locationFor(node, file),
         calls: callsFor(node, source, file)
       });
@@ -587,6 +689,8 @@ function membersFor(objectNode, source, file) {
         name: name ?? `(action ${actions.length + 1})`,
         kind: "action-ref",
         target: fieldText(node, "action_name", source),
+        container: containerFor(node, source),
+        properties: propertiesFor(node, source),
         location: locationFor(node, file),
         calls: []
       });
@@ -597,13 +701,61 @@ function membersFor(objectNode, source, file) {
         location: locationFor(node, file)
       });
     }
+    if (node.type === "enum_value_declaration") {
+      const ordinal = node.namedChildren.find((child) => child.type === "integer");
+      elements.push({
+        kind: "enum-value",
+        name: fieldText(node, "value_name", source),
+        ordinal: ordinal ? source.slice(ordinal.startIndex, ordinal.endIndex) : undefined,
+        properties: propertiesFor(node, source),
+        location: locationFor(node, file)
+      });
+    }
+    if (["report_dataitem", "query_dataitem"].includes(node.type)) {
+      elements.push({
+        kind: "dataitem",
+        name: fieldText(node, "name", source),
+        source: fieldText(node, "table_name", source),
+        properties: propertiesFor(node, source),
+        location: locationFor(node, file)
+      });
+    }
+    if (["report_column", "query_column", "query_filter"].includes(node.type)) {
+      const name = fieldText(node, "name", source);
+      const values = node.namedChildren.filter((child) =>
+        !child.type.endsWith("_keyword") && child !== node.childForFieldName("name") &&
+        child.type !== "declaration_body"
+      );
+      let parent = node.parent;
+      while (parent && !["report_dataitem", "query_dataitem"].includes(parent.type)) parent = parent.parent;
+      elements.push({
+        kind: node.type === "query_filter" ? "filter" : "column",
+        name,
+        source: fieldText(node, "source", source) ?? (
+          values.length ? cleanName(source.slice(values.at(-1).startIndex, values.at(-1).endIndex)) : undefined
+        ),
+        parent: parent ? fieldText(parent, "name", source) : undefined,
+        properties: propertiesFor(node, source),
+        location: locationFor(node, file)
+      });
+    }
+    if (node.type === "xmlport_element") {
+      elements.push({
+        kind: source.slice(node.startIndex, node.endIndex).trim().match(/^([A-Za-z]+)/u)?.[1]?.toLowerCase(),
+        name: fieldText(node, "name", source),
+        source: fieldText(node, "source", source),
+        properties: propertiesFor(node, source),
+        location: locationFor(node, file)
+      });
+    }
     if (node.type === "key_declaration") {
       const fieldsNode = node.childForFieldName("fields");
       keys.push({
         name: fieldText(node, "name", source),
         fields: fieldsNode?.namedChildren.map((field) =>
           cleanName(source.slice(field.startIndex, field.endIndex))
-        ) ?? []
+        ) ?? [],
+        properties: propertiesFor(node, source)
       });
     }
     if (node.type === "variable_declaration") {
@@ -629,6 +781,7 @@ function membersFor(objectNode, source, file) {
           name,
           ...variableType(node, source),
           parameter: true,
+          byReference: /^\s*var\b/iu.test(source.slice(node.startIndex, node.endIndex)),
           scope: routine.startPosition.row + 1,
           location: locationFor(node, file)
         });
@@ -652,7 +805,8 @@ function membersFor(objectNode, source, file) {
       procedure: procedure.signature
     }))
   );
-  return { procedures, fields, actions, views, variables, keys, transactionBoundaries };
+  for (const variable of variables) variable.global = variable.scope === undefined;
+  return { procedures, fields, parts, actions, views, elements, variables, keys, transactionBoundaries };
 }
 
 function dataOperationRelations(members, object) {
@@ -807,11 +961,14 @@ async function objectsFromSource(source, file) {
       namespace,
       usings,
       file,
+      properties: propertiesFor(node, source),
       relations,
       procedures: members.procedures,
       fields: members.fields,
+      parts: members.parts,
       actions: members.actions,
       views: members.views,
+      elements: members.elements,
       keys: members.keys,
       primaryKeyFields: members.keys[0]?.fields ?? [],
       variables: members.variables,

@@ -89,6 +89,56 @@ test("extracts semantic data, permissions, page members, and parent app context"
   assert.equal(contextModel.apps[0].name, "Parent App");
 });
 
+test("extracts Code Graph metadata and structural members", async () => {
+  const source = `
+    namespace Demo;
+    table 50100 Parent {
+      Caption = 'Parents';
+      fields {
+        field(1; Code; Code[20]) { NotBlank = true; }
+      }
+      keys { key(PK; Code) { Clustered = true; } }
+    }
+    page 50101 ParentCard {
+      SourceTable = Parent;
+      layout {
+        area(Content) {
+          field(ParentCode; Rec.Code) { Caption = 'Parent Code'; }
+          part(Lines; ParentCard) { }
+        }
+      }
+      actions {
+        area(Processing) { action(Open) { RunObject = page ParentCard; } }
+      }
+    }
+    codeunit 50102 Service {
+      var ParentRecord: Record Parent;
+      procedure Find(var Code: Code[20]): Boolean begin end;
+    }
+    interface Contract { procedure Execute(Value: Integer); }
+  `;
+  const result = await testing.objectsFromSource(source, "metadata.al");
+  const table = result.objects.find(({ name }) => name === "Parent");
+  const page = result.objects.find(({ name }) => name === "ParentCard");
+  const codeunit = result.objects.find(({ name }) => name === "Service");
+  const contract = result.objects.find(({ name }) => name === "Contract");
+
+  assert.deepEqual(table.properties, [{ name: "Caption", value: "'Parents'" }]);
+  assert.deepEqual(table.fields[0].properties, [{ name: "NotBlank", value: "true" }]);
+  assert.deepEqual(table.keys[0].properties, [{ name: "Clustered", value: "true" }]);
+  assert.equal(page.fields[0].sourceExpression, "Rec.Code");
+  assert.equal(page.fields[0].container, "Content");
+  assert.deepEqual(page.parts.map(({ name, target, container }) => ({ name, target, container })), [
+    { name: "Lines", target: "ParentCard", container: "Content" }
+  ]);
+  assert.equal(page.actions[0].container, "Processing");
+  assert.equal(codeunit.variables.find(({ name }) => name === "ParentRecord").global, true);
+  assert.equal(codeunit.procedures[0].header,
+    "procedure Find(var Code: Code[20]): Boolean");
+  assert.equal(codeunit.procedures[0].parameters[0].byReference, true);
+  assert.equal(contract.procedures[0].header, "procedure Execute(Value: Integer)");
+});
+
 test("extracts every conditional table relation branch with fields and filters", async () => {
   const source = `
     table 50100 Child {
@@ -247,6 +297,35 @@ test("extracts data items, formulas, execute permissions, action refs, and condi
   ));
   assert.deepEqual(worker.relations.find(({ target }) => target === "Ledger").conditionalSymbols,
     ["FEATURE"]);
+});
+
+test("extracts enum, report, query, and XMLport structural elements", async () => {
+  const source = `
+    enum 50100 Choice { value(0; First) { Caption = 'First'; } }
+    report 50101 CustomerReport {
+      dataset { dataitem(Customer; Customer) { column(Name; Name) { } } }
+    }
+    query 50102 CustomerQuery {
+      elements { dataitem(Customer; Customer) { column(Name; Name) { } filter(Blocked; Blocked) { } } }
+    }
+    xmlport 50103 CustomerPort {
+      schema { tableelement(Customer; Customer) { fieldelement(Name; Customer.Name) { } } }
+    }
+  `;
+  const result = await testing.objectsFromSource(source, "elements.al");
+  const enumValue = result.objects.find(({ name }) => name === "Choice").elements[0];
+  assert.equal(enumValue.kind, "enum-value");
+  assert.equal(enumValue.name, "First");
+  assert.equal(enumValue.ordinal, "0");
+  assert.ok(result.objects.find(({ name }) => name === "CustomerReport").elements.some(
+    ({ kind, name, source }) => kind === "column" && name === "Name" && source === "Name"
+  ));
+  assert.ok(result.objects.find(({ name }) => name === "CustomerQuery").elements.some(
+    ({ kind, name }) => kind === "filter" && name === "Blocked"
+  ));
+  assert.ok(result.objects.find(({ name }) => name === "CustomerPort").elements.some(
+    ({ kind, name, source }) => kind === "fieldelement" && name === "Name" && source === "Customer.Name"
+  ));
 });
 
 test("resolves namespace-qualified EventSubscriber publisher arguments", async () => {

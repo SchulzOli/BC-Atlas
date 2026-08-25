@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -25,6 +26,79 @@ test("inspect command emits machine-readable resolved graph", () => {
   assert.equal(model.apps[0].name, "BC Atlas Fixture");
   assert.ok(model.edges.some(({ confidence }) => confidence === "resolved"));
   assert.ok(model.insights.hubs.length > 0);
+});
+
+test("codegraph mirrors source folders and uses type folders for root objects", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-codegraph-"));
+  const feature = path.join(directory, "Feature");
+  const output = path.join(directory, "generated");
+  mkdirSync(feature);
+  writeFileSync(path.join(directory, "app.json"), JSON.stringify({
+    id: "11111111-1111-1111-1111-111111111111",
+    name: "Code Graph Fixture",
+    publisher: "Test",
+    version: "1.0.0.0"
+  }));
+  writeFileSync(path.join(directory, "Root.al"), `
+    namespace Demo;
+    table 50100 RootTable {
+      Caption = 'Root Table';
+      fields {
+        field(1; Code; Code[20]) { NotBlank = true; }
+        field(2; MissingCode; Code[20]) { TableRelation = MissingTable.Code; }
+      }
+    }
+  `);
+  writeFileSync(path.join(feature, "Service.al"), `
+    namespace Demo;
+    codeunit 50101 Service {
+      var RootRecord: Record RootTable;
+      procedure Find(var Code: Code[20]): Boolean begin RootRecord.FindFirst(); end;
+    }
+  `);
+  writeFileSync(path.join(directory, "Structures.al"), `
+    namespace Demo;
+    enum 50102 Choice { value(0; First) { Caption = 'First'; } }
+    report 50103 CustomerReport {
+      dataset { dataitem(Customer; RootTable) { column(Code; Code) { } } }
+    }
+    query 50104 CustomerQuery {
+      elements { dataitem(Customer; RootTable) { filter(Code; Code) { } } }
+    }
+    xmlport 50105 CustomerPort {
+      schema { tableelement(Customer; RootTable) { fieldelement(Code; Customer.Code) { } } }
+    }
+  `);
+
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [cli, "codegraph", directory, "--output-dir", output],
+      { encoding: "utf8" }
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const rootFile = path.join(output, "table", "50100-roottable.md");
+    const serviceFile = path.join(output, "Feature", "50101-service.md");
+    assert.ok(existsSync(rootFile), "root object should use its type folder");
+    assert.ok(existsSync(serviceFile), "nested object should mirror its source folder");
+    const rootText = readFileSync(rootFile, "utf8");
+    assert.match(rootText, /^---\nType: "Table"\nID: "50100"\nName: "RootTable"\nNamespace: "Demo"\nApp: "Code Graph Fixture 1\.0\.0\.0"\nCaption: "'Root Table'"\n---\n\n# Table 50100 RootTable/u);
+    assert.doesNotMatch(rootText, /## Metadata/u);
+    assert.match(rootText, /## Fields/u);
+    assert.match(rootText, /Root Table/u);
+    assert.match(rootText, /\.\.\/Feature\/50101-service\.md/u);
+    assert.match(rootText, /MissingTable/u);
+    assert.doesNotMatch(rootText, /Unknown/u);
+    assert.match(readFileSync(serviceFile, "utf8"), /\.\.\/table\/50100-roottable\.md/u);
+    assert.match(readFileSync(serviceFile, "utf8"), /procedure Find\(var Code: Code\[20\]\): Boolean/u);
+    assert.match(readFileSync(path.join(output, "enum", "50102-choice.md"), "utf8"), /## Values/u);
+    assert.match(readFileSync(path.join(output, "report", "50103-customerreport.md"), "utf8"), /## Dataitems[\s\S]*## Columns/u);
+    assert.match(readFileSync(path.join(output, "query", "50104-customerquery.md"), "utf8"), /## Filters/u);
+    assert.match(readFileSync(path.join(output, "xmlport", "50105-customerport.md"), "utf8"), /## Schema/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("renders SVG with bundled D2 WASM and normalizes a conflicting extension", () => {
@@ -114,7 +188,7 @@ test("CLI reference lists every help-exposed command and option", () => {
       assert.ok(reference.includes(`\`${option}\``), `${option} is missing from CLI reference`);
     }
   }
-  for (const command of ["graph", "inspect", "watch", "docs generate"]) {
+  for (const command of ["graph", "inspect", "codegraph", "watch", "docs generate"]) {
     assert.ok(reference.includes(`\`${command}\``), `${command} is missing from CLI reference`);
   }
 });
@@ -142,6 +216,9 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
   assert.ok(contract.commands.some(({ argv }) => argv.join(" ") === "bca inspect <app-root>"));
   assert.ok(contract.commands.some(({ argv }) =>
     argv.join(" ") === "bca docs validate <test-root>"));
+  const codegraph = contract.commands.find(({ id }) => id === "codegraph");
+  assert.equal(codegraph.options.outputDir.cli, "--output-dir");
+  assert.equal(codegraph.output.type, "directory");
   const workflow = contract.commands.find(({ id }) => id === "graph.workflow");
   assert.equal(workflow.options.view.const, "workflow");
   assert.equal(workflow.options.entry.required, true);

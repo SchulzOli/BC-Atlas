@@ -120,6 +120,25 @@ export function createCapabilities(version) {
         ["Omit --output to receive JSON on stdout."]
       ),
       command(
+        "codegraph",
+        ["bca", "codegraph", "<app-root>"],
+        "Generate one linked Markdown document per AL object.",
+        {
+          outputDir: string("Markdown output directory.", {
+            cli: "--output-dir",
+            default: "docs/codegraph"
+          }),
+          projectRoot: architectureOptions.projectRoot,
+          include: architectureOptions.include,
+          exclude: architectureOptions.exclude,
+          sourceUrl: architectureOptions.sourceUrl,
+          sourceRef: architectureOptions.sourceRef,
+          sourcePathPrefix: architectureOptions.sourcePathPrefix,
+          strict: architectureOptions.strict
+        },
+        { type: "directory", pathOption: "outputDir", default: "docs/codegraph" }
+      ),
+      command(
         "watch",
         ["bca", "watch", "<app-root>"],
         "Rebuild a diagram when AL source changes.",

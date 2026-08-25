@@ -13,6 +13,7 @@ Run `npm run docs` after a capability changes.
 | `graph` | `bca graph <app-root>` | Write an architecture diagram or model file. |
 | `graph.workflow` | `bca graph <app-root>` | Write a bounded workflow diagram. |
 | `inspect` | `bca inspect <app-root>` | Read the resolved architecture model. |
+| `codegraph` | `bca codegraph <app-root>` | Generate one linked Markdown document per AL object. |
 | `watch` | `bca watch <app-root>` | Rebuild a diagram when AL source changes. |
 | `serve` | `bca serve <app-root>` | Start the combined local Control Center. |
 | `mcp` | `bca-mcp` | Expose BC Atlas tools through an MCP stdio server. |

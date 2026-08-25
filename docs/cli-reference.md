@@ -9,6 +9,7 @@ file.
 ```text
 bca [graph] [options] <file-or-directory>
 bca inspect [options] <file-or-directory>
+bca codegraph [options] <file-or-directory>
 bca watch [options] <directory>
 bca serve [options] <app-directory>
 bca capabilities
@@ -21,6 +22,7 @@ bca docs glossary [options]
 | --- | --- |
 | `graph` | Analyze AL source and write a diagram. This is the default command when no command is specified. |
 | `inspect` | Analyze AL source and emit the selected graph as JSON. Without `--output`, JSON is written to standard output. |
+| `codegraph` | Generate one linked Markdown file per workspace AL object. |
 | `watch` | Generate a graph, watch an AL project, and rebuild after relevant source or configuration changes. |
 | `serve` | Start the combined architecture and documentation Control Center. |
 | `capabilities` | Emit the versioned machine contract for LLM and tool integrations as JSON. |
@@ -29,6 +31,29 @@ bca docs glossary [options]
 
 Use `bca --help`, `bca --version`, or
 `bca docs --help` for the built-in summaries.
+
+### Code Graph Markdown
+
+```text
+bca codegraph <file-or-directory> --output-dir docs/codegraph
+```
+
+The command mirrors source directories below the output directory. Objects
+declared directly at the selected input root use an object-type folder such as
+`table`, `page`, or `codeunit`. Each object document contains metadata,
+type-specific members, dependencies, backlinks, and a project-relative source
+location.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--output-dir` | path | Markdown directory. Default: `docs/codegraph`. |
+| `--project-root` | path | Analyze a wider workspace before restricting output to the selected input. |
+| `--include` | glob | Include matching source paths or object selectors. Repeatable. |
+| `--exclude` | glob | Exclude matching source paths or object selectors. Repeatable. |
+| `--source-url` | template | Add repository source links with `{file}`, `{line}`, and `{ref}`. |
+| `--source-ref` | text | Commit, tag, or branch substituted for `{ref}`. |
+| `--source-path-prefix` | path | Repository path prepended to `{file}`. |
+| `--strict` | flag | Fail when analysis contains warning or error diagnostics. |
 
 ### Machine contract
 

@@ -6,7 +6,8 @@
 
 Turn a Microsoft Dynamics 365 Business Central AL project into readable
 architecture diagrams, focused dependency views, workflow traces, and
-executable user documentation.
+executable user documentation. BC Atlas can also generate a linked Markdown
+code catalog with one file per AL object.
 
 BC Atlas (`bca`) is an open-source CLI that parses AL source with
 [`tree-sitter-al`](https://github.com/SShadowS/tree-sitter-al), builds a small
@@ -61,6 +62,7 @@ npm install --global bc-atlas
 
 bca ./path/to/al-project -o architecture.d2
 bca ./path/to/al-project -o architecture.svg
+bca codegraph ./path/to/al-project --output-dir docs/codegraph
 ```
 
 For local development, clone the repository and link the checkout:

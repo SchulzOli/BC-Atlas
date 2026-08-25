@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
 import { createArchitectureModel, positiveInteger } from "./architecture.js";
 import { createCapabilities } from "./capabilities.js";
+import { generateCodeGraph } from "./codegraph.js";
 import { renderD2 } from "./d2.js";
 import { renderSvg } from "./svg.js";
 import { docsMain } from "./docs/cli.js";
@@ -17,6 +18,7 @@ const HELP = `BC Atlas - generate architecture diagrams from AL source
 Usage:
   bca [graph] [options] <file-or-directory>
   bca inspect [options] <file-or-directory>
+  bca codegraph [options] <file-or-directory>
   bca watch [options] <directory>
   bca serve [options] <app-directory>
   bca capabilities
@@ -36,6 +38,7 @@ Views:
 
 Options:
   -o, --output <path>       Output path (default: bc-atlas.d2)
+      --output-dir <path>   Code Graph directory (default: docs/codegraph)
   -f, --format <format>     d2, json, svg, png, or pdf
       --view <view>         project, module, object, data, call, boundary,
                             contracts, events, ui, or workflow
@@ -96,6 +99,7 @@ PNG and PDF rendering require the d2 executable on PATH.
 
 const OPTIONS = {
   output: { type: "string", short: "o" },
+  "output-dir": { type: "string" },
   format: { type: "string", short: "f" },
   view: { type: "string" },
   entry: { type: "string", multiple: true },
@@ -295,6 +299,12 @@ async function serve(input, values) {
   console.log(`BC Atlas Control Center: ${url}`);
 }
 
+async function codegraph(input, values) {
+  const result = await generateCodeGraph(input, values);
+  console.log(`Generated ${result.objects} object document(s); ${result.unresolved} unresolved reference(s).`);
+  console.log(`Wrote ${result.outputDirectory}`);
+}
+
 async function main() {
   if (process.argv[2] === "docs") return docsMain(process.argv.slice(3));
   if (process.argv[2] === "capabilities") {
@@ -313,7 +323,7 @@ async function main() {
     return console.log(pkg.version);
   }
 
-  const commands = new Set(["graph", "inspect", "watch", "serve"]);
+  const commands = new Set(["graph", "inspect", "codegraph", "watch", "serve"]);
   const command = commands.has(positionals[0]) ? positionals.shift() : "graph";
   if (positionals.length !== 1) {
     console.log(HELP);
@@ -321,6 +331,7 @@ async function main() {
   }
   if (command === "watch") return operation(() => watch(positionals[0], values));
   if (command === "serve") return operation(() => serve(positionals[0], values));
+  if (command === "codegraph") return operation(() => codegraph(positionals[0], values));
   return operation(() => build(positionals[0], command, values));
 }
 

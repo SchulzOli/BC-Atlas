@@ -12,6 +12,7 @@ The generated CLI capability reference comes directly from the source code.
 ## User documentation
 
 - [Documentation from AL UI tests](./al-ui-test-documentation.md)
+- [Code Graph as Markdown](./code-graph-markdown-design.md)
 - [Control Center](./control-center.md)
 - [Automation and CI](./automation-and-ci.md)
 
@@ -25,7 +26,6 @@ The generated CLI capability reference comes directly from the source code.
 
 - [CLI reference](./cli-reference.md)
 - [Generated CLI capabilities](./reference/cli-capabilities.md)
-- [UI-test documentation roadmap](./ui-test-documentation-roadmap.md)
 
 ## Generated examples
 
