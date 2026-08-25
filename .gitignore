@@ -36,3 +36,4 @@ Thumbs.db
 !docs/generated/images/*.jpg
 !examples/output/
 !examples/output/*.svg
+_output_test
