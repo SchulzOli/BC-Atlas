@@ -75,6 +75,11 @@ the entire module to `BeTerna.Fashion`.
   introducing a second authoritative test implementation. Screenshot capture
   must remain opt-in and must consume the AL-derived documentation contract.
 
+## Documentation localization
+
+- [ ] Generate one AL UI-test documentation package per language after the
+    metadata schema is stable, so users can consume localized guides.
+
 
 ---
 
