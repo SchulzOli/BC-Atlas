@@ -15,7 +15,7 @@ g0: "Contracts" {
   }
   n5: "enum 50102\nWarehouse Handler" {
     shape: rectangle
-    tooltip: "Inventory.al:40"
+    tooltip: "Inventory.al:61"
     style.fill: "#EEEEEE"
     style.stroke: "#555555"
   }
@@ -33,7 +33,7 @@ g1: "Data" {
 
 g2: "Security" {
   style.stroke-dash: 3
-  n1: "permissionset 50121\nWAREHOUSE PROCESS" {
+  n1: "permissionset 50121\nWAREHOUSE PROCESS\npermission set: assignable" {
     shape: rectangle
     tooltip: "Automation.al:18"
     style.fill: "#F5F5F5"
@@ -51,7 +51,13 @@ g3: "Services" {
   }
   n4: "codeunit 50101\nWarehouse Processor" {
     shape: rectangle
-    tooltip: "Inventory.al:18"
+    tooltip: "Inventory.al:28"
+    style.fill: "#FFF0D6"
+    style.stroke: "#A96300"
+  }
+  n8: "codeunit 50122\nWarehouseUITests" {
+    shape: rectangle
+    tooltip: "WarehouseUITests.al:11"
     style.fill: "#FFF0D6"
     style.stroke: "#A96300"
   }
@@ -61,7 +67,7 @@ g4: "UI" {
   style.stroke-dash: 3
   n7: "pageextension 50111\nWarehouse Request Ext." {
     shape: rectangle
-    tooltip: "WarehouseUI.al:27"
+    tooltip: "WarehouseUI.al:60"
     style.fill: "#E5F6E8"
     style.stroke: "#31783B"
     style.stroke-dash: 4
@@ -74,13 +80,26 @@ g4: "UI" {
   }
 }
 
-g3.n0 -> g3.n4: "reads" {style.stroke: "#0072B2"}
-g2.n1 -> g1.n3: "permits [RIMD]" {style.stroke: "#7C3AED"}
+g2.n1 -> g1.n3: "tabledata [RIMD]" {style.stroke: "#7C3AED"; tooltip: "Table data rights: read, insert, modify, delete"}
+g2.n1 -> g3.n4: "executes [X]" {style.stroke: "#7C3AED"; tooltip: "Permission: execute"}
+g2.n1 -> g4.n6: "executes [X]" {style.stroke: "#7C3AED"; tooltip: "Permission: execute"}
 g3.n4 --> g0.n2: "implements" {style.stroke: "#E69F00"}
-g3.n4 -> g1.n3: "uses" {style.stroke: "#6B7280"; style.stroke-dash: 3}
-g3.n4 -> g1.n3: "writes" {style.stroke: "#D55E00"}
+g3.n4 -> g1.n3: "tabledata [RM]" {style.stroke: "#7C3AED"; tooltip: "Table data rights: read, modify"}
+g3.n4 -> g1.n3: "uses (3)" {style.stroke: "#6B7280"; style.stroke-dash: 3}
+g3.n4 -> g1.n3: "reads" {style.stroke: "#0072B2"; tooltip: "Operations: FindFirst\nSource procedures: Process()\nRelation: runtime\nTransaction segments: 1"}
+g3.n4 -> g1.n3: "writes (2)" {style.stroke: "#D55E00"; tooltip: "Operations: Modify\nSource procedures: Process(Record \"Warehouse Request\")\nRelation: runtime\nTransaction segments: 1"}
 g0.n5 --> g0.n2: "implements" {style.stroke: "#E69F00"}
-g0.n5 -> g3.n4: "selects" {style.stroke: "#EA580C"}
+g0.n5 -> g3.n4: "selects" {style.stroke: "#EA580C"; tooltip: "Source procedures: Default"}
 g4.n6 -> g1.n3: "reads" {style.stroke: "#0072B2"}
 g4.n6 -> g3.n4: "uses" {style.stroke: "#6B7280"; style.stroke-dash: 3}
-g4.n7 --> g4.n6: "extends" {style.stroke: "#CC79A7"}
+g4.n7 --> g4.n6: "extends" {style.stroke: "#CC79A7"; style.stroke-dash: 4; tooltip: "Relation: schema"}
+g3.n8 -> g1.n3: "tabledata [RIMD]" {style.stroke: "#7C3AED"; tooltip: "Table data rights: read, insert, modify, delete"}
+g3.n8 -> g1.n3: "uses (2)" {style.stroke: "#6B7280"; style.stroke-dash: 3}
+g3.n8 -> g4.n6: "uses (2)" {style.stroke: "#6B7280"; style.stroke-dash: 3}
+g3.n8 -> g1.n3: "writes (3)" {style.stroke: "#D55E00"; tooltip: "Operations: DeleteAll, Insert\nSource procedures: WarehouseRequests_CreateRequest_PersistsDescription(), WarehouseRequests_ProcessRequest_MarksRequestProcessed()\nRelation: runtime\nTransaction segments: 1"}
+g3.n8 -> g1.n3: "reads (2)" {style.stroke: "#0072B2"; tooltip: "Operations: Get\nSource procedures: WarehouseRequests_CreateRequest_PersistsDescription(), WarehouseRequests_ProcessRequest_MarksRequestProcessed()\nRelation: runtime\nTransaction segments: 1"}
+
+legend: "Legend\nEdges: extends #CC79A7, implements #E69F00, permits #7C3AED, reads #0072B2, selects #EA580C, uses #6B7280, writes #D55E00\nConfidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; ambiguous = dashed amber #B45309; cycle = red #B91C1C\nData: schema = dashed; runtime access = solid" {
+  shape: text
+  near: bottom-right
+}

@@ -9,7 +9,7 @@ g0: "Actions" {
   style.stroke-dash: 3
   n3: "action\nProcessRequest" {
     shape: rectangle
-    tooltip: "WarehouseUI.al:14"
+    tooltip: "WarehouseUI.al:43"
     style.fill: "#E5F6E8"
     style.stroke: "#31783B"
   }
@@ -19,7 +19,7 @@ g1: "Pages" {
   style.stroke-dash: 3
   n2: "pageextension 50111\nWarehouse Request Ext." {
     shape: rectangle
-    tooltip: "WarehouseUI.al:27"
+    tooltip: "WarehouseUI.al:60"
     style.fill: "#E5F6E8"
     style.stroke: "#31783B"
     style.stroke-dash: 4
@@ -44,4 +44,9 @@ g2: "Source tables" {
 
 g1.n1 -> g0.n3: "action" {style.stroke: "#0891B2"; style.stroke-dash: 3}
 g1.n1 -> g2.n0: "source table" {style.stroke: "#0072B2"}
-g1.n2 --> g1.n1: "extends" {style.stroke: "#CC79A7"}
+g1.n2 --> g1.n1: "extends" {style.stroke: "#CC79A7"; style.stroke-dash: 4; tooltip: "Relation: schema"}
+
+legend: "Legend\nEdges: contains #0891B2, extends #CC79A7, reads #0072B2\nConfidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; ambiguous = dashed amber #B45309; cycle = red #B91C1C\nData: schema = dashed; runtime access = solid" {
+  shape: text
+  near: bottom-right
+}

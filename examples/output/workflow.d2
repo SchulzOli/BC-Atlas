@@ -7,7 +7,7 @@ title: "Request processing flow" {
 
 g0: "Data mutations" {
   style.stroke-dash: 3
-  n5: "table 50100\nWarehouse Request" {
+  n6: "table 50100\nWarehouse Request" {
     shape: rectangle
     tooltip: "Inventory.al:8"
     style.fill: "#DCEBFF"
@@ -23,15 +23,21 @@ g1: "Workflow" {
     style.fill: "#F3F6FA"
     style.stroke: "#55708F"
   }
-  n4: "event\nOnRequestProcessed" {
+  n5: "event\nOnRequestProcessed" {
     shape: rectangle
-    tooltip: "Inventory.al:35"
+    tooltip: "Inventory.al:56"
     style.fill: "#F5E5FF"
     style.stroke: "#77449A"
   }
   n2: "procedure\nProcess\nentry" {
     shape: rectangle
-    tooltip: "Inventory.al:23"
+    tooltip: "Inventory.al:35"
+    style.fill: "#F3F6FA"
+    style.stroke: "#55708F"
+  }
+  n3: "procedure\nProcess\nentry" {
+    shape: rectangle
+    tooltip: "Inventory.al:43"
     style.fill: "#F3F6FA"
     style.stroke: "#55708F"
   }
@@ -41,16 +47,31 @@ g1: "Workflow" {
     style.fill: "#F3F6FA"
     style.stroke: "#55708F"
   }
-  n3: "procedure\nValidateRequest" {
+  n4: "procedure\nValidateRequest" {
     shape: rectangle
-    tooltip: "Inventory.al:30"
+    tooltip: "Inventory.al:51"
     style.fill: "#F3F6FA"
     style.stroke: "#55708F"
   }
 }
 
-g1.n2 -> g1.n3: "calls #1 [definite]" {style.stroke: "#4C78A8"}
-g1.n2 -> g0.n5: "Modify #2 [definite]" {style.stroke: "#D55E00"}
-g1.n2 -> g1.n4: "calls #3 [definite]" {style.stroke: "#4C78A8"}
-g1.n4 -> g1.n0: "dispatches event [inferred]" {style.stroke: "#A21CAF"; style.stroke-dash: 3}
+external: "External / unresolved" {
+  style.stroke-dash: 5
+  e0: "procedure\nwarehouserequest.validate" {
+    style.fill: "#FAFAFA"
+    style.stroke: "#999999"
+  }
+}
+
+g1.n2 -> g1.n3: "calls #2 [definite]" {style.stroke: "#4C78A8"}
+g1.n3 -> g1.n4: "calls #1 [definite]" {style.stroke: "#4C78A8"}
+g1.n3 -> external.e0: "calls #2 [definite] [syntactic]" {style.stroke: "#6B7280"; style.stroke-dash: 4}
+g1.n3 -> g0.n6: "Modify #3 [definite]" {style.stroke: "#D55E00"}
+g1.n3 -> g1.n5: "calls #4 [definite]" {style.stroke: "#4C78A8"}
+g1.n5 -> g1.n0: "dispatches event [inferred] [inferred]" {style.stroke: "#A21CAF"; style.stroke-dash: 3}
 g1.n0 -> g1.n1: "calls #1 [definite]" {style.stroke: "#4C78A8"}
+
+legend: "Legend\nEdges: calls #4C78A8, events #A21CAF, writes #D55E00\nConfidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; ambiguous = dashed amber #B45309; cycle = red #B91C1C\nData: schema = dashed; runtime access = solid" {
+  shape: text
+  near: bottom-right
+}
