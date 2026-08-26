@@ -19,6 +19,9 @@ const UI_OPERATION_PATTERN =
   /^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\.(OpenNew|OpenEdit|OpenView|Close|New|Invoke|SetValue|GoToRecord)\((.*?)\);\s*$/gimu;
 const UI_OPERATION_DETECTOR =
   /\.(?:OpenNew|OpenEdit|OpenView|Close|New|Invoke|SetValue|GoToRecord)\s*\(/iu;
+const BC_ATLAS_ATTRIBUTES = new Set(["role", "process", "stage", "owner", "type"]);
+const BC_ATLAS_VALUE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+const BC_ATLAS_STAGES = new Set(["setup", "execute", "monitor", "recover"]);
 const GRAMMAR_PATH = fileURLToPath(
   new URL("../../vendor/tree-sitter-al.wasm", import.meta.url)
 );
@@ -109,6 +112,104 @@ function commentValues(comments, tag) {
 
 function uniqueValues(values) {
   return [...new Set(values)];
+}
+
+function xmlDocumentationBefore(source, index) {
+  const lines = source.slice(0, index).split(/\r?\n/u);
+  while (lines.length && !lines.at(-1).trim()) lines.pop();
+  const documentation = [];
+  while (lines.length) {
+    const match = lines.at(-1).match(/^\s*\/\/\/\s?(.*)$/u);
+    if (!match) break;
+    documentation.push(match[1]);
+    lines.pop();
+  }
+  return documentation.reverse().join("\n");
+}
+
+function parseBcAtlasXml(documentation, location) {
+  const diagnostics = [];
+  if (!documentation.includes("<bc-atlas")) {
+    return { attributes: {}, requires: [], diagnostics };
+  }
+  const element = documentation.match(
+    /<bc-atlas\b([^>]*?)(?:\/>|>([\s\S]*?)<\/bc-atlas\s*>)/iu
+  );
+  if (!element) {
+    diagnostics.push({
+      severity: "error",
+      code: "invalid-bc-atlas-xml",
+      message: `Malformed <bc-atlas> XML documentation on ${location}`
+    });
+    return { attributes: {}, requires: [], diagnostics };
+  }
+
+  const attributes = {};
+  const seen = new Set();
+  for (const match of element[1].matchAll(/([A-Za-z][A-Za-z0-9-]*)\s*=\s*"([^"]*)"/gu)) {
+    const name = match[1].toLowerCase();
+    const value = match[2].trim();
+    if (seen.has(name)) {
+      diagnostics.push({
+        severity: "error",
+        code: "duplicate-bc-atlas-attribute",
+        message: `Duplicate ${name} attribute on ${location}`
+      });
+      continue;
+    }
+    seen.add(name);
+    if (!BC_ATLAS_ATTRIBUTES.has(name)) {
+      diagnostics.push({
+        severity: "error",
+        code: "unsupported-bc-atlas-attribute",
+        message: `Unsupported <bc-atlas> attribute "${name}" on ${location}`
+      });
+      continue;
+    }
+    if (!BC_ATLAS_VALUE_PATTERN.test(value) || (name === "stage" && !BC_ATLAS_STAGES.has(value))) {
+      diagnostics.push({
+        severity: "error",
+        code: `invalid-bc-atlas-${name}`,
+        message: `Invalid ${name} value "${value}" on ${location}`
+      });
+      continue;
+    }
+    attributes[name] = value;
+  }
+
+  const requires = [];
+  for (const match of (element[2] ?? "").matchAll(
+    /<requires\s+document\s*=\s*"([^"]*)"\s*\/>/giu
+  )) {
+    const target = match[1].trim();
+    if (!target) {
+      diagnostics.push({
+        severity: "error",
+        code: "invalid-bc-atlas-requires",
+        message: `Empty <requires> document reference on ${location}`
+      });
+    } else {
+      requires.push(target);
+    }
+  }
+  return { attributes, requires: uniqueValues(requires), diagnostics };
+}
+
+function xmlMetadata(source, selected) {
+  const codeunit = source.match(/^\s*codeunit\s+\d+\s+(?:"[^"]+"|[A-Za-z_][A-Za-z0-9_]*)/imu);
+  const inherited = parseBcAtlasXml(
+    codeunit ? xmlDocumentationBefore(source, codeunit.index) : "",
+    "test codeunit"
+  );
+  const procedure = parseBcAtlasXml(
+    xmlDocumentationBefore(source, selected.index),
+    `procedure ${selected[1]}`
+  );
+  return {
+    attributes: { ...inherited.attributes, ...procedure.attributes },
+    requires: procedure.requires,
+    diagnostics: [...inherited.diagnostics, ...procedure.diagnostics]
+  };
 }
 
 function parsedLinks(comments) {
@@ -501,6 +602,8 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
   const entries = taggedEntries(sourceText);
   const comments = taggedComments(entries);
   const diagnostics = tagDiagnostics(entries);
+  const xml = xmlMetadata(source, selected);
+  diagnostics.push(...xml.diagnostics);
   const scenarios = commentValues(comments, "SCENARIO");
   if (!scenarios.length) {
     throw new Error(`${selected[1]} must have a // [SCENARIO] comment`);
@@ -527,6 +630,8 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
   ])];
   const expectedResults = expected.length ? expected : [goal];
   const identity = documentIdentity(comments, selected[1], diagnostics);
+  const links = parsedLinks(comments);
+  links.requires = uniqueValues([...links.requires, ...xml.requires]);
   return {
     ...identity,
     title: guidance.title ?? goal.replace(/[.\s]+$/u, ""),
@@ -544,7 +649,9 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
     expected: expectedResults,
     guideExpected: guideExpectedResults(expectedResults, guidance.creationTarget),
     features: commentValues(comments, "FEATURE"),
-    links: parsedLinks(comments),
+    links,
+    ...xml.attributes,
+    xmlRequires: xml.requires,
     metadata: entries.map(({ tag, qualifier, text }) => ({
       tag: canonicalTag(tag) ?? tag,
       qualifier,

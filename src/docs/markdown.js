@@ -22,7 +22,9 @@ const LINK_SECTIONS = [
 
 function linkedGuide(target, catalog) {
   const scenario = catalog?.get(target);
-  return scenario ? `[${scenario.value.title}](./${target}.md)` : `**${target}**`;
+  return scenario
+    ? `[${scenario.value.title}](./${scenario.value.filename ?? `${target}.md`})`
+    : `**${target}**`;
 }
 
 export function renderDocumentation(source, options = {}) {

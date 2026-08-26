@@ -51,6 +51,29 @@ function requiresCycles(scenarios, byId) {
   return cycles;
 }
 
+function resolveLocalReferences(scenarios) {
+  const byId = new Map(scenarios.map((scenario) => [scenario.value.id, scenario]));
+  const procedures = new Map();
+  for (const scenario of scenarios) {
+    const key = scenario.value.procedure.toLocaleLowerCase("en-US");
+    const candidates = procedures.get(key) ?? [];
+    candidates.push(scenario);
+    procedures.set(key, candidates);
+  }
+  for (const scenario of scenarios) {
+    scenario.value.links = Object.fromEntries(
+      Object.entries(scenario.value.links).map(([relation, targets]) => [
+        relation,
+        [...new Set(targets.map((target) => {
+          if (byId.has(target)) return target;
+          const candidates = procedures.get(target.toLocaleLowerCase("en-US")) ?? [];
+          return candidates.length === 1 ? candidates[0].value.id : target;
+        }))]
+      ])
+    );
+  }
+}
+
 export function validateCorpus(scenarios) {
   const diagnostics = scenarios.flatMap((scenario) =>
     scenario.value.diagnostics.map((item) => ({
@@ -124,6 +147,7 @@ export async function loadCorpus(input) {
     .sort((left, right) =>
       left.value.id.localeCompare(right.value.id) || left.reference.localeCompare(right.reference)
     );
+  resolveLocalReferences(scenarios);
   const validation = validateCorpus(scenarios);
   return {
     root,

@@ -314,6 +314,8 @@ terminal output and HTTP transport; BC Atlas does not create scenario JSON.
 | `docs show` | Show one scenario selected by `--id`. |
 | `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
 | `docs generate` | Generate one scenario or a complete Markdown catalog. |
+| `docs metadata` | Write the package metadata manifest without generating guides. |
+| `docs package` | Generate a validated UI documentation package. |
 | `docs automation` | Generate a checked CLI workflow for GitHub Actions or Azure Pipelines. |
 | `docs set` | Add or replace AL documentation metadata. |
 | `docs unset` | Remove matching AL documentation metadata. |
@@ -332,6 +334,10 @@ Common documentation options:
 | `--qualifier` | type | Typed `[GIVEN]` qualifier. |
 | `--expected-hash` | SHA-256 | Rejects a mutation when the AL file changed after reading. |
 | `--dry-run` | flag | Plans a mutation without writing AL. |
+| `--check` | flag | Checks package output without writing changes. |
+| `--commit` | SHA | Records an explicitly supplied commit in package metadata. |
+| `--output` | path | Writes the metadata manifest to this file. |
+| `--zip` | path | Writes a deterministic ZIP archive of the package. |
 | `--port` | integer | Port for `serve`; the default chooses an available port. |
 | `--provider` | `github` or `azure-devops` | Selects the pipeline format for `automation`. |
 

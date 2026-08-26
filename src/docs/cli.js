@@ -6,6 +6,11 @@ import { writeCorpusDocumentation, writeDocumentation } from "./markdown.js";
 import { loadCorpus, scenarioSummary } from "./model.js";
 import { documentationGlossary } from "./tags.js";
 import { planMetadataEdit, writeMetadataEdit } from "./al-ui-writer.js";
+import {
+  guidePolicyDiagnostics,
+  writeDocumentationMetadata,
+  writeDocumentationPackage
+} from "./package.js";
 import { startDocsServer } from "./server.js";
 
 const HELP = `BC Atlas docs - documentation from AL UI tests
@@ -15,6 +20,8 @@ Usage:
   bca docs show [options] <file-or-directory>
   bca docs validate [options] <file-or-directory>
   bca docs generate [options] <file-or-directory>
+  bca docs metadata [options] <file-or-directory>
+  bca docs package [options] <file-or-directory>
   bca docs set [options] <file-or-directory>
   bca docs unset [options] <file-or-directory>
   bca docs automation [options] <file-or-directory>
@@ -25,12 +32,16 @@ Options:
       --procedure <name>     [Test] procedure to document
       --id <document-id>     Select a scenario by stable document ID
       --output-dir <path>    Markdown output directory (default: docs/generated)
+      --output <file>        Metadata output file
+      --zip <file>           Deterministic package archive
       --format <format>      text or json (default: text)
       --tag <tag>            Documentation tag to set or unset
       --value <value>        Tag value
       --qualifier <type>     GIVEN prerequisite type
       --expected-hash <hash> Reject writes if the AL file has changed
       --dry-run              Preview without writing the AL file
+      --check                Verify generated output without writing
+      --commit <sha>         Commit or build SHA recorded in metadata
       --port <number>        Local server port (default: available port)
       --provider <name>      github or azure-devops (default: github)
       --strict               Fail validation on warnings as well as errors
@@ -41,12 +52,16 @@ const OPTIONS = {
   procedure: { type: "string" },
   id: { type: "string" },
   "output-dir": { type: "string" },
+  output: { type: "string" },
+  zip: { type: "string" },
   format: { type: "string" },
   tag: { type: "string" },
   value: { type: "string" },
   qualifier: { type: "string" },
   "expected-hash": { type: "string" },
   "dry-run": { type: "boolean" },
+  check: { type: "boolean" },
+  commit: { type: "string" },
   port: { type: "string" },
   provider: { type: "string" },
   strict: { type: "boolean" },
@@ -109,6 +124,7 @@ async function showCommand(input, values) {
 
 async function validateCommand(input, values) {
   const corpus = await loadCorpus(input);
+  corpus.diagnostics.push(...guidePolicyDiagnostics(corpus.scenarios));
   if (outputFormat(values) === "json") printJson(corpus.diagnostics);
   else if (!corpus.diagnostics.length) console.log("Documentation corpus is valid.");
   else for (const item of corpus.diagnostics) {
@@ -136,6 +152,39 @@ async function generateCommand(input, values) {
   for (const filename of files) {
     console.log(`wrote ${path.relative(process.cwd(), filename).replaceAll("\\", "/")}`);
   }
+}
+
+async function packageCommand(input, values) {
+  const result = await writeDocumentationPackage(input, values["output-dir"], {
+    strict: values.strict,
+    check: values.check,
+    commit: values.commit,
+    zip: values.zip
+  });
+  for (const item of result.corpus.diagnostics) {
+    console.error(`${item.severity}: ${item.code}: ${item.message}`);
+  }
+  if (outputFormat(values) === "json") return printJson({
+    outputDirectory: result.outputDirectory,
+    files: result.files,
+    checked: result.checked,
+    zip: result.zip
+  });
+  if (result.checked) return console.log("documentation package is current");
+  for (const filename of result.files) console.log(`wrote ${filename}`);
+  if (result.zip) console.log(`wrote ${result.zip}`);
+}
+
+async function metadataCommand(input, values) {
+  const result = await writeDocumentationMetadata(input, values.output, {
+    strict: values.strict,
+    commit: values.commit
+  });
+  for (const item of result.corpus.diagnostics) {
+    console.error(`${item.severity}: ${item.code}: ${item.message}`);
+  }
+  if (outputFormat(values) === "json") return printJson({ output: result.output });
+  console.log(`wrote ${path.relative(process.cwd(), result.output).replaceAll("\\", "/")}`);
 }
 
 function glossaryCommand(values) {
@@ -212,6 +261,8 @@ export async function docsMain(args) {
   if (command === "show") return operation(() => showCommand(positionals[0], values));
   if (command === "validate") return operation(() => validateCommand(positionals[0], values));
   if (command === "generate") return operation(() => generateCommand(positionals[0], values));
+  if (command === "metadata") return operation(() => metadataCommand(positionals[0], values));
+  if (command === "package") return operation(() => packageCommand(positionals[0], values));
   if (command === "automation") return operation(() => automationCommand(positionals[0], values));
   if (command === "set") return operation(() => mutationCommand(positionals[0], values, false));
   if (command === "unset") return operation(() => mutationCommand(positionals[0], values, true));
