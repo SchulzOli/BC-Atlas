@@ -61,7 +61,7 @@
     "dompurify": "^3.4.13",
     "fflate": "^0.8.3",
     "marked": "^18.0.9",
-    "web-tree-sitter": "^0.25.10",
+    "web-tree-sitter": "^0.26.13",
     "zod": "^4.4.3"
   },
   "devDependencies": {
