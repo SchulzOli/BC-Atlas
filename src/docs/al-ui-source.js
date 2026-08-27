@@ -632,11 +632,13 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
   const identity = documentIdentity(comments, selected[1], diagnostics);
   const links = parsedLinks(comments);
   links.requires = uniqueValues([...links.requires, ...xml.requires]);
+  const creationTitle = guideSections.length === 1 ? guidance.title : undefined;
+  const creationGoal = guideSections.length === 1 ? guidance.goal : undefined;
   return {
     ...identity,
-    title: guidance.title ?? goal.replace(/[.\s]+$/u, ""),
+    title: creationTitle ?? goal.replace(/[.\s]+$/u, ""),
     goal,
-    guideGoal: guidance.goal ?? goal,
+    guideGoal: creationGoal ?? goal,
     guideSteps: guidance.steps,
     guideSections,
     expandedHelpers: expanded.expanded,

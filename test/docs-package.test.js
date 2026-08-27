@@ -132,6 +132,7 @@ test("docs package writes procedure-named guides with calculated IDs and traceab
     assert.match(guide, /^sourceFile: "UITests\.al"$/mu);
     assert.match(guide, /^procedure: "ConfigureWidget"$/mu);
     assert.match(guide, new RegExp(`^sourceSha256: "${sourceSha256}"$`, "mu"));
+    assert.doesNotMatch(guide, /Source and verification/u);
 
     const index = readFileSync(path.join(output, "index.md"), "utf8");
     assert.equal((index.match(/\.\/ConfigureWidget\.md/gu) ?? []).length, 1);

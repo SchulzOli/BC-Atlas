@@ -144,6 +144,29 @@ test("keeps the scenario title when the workflow creates different record types"
   }
 });
 
+test("keeps the scenario title for a multi-phase workflow with one creation target", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "CatalogImportUITest.Codeunit.al");
+  try {
+    writeFileSync(filename, AL_UI_TEST
+      .replace("Creating a widget from the Widgets list persists its general fields.",
+        "Process a provider catalog and create new item master data.")
+      .replace("        // [THEN] The widget persists with its code and name.", [
+        "        // [WHEN] The user processes the uploaded catalog.",
+        "        Widgets.OpenView();",
+        "",
+        "        // [THEN] New item master data exists."
+      ].join("\n")));
+
+    const source = await loadAlUiTest(filename);
+
+    assert.equal(source.value.title, "Process a provider catalog and create new item master data");
+    assert.equal(source.value.guideGoal, "Process a provider catalog and create new item master data.");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("requires a procedure when an AL file contains multiple tests", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
   const filename = path.join(directory, "WidgetUITest.Codeunit.al");

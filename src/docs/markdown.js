@@ -91,17 +91,19 @@ export function renderDocumentation(source, options = {}) {
       ), "");
     }
   }
-  lines.push(
-    "<details>",
-    "<summary>Source and verification</summary>",
-    "",
-    `- File: \`${sourceFile}\``,
-    `- Function: \`${value.procedure}\``,
-    `- Source SHA-256: \`${value.sourceHash}\``,
-    "",
-    "</details>",
-    ""
-  );
+  if (options.sourceVerification !== false) {
+    lines.push(
+      "<details>",
+      "<summary>Source and verification</summary>",
+      "",
+      `- File: \`${sourceFile}\``,
+      `- Function: \`${value.procedure}\``,
+      `- Source SHA-256: \`${value.sourceHash}\``,
+      "",
+      "</details>",
+      ""
+    );
+  }
   return lines.join("\n");
 }
 
