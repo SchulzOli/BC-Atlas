@@ -441,6 +441,26 @@ test("sets and unsets metadata without changing executable AL", async () => {
   }
 });
 
+test("rejects a stale metadata edit without overwriting external changes", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "WidgetUITest.Codeunit.al");
+  try {
+    writeFileSync(filename, AL_UI_TEST);
+    const corpus = await loadCorpus(directory);
+    const plan = await planMetadataEdit(directory, corpus.scenarios[0].value.id, {
+      tag: "DOC-ID",
+      value: "widget-create"
+    });
+    writeFileSync(filename, `${readFileSync(filename, "utf8")}\n// external edit\n`);
+
+    await assert.rejects(writeMetadataEdit(plan), /source changed.*reload before saving/u);
+    assert.match(readFileSync(filename, "utf8"), /external edit/u);
+    assert.doesNotMatch(readFileSync(filename, "utf8"), /\[DOC-ID\] widget-create/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("serves and mutates the same AL-backed documentation model", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
   let server;
@@ -450,9 +470,35 @@ test("serves and mutates the same AL-backed documentation model", async () => {
     server = started.server;
     const run = (body) => fetch(`${started.url}/api/commands`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-bc-atlas-session": started.token
+      },
       body: JSON.stringify(body)
     });
+
+    const rejectedOrigin = await fetch(`${started.url}/api/commands`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "origin": "https://example.invalid",
+        "x-bc-atlas-session": started.token
+      },
+      body: JSON.stringify({ command: "list" })
+    });
+    assert.equal(rejectedOrigin.status, 403);
+    const rejectedContentType = await fetch(`${started.url}/api/commands`, {
+      method: "POST",
+      headers: { "x-bc-atlas-session": started.token, "content-type": "text/plain" },
+      body: JSON.stringify({ command: "list" })
+    });
+    assert.equal(rejectedContentType.status, 415);
+    const rejectedToken = await fetch(`${started.url}/api/commands`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ command: "list" })
+    });
+    assert.equal(rejectedToken.status, 403);
     const scenarios = await (await run({ command: "list" })).json();
     assert.equal(scenarios.length, 1);
 
@@ -499,7 +545,10 @@ test("controls documentation CLI operations through the web API", async () => {
     const run = async (body) => {
       const response = await fetch(`${started.url}/api/commands`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-bc-atlas-session": started.token
+        },
         body: JSON.stringify(body)
       });
       assert.equal(response.status, 200);
@@ -511,25 +560,26 @@ test("controls documentation CLI operations through the web API", async () => {
     const commands = await (await fetch(`${started.url}/api/commands`)).json();
     assert.ok(!commands.includes("graph"));
     assert.deepEqual(await run({ command: "validate" }), []);
-    const automation = await run({ command: "automation", provider: "github" });
+    const automation = await run({ command: "automation", provider: "github", inputPath: "." });
     assert.equal(automation.provider, "github");
-    assert.equal(automation.ready, false);
+    assert.equal(automation.ready, true);
     assert.ok(automation.commands[0].includes(`'${automation.inputPath}'`));
-    assert.match(automation.pipeline.content, /bca docs validate '\.' --strict/u);
-    assert.ok(!automation.pipeline.content.includes(`'${automation.inputPath}'`));
-    assert.match(automation.pipeline.content, /bca docs validate/u);
-    assert.match(automation.pipeline.content, /git diff --exit-code/u);
+    assert.ok(automation.pipeline.content.includes(`'${automation.inputPath}'`));
+    assert.match(automation.pipeline.content, /bca docs package .* --check --strict/u);
+    assert.doesNotMatch(automation.pipeline.content, /git diff/u);
     const glossary = await run({ command: "glossary" });
     assert.ok(glossary.length > 0);
     assert.ok(glossary.every(({ description }) => description.length > 0));
     assert.equal((await fetch(`${started.url}/api/scenarios`)).status, 404);
 
     const before = readFileSync(filename, "utf8");
+    const selected = await run({ command: "show", id: listed[0].id });
     const dryRun = await run({
       command: "set",
       id: listed[0].id,
       tag: "DOC-ID",
       value: "widget-web-command",
+      expectedFileHash: selected.fileHash,
       dryRun: true
     });
     assert.equal(dryRun.written, false);
@@ -562,7 +612,10 @@ test("serves architecture diagrams through the shared command API", async () => 
 
     const response = await fetch(`${started.url}/api/commands`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-bc-atlas-session": started.token
+      },
       body: JSON.stringify({ command: "graph", view: "ui" })
     });
     assert.equal(response.status, 200);
@@ -612,6 +665,29 @@ test("docs CLI exposes pipe-safe JSON reads and dry-run mutations", () => {
     assert.equal(plan.provider, "azure-devops");
     assert.match(plan.pipeline.content, /NodeTool@0/u);
     assert.equal(plan.checks.scenarios, 1);
+
+    const generatedDirectory = path.join(directory, "generated");
+    const generated = spawnSync(process.execPath, [
+      cli, "docs", "generate", path.join(directory, "WidgetUITest.Codeunit.al"),
+      "--procedure", scenarios[0].procedure,
+      "--output-dir", generatedDirectory,
+      "--format", "json"
+    ], { encoding: "utf8" });
+    assert.equal(generated.status, 0, generated.stderr);
+    assert.equal(JSON.parse(generated.stdout).length, 1);
+
+    for (const args of [
+      ["--check"],
+      ["--format", "xml"],
+      ["--procedure", scenarios[0].procedure, "--id", scenarios[0].id]
+    ]) {
+      const rejectedOutput = path.join(directory, `rejected-${args.length}-${args[0].slice(2)}`);
+      const rejected = spawnSync(process.execPath, [
+        cli, "docs", "generate", directory, "--output-dir", rejectedOutput, ...args
+      ], { encoding: "utf8" });
+      assert.equal(rejected.status, 2, rejected.stderr);
+      assert.equal(existsSync(rejectedOutput), false);
+    }
 
     const dryRun = spawnSync(process.execPath, [
       cli, "docs", "set", directory,

@@ -1,6 +1,9 @@
 import DOMPurify from "/assets/dompurify.js";
 import { marked } from "/assets/marked.js";
 
+const sessionToken = new URLSearchParams(location.hash.slice(1)).get("session");
+history.replaceState(null, "", `${location.pathname}${location.search}`);
+
 const state = {
   scenarios: [],
   diagnostics: [],
@@ -22,7 +25,10 @@ const elements = Object.fromEntries(
 async function api(body) {
   const response = await fetch("/api/commands", body ? {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "x-bc-atlas-session": sessionToken
+    },
     body: JSON.stringify(body)
   } : undefined);
   const value = await response.json();

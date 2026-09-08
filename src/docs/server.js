@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { createArchitectureModel } from "../architecture.js";
 import { renderD2 } from "../d2.js";
@@ -26,6 +27,27 @@ const CONTENT_TYPES = {
 function sendJson(response, status, value) {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   response.end(`${JSON.stringify(value)}\n`);
+}
+
+function isWithin(parent, child) {
+  const relative = path.relative(parent, child);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+async function canonicalPath(filename) {
+  let current = path.resolve(filename);
+  const missing = [];
+  while (true) {
+    try {
+      return path.join(await fs.realpath(current), ...missing.reverse());
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return path.resolve(filename);
+    missing.push(path.basename(current));
+    current = parent;
+  }
 }
 
 async function requestJson(request) {
@@ -54,7 +76,7 @@ function scenarioDetails(scenario, corpus) {
 
 const DOC_COMMANDS = ["list", "show", "validate", "generate", "set", "unset", "glossary", "automation"];
 
-async function executeCommand(root, body, defaults = {}, appRoot) {
+async function executeCommand(root, body, defaults = {}, appRoot, exportRoot = root) {
   const commands = appRoot ? [...DOC_COMMANDS, "graph"] : DOC_COMMANDS;
   if (!commands.includes(body.command)) throw new Error(`unsupported command: ${body.command}`);
   if (body.command === "graph") {
@@ -109,7 +131,15 @@ async function executeCommand(root, body, defaults = {}, appRoot) {
     });
   }
   if (body.command === "generate") {
-    const files = await writeCorpusDocumentation(corpus, body.outputDirectory);
+    const outputDirectory = path.resolve(exportRoot, body.outputDirectory ?? "docs/generated");
+    const [canonicalRoot, canonicalOutput] = await Promise.all([
+      canonicalPath(exportRoot),
+      canonicalPath(outputDirectory)
+    ]);
+    if (!isWithin(canonicalRoot, canonicalOutput)) {
+      throw new Error(`output directory must be within ${exportRoot}`);
+    }
+    const files = await writeCorpusDocumentation(corpus, outputDirectory);
     return { files };
   }
 
@@ -118,6 +148,7 @@ async function executeCommand(root, body, defaults = {}, appRoot) {
   if (!scenario) throw new Error(`document ID "${body.id}" was not found`);
   if (body.command === "show") return scenarioDetails(scenario, corpus);
   if (!body.tag) throw new Error("tag is required");
+  if (!body.expectedFileHash) throw new Error("expectedFileHash is required for AL mutations");
 
   const plan = await planMetadataEdit(root, body.id, {
     tag: body.tag,
@@ -138,15 +169,27 @@ async function executeCommand(root, body, defaults = {}, appRoot) {
   };
 }
 
-async function apiResponse(request, response, pathname, root, defaults, appRoot) {
+async function apiResponse(request, response, pathname, root, defaults, appRoot, security) {
   if (request.method === "GET" && pathname === "/api/commands") {
     return sendJson(response, 200, appRoot ? [...DOC_COMMANDS, "graph"] : DOC_COMMANDS);
   }
   if (request.method === "POST" && pathname === "/api/commands") {
+    if (!security.hosts.has(request.headers.host)) {
+      return sendJson(response, 403, { error: "host is not allowed" });
+    }
+    if (request.headers.origin && !security.origins.has(request.headers.origin)) {
+      return sendJson(response, 403, { error: "origin is not allowed" });
+    }
+    if (request.headers["content-type"]?.split(";", 1)[0].trim().toLowerCase() !== "application/json") {
+      return sendJson(response, 415, { error: "content-type must be application/json" });
+    }
+    if (request.headers["x-bc-atlas-session"] !== security.token) {
+      return sendJson(response, 403, { error: "valid session token is required" });
+    }
     return sendJson(
       response,
       200,
-      await executeCommand(root, await requestJson(request), defaults, appRoot)
+      await executeCommand(root, await requestJson(request), defaults, appRoot, security.exportRoot)
     );
   }
   return sendJson(response, 404, { error: "API route not found" });
@@ -179,12 +222,15 @@ async function staticResponse(response, pathname) {
 export async function startDocsServer(root, options = {}) {
   const resolvedRoot = path.resolve(root);
   const appRoot = options.appRoot ? path.resolve(options.appRoot) : undefined;
+  const exportRoot = path.resolve(options.exportRoot ?? appRoot ?? resolvedRoot);
+  const token = randomUUID();
   const inputPath = path.relative(process.cwd(), resolvedRoot).replaceAll("\\", "/") || ".";
+  let security;
   const server = http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, "http://127.0.0.1");
       if (url.pathname.startsWith("/api/")) {
-        await apiResponse(request, response, url.pathname, resolvedRoot, { inputPath }, appRoot);
+        await apiResponse(request, response, url.pathname, resolvedRoot, { inputPath }, appRoot, security);
       } else {
         await staticResponse(response, url.pathname);
       }
@@ -197,5 +243,17 @@ export async function startDocsServer(root, options = {}) {
     server.listen(options.port ?? 0, "127.0.0.1", resolve);
   });
   const { port } = server.address();
-  return { server, url: `http://127.0.0.1:${port}` };
+  const origin = `http://127.0.0.1:${port}`;
+  security = {
+    token,
+    exportRoot,
+    hosts: new Set([`127.0.0.1:${port}`, `localhost:${port}`]),
+    origins: new Set([origin, `http://localhost:${port}`])
+  };
+  return {
+    server,
+    token,
+    url: origin,
+    browserUrl: `${origin}/#session=${encodeURIComponent(token)}`
+  };
 }

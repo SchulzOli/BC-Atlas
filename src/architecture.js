@@ -115,12 +115,6 @@ export async function createArchitectureModel(input, values = {}) {
   const seriousDiagnostics = model.diagnostics.filter(
     ({ severity }) => severity === "error" || severity === "warning"
   );
-  if (options.strict && seriousDiagnostics.length) {
-    throw new Error(
-      `${seriousDiagnostics.length} diagnostic(s) in strict mode; run inspect for details`
-    );
-  }
-
   return {
     model,
     options,

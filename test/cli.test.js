@@ -96,6 +96,26 @@ test("codegraph mirrors source folders and uses type folders for root objects", 
     assert.match(readFileSync(path.join(output, "report", "50103-customerreport.md"), "utf8"), /## Dataitems[\s\S]*## Columns/u);
     assert.match(readFileSync(path.join(output, "query", "50104-customerquery.md"), "utf8"), /## Filters/u);
     assert.match(readFileSync(path.join(output, "xmlport", "50105-customerport.md"), "utf8"), /## Schema/u);
+
+    writeFileSync(path.join(output, "handwritten.md"), "keep me\n");
+    rmSync(path.join(directory, "Structures.al"));
+    const second = spawnSync(
+      process.execPath,
+      [cli, "codegraph", directory, "--output-dir", output],
+      { encoding: "utf8" }
+    );
+    assert.equal(second.status, 0, second.stderr);
+    assert.equal(readFileSync(path.join(output, "handwritten.md"), "utf8"), "keep me\n");
+    assert.equal(existsSync(path.join(output, "enum", "50102-choice.md")), false);
+
+    const unsafe = spawnSync(
+      process.execPath,
+      [cli, "codegraph", directory, "--output-dir", directory],
+      { encoding: "utf8" }
+    );
+    assert.equal(unsafe.status, 1);
+    assert.match(unsafe.stderr, /must not be the source/u);
+    assert.ok(existsSync(path.join(directory, "Root.al")));
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

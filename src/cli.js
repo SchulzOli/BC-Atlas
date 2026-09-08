@@ -144,6 +144,74 @@ const OPTIONS = {
   version: { type: "boolean", short: "V" }
 };
 
+const ANALYSIS_OPTIONS = [
+  "view", "entry", "object", "object-inbound-depth", "object-outbound-depth", "members",
+  "scope", "focus", "project-root", "namespace", "type", "include", "exclude", "group-by",
+  "module-depth", "folder-depth", "include-unresolved-calls", "root-procedure", "call-depth",
+  "call-direction", "expand-procedures", "expand-framework-calls", "workflow-depth",
+  "workflow-max-nodes", "workflow-edge-types", "max-edges", "direction", "title", "source-url",
+  "source-ref", "source-path-prefix", "no-legend", "details", "no-external", "config", "strict"
+];
+const COMMAND_OPTIONS = {
+  graph: [...ANALYSIS_OPTIONS, "output", "format"],
+  inspect: [...ANALYSIS_OPTIONS, "output", "format"],
+  codegraph: [
+    "output-dir", "project-root", "namespace", "type", "include", "exclude", "config", "strict",
+    "source-url", "source-ref", "source-path-prefix"
+  ],
+  watch: [...ANALYSIS_OPTIONS, "output", "format", "debounce"],
+  serve: ["tests", "port"]
+};
+
+function validateChoice(value, name, choices) {
+  if (value !== undefined && !choices.includes(String(value).toLowerCase())) {
+    throw new Error(`unsupported ${name}: ${value}`);
+  }
+}
+
+function validatePositive(value, name) {
+  if (value !== undefined) positiveInteger(value, name);
+}
+
+function validateCommandOptions(command, values) {
+  const allowed = COMMAND_OPTIONS[command];
+  const unexpected = Object.keys(values).filter((name) =>
+    !["help", "version"].includes(name) && values[name] !== undefined && !allowed.includes(name)
+  );
+  if (unexpected.length) throw new Error(`${command} does not support --${unexpected[0]}`);
+  validateChoice(values.format, "format", ["d2", "json", "svg", "png", "pdf"]);
+  if (command === "inspect" && values.format && values.format.toLowerCase() !== "json") {
+    throw new Error("inspect supports only --format json");
+  }
+  validateChoice(values.view, "view", [
+    "project", "module", "object", "data", "call", "boundary", "contracts", "events", "ui", "workflow"
+  ]);
+  validateChoice(values.direction, "direction", ["right", "down", "left", "up"]);
+  validateChoice(values["group-by"], "group-by mode", ["namespace", "folder", "type", "role"]);
+  validateChoice(values["call-direction"], "call direction", ["incoming", "outgoing", "both"]);
+  for (const name of [
+    "object-inbound-depth", "object-outbound-depth", "folder-depth", "call-depth", "workflow-depth",
+    "workflow-max-nodes", "max-edges", "debounce"
+  ]) validatePositive(values[name], name);
+  if (values["module-depth"] !== undefined && values["module-depth"] !== "auto") {
+    validatePositive(values["module-depth"], "module-depth");
+  }
+  const members = values.members?.split(",").map((value) => value.trim()).filter(Boolean) ?? [];
+  const invalidMembers = members.filter((value) =>
+    !["fields", "actions", "triggers", "events", "procedures"].includes(value)
+  );
+  if (invalidMembers.length) throw new Error(`unsupported member categories: ${invalidMembers.join(", ")}`);
+  const edgeTypes = values["workflow-edge-types"]?.split(",").map((value) => value.trim()).filter(Boolean) ?? [];
+  const invalidEdgeTypes = edgeTypes.filter((value) => !["calls", "events", "writes", "reads"].includes(value));
+  if (invalidEdgeTypes.length) throw new Error(`unsupported workflow edge types: ${invalidEdgeTypes.join(", ")}`);
+  if (values.port !== undefined) {
+    const port = Number(values.port);
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+      throw new Error("--port must be an integer from 0 to 65535");
+    }
+  }
+}
+
 function fail(message, code = 1) {
   console.error(`bca: ${message}`);
   process.exitCode = code;
@@ -193,7 +261,7 @@ function outputPaths(options, command) {
       ? undefined
       : path.resolve(`bc-atlas.${format}`)
   );
-  if (finalOutput && options.format && inferred !== format) {
+  if (requested && options.format && inferred !== format) {
     finalOutput = inferred
       ? finalOutput.slice(0, -path.extname(finalOutput).length) + `.${format}`
       : `${finalOutput}.${format}`;
@@ -209,6 +277,22 @@ async function build(input, command, cliValues, quiet = false) {
   const { model, options, view, seriousDiagnostics, renderOptions } = architecture;
 
   const paths = outputPaths(options, command);
+  if (options.strict && seriousDiagnostics.length) {
+    if (paths.format === "json" && !paths.finalOutput) {
+      process.stdout.write(`${JSON.stringify(model, null, 2)}\n`);
+    }
+    const details = seriousDiagnostics.map((diagnostic) => [
+      diagnostic.file,
+      diagnostic.location?.line,
+      diagnostic.code,
+      diagnostic.message
+    ].filter((value) => value !== undefined).join(":"));
+    const error = new Error(
+      `${seriousDiagnostics.length} diagnostic(s) in strict mode:\n${details.join("\n")}`
+    );
+    error.exitCode = 1;
+    throw error;
+  }
   if (paths.format === "json") {
     const json = JSON.stringify(model, null, 2) + "\n";
     if (paths.finalOutput) {
@@ -235,12 +319,13 @@ async function build(input, command, cliValues, quiet = false) {
     const warnings = seriousDiagnostics.length
       ? `, ${seriousDiagnostics.length} diagnostic(s)`
       : "";
-    console.log(
+    const log = paths.format === "json" ? console.error : console.log;
+    log(
       `Analyzed ${model.files} file(s); ${model.objects.length} ${view} node(s), ${model.edges.length} edge(s)${warnings}.`
     );
-    if (paths.finalOutput) console.log(`Wrote ${paths.finalOutput}`);
+    if (paths.finalOutput) log(`Wrote ${paths.finalOutput}`);
     if (paths.format !== "d2" && paths.format !== "json") {
-      console.log(`Kept D2 source at ${paths.d2Output}`);
+      log(`Kept D2 source at ${paths.d2Output}`);
     }
   }
   return { model, paths, options };
@@ -295,8 +380,8 @@ async function serve(input, values) {
     error.exitCode = 2;
     throw error;
   }
-  const { url } = await startDocsServer(values.tests, { appRoot: input, port });
-  console.log(`BC Atlas Control Center: ${url}`);
+  const { browserUrl } = await startDocsServer(values.tests, { appRoot: input, port });
+  console.log(`BC Atlas Control Center: ${browserUrl}`);
 }
 
 async function codegraph(input, values) {
@@ -329,6 +414,7 @@ async function main() {
     console.log(HELP);
     throw new Error("expected exactly one AL file or project directory");
   }
+  validateCommandOptions(command, values);
   if (command === "watch") return operation(() => watch(positionals[0], values));
   if (command === "serve") return operation(() => serve(positionals[0], values));
   if (command === "codegraph") return operation(() => codegraph(positionals[0], values));

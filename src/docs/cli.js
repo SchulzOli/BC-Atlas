@@ -68,6 +68,20 @@ const OPTIONS = {
   help: { type: "boolean", short: "h" }
 };
 
+const COMMAND_OPTIONS = {
+  list: ["format"],
+  show: ["id", "format"],
+  validate: ["format", "strict"],
+  generate: ["procedure", "id", "output-dir", "format"],
+  metadata: ["output", "format", "strict", "commit"],
+  package: ["output-dir", "zip", "format", "strict", "check", "commit"],
+  set: ["id", "tag", "value", "qualifier", "expected-hash", "dry-run", "format"],
+  unset: ["id", "tag", "value", "qualifier", "expected-hash", "dry-run", "format"],
+  automation: ["output-dir", "provider", "format"],
+  glossary: ["format"],
+  serve: ["port"]
+};
+
 function printJson(value) {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
@@ -76,6 +90,27 @@ function outputFormat(values) {
   const format = values.format ?? "text";
   if (!["text", "json"].includes(format)) throw new Error(`unsupported docs format: ${format}`);
   return format;
+}
+
+function validateCommandOptions(command, values) {
+  const allowed = COMMAND_OPTIONS[command];
+  if (!allowed) throw new Error(`unknown docs command: ${command}`);
+  const unexpected = Object.keys(values).filter((name) =>
+    name !== "help" && values[name] !== undefined && !allowed.includes(name)
+  );
+  if (unexpected.length) throw new Error(`docs ${command} does not support --${unexpected[0]}`);
+  outputFormat(values);
+  if (values.procedure && values.id) throw new Error("--procedure and --id cannot be used together");
+  if (command === "metadata" && !values.output) throw new Error("--output is required for docs metadata");
+  if (values.provider && !["github", "azure-devops"].includes(values.provider)) {
+    throw new Error(`unsupported automation provider: ${values.provider}`);
+  }
+  if (values.port !== undefined) {
+    const port = Number(values.port);
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+      throw new Error("--port must be an integer from 0 to 65535");
+    }
+  }
 }
 
 async function operation(action) {
@@ -137,6 +172,7 @@ async function generateCommand(input, values) {
   if (values.procedure) {
     const source = await loadAlUiTest(input, { procedure: values.procedure });
     const filename = await writeDocumentation(source, values["output-dir"]);
+    if (outputFormat(values) === "json") return printJson([filename]);
     return console.log(`wrote ${path.relative(process.cwd(), filename).replaceAll("\\", "/")}`);
   }
   const corpus = await loadCorpus(input);
@@ -145,6 +181,7 @@ async function generateCommand(input, values) {
     const filename = await writeDocumentation(scenario, values["output-dir"], {
       catalog: corpus.byId
     });
+    if (outputFormat(values) === "json") return printJson([filename]);
     return console.log(`wrote ${path.relative(process.cwd(), filename).replaceAll("\\", "/")}`);
   }
   const files = await writeCorpusDocumentation(corpus, values["output-dir"]);
@@ -231,11 +268,8 @@ async function mutationCommand(input, values, remove) {
 
 async function serveCommand(input, values) {
   const port = values.port === undefined ? 0 : Number(values.port);
-  if (!Number.isInteger(port) || port < 0 || port > 65535) {
-    throw new Error("--port must be an integer from 0 to 65535");
-  }
-  const { url } = await startDocsServer(input, { port });
-  console.log(url);
+  const { browserUrl } = await startDocsServer(input, { port });
+  console.log(browserUrl);
 }
 
 export async function docsMain(args) {
@@ -248,6 +282,7 @@ export async function docsMain(args) {
     options: OPTIONS
   });
   if (values.help || !command) return console.log(HELP);
+  validateCommandOptions(command, values);
   if (command === "glossary") {
     if (positionals.length) throw new Error("docs glossary does not accept an input path");
     return glossaryCommand(values);
@@ -267,7 +302,6 @@ export async function docsMain(args) {
   if (command === "set") return operation(() => mutationCommand(positionals[0], values, false));
   if (command === "unset") return operation(() => mutationCommand(positionals[0], values, true));
   if (command === "serve") return operation(() => serveCommand(positionals[0], values));
-  throw new Error(`unknown docs command: ${command}`);
 }
 
 export { HELP as DOCS_HELP };

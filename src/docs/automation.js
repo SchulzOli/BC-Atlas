@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 
 const PROVIDERS = {
   github: {
@@ -22,11 +23,29 @@ async function packageVersion() {
   return packageJson.version;
 }
 
+function isWithin(parent, child) {
+  const relative = path.relative(parent, child);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function checkoutPath(value, name, checkoutRoot) {
+  const absolute = path.resolve(checkoutRoot, value);
+  const relative = path.relative(checkoutRoot, absolute).replaceAll("\\", "/") || ".";
+  if (relative === ".." || relative.startsWith("../")) {
+    throw new Error(`${name} must be inside the checkout: ${value}`);
+  }
+  return relative;
+}
+
+function localCommands(inputPath, outputDirectory) {
+  return [
+    `bca docs package ${shellArgument(inputPath)} --output-dir ${shellArgument(outputDirectory)} --strict`
+  ];
+}
+
 function pipelineCommands(inputPath, outputDirectory) {
   return [
-    `bca docs validate ${shellArgument(inputPath)} --strict`,
-    `bca docs generate ${shellArgument(inputPath)} --output-dir ${shellArgument(outputDirectory)}`,
-    `git diff --exit-code -- ${shellArgument(outputDirectory)}`
+    `bca docs package ${shellArgument(inputPath)} --output-dir ${shellArgument(outputDirectory)} --check --strict`
   ];
 }
 
@@ -70,7 +89,7 @@ steps:
       versionSpec: 20.x
   - script: npm install --global bc-atlas@${version}
     displayName: Install BC Atlas
-${commands.map((command, index) => `  - script: ${command}\n    displayName: ${["Validate documentation", "Generate Markdown", "Verify generated files"][index]}`).join("\n")}
+${commands.map((command) => `  - script: ${command}\n    displayName: Verify documentation package`).join("\n")}
 `;
 }
 
@@ -79,10 +98,20 @@ export async function createAutomationPlan(corpus, options = {}) {
   const definition = PROVIDERS[provider];
   if (!definition) throw new Error(`unsupported automation provider: ${provider}`);
 
-  const inputPath = options.inputPath ?? ".";
-  const outputDirectory = options.outputDirectory ?? "docs/generated";
-  const commands = pipelineCommands(inputPath, outputDirectory);
-  const ciCommands = pipelineCommands(".", outputDirectory);
+  const requestedInput = options.inputPath ?? ".";
+  const absoluteInput = path.resolve(requestedInput);
+  const inputRoot = path.extname(absoluteInput).toLowerCase() === ".al"
+    ? path.dirname(absoluteInput)
+    : absoluteInput;
+  const checkoutRoot = isWithin(process.cwd(), absoluteInput) ? process.cwd() : inputRoot;
+  const inputPath = checkoutPath(absoluteInput, "automation input path", checkoutRoot);
+  const outputDirectory = checkoutPath(
+    options.outputDirectory ?? "docs/generated",
+    "automation output directory",
+    checkoutRoot
+  );
+  const commands = localCommands(inputPath, outputDirectory);
+  const ciCommands = pipelineCommands(inputPath, outputDirectory);
   const stableIds = corpus.scenarios.filter(({ value }) => value.idSource === "explicit").length;
   const checks = {
     scenarios: corpus.scenarios.length,
@@ -96,7 +125,7 @@ export async function createAutomationPlan(corpus, options = {}) {
     providerLabel: definition.label,
     inputPath,
     outputDirectory,
-    ready: checks.scenarios > 0 && checks.stableIds === checks.scenarios && checks.issues === 0,
+    ready: checks.scenarios > 0 && checks.issues === 0,
     checks,
     commands,
     pipeline: {

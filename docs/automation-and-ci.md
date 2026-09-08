@@ -18,10 +18,10 @@ git diff --exit-code -- docs/architecture.svg docs/architecture.d2
 ## Check generated user documentation
 
 ```sh
-bca docs validate ./test/UITest --strict
-bca docs generate ./test/UITest --output-dir docs/generated
-git diff --exit-code -- docs/generated
+bca docs package ./test/UITest --output-dir docs/generated --check --strict
 ```
+
+The check is write-free and detects missing, changed, and stale generated files.
 
 Generate a pipeline definition when you need a starting point:
 

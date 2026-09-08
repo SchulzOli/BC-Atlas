@@ -1,9 +1,11 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parseAlUiTest } from "./al-ui-source.js";
 import { loadCorpus, validateCorpus } from "./model.js";
 import { canonicalTag, DOCUMENTATION_TAGS, PREREQUISITE_TYPES } from "./tags.js";
+
+const pendingWrites = new Map();
 
 function hash(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -124,6 +126,7 @@ export async function planMetadataEdit(root, documentId, options) {
     before,
     after,
     content,
+    originalFileHash: hash(original),
     fileHash: hash(content),
     preview: preview(before, after)
   };
@@ -131,11 +134,31 @@ export async function planMetadataEdit(root, documentId, options) {
 
 export async function writeMetadataEdit(plan) {
   if (!plan.changed) return plan;
-  const temporary = path.join(
-    path.dirname(plan.file),
-    `.${path.basename(plan.file)}.${process.pid}.tmp`
-  );
-  await fs.writeFile(temporary, plan.content);
-  await fs.rename(temporary, plan.file);
-  return plan;
+  const filename = path.resolve(plan.file);
+  const write = (pendingWrites.get(filename) ?? Promise.resolve())
+    .catch(() => undefined)
+    .then(async () => {
+      const current = await fs.readFile(filename, "utf8");
+      if (hash(current) !== plan.originalFileHash) {
+        throw new Error(`source changed since ${plan.documentId} was loaded; reload before saving`);
+      }
+      const temporary = path.join(
+        path.dirname(filename),
+        `.${path.basename(filename)}.${process.pid}-${randomUUID()}.tmp`
+      );
+      try {
+        await fs.writeFile(temporary, plan.content);
+        await fs.rename(temporary, filename);
+      } catch (error) {
+        await fs.rm(temporary, { force: true });
+        throw error;
+      }
+      return plan;
+    });
+  pendingWrites.set(filename, write);
+  try {
+    return await write;
+  } finally {
+    if (pendingWrites.get(filename) === write) pendingWrites.delete(filename);
+  }
 }

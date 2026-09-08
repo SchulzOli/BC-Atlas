@@ -1,6 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { createArchitectureModel } from "./architecture.js";
+
+const OWNERSHIP_FILE = ".bc-atlas-codegraph.json";
 
 const TYPE_LABELS = {
   codeunit: "Codeunit",
@@ -401,6 +404,93 @@ function renderIndex(objects, paths, model) {
   return `${lines.join("\n").trim()}\n`;
 }
 
+async function canonicalPath(filename) {
+  let current = path.resolve(filename);
+  const missing = [];
+  while (true) {
+    try {
+      return path.join(await fs.realpath(current), ...missing.reverse());
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return path.resolve(filename);
+    missing.push(path.basename(current));
+    current = parent;
+  }
+}
+
+function containsPath(parent, child) {
+  const relative = path.relative(parent, child);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+async function assertSafeOutput(output, sourceRoot, projectRoot) {
+  const canonicalOutput = await canonicalPath(output);
+  for (const unsafe of [sourceRoot, projectRoot]) {
+    const canonicalUnsafe = await canonicalPath(unsafe);
+    if (containsPath(canonicalOutput, canonicalUnsafe)) {
+      throw new Error(`Code Graph output must not be the source, project root, or one of their ancestors: ${output}`);
+    }
+  }
+}
+
+async function ownedFiles(directory) {
+  try {
+    const manifest = JSON.parse(await fs.readFile(path.join(directory, OWNERSHIP_FILE), "utf8"));
+    return Array.isArray(manifest.files) ? manifest.files : [];
+  } catch (error) {
+    if (error.code === "ENOENT" || error instanceof SyntaxError) return [];
+    throw error;
+  }
+}
+
+async function writeCodeGraphAtomically(output, files) {
+  const parent = path.dirname(output);
+  const nonce = `${process.pid}-${randomUUID()}`;
+  const temporary = path.join(parent, `.${path.basename(output)}.tmp-${nonce}`);
+  const backup = path.join(parent, `.${path.basename(output)}.bak-${nonce}`);
+  await fs.mkdir(parent, { recursive: true });
+  try {
+    await fs.cp(output, temporary, { recursive: true });
+  } catch (error) {
+    if (error.code === "ENOENT") await fs.mkdir(temporary, { recursive: true });
+    else throw error;
+  }
+  try {
+    for (const relative of await ownedFiles(temporary)) {
+      const owned = path.resolve(temporary, relative);
+      if (containsPath(temporary, owned)) await fs.rm(owned, { force: true });
+    }
+    for (const [relative, content] of files) {
+      const target = path.join(temporary, relative);
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, content, "utf8");
+    }
+    await fs.writeFile(path.join(temporary, OWNERSHIP_FILE), `${JSON.stringify({
+      schemaVersion: 1,
+      files: [...files.keys()].sort()
+    }, null, 2)}\n`, "utf8");
+    let hadOutput = false;
+    try {
+      await fs.rename(output, backup);
+      hadOutput = true;
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    try {
+      await fs.rename(temporary, output);
+    } catch (error) {
+      if (hadOutput) await fs.rename(backup, output);
+      throw error;
+    }
+    await fs.rm(backup, { recursive: true, force: true });
+  } catch (error) {
+    await fs.rm(temporary, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 export async function generateCodeGraph(input, values = {}) {
   const architecture = await createArchitectureModel(input, { ...values, view: "project" });
   const { model, options } = architecture;
@@ -417,24 +507,13 @@ export async function generateCodeGraph(input, values = {}) {
     );
   const paths = allocatePaths(objects, sourceRoot);
   const outputDirectory = path.resolve(values["output-dir"] ?? values.outputDir ?? "docs/codegraph");
-  const parent = path.dirname(outputDirectory);
-  const temporary = path.join(parent, `.${path.basename(outputDirectory)}.tmp-${process.pid}`);
-  await fs.rm(temporary, { recursive: true, force: true });
-  await fs.mkdir(temporary, { recursive: true });
-  try {
-    for (const object of objects) {
+    await assertSafeOutput(outputDirectory, sourceRoot, model.projectRoot);
+    const files = new Map(objects.map((object) => {
       const relativeOutput = paths.get(object.key);
-      const target = path.join(temporary, relativeOutput);
-      await fs.mkdir(path.dirname(target), { recursive: true });
-      await fs.writeFile(target, renderObject(object, relativeOutput, paths, model, options), "utf8");
-    }
-    await fs.writeFile(path.join(temporary, "index.md"), renderIndex(objects, paths, model), "utf8");
-    await fs.rm(outputDirectory, { recursive: true, force: true });
-    await fs.rename(temporary, outputDirectory);
-  } catch (error) {
-    await fs.rm(temporary, { recursive: true, force: true });
-    throw error;
-  }
+      return [relativeOutput, renderObject(object, relativeOutput, paths, model, options)];
+    }));
+    files.set("index.md", renderIndex(objects, paths, model));
+    await writeCodeGraphAtomically(outputDirectory, files);
   return { outputDirectory, objects: objects.length, unresolved: model.edges.filter(({ unresolved }) => unresolved).length };
 }
 
