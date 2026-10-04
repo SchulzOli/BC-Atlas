@@ -14,7 +14,7 @@ yarn-error.log*
 *.temp
 
 # Local configuration (keep the committed template)
-.ald2tree.json
+.bca.local.json
 .env
 .env.*
 !.env.example
@@ -36,4 +36,6 @@ Thumbs.db
 !docs/generated/images/*.jpg
 !examples/output/
 !examples/output/*.svg
+!examples/report/
+!examples/report/*.svg
 _output_test

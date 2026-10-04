@@ -1,190 +1,406 @@
 # BC Atlas CLI reference
 
-This document lists every command and command-line option exposed by
-`bca`. Command-line values override values loaded from a configuration
-file.
+Every command, option, default, and configuration setting of `bca`, grouped by
+feature area. Run `bca --help` for the overview, `bca help <command>` or
+`bca <command> --help` for one command, and `bca capabilities` for the same
+information as JSON.
+
+Command-line values override values loaded from `.bca.json`. An omitted
+`[app-root]` means the current directory.
 
 ## Command overview
 
+| Area | Command | Purpose |
+| --- | --- | --- |
+| Get started | `init` | Create a `.bca.json` configuration tailored to an AL project. |
+| Get started | `report` | Write a complete architecture report: overview, health, and diagrams. |
+| Visualize | `graph` | Write a diagram (D2, SVG, PNG, PDF) or model file (JSON). Default command. |
+| Visualize | `watch` | Rebuild a diagram whenever AL source, `app.json`, or `.bca.json` changes. |
+| Analyze | `check` | Score architecture health and fail CI on cycles, policy violations, or diagnostics. |
+| Analyze | `inspect` | Print the resolved architecture model as JSON. |
+| Document | `codegraph` | Generate one linked Markdown page per AL object. |
+| Document | `docs list` | List documented UI-test scenarios. |
+| Document | `docs show` | Show one scenario, its prerequisites, and its diagnostics. |
+| Document | `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
+| Document | `docs generate` | Generate Markdown user guides and an index. |
+| Document | `docs set` | Add or replace documentation metadata in AL source. |
+| Document | `docs unset` | Remove documentation metadata from AL source. |
+| Document | `docs automation` | Print a CI pipeline that keeps generated guides in sync. |
+| Document | `docs glossary` | List supported documentation tags and prerequisite types. |
+| Integrate | `capabilities` | Print the machine-readable command contract as JSON. |
+| Integrate | `mcp` | Start the MCP stdio server for AI agents (also installed as `bca-mcp`). |
+
 ```text
-bca [graph] [options] <file-or-directory>
-bca inspect [options] <file-or-directory>
-bca codegraph [options] <file-or-directory>
-bca watch [options] <directory>
-bca serve [options] <app-directory>
-bca capabilities
-bca-mcp
-bca docs <list|show|validate|generate|set|unset|serve> [options] <file-or-directory>
+bca init [app-root] [options]
+bca report [app-root] [options]
+bca graph [app-root] [options]      # or: bca <app-root> [options]
+bca watch [app-root] [options]
+bca check [app-root] [options]
+bca inspect [app-root] [options]
+bca codegraph [app-root] [options]
+bca docs <command> <test-root> [options]
 bca docs glossary [options]
+bca capabilities
+bca mcp
 ```
 
-| Command | Purpose |
+### Exit codes
+
+| Code | Meaning |
 | --- | --- |
-| `graph` | Analyze AL source and write a diagram. This is the default command when no command is specified. |
-| `inspect` | Analyze AL source and emit the selected graph as JSON. Without `--output`, JSON is written to standard output. |
-| `codegraph` | Generate one linked Markdown file per workspace AL object. |
-| `watch` | Generate a graph, watch an AL project, and rebuild after relevant source or configuration changes. |
-| `serve` | Start the combined architecture and documentation Control Center. |
-| `capabilities` | Emit the versioned machine contract for LLM and tool integrations as JSON. |
-| `bca-mcp` | Start the local MCP stdio server for agent integrations. |
-| `docs` | Inspect, validate, edit, generate, and locally browse AL-backed UI-test documentation. |
+| `0` | Success. |
+| `1` | Operation failed, or a check (`check`, `docs validate`) found blocking issues. |
+| `2` | Invalid usage: unknown command, unknown option, invalid enum value, or missing required value. |
 
-Use `bca --help`, `bca --version`, or
-`bca docs --help` for the built-in summaries.
+Global flags: `-h`, `--help` shows help; `-V`, `--version` shows the version.
 
-### Code Graph Markdown
+## Get started
+
+### `init`
 
 ```text
-bca codegraph <file-or-directory> --output-dir docs/codegraph
+bca init [app-root] [--force] [--print]
 ```
 
-The command mirrors source directories below the output directory. Objects
-declared directly at the selected input root use an object-type folder such as
-`table`, `page`, or `codeunit`. Each object document contains metadata,
-type-specific members, dependencies, backlinks, and a project-relative source
-location.
+Writes `<app-root>/.bca.json`. The file is pre-filled from what BC Atlas
+detects: the app name from `app.json`, test folders (excluded from analysis),
+and a source-link template for GitHub, GitLab, or Azure DevOps remotes. It also
+contains `check` and `report` sections with the default thresholds.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--force` | flag | Overwrite an existing `.bca.json`. |
+| `--print` | flag | Print the configuration to stdout instead of writing it. |
+
+### `report`
+
+```text
+bca report [app-root] [options]
+```
+
+Writes a self-contained Markdown report to a directory (default
+`docs/atlas`): `README.md` with an at-a-glance table, one section and diagram
+per view, the architecture health summary, and a regeneration command. See
+[Architecture reports](./reports.md).
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--output-dir` | path | Report directory. Default: `docs/atlas`. |
+| `--views` | list | Comma-separated views: `project`, `module`, `data`, `contracts`, `events`, `ui`, `call`. Default: all except `call`. |
+| `--format` | `svg` or `d2` | Diagram format. `d2` skips SVG rendering. Default: `svg`. |
+| `--codegraph` | flag | Also write the linked object catalog to `<output-dir>/objects`. |
+| `--json` | flag | Also write the resolved project model to `model.json`. |
+| `--title` | text | Report title. Default: `<app name> architecture`. |
+| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `graph`. |
+| `--source-url`, `--source-ref`, `--source-path-prefix` | text | Source links, as for `graph`. |
+| `--project-root` | path | Analyze a wider workspace. |
+| `--config` | path | Configuration file. |
+
+## Visualize
+
+### `graph`
+
+```text
+bca graph [app-root] [options]
+bca <app-root> [options]
+```
+
+Analyzes the input and writes the requested diagram or JSON model. Omitting
+`graph` uses this command when the first argument is an existing path.
+
+```text
+bca graph src -o architecture.svg
+bca graph src --view workflow --entry ProcessDocument -o workflow.svg
+bca src --view data --format json -o data.json
+```
+
+`graph`, `watch`, and `inspect` share these options.
+
+#### Output
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `-o`, `--output` | path | Output path. Default: `bc-atlas.d2`. `inspect` writes to stdout when omitted. |
+| `-f`, `--format` | format | `d2`, `json`, `svg`, `png`, or `pdf`. Inferred from the output extension when omitted. |
+
+- D2, JSON, and SVG output use bundled functionality.
+- PNG and PDF require the `d2` executable on `PATH`.
+- If `--format` conflicts with the extension, the format wins:
+  `-o calls.d2 --format svg` writes `calls.svg` and keeps `calls.d2`.
+- Rendered output always keeps the generated `.d2` source next to it.
+
+#### View selection
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--view` | view | `project`, `module`, `object`, `data`, `call`, `boundary`, `contracts`, `events`, `ui`, or `workflow`. Default: `project`. |
+| `--object` | selector | Required by the `object` view. Object name, ID, key, or typed selector such as `codeunit:50100`. |
+| `--object-inbound-depth` | integer ≥ 0 | Incoming depth for the object view. Default: `1`. |
+| `--object-outbound-depth` | integer ≥ 0 | Outgoing depth for the object view. Default: `1`. |
+| `--members` | list | Focused-object members: `fields`, `actions`, `triggers`, `events`, `procedures`. |
+| `--scope` | selector | Boundary scope: `namespace:`, `folder:`, `app:`, or `object:`. Repeatable; required by `boundary`. |
+| `--focus` | text | Restrict the `contracts`, `events`, or `ui` view to matching names. |
+| `--group-by` | mode | `namespace`, `folder`, `type`, or `role`. Project view defaults to `role`; others to `namespace`. |
+| `--module-depth` | integer or `auto` | Namespace segments kept by the module view. Default: `auto`. |
+| `--folder-depth` | integer | Folder segments in a folder-grouped module view. Default: `1`. |
+
+#### Filters
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--namespace` | glob | Include matching namespaces. Repeatable. |
+| `--type` | types | Include object types. Comma-separated and repeatable. |
+| `--include` | glob | Include matching file paths or object selectors. Repeatable. |
+| `--exclude` | glob | Exclude matching file paths or object selectors. Repeatable. |
+
+#### Call view
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--include-unresolved-calls` | flag | Include unresolved calls and isolated procedures. |
+| `--root-procedure` | selector | Start a focused call subgraph at a procedure name, `Owner.Procedure`, signature, or key. Repeatable. |
+| `--call-depth` | integer ≥ 0 | Traversal depth from each root. Default: `3`. |
+| `--call-direction` | direction | `incoming`, `outgoing`, or `both`. Default: `outgoing`. |
+| `--expand-procedures` | flag | Show procedure nodes instead of owning-object aggregates. |
+| `--expand-framework-calls` | flag | Show individual framework and standard-library calls. |
+
+#### Workflow view
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--entry` | selector | Entry procedure, trigger, action, or event publisher. Repeatable. |
+| `--workflow-depth` | integer | Maximum traversal depth. Default: `8`. |
+| `--workflow-max-nodes` | integer | Maximum workflow nodes. Default: `100`. |
+| `--workflow-edge-types` | list | `calls`, `events`, `writes`, `reads`. Default: `calls,events,writes`. |
+
+Selectors accept an exact name such as `ProcessDocument`, an owner-qualified
+name such as `Posting.ProcessDocument`, `*` and `?` globs, and an optional
+`procedure:`, `trigger:`, `action:`, or `event:` prefix. Without entries, roots
+are inferred from actions, triggers, event publishers, and procedures without
+inbound calls. Direct call and mutation order is labelled `definite`; event
+dispatch and collapsed paths are labelled `inferred`.
+
+#### Rendering
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--max-edges` | integer | Diagram edge cap. Default: `500`. Also caps workflow edges unless `workflow.maxEdges` is configured. |
+| `--direction` | value | `right`, `down`, `left`, or `up`. Default: `right`. |
+| `--title` | text | Diagram title. |
+| `--no-legend` | flag | Hide edge-kind and confidence legends. |
+| `--details` | flag | Show member counts in nodes. |
+| `--no-external` | flag | Hide external and unresolved nodes. Unresolved edges remain in JSON. |
+
+#### Source links
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--source-url` | template | Node-link template with `{file}`, `{line}`, and `{ref}`. `{file}` is project-root-relative. |
+| `--source-ref` | text | Commit, tag, or branch for `{ref}`. Default: `main`. |
+| `--source-path-prefix` | path | Repository path prepended to `{file}` when the project root is below the repository root. |
+
+#### General
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--project-root` | path | Analyze this app or multi-app workspace; the positional path becomes the rendered focus. |
+| `--config` | path | Configuration file. Default: `<app-root>/.bca.json` when present. |
+| `--strict` | flag | Fail when analysis produces warning or error diagnostics. |
+
+### `watch`
+
+```text
+bca watch [app-root] [options]
+```
+
+Builds once, then watches recursively for AL files, `app.json`, and
+`.bca.json`. Accepts every `graph` option plus:
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--debounce` | milliseconds | Rebuild debounce. Default: `250`. |
+
+Stop with `Ctrl+C`.
+
+## Analyze
+
+### `check`
+
+```text
+bca check [app-root] [options]
+```
+
+Analyzes the project view and evaluates health rules: diagnostics, forbidden
+dependencies, dependency cycles, fan-in/fan-out hot spots, orphan objects, and
+unresolved references. Exits with `1` when a finding reaches `--fail-on`. See
+[Architecture health checks](./health-checks.md).
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--fail-on` | level | `error`, `warning`, `info`, or `never`. Default: `error`. |
+| `-f`, `--format` | format | `text`, `json`, or `markdown`. Default: `text`. |
+| `-o`, `--output` | path | Write the report to a file; the result line goes to stderr. |
+| `--max-fan-in` | integer | Warn when more distinct objects depend on one object. Default: `25`. |
+| `--max-fan-out` | integer | Warn when one object depends on more distinct objects. Default: `25`. |
+| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `graph`. |
+| `--project-root` | path | Analyze a wider workspace. |
+| `--config` | path | Configuration file. |
+| `--strict` | flag | Shortcut for `--fail-on warning`. |
+
+### `inspect`
+
+```text
+bca inspect [app-root] [options]
+```
+
+Runs the same analysis, filtering, and view projection as `graph` and prints
+JSON to stdout. With `--output`, JSON is written to that file. `--format`
+accepts only `json`.
+
+```text
+bca inspect src --view workflow --entry ProcessDocument
+bca inspect src --strict -o model.json
+```
+
+## Document
+
+### `codegraph`
+
+```text
+bca codegraph [app-root] --output-dir docs/codegraph
+```
+
+Mirrors source directories below the output directory. Objects declared at the
+input root use an object-type folder such as `table` or `codeunit`. Each page
+contains metadata, members, dependencies, backlinks, and a source location.
+The output directory is replaced atomically; BC Atlas refuses to replace a
+non-empty directory that has no generated `index.md`.
 
 | Option | Value | Description |
 | --- | --- | --- |
 | `--output-dir` | path | Markdown directory. Default: `docs/codegraph`. |
-| `--project-root` | path | Analyze a wider workspace before restricting output to the selected input. |
-| `--include` | glob | Include matching source paths or object selectors. Repeatable. |
-| `--exclude` | glob | Exclude matching source paths or object selectors. Repeatable. |
-| `--source-url` | template | Add repository source links with `{file}`, `{line}`, and `{ref}`. |
-| `--source-ref` | text | Commit, tag, or branch substituted for `{ref}`. |
+| `--include` | glob | Include matching paths or object selectors. Repeatable. |
+| `--exclude` | glob | Exclude matching paths or object selectors. Repeatable. |
+| `--source-url` | template | Repository source links with `{file}`, `{line}`, and `{ref}`. |
+| `--source-ref` | text | Commit, tag, or branch for `{ref}`. |
 | `--source-path-prefix` | path | Repository path prepended to `{file}`. |
-| `--strict` | flag | Fail when analysis contains warning or error diagnostics. |
+| `--project-root` | path | Analyze a wider workspace before restricting output. |
+| `--config` | path | Configuration file. |
+| `--strict` | flag | Fail on warning or error diagnostics. |
 
-### Machine contract
+### `docs` commands
+
+AL UI-test files are the only persisted scenario source. See
+[Documentation from AL UI tests](./al-ui-test-documentation.md).
+
+| Option | Commands | Value | Description |
+| --- | --- | --- | --- |
+| `--format` | all | `text` or `json` | Human-readable or pipe-safe output. Default: `text`. |
+| `--id` | `show`, `generate`, `set`, `unset` | document ID | Selects a scenario by stable `[DOC-ID]`. Required for `show`, `set`, `unset`. |
+| `--procedure` | `generate` | name | Test procedure; required when a file contains several tests. |
+| `--output-dir` | `generate`, `automation` | path | Markdown directory. Default: `docs/generated`. |
+| `--strict` | `validate` | flag | Treat warnings as failures. |
+| `--tag` | `set`, `unset` | tag | Metadata tag. Required. |
+| `--value` | `set`, `unset` | text | Tag value (required for `set`); matching value for `unset`. |
+| `--qualifier` | `set`, `unset` | type | Typed `[GIVEN]` qualifier. |
+| `--expected-hash` | `set`, `unset` | SHA-256 | Reject the write when the AL file changed after reading. |
+| `--dry-run` | `set`, `unset` | flag | Preview without writing AL. |
+| `--provider` | `automation` | `github` or `azure-devops` | Pipeline format. Default: `github`. |
+
+#### `docs list`, `docs show`, `docs glossary`
+
+```text
+bca docs list test/UITest --format json
+bca docs show test/UITest --id partner-create
+bca docs glossary
+```
+
+#### `docs validate`
+
+```text
+bca docs validate test/UITest --strict
+```
+
+Exits with `1` on errors, or on warnings with `--strict`.
+
+#### `docs generate`
+
+```text
+bca docs generate test/UITest --output-dir docs/generated
+bca docs generate test/PartnerUITest.Codeunit.al --procedure PartnersList_NewPartner_PersistsGeneralFields
+```
+
+`[WHEN]` comments become numbered phases. Reachable local helpers containing
+`TestPage` operations are expanded with cycle and depth protection. Directory
+generation writes one `<document-id>.md` per scenario plus `index.md`.
+
+#### `docs set` and `docs unset`
+
+```text
+bca docs set test/UITest --id partner-create --tag GIVEN \
+  --qualifier MASTER-DATA --value "A posting group exists." --dry-run
+bca docs unset test/UITest --id partner-create --tag RELATED --value partner-edit
+```
+
+#### `docs automation`
+
+```text
+bca docs automation test/UITest --provider github --output-dir docs/generated
+```
+
+Prints a pipeline that validates in strict mode, regenerates the Markdown, and
+fails when the committed output differs. `--format json` returns checks,
+commands, target filename, and pipeline content.
+
+## Integrate
+
+### `capabilities`
 
 ```text
 bca capabilities
 ```
 
-This command needs no project path and writes only UTF-8 JSON to standard
-output. The response declares `schemaVersion`, the installed package version,
-exit codes, invocation conventions, and every supported command. Each command
-contains an exact `argv` template, its accepted options and CLI tokens,
-required values, enumerations, output type, and conditional rules.
+Writes only UTF-8 JSON: `schemaVersion`, version, exit codes, invocation
+conventions, feature `areas`, `views`, and every command with its `argv`
+template, `area`, options (CLI token, type, enum, default, `required`,
+`repeatable`), output contract, rules, and examples. Agents must pass
+arguments as an array, parse stdout only after exit code `0`, and run `docs set`
+or `docs unset` with `--dry-run` before writing.
 
-LLM tools must pass arguments as an array, not interpolate a shell command.
-For machine-readable operations, use `inspect` or append `--format json` to a
-documentation command. Parse stdout only after exit code `0`. For `docs set`
-and `docs unset`, first use `--dry-run`; on the subsequent write, pass the
-latest `--expected-hash` when available.
-
-### Combined Control Center
+### `mcp`
 
 ```text
-bca serve <app-directory> --tests <test-directory> --port 0
+bca mcp
+bca-mcp
 ```
 
-`--tests` is required and identifies the AL UI-test documentation source. The
-application directory remains the architecture source. `--port` accepts an
-integer from `0` to `65535`; `0` chooses an available loopback port. The server
-exposes documentation and in-memory architecture rendering through the same
-command-only HTTP API.
+Starts the Model Context Protocol server on stdio. See
+[Agent integration](./agent-integration.md).
 
-## Architecture commands
+## Configuration file
 
-The `graph`, `inspect`, and `watch` commands share the following options.
+`.bca.json` at the input root is loaded automatically; `--config` selects
+another file. `bca init` creates a starter file. The root accepts the camelCase
+form of every architecture option: `view`, `output`, `format`, `object`,
+`scope`, `focus`, `projectRoot`, `namespaces`, `types`, `include`, `exclude`,
+`groupBy`, `moduleDepth`, `folderDepth`, `includeUnresolvedCalls`,
+`rootProcedure`, `callDepth`, `callDirection`, `expandProcedures`,
+`expandFrameworkCalls`, `maxEdges`, `objectInboundDepth`,
+`objectOutboundDepth`, `members`, `direction`, `title`, `sourceUrl`,
+`sourceRef`, `sourcePathPrefix`, `noLegend`, `details`, `noExternal`, `strict`,
+and `debounce`.
 
-| Option | Value | Description |
-| --- | --- | --- |
-| `-o`, `--output` | path | Output path. The graph default is `bc-atlas.d2`; `inspect` writes JSON to standard output when omitted. |
-| `-f`, `--format` | format | `d2`, `json`, `svg`, `png`, or `pdf`. The output extension is used when the option is omitted. |
-| `--view` | view | Selects `project`, `module`, `object`, `data`, `call`, `boundary`, `contracts`, `events`, `ui`, or `workflow`. Default: `project`. |
-| `--object` | selector | Required by the `object` view. Accepts an object name, ID, key, or typed selector such as `codeunit:50100`. |
-| `--object-inbound-depth` | non-negative integer | Incoming dependency depth for the focused object. Default: `1`. |
-| `--object-outbound-depth` | non-negative integer | Outgoing dependency depth for the focused object. Default: `1`. |
-| `--members` | categories | Focused-object members to show: `fields`, `actions`, `triggers`, `events`, and/or `procedures`. |
-| `--scope` | selector | Boundary scope. Accepts `namespace:`, `folder:`, `app:`, or `object:` selectors. Repeatable. |
-| `--focus` | text | Restricts the `contracts`, `events`, or `ui` view to matching names. |
-| `--project-root` | path | Analyzes this app or multi-app workspace before using the positional path as the rendered folder focus. |
-| `--entry` | selector | Workflow entry procedure, trigger, action, or event publisher. Repeatable. |
-| `--workflow-depth` | positive integer | Maximum workflow traversal depth. Default: `8`. |
-| `--workflow-max-nodes` | positive integer | Maximum number of workflow nodes. Default: `100`. |
-| `--workflow-edge-types` | comma-separated types | Workflow edge types: `calls`, `events`, `writes`, and/or `reads`. Default: `calls,events,writes`. |
-| `--namespace` | glob | Includes matching namespaces. Repeatable. |
-| `--type` | types | Includes object types. Comma-separated and repeatable. |
-| `--include` | glob | Includes matching normalized file paths or object selectors. Repeatable. |
-| `--exclude` | glob | Excludes matching normalized file paths or object selectors. Repeatable. |
-| `--group-by` | mode | Groups by `namespace`, `folder`, `type`, or `role`. Project view defaults to `role`; other views default to `namespace`. |
-| `--module-depth` | positive integer or `auto` | Namespace segments retained by the module view. Default: `auto`. |
-| `--folder-depth` | positive integer | Folder segments retained by a folder-grouped module view. Default: `1`. |
-| `--include-unresolved-calls` | flag | Includes unresolved calls and isolated procedures in the `call` view. |
-| `--root-procedure` | selector | Starts a focused call subgraph at a procedure name, `Owner.Procedure`, signature, or key. Repeatable. |
-| `--call-depth` | non-negative integer | Traversal depth from each call root. Default: `3`. |
-| `--call-direction` | direction | Traverses `incoming`, `outgoing`, or `both` call directions. Default: `outgoing`. |
-| `--expand-procedures` | flag | Expands default owning-object call aggregates into procedure nodes. |
-| `--expand-framework-calls` | flag | Expands the default framework/standard-library aggregate into individual unresolved calls. |
-| `--max-edges` | positive integer | Caps diagram edges. Default: `500`. For workflows this also caps projected workflow edges unless a nested workflow value is configured. |
-| `--direction` | value | Diagram direction: `right`, `down`, `left`, or `up`. Default: `right`. |
-| `--title` | text | Diagram title. |
-| `--source-url` | template | Adds node links. Supports `{file}`, `{line}`, and `{ref}` placeholders. `{file}` is project-root-relative. |
-| `--source-ref` | text | Commit, tag, or branch substituted for `{ref}`. Default: `main`. |
-| `--source-path-prefix` | path | Repository-relative path prepended to `{file}` when the project root is below the repository root. |
-| `--no-legend` | flag | Hides the edge-kind and confidence legend. |
-| `--details` | flag | Shows available member counts and focused-object member summaries. |
-| `--no-external` | flag | Hides external and unresolved target nodes in rendered diagrams. Unresolved edges remain available in JSON. |
-| `--config` | path | Explicit JSON configuration path. Without it, `<input-root>/.bca.json` is loaded when present. |
-| `--strict` | flag | Fails when analysis contains warning or error diagnostics. |
-| `--debounce` | positive integer | Watch rebuild debounce in milliseconds. Default: `250`. |
-| `-h`, `--help` | flag | Shows command help. |
-| `-V`, `--version` | flag | Shows the installed version. |
+Configuration-only settings:
 
-Options described as repeatable can be supplied more than once:
-
-```text
-bca graph src \
-  --project-root . \
-  --namespace "Contoso.Sales.**" \
-  --type table,codeunit \
-  --type page \
-  --exclude "**/test/**"
-```
-
-### Formats and output paths
-
-- D2, JSON, and SVG output use bundled functionality.
-- PNG and PDF require the `d2` executable on `PATH`.
-- If `--format` conflicts with the requested extension, the format wins.
-  For example, `-o calls.d2 --format svg` writes `calls.svg` and keeps the
-  intermediate D2 source at `calls.d2`.
-- Non-D2 rendering retains the generated `.d2` source next to the final output.
-
-## Views
-
-| View | Contents | View-specific selection |
-| --- | --- | --- |
-| `project` | AL objects and resolved or unresolved architectural relations. | General filters and grouping options. |
-| `module` | Aggregated namespace or folder dependencies. | `--group-by namespace\|folder`, `--module-depth`, and `--folder-depth`. |
-| `object` | One object, independently selected incoming/outgoing neighborhoods, and filtered member details with visibility. | Requires `--object`; supports object depths and `--members`. |
-| `data` | Tables and table-oriented reads, writes, relations, and extensions. | General filters. |
-| `call` | Calls aggregated between owning objects, with focused traversal, confidence, ambiguity, and SCC annotations. | `--root-procedure`, `--call-depth`, `--call-direction`, and `--expand-procedures`. |
-| `boundary` | Dependencies crossing one or more selected boundaries. | Requires repeatable `--scope`. |
-| `contracts` | Interfaces, direct implementations, and enum-mediated implementations. | Optional `--focus`. |
-| `events` | Event publishers and subscriber procedures. | Optional `--focus`. |
-| `ui` | Pages, source tables, parts, actions, and navigation targets. | Optional `--focus`. |
-| `workflow` | Trace-oriented calls, events, data mutations, cycles, and unresolved branches. | `--entry` and workflow limits, or workflow configuration. |
-
-## Workflow selectors and configuration
-
-Workflow entry, phase, stop, and collapse selectors accept:
-
-- an exact member name such as `ProcessDocument`;
-- an owner-qualified name such as `Posting.ProcessDocument`;
-- `*` and `?` globs;
-- an optional `procedure:`, `trigger:`, `action:`, or `event:` prefix.
-
-With no explicit entries, workflow roots are inferred from actions, triggers,
-event publishers, and procedures without inbound calls. Direct call and
-mutation order is labelled `definite`. Event dispatch and paths created by
-collapsing utility nodes are labelled `inferred`. Cycles, shared convergence
-nodes, unresolved branches, and limit truncation are annotated in D2 and JSON.
-
-The configuration file can define workflow behavior that has no dedicated CLI
-switch:
+| Property | Description |
+| --- | --- |
+| `roleMappings` | Maps a role label to object globs (type, `type:name`, `namespace:type:name`, or file path). First match wins. |
+| `layout` | D2 layout engine: `dagre` or `elk` for SVG; any D2 layout for PNG/PDF. |
+| `theme` | D2 theme ID. |
+| `forbiddenDependencies` | Dependency policy rules; see [Configuration](./configuration.md#check-dependency-rules). |
+| `workflow` | Workflow defaults: `entries`, `depth`, `maxNodes`, `maxEdges`, `edgeTypes`, `phases`, `stop`, `collapse`. |
+| `check` | Health-check defaults: `failOn`, `cycles` (`error`, `warning`, `info`, `off`), `maxFanIn`, `maxFanOut`. |
+| `report` | Report defaults: `outputDir`, `views`, `format`, `codegraph`, `json`, `title`. |
 
 ```json
 {
@@ -207,202 +423,20 @@ switch:
 
 | Workflow property | Description |
 | --- | --- |
-| `entries` | Entry selectors. `entry` is also accepted for one or more selectors. |
+| `entries` | Entry selectors. `entry` is also accepted. |
 | `depth` | Maximum traversal depth. |
 | `maxNodes` | Maximum projected nodes. |
 | `maxEdges` | Maximum projected edges. |
 | `edgeTypes` | Allowed `calls`, `events`, `writes`, and `reads` edges. |
-| `phases` | Maps phase labels to selectors. Matching nodes are grouped under that label. |
-| `stop` | Selectors that remain visible but are not expanded. `stopConditions` is also accepted. |
-| `collapse` | Utility selectors to remove and bypass with explicitly inferred edges. `collapseUtilities` is also accepted. |
-
-Repeated infrastructure nodes are represented once. A node reached by multiple
-branches is annotated with its inbound branch count.
-
-## Configuration file
-
-Use `.bca.json` at the input root or pass another file explicitly:
-
-```text
-bca graph src --config bca.workflow.json
-```
-
-The configuration root accepts the long-form equivalents of the architecture
-options, normally in camel case: `view`, `output`, `format`, `object`, `scope`,
-`focus`, `projectRoot`, `namespaces`, `types`, `include`, `exclude`, `groupBy`,
-`moduleDepth`, `folderDepth`, `includeUnresolvedCalls`, `rootProcedure`,
-`callDepth`, `callDirection`, `expandProcedures`, `expandFrameworkCalls`, `maxEdges`,
-`objectInboundDepth`, `objectOutboundDepth`, `members`, `direction`, `title`,
-`sourceUrl`, `sourceRef`, `sourcePathPrefix`, `noLegend`, `details`, `noExternal`, `strict`, and
-`debounce`.
+| `phases` | Maps phase labels to selectors; matching nodes are grouped under that label. |
+| `stop` | Selectors that stay visible but are not expanded. `stopConditions` is also accepted. |
+| `collapse` | Utility selectors bypassed with inferred edges. `collapseUtilities` is also accepted. |
 
 BC Atlas resolves the complete `projectRoot` before it applies a folder,
 namespace, or include focus. References that cross the focus become aggregated
-boundary nodes. Their `boundaryCategory` is `microsoft-base-app`,
+boundary nodes with a `boundaryCategory` of `microsoft-base-app`,
 `declared-dependency`, `same-app-outside-focus`, or `unknown`. Dependency
-symbols are loaded from `.app` files under `.alpackages`; a package that cannot
-be read produces a `symbol-package-error` diagnostic.
+symbols are loaded from `.app` files under `.alpackages`; an unreadable package
+produces a `symbol-package-error` diagnostic.
 
-These renderer and policy settings are configuration-only:
-
-| Property | Description |
-| --- | --- |
-| `roleMappings` | Maps a custom role label to object globs. Globs can match type, `type:name`, `namespace:type:name`, or repository-relative file path. The first matching role wins. |
-| `layout` | D2 layout engine passed to the external renderer for PNG or PDF. |
-| `theme` | D2 theme passed to the external renderer for PNG or PDF. |
-| `forbiddenDependencies` | Dependency policy rules evaluated during analysis. |
-| `workflow` | Nested workflow configuration described above. |
-
-See [`.bca.example.json`](../.bca.example.json) for a complete
-configuration example.
-
-## `graph`
-
-```text
-bca graph [options] <file-or-directory>
-bca [options] <file-or-directory>
-```
-
-Analyzes the input and writes the requested diagram or JSON. Omitting `graph`
-uses this command automatically.
-
-Examples:
-
-```text
-bca graph src --view project -o architecture.d2
-bca graph src --view workflow --entry ProcessDocument -o workflow.svg
-bca src --view data --format json -o data.json
-```
-
-## `inspect`
-
-```text
-bca inspect [options] <file-or-directory>
-```
-
-Runs the same analysis, filtering, and view projection as `graph`. The default
-format is JSON, and output is written to standard output when `--output` is
-omitted.
-
-```text
-bca inspect src --view workflow --entry ProcessDocument
-bca inspect src --strict -o model.json
-```
-
-## `watch`
-
-```text
-bca watch [options] <directory>
-```
-
-Builds once, then watches recursively for AL files, `app.json`, and
-`.bca.json`. Relevant changes trigger another build after the configured
-debounce interval.
-
-```text
-bca watch src --view module --debounce 500 -o modules.svg
-```
-
-## Documentation commands
-
-AL UI-test files are the only persisted scenario source. JSON is available as
-terminal output and HTTP transport; BC Atlas does not create scenario JSON.
-
-| Command | Purpose |
-| --- | --- |
-| `docs list` | List documented scenarios under a file or directory. |
-| `docs show` | Show one scenario selected by `--id`. |
-| `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
-| `docs generate` | Generate one scenario or a complete Markdown catalog. |
-| `docs automation` | Generate a checked CLI workflow for GitHub Actions or Azure Pipelines. |
-| `docs set` | Add or replace AL documentation metadata. |
-| `docs unset` | Remove matching AL documentation metadata. |
-| `docs glossary` | Print the built-in tag vocabulary, descriptions, value types, and cardinality. |
-| `docs serve` | Start the local control center on `127.0.0.1`. |
-
-Common documentation options:
-
-| Option | Value | Description |
-| --- | --- | --- |
-| `--id` | document ID | Selects a scenario by stable `[DOC-ID]`. |
-| `--format` | `text` or `json` | Selects human-readable or pipe-safe output. |
-| `--strict` | flag | Treats validation warnings as failures. |
-| `--tag` | tag | Tag used by `set` or `unset`. |
-| `--value` | text | Tag value used by `set`, or matching value for `unset`. |
-| `--qualifier` | type | Typed `[GIVEN]` qualifier. |
-| `--expected-hash` | SHA-256 | Rejects a mutation when the AL file changed after reading. |
-| `--dry-run` | flag | Plans a mutation without writing AL. |
-| `--port` | integer | Port for `serve`; the default chooses an available port. |
-| `--provider` | `github` or `azure-devops` | Selects the pipeline format for `automation`. |
-
-Successful commands exit with `0`. Validation or operation failures exit with
-`1`; invalid command usage exits with `2`. Data is written to standard output.
-
-### `docs generate`
-
-```text
-bca docs generate [options] <ui-test.al>
-```
-
-Generates Markdown directly from a selected AL `[Test]` procedure.
-`[WHEN]` comments become numbered phases. Reachable local helpers containing
-`TestPage` operations are expanded with cycle and depth protection; repeated
-and conditional UI work is summarized as user-facing instructions.
-
-| Option | Value | Description |
-| --- | --- | --- |
-| `--procedure` | name | Selects the `[Test]` procedure to document. Required when the file contains multiple test procedures. |
-| `--id` | document ID | Generates one scenario from a corpus. |
-| `--output-dir` | path | Markdown output directory. Default: `docs/generated`. |
-| `-h`, `--help` | flag | Shows docs command help. |
-
-```text
-bca docs generate test/PartnerUITest.Codeunit.al \
-  --procedure PartnersList_NewPartner_PersistsGeneralFields \
-  --output-dir docs/generated
-```
-
-Directory generation writes one `<document-id>.md` file per scenario and a
-generated `index.md`. Use `docs validate` before generation in CI.
-
-### `docs automation`
-
-```text
-bca docs automation test/UITest --provider github --output-dir docs/generated
-```
-
-This command loads the real AL documentation corpus. Readiness requires at
-least one scenario, explicit stable IDs for every scenario, and no diagnostics.
-The generated pipeline validates in strict mode, regenerates the Markdown, and
-fails when the committed output differs:
-
-```text
-bca docs validate 'test/UITest' --strict
-bca docs generate 'test/UITest' --output-dir 'docs/generated'
-git diff --exit-code -- 'docs/generated'
-```
-
-Use `--format json` to receive the checks, local commands, target filename, and
-pipeline content as structured output. The Automation view consumes the same
-command result.
-
-### `docs set` and `docs unset`
-
-```text
-bca docs set test/UITest --id partner-create --tag GIVEN \
-  --qualifier MASTER-DATA --value "A posting group exists."
-bca docs unset test/UITest --id partner-create --tag RELATED --value partner-edit
-```
-
-### `docs serve`
-
-```text
-bca docs serve test/UITest --port 0
-```
-
-The server prints its loopback URL and remains attached to the terminal. Its
-web UI has no independent storage; each read reloads AL and each mutation uses
-the same validated writer as `docs set` and `docs unset`. The dashboard maps
-its overview, scenario workspace, quality view, automation workflow, glossary,
-and generation action to docs commands. `serve` hosts the interface and remains
-terminal-controlled.
+See [`.bca.example.json`](../.bca.example.json) for a complete example.

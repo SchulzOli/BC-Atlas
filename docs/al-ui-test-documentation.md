@@ -2,7 +2,7 @@
 
 BC Atlas converts AL `[Test]` procedures directly into Markdown. AL UI-test
 files are the only persisted source for scenarios and documentation metadata.
-The CLI and local control center use the same JavaScript application functions.
+The CLI and the MCP server use the same JavaScript application functions.
 
 ```text
 AL TestPage test -> BC Atlas -> Markdown
@@ -155,20 +155,6 @@ Add `--dry-run` to preview a mutation without writing AL. Mutations only alter
 documentation comments inside the selected test procedure. The writer reparses
 and validates the result before atomically replacing the source file.
 
-Start the optional local control center with:
-
-```powershell
-bca docs serve test/UITest
-```
-
-The command prints its `127.0.0.1` URL. The browser UI reads and updates AL
-through the same operations as the CLI; it has no database or independent
-scenario store. The central dashboard uses `list`, `show`, `validate`,
-`generate`, `set`, `unset`, `glossary`, and `automation` for its overview,
-scenario workspace, quality view, automation workflow, glossary, and generation
-actions. `serve` remains
-terminal-controlled because it hosts the interface itself.
-
 ## Verification and CI
 
 Run the AL UI test with the normal Business Central test framework. Then
@@ -195,5 +181,5 @@ pipeline and does not maintain a separate automation configuration.
 ## Screenshots
 
 Screenshot generation is intentionally not part of the current workflow. A
-future, opt-in capture feature is recorded in [todo.md](../todo.md). It must
+future, opt-in capture feature is recorded in the [roadmap](../ROADMAP.md). It must
 consume the AL-derived contract without becoming a second authoritative test.

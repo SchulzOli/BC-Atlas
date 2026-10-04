@@ -1,0 +1,45 @@
+direction: right
+title: "BC Atlas Warehouse Example architecture: Contracts" {
+  shape: text
+  near: top-center
+  style.font-size: 28
+}
+
+g0: "Enum dispatch" {
+  style.stroke-dash: 3
+  n2: "enum 50102\nWarehouse Handler" {
+    shape: rectangle
+    tooltip: "Inventory.al:61"
+    style.fill: "#EEEEEE"
+    style.stroke: "#555555"
+  }
+}
+
+g1: "Implementations" {
+  style.stroke-dash: 3
+  n1: "codeunit 50101\nWarehouse Processor" {
+    shape: rectangle
+    tooltip: "Inventory.al:28"
+    style.fill: "#FFF0D6"
+    style.stroke: "#A96300"
+  }
+}
+
+g2: "Interfaces" {
+  style.stroke-dash: 3
+  n0: "interface\nHandles Warehouse Activity" {
+    shape: rectangle
+    tooltip: "Inventory.al:3"
+    style.fill: "#FFF8C9"
+    style.stroke: "#8B7400"
+  }
+}
+
+g1.n1 --> g2.n0: "implements" {style.stroke: "#E69F00"}
+g0.n2 --> g2.n0: "implements" {style.stroke: "#E69F00"}
+g0.n2 -> g1.n1: "enum implementation for Handles Warehouse Activity value Default" {style.stroke: "#EA580C"; tooltip: "Source procedures: Default"}
+
+legend: "Legend\nEdges: implements #E69F00, selects #EA580C\nConfidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; ambiguous = dashed amber #B45309; cycle = red #B91C1C\nData: schema = dashed; runtime access = solid" {
+  shape: text
+  near: bottom-right
+}

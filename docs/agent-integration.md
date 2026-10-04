@@ -12,7 +12,7 @@ The command writes versioned JSON to standard output. It defines command IDs, ar
 
 1. Pass each argument as a separate array item.
 2. Do not construct a shell command string.
-3. Use `inspect` or `--format json` for machine reads.
+3. Use `inspect`, `check --format json`, or `docs ... --format json` for machine reads.
 4. Check for exit code `0` before you parse standard output.
 5. Run `docs set` and `docs unset` with `--dry-run` first.
 6. Pass `--expected-hash` when you write AL metadata.
@@ -25,7 +25,7 @@ Read the [generated capability summary](./reference/cli-capabilities.md) for the
 
 ## MCP server
 
-BC Atlas includes a local MCP server. Install the package, then configure your MCP host to start `bca-mcp`.
+BC Atlas includes a local MCP server. Install the package, then configure your MCP host to start `bca-mcp` (or `bca mcp`; both start the same server).
 
 ### `.mcp.json` example
 
@@ -67,7 +67,7 @@ For a repository checkout, use an absolute source path:
   "mcpServers": {
     "bc-atlas": {
       "command": "node",
-      "args": ["C:/path/to/ALD2Tree/src/mcp.js"]
+      "args": ["C:/path/to/BC-Atlas/src/mcp.js"]
     }
   }
 }
@@ -79,6 +79,8 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 
 - `bc_atlas_capabilities` reads the command contract.
 - `bc_atlas_inspect` returns an architecture model.
+- `bc_atlas_check` returns the architecture health report used by `bca check`.
+- `bc_atlas_report` writes the Markdown architecture report used by `bca report`.
 - `bc_atlas_generate_diagram` writes D2, JSON, or SVG.
 - `bc_atlas_docs_list` lists documented scenarios.
 - `bc_atlas_docs_show` reads one scenario and its source hash.

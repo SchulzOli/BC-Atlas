@@ -8,7 +8,7 @@ branch. Older releases may not receive patches.
 ## Reporting a vulnerability
 
 Please do not open a public issue for a suspected vulnerability. Use
-[GitHub's private vulnerability reporting](https://github.com/SchulzOli/ALD2Tree/security/advisories/new)
+[GitHub's private vulnerability reporting](https://github.com/SchulzOli/BC-Atlas/security/advisories/new)
 to share:
 
 - the affected version or commit;

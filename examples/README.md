@@ -18,6 +18,10 @@ The command writes matching D2 source and SVG files to `examples/output`:
 - `workflow` traces request processing through calls, writes, and events;
 - `ui` focuses on pages, actions, extensions, and source tables.
 
+It also writes the complete [architecture report](./report/README.md) produced
+by `bca report examples/warehouse-app --output-dir examples/report --codegraph`,
+including the health summary and one Markdown page per object.
+
 You can also explore other views:
 
 ```sh
@@ -25,6 +29,7 @@ node src/cli.js graph examples/warehouse-app --view contracts -o contracts.svg
 node src/cli.js graph examples/warehouse-app --view events -o events.svg
 node src/cli.js graph examples/warehouse-app --view data -o data.svg
 node src/cli.js inspect examples/warehouse-app -o model.json
+node src/cli.js check examples/warehouse-app
 ```
 
 The PNG images in `docs/generated/images` are browser captures of these SVG

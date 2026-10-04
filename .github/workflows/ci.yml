@@ -7,13 +7,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: [20, 22]
+        node: [20, 22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,12 +28,18 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test
-      - run: node src/cli.js graph test/fixtures --view project --output dist/architecture.d2
-      - run: node src/cli.js inspect test/fixtures --output dist/model.json
+      - name: CLI smoke test
+        shell: bash
+        run: |
+          node src/cli.js --help
+          node src/cli.js graph test/fixtures --view project --output dist/architecture.d2
+          node src/cli.js inspect test/fixtures --output dist/model.json
+          node src/cli.js check examples/warehouse-app
       - if: matrix.os == 'ubuntu-latest' && matrix.node == 22
-        run: npm run examples
-      - if: matrix.os == 'ubuntu-latest' && matrix.node == 22
-        run: git diff --exit-code -- examples/output
+        name: Generated examples are current
+        run: |
+          npm run examples
+          git diff --exit-code -- examples/output examples/report
       - if: matrix.os == 'ubuntu-latest' && matrix.node == 22
         run: npm pack --dry-run
 
@@ -38,3 +49,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker build -t bc-atlas:test .
       - run: docker run --rm bc-atlas:test --version
+      - run: docker run --rm -v "$PWD/examples:/workspace:ro" bc-atlas:test check /workspace/warehouse-app

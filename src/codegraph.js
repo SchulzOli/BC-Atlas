@@ -401,6 +401,18 @@ function renderIndex(objects, paths, model) {
   return `${lines.join("\n").trim()}\n`;
 }
 
+// The output directory is replaced atomically. Refuse to delete a directory
+// that has content but no generated index, e.g. a mistyped "--output-dir docs".
+async function assertReplaceable(directory) {
+  const entries = await fs.readdir(directory).catch((error) => {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  });
+  if (entries.length && !entries.includes("index.md")) {
+    throw new Error(`refusing to replace ${directory}: it is not empty and has no generated index.md; choose an empty or dedicated --output-dir`);
+  }
+}
+
 export async function generateCodeGraph(input, values = {}) {
   const architecture = await createArchitectureModel(input, { ...values, view: "project" });
   const { model, options } = architecture;
@@ -417,6 +429,7 @@ export async function generateCodeGraph(input, values = {}) {
     );
   const paths = allocatePaths(objects, sourceRoot);
   const outputDirectory = path.resolve(values["output-dir"] ?? values.outputDir ?? "docs/codegraph");
+  await assertReplaceable(outputDirectory);
   const parent = path.dirname(outputDirectory);
   const temporary = path.join(parent, `.${path.basename(outputDirectory)}.tmp-${process.pid}`);
   await fs.rm(temporary, { recursive: true, force: true });

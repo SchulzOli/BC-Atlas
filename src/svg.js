@@ -23,6 +23,8 @@ export async function renderSvg(source, options = {}) {
   }
 
   const d2 = getRenderer();
+  // Keep the worker referenced while a render is pending; see the note below.
+  d2.worker?.ref?.();
   const compileOptions = {
     layout,
     themeID: optionalNumber(options.theme, "theme"),
@@ -32,11 +34,12 @@ export async function renderSvg(source, options = {}) {
     pad: optionalNumber(options.pad, "pad"),
     scale: optionalNumber(options.scale, "scale")
   };
-  const result = await d2.compile(source, compileOptions);
-  const svg = await d2.render(result.diagram, result.renderOptions);
-
-  // @terrastruct/d2 currently keeps a Node worker alive. Unref preserves it for
-  // watch-mode reuse without preventing one-shot CLI invocations from exiting.
-  d2.worker?.unref?.();
-  return svg;
+  try {
+    const result = await d2.compile(source, compileOptions);
+    return await d2.render(result.diagram, result.renderOptions);
+  } finally {
+    // @terrastruct/d2 keeps a Node worker alive. Unref preserves it for reuse
+    // without preventing one-shot CLI invocations from exiting.
+    d2.worker?.unref?.();
+  }
 }

@@ -2,6 +2,10 @@
 
 Use a view that answers one question. Large all-purpose diagrams become difficult to read.
 
+For a first overview, run `bca report`: it renders the project, module, data,
+contracts, events, and UI views into one Markdown page. See
+[Architecture reports](./reports.md).
+
 ## Select a view
 
 | Question | View | Example |

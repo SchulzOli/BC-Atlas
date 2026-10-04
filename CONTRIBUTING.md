@@ -5,7 +5,7 @@ documentation fixes, examples, and focused code changes are all welcome.
 
 ## Before you start
 
-- Search the [existing issues](https://github.com/SchulzOli/ALD2Tree/issues)
+- Search the [existing issues](https://github.com/SchulzOli/BC-Atlas/issues)
   before opening a new one.
 - Use GitHub Discussions or the support guidance in [SUPPORT.md](./SUPPORT.md)
   for usage questions.
@@ -17,8 +17,8 @@ documentation fixes, examples, and focused code changes are all welcome.
 BC Atlas requires Node.js 20 or newer.
 
 ```sh
-git clone https://github.com/SchulzOli/ALD2Tree.git
-cd ALD2Tree
+git clone https://github.com/SchulzOli/BC-Atlas.git
+cd BC-Atlas
 npm ci
 npm test
 npm run check
@@ -42,6 +42,27 @@ npm run examples
 The architecture pipeline deliberately keeps parsing, resolution, views, and
 rendering separate. Prefer extending the relevant stage instead of coupling
 presentation logic to the parser.
+
+## Project layout
+
+```text
+src/
+  cli.js               entry point: resolves the command and dispatches it
+  capabilities.js      command catalog: feature areas, options, examples
+  cli/                 argument parsing, help rendering, error types
+  commands/            init, report, graph/inspect/watch, check
+  docs/                AL UI-test documentation pipeline
+  analyzer.js ...      parse -> resolve -> view -> render pipeline
+  health.js            architecture health rules used by check and report
+  output.js            shared D2/JSON/SVG/PNG/PDF writer
+  mcp.js               MCP stdio server
+```
+
+To add or change a command, edit `src/capabilities.js` first. Help text,
+argument parsing, enum validation, the `bca capabilities` contract, and the
+generated reference in `docs/reference/` all derive from it. Then add the
+handler in `src/commands/`, register it in `src/cli.js`, document every option
+in `docs/cli-reference.md` (a test enforces this), and run `npm run docs`.
 
 ## Tests and fixtures
 

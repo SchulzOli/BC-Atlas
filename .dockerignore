@@ -2,6 +2,9 @@ node_modules
 dist
 .git
 coverage
+docs
+examples
+test
 *.svg
 *.png
 *.pdf

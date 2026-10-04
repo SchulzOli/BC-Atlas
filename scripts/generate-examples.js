@@ -54,3 +54,5 @@ for (const [name, options] of diagrams) {
     path.join(output, `${name}.svg`)
   ]);
 }
+
+await run(["report", input, "--output-dir", path.join("examples", "report"), "--codegraph"]);
