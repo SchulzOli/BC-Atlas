@@ -39,7 +39,7 @@ jobs:
         name: Generated examples are current
         run: |
           npm run examples
-          git diff --exit-code -- examples/output examples/report
+          git diff --exit-code -- examples/output examples/report examples/docs
       - if: matrix.os == 'ubuntu-latest' && matrix.node == 22
         run: npm pack --dry-run
 

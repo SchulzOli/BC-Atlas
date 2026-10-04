@@ -56,3 +56,9 @@ for (const [name, options] of diagrams) {
 }
 
 await run(["report", input, "--output-dir", path.join("examples", "report"), "--codegraph"]);
+await run([
+  "docs", "generate", input,
+  "--app", input,
+  "--export", "markdown,html,dita,ado-csv",
+  "--output-dir", path.join("examples", "docs")
+]);

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE task PUBLIC "-//OASIS//DTD DITA Task//EN" "task.dtd">
+<task id="warehouse-request-process" xml:lang="en-US">
+  <title>Process an existing warehouse request from the request list</title>
+  <shortdesc>Use this guide to process an existing warehouse request from the request list.</shortdesc>
+  <prolog>
+    <metadata>
+      <keywords><keyword>warehouse-requests</keyword></keywords>
+      <othermeta name="bc-atlas-source" content="WarehouseUITests.al#WarehouseRequests_ProcessRequest_MarksRequestProcessed"/>
+      <othermeta name="bc-atlas-source-sha256" content="36b4ee9a14095a7d1b2c191fa90aa0730cf134c0bae6def43f21ac9ac4bc2ddc"/>
+    </metadata>
+  </prolog>
+  <taskbody>
+    <prereq><ul><li>Required permission: <uicontrol>WAREHOUSE PROCESS</uicontrol></li><li>Master data: A warehouse request exists and is not processed.</li><li><xref href="warehouse-request-create.dita" type="task">Create a new Warehouse Request</xref></li></ul></prereq>
+    <steps>
+      <step>
+        <cmd>Choose the 🔍 icon, enter <uicontrol>Warehouse Requests</uicontrol>, and then choose the related link.</cmd>
+      </step>
+      <step>
+        <cmd>Select the record you want to work with.</cmd>
+      </step>
+      <step>
+        <cmd>Choose the <uicontrol>Process</uicontrol> action.</cmd><info><p>Process the selected warehouse request and mark it as processed.</p></info>
+      </step>
+      <step>
+        <cmd>Close the <uicontrol>Warehouse Requests</uicontrol> page. Business Central saves your changes.</cmd>
+      </step>
+    </steps>
+    <result><ul><li>The warehouse request is marked as processed.</li></ul></result>
+  </taskbody>
+</task>

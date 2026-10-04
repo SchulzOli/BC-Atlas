@@ -296,7 +296,12 @@ AL UI-test files are the only persisted scenario source. See
 | Option | Commands | Value | Description |
 | --- | --- | --- | --- |
 | `--format` | all | `text` or `json` | Human-readable or pipe-safe output. Default: `text`. |
-| `--id` | `show`, `generate`, `set`, `unset` | document ID | Selects a scenario by stable `[DOC-ID]`. Required for `show`, `set`, `unset`. |
+| `--id` | `show`, `generate`, `set`, `unset` | document ID | Selects a scenario by stable `[DOC-ID]`. Required for `show`, `set`, `unset`. With `generate`, writes one Markdown file. |
+| `--export` | `generate` | formats | Comma-separated `markdown`, `html`, `dita`, `ado-csv`. Default: `markdown`. |
+| `--as` | `generate` | `guide` or `testcase` | User guide or test case with an action/expected-result table. Default: `guide`. |
+| `--app` | `generate` | path | AL app source for real captions, tooltips, and page coverage. |
+| `--language` | `generate` | tag | Wording and captions in this language, e.g. `de-DE`; captions come from the app's `.xlf` files. Default: `en-US`. |
+| `--title` | `generate` | text | Title of the index, HTML page, and DITA map. Default: the app name. |
 | `--procedure` | `generate` | name | Test procedure; required when a file contains several tests. |
 | `--output-dir` | `generate`, `automation` | path | Markdown directory. Default: `docs/generated`. |
 | `--strict` | `validate` | flag | Treat warnings as failures. |
@@ -330,9 +335,24 @@ bca docs generate test/UITest --output-dir docs/generated
 bca docs generate test/PartnerUITest.Codeunit.al --procedure PartnersList_NewPartner_PersistsGeneralFields
 ```
 
+```text
+bca docs generate test/UITest --app app --export markdown,html,dita,ado-csv
+bca docs generate test/UITest --app app --as testcase --language de-DE --export html
+```
+
 `[WHEN]` comments become numbered phases. Reachable local helpers containing
 `TestPage` operations are expanded with cycle and depth protection. Directory
-generation writes one `<document-id>.md` per scenario plus `index.md`.
+generation writes, per format:
+
+| Format | Files |
+| --- | --- |
+| `markdown` | `<document-id>.md`, `use-case-<feature>.md`, `index.md`, `journey.d2`, `journey.svg` |
+| `html` | `index.html` |
+| `dita` | `<document-id>.dita`, `documentation.ditamap` |
+| `ado-csv` | `test-cases.csv` |
+
+`--id` and `--procedure` write a single Markdown file and cannot be combined
+with other formats.
 
 #### `docs set` and `docs unset`
 

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE map PUBLIC "-//OASIS//DTD DITA Map//EN" "map.dtd">
+<map xml:lang="en-US">
+  <title>BC Atlas Warehouse Example</title>
+  <topichead navtitle="Warehouse requests">
+    <topicref href="warehouse-request-create.dita" type="task" navtitle="Create a new Warehouse Request"/>
+    <topicref href="warehouse-request-process.dita" type="task" navtitle="Process an existing warehouse request from the request list"/>
+  </topichead>
+</map>

@@ -17,15 +17,15 @@ UsageCategory: "Lists"
 
 | Field | Source expression | Area/Container | Properties |
 | --- | --- | --- | --- |
-| EntryNo | Rec."Entry No." | Content | `ApplicationArea = All`<br>`Caption = 'Entry No.'` |
-| Description | Rec.Description | Content | `ApplicationArea = All`<br>`Caption = 'Description'` |
-| Processed | Rec.Processed | Content | `ApplicationArea = All`<br>`Caption = 'Processed'`<br>`Editable = false` |
+| EntryNo | Rec."Entry No." | Content | `ApplicationArea = All`<br>`Caption = 'Entry No.'`<br>`ToolTip = 'Specifies the number that identifies the warehouse request.'` |
+| Description | Rec.Description | Content | `ApplicationArea = All`<br>`Caption = 'Description'`<br>`ToolTip = 'Specifies what the warehouse needs to do.'` |
+| Processed | Rec.Processed | Content | `ApplicationArea = All`<br>`Caption = 'Processed'`<br>`ToolTip = 'Specifies whether the request has been processed.'`<br>`Editable = false` |
 
 ## Actions
 
 | Action | Area/Group | Runs | Properties |
 | --- | --- | --- | --- |
-| ProcessRequest | Processing |  | `ApplicationArea = All`<br>`Caption = 'Process'` |
+| ProcessRequest | Processing |  | `ApplicationArea = All`<br>`Caption = 'Process'`<br>`ToolTip = 'Process the selected warehouse request and mark it as processed.'` |
 
 ## Dependencies
 

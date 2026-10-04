@@ -329,16 +329,40 @@ export function createCapabilities(version) {
         id: "docs.generate",
         area: "document",
         argv: ["bca", "docs", "generate", "<test-root>"],
-        purpose: "Generate Markdown user guides and an index.",
+        purpose: "Generate user guides or test cases as Markdown, HTML, DITA, or Azure DevOps CSV.",
         options: {
-          id: string("Generate only this stable document ID.", { value: "document-id" }),
-          procedure: string("Test procedure; required when a file contains several tests.", { value: "name" }),
-          outputDir: string("Markdown directory.", { value: "path", default: "docs/generated" }),
+          export: string("Comma-separated output formats: markdown, html, dita, ado-csv.", {
+            group: OUTPUT,
+            value: "formats",
+            default: "markdown"
+          }),
+          as: string("Document type: a user guide or a test case with an action/expected-result table.", {
+            group: OUTPUT,
+            enum: ["guide", "testcase"],
+            default: "guide"
+          }),
+          outputDir: string("Output directory.", { group: OUTPUT, value: "path", default: "docs/generated" }),
+          title: string("Title of the index, HTML page, and DITA map.", { group: OUTPUT, value: "text" }),
+          app: string("AL app source used for real captions, tooltips, and page coverage.", { value: "app-root" }),
+          language: string("Language for wording and captions, e.g. de-DE; captions come from the app's .xlf files.", {
+            value: "tag",
+            default: "en-US"
+          }),
+          id: string("Generate only this stable document ID (Markdown).", { value: "document-id" }),
+          procedure: string("Test procedure; required when a file contains several tests (Markdown).", { value: "name" }),
           format: docsFormat
         },
-        output: { type: "json", when: "--format json" },
+        output: { type: "directory", pathOption: "outputDir", default: "docs/generated", entry: "index.md" },
+        rules: [
+          "markdown writes <id>.md per scenario, use-case-<feature>.md, index.md, and journey.d2/.svg",
+          "html writes one self-contained index.html; dita writes <id>.dita and documentation.ditamap",
+          "ado-csv writes test-cases.csv for the Azure DevOps Test Plans grid import"
+        ],
         examples: [
-          "bca docs generate ./test/UITest --output-dir docs/guides",
+          "bca docs generate ./test --app ./app --export markdown,html",
+          "bca docs generate ./test --app ./app --as testcase --export ado-csv",
+          "bca docs generate ./test --app ./app --language de-DE --export html",
+          "bca docs generate ./test --export dita --output-dir docs/dita",
           "bca docs generate ./test/PartnerUITest.Codeunit.al --procedure NewPartner_PersistsFields"
         ]
       }),

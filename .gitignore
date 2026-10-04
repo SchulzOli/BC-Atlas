@@ -38,4 +38,6 @@ Thumbs.db
 !examples/output/*.svg
 !examples/report/
 !examples/report/*.svg
+!examples/docs/
+!examples/docs/*.svg
 _output_test
