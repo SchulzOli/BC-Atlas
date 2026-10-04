@@ -184,6 +184,50 @@ test("bca run verifies, stages, and reports generated output per trigger", () =>
   }
 });
 
+test("setup adds VS Code tasks next to existing tasks for the local loop", () => {
+  const { root, app } = repository();
+  try {
+    mkdirSync(path.join(app, ".vscode"));
+    writeFileSync(path.join(app, ".vscode", "tasks.json"), JSON.stringify({
+      version: "2.0.0",
+      tasks: [{ label: "AL: Package", type: "shell", command: "echo" }, { label: "BC Atlas: Old task", command: "x" }]
+    }));
+    const plan = JSON.parse(bca(["setup", "plan", app, "--format", "json"]).stdout);
+    assert.equal(plan.recommended.editor, "vscode", "an existing .vscode folder recommends tasks");
+
+    const result = bca(["setup", "apply", app, "--hooks", "husky", "--ci", "none", "--schedule", "none"]);
+    assert.equal(result.status, 0, result.stderr);
+    const { tasks } = JSON.parse(readFileSync(path.join(app, ".vscode", "tasks.json"), "utf8"));
+    assert.deepEqual(tasks.map(({ label }) => label), [
+      "AL: Package",
+      "BC Atlas: Health check",
+      "BC Atlas: Architecture report",
+      "BC Atlas: User documentation",
+      "BC Atlas: Run pre-commit hook",
+      "BC Atlas: Run pre-push hook",
+      "BC Atlas: Live architecture diagram",
+      "BC Atlas: Set up automation"
+    ]);
+    const check = tasks.find(({ label }) => label === "BC Atlas: Health check");
+    assert.deepEqual([check.command, ...check.args], ["npx", "--no-install", "bca", "check", "."], "same bca as the Husky hooks");
+    assert.deepEqual(check.problemMatcher.map(({ severity }) => severity), ["error", "warning", "info"]);
+    const pattern = new RegExp(check.problemMatcher[1].pattern.regexp, "u");
+    assert.deepEqual(pattern.exec("  WARN   Core must not depend on UI (src/Sales.al:19)").slice(1), [
+      "Core must not depend on UI", "src/Sales.al", "19"
+    ]);
+    assert.deepEqual(tasks.find(({ label }) => label.endsWith("pre-push hook")).args.slice(-2), ["--trigger", "pre-push"]);
+    assert.equal(readFileSync(path.join(app, ".bca", ".gitignore"), "utf8").trim().split("\n").at(-1), "*");
+
+    writeFileSync(path.join(app, ".vscode", "tasks.json"), "// my tasks\n{ \"version\": \"2.0.0\", \"tasks\": [] }\n");
+    const commented = JSON.parse(bca(["setup", "apply", app, "--format", "json", "--ci", "none", "--schedule", "none"]).stdout);
+    assert.equal(commented.files.find(({ path: file }) => file.endsWith("tasks.json")).action, "skip");
+    assert.equal(bca(["setup", "apply", app, "--force", "--ci", "none", "--schedule", "none"]).status, 0);
+    assert.ok(JSON.parse(readFileSync(path.join(app, ".vscode", "tasks.json"), "utf8")).tasks.length > 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("setup agent writes slash commands for Claude Code, Copilot, and Cursor", () => {
   const { root, app } = repository();
   try {

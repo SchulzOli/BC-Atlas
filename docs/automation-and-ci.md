@@ -74,6 +74,18 @@ each clone runs `git config core.hooksPath .githooks` once. The hook uses
 
 Skip hooks once with `git commit --no-verify` or `git push --no-verify`.
 
+## VS Code tasks
+
+`bca setup --editor vscode` adds `BC Atlas:` tasks to `.vscode/tasks.json`:
+
+- a health check whose findings appear in the Problems panel;
+- report and documentation builds;
+- dry runs of the pre-commit and pre-push hooks;
+- a live architecture diagram (background `bca watch`);
+- the setup wizard.
+
+See [Guided setup](./setup.md#local-development).
+
 ## Schedules (cron)
 
 A schedule is a five-field cron expression in UTC, for example `0 6 * * 1` for

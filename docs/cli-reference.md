@@ -117,6 +117,7 @@ means empty.
 | `--pre-commit` | list | Features before each commit, or `none`. |
 | `--pre-push` | list | Features before each push, or `none`. |
 | `--hook-sync` | `verify`, `stage`, `none` | How hooks keep generated files in sync. |
+| `--editor` | `vscode`, `none` | Add `BC Atlas:` tasks to `.vscode/tasks.json` for the local development loop. |
 | `--ci` | `github`, `azure-devops`, `none` | Pipeline provider. |
 | `--ci-sync` | `verify`, `artifact`, `none` | What pull requests and pushes do with generated files. |
 | `--schedule` | cron | Five-field cron expression in UTC, or `none`. |

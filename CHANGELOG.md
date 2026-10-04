@@ -16,6 +16,9 @@ follows [Semantic Versioning](https://semver.org/).
 - `bca setup plan` and `bca setup apply`: the same setup as detectable facts,
   questions with recommendations, and a validated, idempotent apply with
   `--dry-run`.
+- `bca setup --editor vscode`: VS Code tasks for the local loop: health check
+  with findings in the Problems panel, report and docs builds, hook dry runs,
+  a live architecture diagram, and the setup wizard. Existing tasks are kept.
 - `bca setup agent --agent claude|copilot|cursor`: a `/bca-setup` command that
   lets the user's AI agent guide the setup through the CLI.
 - `bca run --trigger pre-commit|pre-push|ci|schedule`: one entry point for

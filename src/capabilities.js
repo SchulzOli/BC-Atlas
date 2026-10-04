@@ -231,6 +231,7 @@ export function createCapabilities(version) {
           preCommit: string("Features to run before each commit, or none.", { group: "Triggers", value: "list" }),
           prePush: string("Features to run before each push, or none.", { group: "Triggers", value: "list" }),
           hookSync: string("How hooks keep generated files in sync.", { group: "Sync", enum: ["verify", "stage", "none"] }),
+          editor: string("Editor tasks for the local development loop.", { group: "Triggers", enum: ["vscode", "none"] }),
           ci: string("Pipeline provider.", { group: "Triggers", enum: ["github", "azure-devops", "none"] }),
           ciSync: string("What pull requests and pushes do with generated files.", { group: "Sync", enum: ["verify", "artifact", "none"] }),
           schedule: string("Cron expression (UTC) for scheduled runs, or none.", { group: "Triggers", value: "cron" }),

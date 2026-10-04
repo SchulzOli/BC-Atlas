@@ -194,6 +194,7 @@ export function createMcpServer(version = pkg.version) {
         preCommit: z.array(z.enum(["check", "report", "docs", "codegraph"])).optional(),
         prePush: z.array(z.enum(["check", "report", "docs", "codegraph"])).optional(),
         hookSync: z.enum(["verify", "stage", "none"]).optional(),
+        editor: z.enum(["vscode", "none"]).optional(),
         ci: z.enum(["github", "azure-devops", "none"]).optional(),
         ciSync: z.enum(["verify", "artifact", "none"]).optional(),
         schedule: z.string().optional().describe("Cron expression (UTC) or none"),

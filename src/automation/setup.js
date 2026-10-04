@@ -12,6 +12,7 @@ import { findGitRoot, git, hostOf, remoteUrl } from "./git.js";
 import {
   azurePipeline, GENERATED_MARKER, githubWorkflow, mergeHook, PIPELINE_FILES, validatePipelineSync
 } from "./pipelines.js";
+import { hasJsonComments, mergeTasks, vscodeTasks } from "./vscode.js";
 
 const IGNORED = new Set([".git", ".alpackages", ".vscode", "node_modules", ".snapshots", "docs", ".husky", ".github"]);
 const FEATURES = ["check", "report", "docs", "codegraph"];
@@ -96,6 +97,7 @@ export async function detectProject(input) {
     packageJson: Boolean(packageJson),
     husky: Boolean(packageJson?.devDependencies?.husky || packageJson?.dependencies?.husky) ||
       (gitRoot ? await exists(path.join(gitRoot, ".husky")) : false),
+    vscode: await exists(path.join(root, ".vscode")) || (gitRoot ? await exists(path.join(gitRoot, ".vscode")) : false),
     ci: { githubWorkflows: workflows.filter((name) => /\.ya?ml$/u.test(name)), azurePipelines: azure }
   };
 }
@@ -115,6 +117,7 @@ function recommend(facts) {
     preCommit: ["check"],
     prePush: features.filter((feature) => feature !== "check"),
     hookSync: "verify",
+    editor: facts.vscode ? "vscode" : "none",
     ci,
     ciSync: "verify",
     schedule: ci === "none" ? "none" : "0 6 * * 1",
@@ -188,6 +191,14 @@ function questions(facts, recommended) {
       ]
     },
     {
+      id: "editor", flag: "--editor", type: "single",
+      question: "Should BC Atlas add tasks to your editor for the local development loop?",
+      options: [
+        option("vscode", "VS Code tasks: health check (findings in the Problems panel), report, docs, hook dry runs, live diagram"),
+        option("none", "No editor tasks")
+      ]
+    },
+    {
       id: "ci", flag: "--ci", type: "single",
       question: "Which pipeline should run BC Atlas?",
       options: CI_PROVIDERS.map((provider) => option(provider, {
@@ -244,6 +255,7 @@ export const ANSWER_FLAGS = Object.freeze({
   preCommit: "--pre-commit",
   prePush: "--pre-push",
   hookSync: "--hook-sync",
+  editor: "--editor",
   ci: "--ci",
   ciSync: "--ci-sync",
   schedule: "--schedule",
@@ -281,6 +293,7 @@ export function resolveAnswers(raw, recommended) {
     preCommit: hooks === "none" ? [] : parseList(pick("preCommit"), FEATURES, "--pre-commit"),
     prePush: hooks === "none" ? [] : parseList(pick("prePush"), FEATURES, "--pre-push"),
     hookSync: pick("hookSync"),
+    editor: pick("editor") ?? "none",
     ci,
     ciSync: pick("ciSync"),
     schedule: schedule === "none" || schedule === "" ? "none" : validateCron(schedule),
@@ -288,6 +301,7 @@ export function resolveAnswers(raw, recommended) {
   };
   if (!["guide", "testcase"].includes(answers.docsAs)) throw new Error("--docs-as must be guide or testcase");
   if (!["none", "verify", "stage"].includes(answers.hookSync)) throw new Error("--hook-sync must be verify, stage, or none");
+  if (!["vscode", "none"].includes(answers.editor)) throw new Error("--editor must be vscode or none");
   if (features.includes("docs") && !answers.tests) throw new Error("the docs feature needs --tests <folder with AL UI tests>");
   for (const list of [answers.preCommit, answers.prePush]) {
     const missing = list.filter((task) => !features.includes(task));
@@ -378,6 +392,37 @@ export async function applySetup(input, rawAnswers = {}, { dryRun = false, force
   if (answers.hooks === "git") {
     commands.push(["git", "config", "core.hooksPath", ".githooks"]);
     nextSteps.push("Every clone: git config core.hooksPath .githooks");
+  }
+
+  if (answers.editor === "vscode") {
+    // Use the folder VS Code opens: the app folder when it has .vscode, else the repository.
+    const workspace = await exists(path.join(root, ".vscode")) || !gitRoot ? root : gitRoot;
+    const tasksFile = path.join(workspace, ".vscode", "tasks.json");
+    const current = await readFile(tasksFile, "utf8").catch(() => undefined);
+    const command = answers.hooks === "husky" ? ["npx", "--no-install", "bca"] : ["npx", "--yes", `bc-atlas@${version}`];
+    const tasks = vscodeTasks({
+      appPath: portable(path.relative(workspace, root)),
+      command,
+      features: answers.features,
+      triggers: config.automation.triggers
+    });
+    if (current !== undefined && hasJsonComments(current) && !force) {
+      files.push({
+        path: portable(path.relative(gitRoot ?? root, tasksFile)),
+        action: "skip",
+        reason: "contains comments; use --force to rewrite it (comments are removed)"
+      });
+    } else {
+      let content;
+      try {
+        content = mergeTasks(current, tasks);
+      } catch (error) {
+        throw new Error(`cannot read ${tasksFile}: ${error.message}`);
+      }
+      files.push(await plannedWrite(tasksFile, content, options));
+    }
+    files.push(await plannedWrite(path.join(root, ".bca", ".gitignore"), "# Local BC Atlas output, e.g. the live diagram.\n*\n", options));
+    nextSteps.push("VS Code: Terminal > Run Task > BC Atlas: ...");
   }
 
   if (answers.ci !== "none") {
