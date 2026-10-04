@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - run: npm install --global bc-atlas
       - name: Architecture health
         run: |
@@ -49,7 +49,7 @@ Azure Pipelines:
 steps:
   - task: NodeTool@0
     inputs:
-      versionSpec: 22.x
+      versionSpec: 24.x
   - script: npm install --global bc-atlas
     displayName: Install BC Atlas
   - script: bca check ./app --fail-on warning

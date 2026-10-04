@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:24-alpine
 
 LABEL org.opencontainers.image.title="BC Atlas" \
       org.opencontainers.image.description="Architecture diagrams, health checks, and documentation for Business Central AL" \

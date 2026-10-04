@@ -14,7 +14,7 @@ documentation fixes, examples, and focused code changes are all welcome.
 
 ## Development setup
 
-BC Atlas requires Node.js 20 or newer.
+BC Atlas requires Node.js 22 or newer.
 
 ```sh
 git clone https://github.com/SchulzOli/BC-Atlas.git

@@ -1,24 +1,45 @@
 name: CI
 
 on:
-  push:
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Fast, OS-independent gate. The test matrix starts only when it passes.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - name: Generated examples are current
+        run: |
+          npm run examples
+          git diff --exit-code -- examples/output examples/report examples/docs
+      - run: npm pack --dry-run
+
   test:
+    needs: check
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node: [20, 22, 24]
+        include:
+          - { os: ubuntu-latest, node: 22 }
+          - { os: ubuntu-latest, node: 24 }
+          - { os: windows-latest, node: 24 }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,7 +47,6 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      - run: npm run check
       - run: npm test
       - name: CLI smoke test
         shell: bash
@@ -35,13 +55,6 @@ jobs:
           node src/cli.js graph test/fixtures --view project --output dist/architecture.d2
           node src/cli.js inspect test/fixtures --output dist/model.json
           node src/cli.js check examples/warehouse-app
-      - if: matrix.os == 'ubuntu-latest' && matrix.node == 22
-        name: Generated examples are current
-        run: |
-          npm run examples
-          git diff --exit-code -- examples/output examples/report
-      - if: matrix.os == 'ubuntu-latest' && matrix.node == 22
-        run: npm pack --dry-run
 
   container:
     runs-on: ubuntu-latest
