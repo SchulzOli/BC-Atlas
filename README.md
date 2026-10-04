@@ -3,6 +3,7 @@
 [![CI](https://github.com/SchulzOli/BC-Atlas/actions/workflows/ci.yml/badge.svg)](https://github.com/SchulzOli/BC-Atlas/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Docs](https://img.shields.io/badge/docs-schulzoli.github.io%2FBC--Atlas-0b62d6)](https://schulzoli.github.io/BC-Atlas/)
 
 **Understand, guard, and document Microsoft Dynamics 365 Business Central AL
 projects - straight from source.**
@@ -13,12 +14,15 @@ objects, calls, events, data access, and permissions into an architecture
 model, and turns it into diagrams, health checks, reports, and documentation.
 Parser and renderer are WebAssembly: Node.js is the only requirement.
 
+**Documentation: [schulzoli.github.io/BC-Atlas](https://schulzoli.github.io/BC-Atlas/)**
+
 ```sh
 npm install --global bc-atlas
 cd path/to/al-project
-bca setup     # choose features, Git hooks, pipeline, schedule (or: bca setup agent)
+bca setup     # features, Husky hooks, VS Code tasks, pipeline, schedule (or: bca setup agent)
 bca report    # docs/atlas/README.md: overview, diagrams, health
 bca check     # architecture gate for CI
+bca update    # new version? see what changed and update everything in one step
 ```
 
 ## Features at a glance
@@ -34,8 +38,8 @@ bca check     # architecture gate for CI
 | | `bca inspect` | The resolved architecture model as JSON for scripts. |
 | **Document** | `bca codegraph` | One linked Markdown page per AL object. |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations. [Example](./examples/docs/index.md) |
-| | `bca update` | "BC Atlas 0.8.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
 | **Integrate** | `bca run` | One entry point for Git hooks, schedules, and pipelines; verifies, stages, or publishes generated files. Also available as a [GitHub Action](./docs/automation-and-ci.md#github-actions). |
+| | `bca update` | "BC Atlas 0.8.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
 | | `bca capabilities` | A versioned JSON contract of every command for tools and agents. |
 | | `bca mcp` | A Model Context Protocol server for AI agents. |
 
@@ -102,13 +106,29 @@ bca check --fail-on warning
 ```
 
 `--format markdown` produces a summary for pull requests or job pages; see
-[Automation and CI](./docs/automation-and-ci.md).
+[Automation](./docs/automation-and-ci.md).
+
+## Automate it
+
+`bca setup` asks once and wires everything to `bca run`:
+
+| Trigger | Runs | Typical sync |
+| --- | --- | --- |
+| VS Code task | Health check (findings in the Problems panel), report, docs, live diagram | - |
+| `git commit` (Husky) | Fast checks | - |
+| `git push` (Husky) | Report and docs | `verify`: stop when generated files are outdated |
+| Pull request / `main` | Everything | `verify` or `artifact` |
+| Schedule (cron) | Report and docs | `pull-request` with regenerated files |
+
+New BC Atlas versions show up as a notice in the terminal, as `bca update`, and
+optionally as Dependabot pull requests. See [Guided setup](./docs/setup.md).
 
 ## Documentation
 
-Start with the [documentation table of contents](./docs/_TOC_.md):
+Read the docs at **[schulzoli.github.io/BC-Atlas](https://schulzoli.github.io/BC-Atlas/)**, with
+search, or browse them here, starting with the [table of contents](./docs/_TOC_.md):
 
-- [Getting started](./docs/getting-started.md) and [guided setup](./docs/setup.md)
+- [Getting started](./docs/getting-started.md) and [guided setup](./docs/setup.md), including [staying up to date](./docs/setup.md#staying-up-to-date)
 - [Automation: hooks, schedules, and pipelines](./docs/automation-and-ci.md)
 - [Architecture reports](./docs/reports.md) and [health checks](./docs/health-checks.md)
 - [Architecture diagrams and views](./docs/architecture-diagrams.md)
@@ -116,6 +136,7 @@ Start with the [documentation table of contents](./docs/_TOC_.md):
 - [Documentation from AL UI tests](./docs/al-ui-test-documentation.md) and [Code Graph](./docs/code-graph-markdown-design.md)
 - [Agent integration and MCP](./docs/agent-integration.md)
 - [CLI reference](./docs/cli-reference.md) and [troubleshooting](./docs/troubleshooting.md)
+- Generated examples: [architecture report](./examples/report/README.md) and [user guides](./examples/docs/index.md)
 
 ## AI agents and tools
 
@@ -125,9 +146,11 @@ bca mcp            # MCP stdio server (also installed as bca-mcp)
 ```
 
 Agents should read the contract first, pass arguments as arrays, parse stdout
-only after a successful exit code, and preview AL metadata edits with
-`--dry-run`. The MCP server exposes inspect, check, report, diagram, and
-documentation tools. See [agent integration](./docs/agent-integration.md).
+only after a successful exit code, and preview changes with `--dry-run`. The
+MCP server exposes inspect, check, report, diagram, documentation, setup, run,
+and update-check tools. `bca setup agent --agent claude|copilot|cursor` adds a
+`/bca-setup` command that lets your agent guide the setup. See
+[agent integration](./docs/agent-integration.md).
 
 ## How it works
 
@@ -161,8 +184,13 @@ cd BC-Atlas
 npm ci
 npm run check      # syntax check and generated-docs check
 npm test
-npm run examples   # regenerate examples/output and examples/report
+npm run examples   # regenerate examples/output, examples/report, and examples/docs
+npm run site:dev   # documentation website with live reload
 ```
+
+The website is built with VitePress from the Markdown in this repository
+(`README.md`, `docs/`, `examples/`) and published to GitHub Pages by the `Docs`
+workflow on every push to `main`.
 
 Container:
 
@@ -181,7 +209,8 @@ Releases are published manually through the `Publish npm package` workflow.
 Update and commit the version in `package.json` and `package-lock.json`, then
 enter that exact version in the workflow form. The workflow rejects mismatched
 or already published versions, runs all checks, and publishes with the selected
-dist-tag. It requires an `NPM_TOKEN` repository secret.
+dist-tag. It requires an `NPM_TOKEN` repository secret. Tag the released
+commit as `v<version>` so `uses: SchulzOli/BC-Atlas@v<version>` resolves.
 
 ## Contributing and support
 

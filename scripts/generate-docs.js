@@ -4,44 +4,14 @@ import path from "node:path";
 import process from "node:process";
 
 import { createCapabilities } from "../src/capabilities.js";
+import { SECTIONS, WEBSITE } from "./docs-structure.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const docsRoot = path.join(root, "docs");
 const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
 const capabilities = createCapabilities(packageJson.version);
 
-const sections = [
-  ["Start here", [
-    ["Getting started", "getting-started.md"],
-    ["Guided setup (wizard or AI agent)", "setup.md"],
-    ["Architecture reports", "reports.md"],
-    ["Configuration", "configuration.md"]
-  ]],
-  ["Visualize", [
-    ["Architecture diagrams and views", "architecture-diagrams.md"]
-  ]],
-  ["Analyze", [
-    ["Architecture health checks", "health-checks.md"]
-  ]],
-  ["Document", [
-    ["Code Graph as Markdown", "code-graph-markdown-design.md"],
-    ["Documentation from AL UI tests", "al-ui-test-documentation.md"]
-  ]],
-  ["Integrate", [
-    ["Automation: hooks, schedules, and pipelines", "automation-and-ci.md"],
-    ["Agent integration and MCP", "agent-integration.md"],
-    ["MCP JSON example", "examples/mcp.json"]
-  ]],
-  ["Reference", [
-    ["CLI reference", "cli-reference.md"],
-    ["Generated CLI capabilities", "reference/cli-capabilities.md"],
-    ["Troubleshooting", "troubleshooting.md"]
-  ]],
-  ["Generated examples", [
-    ["Architecture report (warehouse example)", "../examples/report/README.md"],
-    ["User guides from AL UI tests (warehouse example)", "../examples/docs/index.md"]
-  ]]
-];
+const sections = SECTIONS;
 
 const toc = [
   "# BC Atlas documentation",
@@ -50,6 +20,8 @@ const toc = [
   "analyze, document, and integrate. This table of contents follows the same",
   "structure. The generated CLI capability reference comes directly from the",
   "source code.",
+  "",
+  `Read it online at ${WEBSITE}.`,
   ""
 ];
 

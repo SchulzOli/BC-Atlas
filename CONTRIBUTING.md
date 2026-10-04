@@ -64,6 +64,21 @@ generated reference in `docs/reference/` all derive from it. Then add the
 handler in `src/commands/`, register it in `src/cli.js`, document every option
 in `docs/cli-reference.md` (a test enforces this), and run `npm run docs`.
 
+## Documentation website
+
+The website at https://schulzoli.github.io/BC-Atlas/ is built with VitePress
+from the Markdown in this repository: `README.md` is the home page, `docs/` the
+guides, and `examples/` the generated samples. Edit those files, not the site.
+
+```sh
+npm run site:dev      # live preview
+npm run site:build    # what CI runs; fails on dead links
+```
+
+The sidebar comes from `scripts/docs-structure.js`, which also generates
+`docs/_TOC_.md` (`npm run docs`). Add a new page there. Relative links to files
+that are not pages, such as `.bca.example.json`, point to GitHub automatically.
+
 ## Tests and fixtures
 
 Tests use Node's built-in test runner. Small, self-contained AL fixtures are
