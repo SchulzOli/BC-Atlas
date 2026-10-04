@@ -1,0 +1,13 @@
+﻿ID,Work Item Type,Title,Test Step,Step Action,Step Expected,Area Path,Assigned To,State,Tags
+,Test Case,Create a new Warehouse Request,,,,,,Design,warehouse-requests
+,,,1,Verify that the preconditions are met.,All preconditions are met.,,,,
+,,,2,"Choose the 🔍 icon, enter Warehouse Requests, and then choose the related link. Choose New to create a record.",A new record opens on the Warehouse Requests page.,,,,
+,,,3,"In the Entry No. field, enter a value, for example 10000.",The value is accepted without an error.,,,,
+,,,4,"In the Description field, enter a value, for example Receive summer stock.",The value is accepted without an error.,,,,
+,,,5,Close the Warehouse Requests page. Business Central saves your changes.,The warehouse request is saved with the entered description.,,,,
+,Test Case,Process an existing warehouse request from the request list,,,,,,Design,warehouse-requests
+,,,1,Verify that the preconditions are met.,All preconditions are met.,,,,
+,,,2,"Choose the 🔍 icon, enter Warehouse Requests, and then choose the related link.",The Warehouse Requests page opens.,,,,
+,,,3,Select the record you want to work with.,The record is selected.,,,,
+,,,4,Choose the Process action.,The action completes without an error.,,,,
+,,,5,Close the Warehouse Requests page. Business Central saves your changes.,The warehouse request is marked as processed.,,,,

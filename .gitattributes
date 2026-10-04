@@ -8,3 +8,6 @@
 *.wasm binary
 *.png binary
 *.jpg binary
+
+# Azure DevOps CSV keeps CRLF and its BOM exactly as generated
+*.csv -text

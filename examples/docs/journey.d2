@@ -1,0 +1,9 @@
+direction: right
+
+"use-case-warehouse-requests": "Warehouse requests" {
+  "warehouse-request-create": "Create a new Warehouse Request"
+  "warehouse-request-process": "Process an existing warehouse request from the request list"
+}
+
+"use-case-warehouse-requests"."warehouse-request-create" -> "use-case-warehouse-requests"."warehouse-request-process": next
+"use-case-warehouse-requests"."warehouse-request-process" -> "use-case-warehouse-requests"."warehouse-request-create": requires {style.stroke-dash: 4}

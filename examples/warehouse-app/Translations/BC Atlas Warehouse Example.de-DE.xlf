@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:oasis:names:tc:xliff:document:1.2 xliff-core-1.2-transitional.xsd">
+  <file datatype="xml" source-language="en-US" target-language="de-DE" original="BC Atlas Warehouse Example">
+    <body>
+      <group id="body">
+        <trans-unit id="Page 1 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Warehouse Requests</source>
+          <target>Lageranforderungen</target>
+          <note from="Xliff Generator" annotates="general" priority="3">Page Warehouse Requests - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 1 - Control 1 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Entry No.</source>
+          <target>Lfd. Nr.</target>
+          <note from="Xliff Generator" annotates="general" priority="3">Page Warehouse Requests - Control EntryNo - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 1 - Control 1 - Property 1295455071" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Specifies the number that identifies the warehouse request.</source>
+          <target>Gibt die Nummer an, die die Lageranforderung eindeutig kennzeichnet.</target>
+          <note from="Xliff Generator" annotates="general" priority="3">Page Warehouse Requests - Control EntryNo - Property ToolTip</note>
+        </trans-unit>
+        <trans-unit id="Page 1 - Control 2 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Description</source>
+          <target>Beschreibung</target>
+          <note from="Xliff Generator" annotates="general" priority="3">Page Warehouse Requests - Control Description - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 1 - Control 2 - Property 1295455071" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Specifies what the warehouse needs to do.</source>
+          <target>Gibt an, was das Lager tun muss.</target>
+          <note from="Xliff Generator" annotates="general" priority="3">Page Warehouse Requests - Control Description - Property ToolTip</note>
+        </trans-unit>
+        <trans-unit id="Page 1 - Control 3 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Processed</source>
+          <target>Verarbeitet</target>
+          <note from="Xliff Generator" annotates="general" priority="3">Page Warehouse Requests - Control Processed - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 1 - Action 1 - Property 2879900210" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Process</source>
+          <target>Verarbeiten</target>
+          <note from="Xliff Generator" annotates="general" priority="3">Page Warehouse Requests - Action ProcessRequest - Property Caption</note>
+        </trans-unit>
+        <trans-unit id="Page 1 - Action 1 - Property 1295455071" size-unit="char" translate="yes" xml:space="preserve">
+          <source>Process the selected warehouse request and mark it as processed.</source>
+          <target>Verarbeitet die ausgewählte Lageranforderung und markiert sie als verarbeitet.</target>
+          <note from="Xliff Generator" annotates="general" priority="3">Page Warehouse Requests - Action ProcessRequest - Property ToolTip</note>
+        </trans-unit>
+      </group>
+    </body>
+  </file>
+</xliff>

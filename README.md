@@ -32,7 +32,7 @@ bca check     # architecture gate for CI
 | **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, hot spots, diagnostics - with a CI exit code. |
 | | `bca inspect` | The resolved architecture model as JSON for scripts. |
 | **Document** | `bca codegraph` | One linked Markdown page per AL object. |
-| | `bca docs` | User guides generated from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`). |
+| | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations. [Example](./examples/docs/index.md) |
 | **Integrate** | `bca capabilities` | A versioned JSON contract of every command for tools and agents. |
 | | `bca mcp` | A Model Context Protocol server for AI agents. |
 

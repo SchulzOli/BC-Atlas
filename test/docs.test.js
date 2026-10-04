@@ -107,11 +107,12 @@ test("derives documentation from a selected AL UI test", async () => {
     assert.deepEqual(source.value.expected, ["The widget persists with its code and name."]);
     assert.deepEqual(source.value.guideExpected, ["The widget persists with its code and name."]);
     assert.deepEqual(source.value.guideSteps, [
-      "Open **Widgets** and create a new record.",
-      "In **Code**, enter a suitable value (for example, **W-UI**).",
-      "In **Name**, enter a suitable value (for example, **UI Widget**).",
-      "Finish the entry and close **Widgets**. Business Central saves the changes."
+      "Choose the 🔍 icon, enter **Widgets**, and then choose the related link. Choose **New** to create a record.",
+      "In the **Code** field, enter a value, for example **W-UI**.",
+      "In the **Name** field, enter a value, for example **UI Widget**.",
+      "Close the **Widgets** page. Business Central saves your changes."
     ]);
+    assert.deepEqual(source.value.guideOperations.map(({ kind }) => kind), ["open", "set", "set", "close"]);
     assert.match(source.reference, /WidgetUITest\.Codeunit\.al#WidgetsList_NewWidget/u);
     assert.match(source.value.sourceHash, /^[a-f0-9]{64}$/u);
   } finally {
@@ -206,10 +207,9 @@ test("renders and writes deterministic Markdown directly from AL", async () => {
     assert.match(markdown, /## Before you start/u);
     assert.match(markdown, /Required permission: \*\*Widget, Edit\*\*/u);
     assert.match(markdown, /## Steps/u);
-    assert.match(markdown, /1\. A user creates a widget from the list\./u);
-    assert.match(markdown, /   - Open \*\*Widgets\*\*/u);
-    assert.match(markdown, /for example, \*\*W-UI\*\*/u);
-    assert.match(markdown, /Business Central saves the changes/u);
+    assert.match(markdown, /^1\. Choose the 🔍 icon, enter \*\*Widgets\*\*/mu, "one [WHEN] phase is flattened into steps");
+    assert.match(markdown, /for example \*\*W-UI\*\*/u);
+    assert.match(markdown, /Business Central saves your changes/u);
     assert.match(markdown, /The widget persists with its code and name\./u);
     assert.match(markdown, /File: `WidgetUITest\.Codeunit\.al`/u);
     assert.match(markdown, /Function: `WidgetsList_NewWidget_PersistsGeneralFields`/u);
@@ -237,17 +237,18 @@ test("expands reachable UI helpers and summarizes loops under WHEN phases", asyn
       "ResolveDiscoveredConversions"
     ]);
     assert.deepEqual(source.value.guideSections[1].steps, [
-      "Open **Conversion Guide** in edit mode.",
-      "For each **Unresolved Conversion** record, open the record you want to work with; " +
-      "enter the required value in **Resolved Value**; when applicable, enter the required " +
-      "value in **Secondary Resolved Value**; then choose **Save And Next**."
+      "Choose the 🔍 icon, enter **Conversion Guide**, and then choose the related link.",
+      "For each **Unresolved Conversion** record, select the record you want to work with; " +
+      "in the **Resolved Value** field, enter the required value; if applicable, in the " +
+      "**Secondary Resolved Value** field, enter the required value; then choose the " +
+      "**Save And Next** action."
     ]);
 
     const markdown = renderDocumentation(source);
-    assert.match(markdown, /2\. The user maps every discovered provider value\./u);
-    assert.match(markdown, /For each \*\*Unresolved Conversion\*\* record/u);
-    assert.match(markdown, /when applicable.+\*\*Secondary Resolved Value\*\*/u);
-    assert.match(markdown, /then choose \*\*Save And Next\*\*/u);
+    assert.match(markdown, /^2\. The user maps every discovered provider value\.$/mu);
+    assert.match(markdown, /^ {3}- For each \*\*Unresolved Conversion\*\* record, do the following:$/mu);
+    assert.match(markdown, /^ {5}- If applicable, in the \*\*Secondary Resolved Value\*\* field/mu);
+    assert.match(markdown, /^ {5}- Choose the \*\*Save And Next\*\* action\.$/mu);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

@@ -38,4 +38,5 @@ source code.
 
 ## Generated examples
 
-- [Generated documentation catalog](./generated/index.md)
+- [Architecture report (warehouse example)](./../examples/report/README.md)
+- [User guides from AL UI tests (warehouse example)](./../examples/docs/index.md)

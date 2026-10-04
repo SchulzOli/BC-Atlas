@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE task PUBLIC "-//OASIS//DTD DITA Task//EN" "task.dtd">
+<task id="warehouse-request-create" xml:lang="en-US">
+  <title>Create a new Warehouse Request</title>
+  <shortdesc>Use this guide to create a new Warehouse Request.</shortdesc>
+  <prolog>
+    <metadata>
+      <keywords><keyword>warehouse-requests</keyword></keywords>
+      <othermeta name="bc-atlas-source" content="WarehouseUITests.al#WarehouseRequests_CreateRequest_PersistsDescription"/>
+      <othermeta name="bc-atlas-source-sha256" content="723224931c0f46093e43ec4676c2ef06da865a49ead55f29f73bc0d692e3f70e"/>
+    </metadata>
+  </prolog>
+  <taskbody>
+    <prereq><ul><li>Required permission: <uicontrol>WAREHOUSE PROCESS</uicontrol></li><li>Required state: No warehouse request exists for entry number 10000.</li></ul></prereq>
+    <context><p>The values below are examples from the automated UI test. Use values appropriate for your environment.</p></context>
+    <steps>
+      <step>
+        <cmd>Choose the 🔍 icon, enter <uicontrol>Warehouse Requests</uicontrol>, and then choose the related link. Choose <uicontrol>New</uicontrol> to create a record.</cmd>
+      </step>
+      <step>
+        <cmd>In the <uicontrol>Entry No.</uicontrol> field, enter a value, for example <userinput>10000</userinput>.</cmd><info><p>Specifies the number that identifies the warehouse request.</p></info>
+      </step>
+      <step>
+        <cmd>In the <uicontrol>Description</uicontrol> field, enter a value, for example <userinput>Receive summer stock</userinput>.</cmd><info><p>Specifies what the warehouse needs to do.</p></info>
+      </step>
+      <step>
+        <cmd>Close the <uicontrol>Warehouse Requests</uicontrol> page. Business Central saves your changes.</cmd>
+      </step>
+    </steps>
+    <result><ul><li>The warehouse request is saved with the entered description.</li></ul></result>
+  </taskbody>
+  <related-links>
+    <link href="warehouse-request-process.dita" type="task" role="next"><linktext>Process an existing warehouse request from the request list</linktext></link>
+  </related-links>
+</task>
