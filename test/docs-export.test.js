@@ -145,6 +145,22 @@ test("parses XLIFF notes and resolves captions from pages, tables, parts, and ac
     const xliff = parseXliff(APP["Translations/Widget App.de-DE.xlf"]);
     assert.equal(xliff.language, "de-DE");
     assert.equal(xliff.entries.size, 4);
+    const encoded = parseXliff(`<xliff><file target-language="de-DE"><trans-unit id="x"><target>&amp;lt;b&amp;gt; &lt;script&gt; &#252;</target>
+<note from="Xliff Generator">Page P - Property Caption</note></trans-unit></file></xliff>`);
+    assert.deepEqual([...encoded.entries.values()], ["&lt;b&gt; <script> ü"], "entities decode once, as plain text");
+
+    const { root: htmlRoot, tests: htmlTests, output: htmlOutput } = fixture();
+    try {
+      writeFileSync(path.join(htmlTests, "WidgetUITests.Codeunit.al"), TESTS.replace("Widget numbering is set up.", "<script>alert(1)</script> exists."));
+      await exportDocumentation(await loadCorpus(htmlTests), { outputDirectory: htmlOutput, formats: ["html", "dita"] });
+      for (const file of ["index.html", "widget-create.dita"]) {
+        const content = readFileSync(path.join(htmlOutput, file), "utf8");
+        assert.doesNotMatch(content, /<script>alert/u, `${file} escapes source text`);
+        assert.match(content, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/u);
+      }
+    } finally {
+      rmSync(htmlRoot, { recursive: true, force: true });
+    }
 
     const captions = await loadCaptionIndex(app);
     assert.equal(captions.appName, "Widget App");

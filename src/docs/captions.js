@@ -27,14 +27,17 @@ function withoutAccessKey(value) {
   return value === undefined ? undefined : value.replace(/&(&|(?=[^\s&]))/gu, (_, double) => double);
 }
 
+const XML_ENTITIES = { lt: "<", gt: ">", quot: "\"", apos: "'", amp: "&" };
+
+// Decodes XLIFF text content in a single pass. The result is plain text, not
+// markup: every renderer escapes it again for its own output format.
 function decodeXml(value) {
   return value
-    .replace(/<[^>]+>/gu, "")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", "\"")
-    .replaceAll("&apos;", "'")
-    .replaceAll("&amp;", "&")
+    .replace(/&(lt|gt|quot|apos|amp|#\d+|#x[\da-f]+);/giu, (entity, name) => {
+      if (name[0] !== "#") return XML_ENTITIES[name.toLowerCase()];
+      const code = name[1].toLowerCase() === "x" ? Number.parseInt(name.slice(2), 16) : Number(name.slice(1));
+      return String.fromCodePoint(code);
+    })
     .trim();
 }
 
