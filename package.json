@@ -59,7 +59,7 @@
     "@modelcontextprotocol/server": "^2.3.0",
     "@terrastruct/d2": "^0.1.33",
     "fflate": "^0.8.3",
-    "web-tree-sitter": "^0.25.10",
+    "web-tree-sitter": "^0.27.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

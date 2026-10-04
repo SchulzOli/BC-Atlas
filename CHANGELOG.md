@@ -40,7 +40,7 @@ follows [Semantic Versioning](https://semver.org/).
 - Documentation reorganized by feature area; repository URLs point to
   `SchulzOli/BC-Atlas`.
 - The npm package ships only runtime files.
-- Updated `@modelcontextprotocol/server` and `zod`.
+- Updated `@modelcontextprotocol/server`, `zod`, and `web-tree-sitter` (0.27).
 
 ### Removed
 
