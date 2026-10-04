@@ -148,10 +148,10 @@ Outgoing relationships are grouped by relationship kind and sorted by target.
 
 | Relationship | Target | From | Evidence |
 | --- | --- | --- | --- |
-| TableRelation | [Location](../table/14-location.md) | Field `LocationCode` | `Location.Code` |
-| Reads | [Warehouse Entry](../table/50100-warehouse-entry.md) | `FindEntries(Code[20])` | `FindSet` |
-| Calls | [Warehouse Service](../codeunit/50102-warehouse-service.md) | `Post()` | `Run()` |
-| Implements | [Inventory Provider](../interface/50103-inventory-provider.md) | Object | `Implements` |
+| TableRelation | `[Location](../table/14-location.md)` | Field `LocationCode` | `Location.Code` |
+| Reads | `[Warehouse Entry](../table/50100-warehouse-entry.md)` | `FindEntries(Code[20])` | `FindSet` |
+| Calls | `[Warehouse Service](../codeunit/50102-warehouse-service.md)` | `Post()` | `Run()` |
+| Implements | `[Inventory Provider](../interface/50103-inventory-provider.md)` | Object | `Implements` |
 
 The section can contain `extends`, `implements`, `relates`, `reads`, `writes`,
 `calls`, `publishes`, `subscribes`, `runs`, `part`, `includes`, `permits`, and
@@ -184,7 +184,7 @@ field modifications when present.
 | No. | Field | Type | Length | Properties | Table relation |
 | ---: | --- | --- | ---: | --- | --- |
 | 1 | Entry No. | Integer | | `AutoIncrement = true` | |
-| 2 | Location Code | Code | 20 | `NotBlank = true` | [Location.Code](../table/14-location.md) |
+| 2 | Location Code | Code | 20 | `NotBlank = true` | `[Location.Code](../table/14-location.md)` |
 
 The field's `TableRelation` is rendered in its own linked column and is not
 duplicated in `Properties`. Conditional relations retain their condition and

@@ -178,3 +178,6 @@ from source data:
 npm run docs
 npm run docs:check
 ```
+
+`npm run check` runs `docs:check`, and CI also builds the documentation website
+(`npm run site:build`), which fails on dead links.

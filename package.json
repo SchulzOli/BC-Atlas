@@ -33,7 +33,10 @@
     "examples": "node ./scripts/generate-examples.js",
     "mcp": "node ./src/mcp.js",
     "prepack": "npm run check && npm test",
-    "update:grammar": "node ./scripts/update-grammar.js"
+    "update:grammar": "node ./scripts/update-grammar.js",
+    "site:dev": "vitepress dev website",
+    "site:build": "vitepress build website && node ./scripts/site-assets.js",
+    "site:preview": "vitepress preview website"
   },
   "keywords": [
     "al",
@@ -63,6 +66,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "^2.3.0"
+    "@modelcontextprotocol/client": "^2.3.0",
+    "vitepress": "2.0.0-alpha.20"
   }
 }

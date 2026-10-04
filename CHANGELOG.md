@@ -6,6 +6,13 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- Documentation website on GitHub Pages
+  (https://schulzoli.github.io/BC-Atlas/), built with VitePress from the
+  repository Markdown, with search, a sidebar by feature area, and the
+  generated examples.
+
 ## 0.7.0 - 2026-10-04
 
 ### Added

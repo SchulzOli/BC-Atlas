@@ -5,6 +5,10 @@ into architecture diagrams, health checks, reports, and documentation. This
 page takes you from installation to a complete architecture report in four
 commands.
 
+You are reading the docs either on GitHub or on the
+[documentation website](https://schulzoli.github.io/BC-Atlas/), which adds
+search.
+
 ## Requirements
 
 - Node.js 22 or later.
@@ -69,7 +73,20 @@ bca check
 fail level (default: `error`). Use `--fail-on warning` to also block cycles,
 forbidden dependencies, and hot spots. See
 [Architecture health checks](./health-checks.md) and
-[Automation and CI](./automation-and-ci.md).
+[Automation](./automation-and-ci.md).
+
+## 5. Stay up to date
+
+BC Atlas tells you in the terminal when a new version exists:
+
+```text
+BC Atlas 0.8.0 is available (you have 0.7.0). Run "bca update" to see what's new.
+```
+
+`bca update` shows the release notes, asks before installing, and moves your
+Git hooks, VS Code tasks, and pipeline to the new version. Teams on GitHub can
+let Dependabot propose updates instead. See
+[Staying up to date](./setup.md#staying-up-to-date).
 
 ## Go deeper
 

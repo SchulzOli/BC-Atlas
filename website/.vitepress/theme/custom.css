@@ -1,0 +1,21 @@
+/* Badge rows from README.md stay on one line, as on GitHub. */
+.vp-doc p > a > img[src*="badge"],
+.vp-doc p > a > img[src*="shields.io"] {
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* Generated diagrams use the full content width and stay readable in dark mode. */
+.vp-doc img[src$=".svg"] {
+  width: 100%;
+  height: auto;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.vp-doc table {
+  display: table;
+  width: 100%;
+}

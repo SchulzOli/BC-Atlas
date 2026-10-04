@@ -1,5 +1,8 @@
 # Support
 
+Start with the documentation at https://schulzoli.github.io/BC-Atlas/, in
+particular the troubleshooting page.
+
 For setup help and usage questions:
 
 1. Read the [README](./README.md), [CLI reference](./docs/cli-reference.md), and

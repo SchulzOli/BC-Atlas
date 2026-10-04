@@ -5,6 +5,8 @@ analyze, document, and integrate. This table of contents follows the same
 structure. The generated CLI capability reference comes directly from the
 source code.
 
+Read it online at https://schulzoli.github.io/BC-Atlas/.
+
 ## Start here
 
 - [Getting started](./getting-started.md)
@@ -22,8 +24,8 @@ source code.
 
 ## Document
 
-- [Code Graph as Markdown](./code-graph-markdown-design.md)
 - [Documentation from AL UI tests](./al-ui-test-documentation.md)
+- [Code Graph as Markdown](./code-graph-markdown-design.md)
 
 ## Integrate
 
