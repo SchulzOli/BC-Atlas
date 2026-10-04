@@ -56,6 +56,25 @@ jobs:
           node src/cli.js inspect test/fixtures --output dist/model.json
           node src/cli.js check examples/warehouse-app
 
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the BC Atlas GitHub Action from this checkout
+        id: atlas
+        uses: ./
+        with:
+          path: examples/warehouse-app
+          tasks: check,report
+      - name: Action outputs
+        env:
+          OUTPUTS: ${{ steps.atlas.outputs.outputs }}
+          PASSED: ${{ steps.atlas.outputs.passed }}
+        run: |
+          test "$PASSED" = "true"
+          test "$OUTPUTS" = "examples/warehouse-app/docs/atlas"
+          test -f examples/warehouse-app/docs/atlas/README.md
+
   container:
     runs-on: ubuntu-latest
     steps:

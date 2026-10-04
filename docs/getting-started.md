@@ -23,16 +23,22 @@ bca --version
 
 Run `bca` without arguments to see every feature grouped by area.
 
-## 2. Configure the project
+## 2. Set up the project
 
 ```sh
 cd path/to/al-project
-bca init
+bca setup
 ```
 
-`init` writes `.bca.json`. It names the diagrams after your app, excludes test
-folders, and adds repository source links when the project is in a GitHub,
-GitLab, or Azure DevOps checkout. Review the file and commit it. See
+`setup` detects your app, UI tests, translations, and Git host, then asks which
+features to automate, which Git hooks (Husky or plain Git) and pipeline
+(GitHub Actions or Azure Pipelines) to use, when to run on a schedule, and how
+generated files stay in sync. It writes `.bca.json`, the hooks, and the
+pipeline. Prefer a conversation? Run `bca setup agent --agent claude` (or
+`copilot`, `cursor`) and use `/bca-setup` in your agent. See
+[Guided setup](./setup.md).
+
+`bca init` only writes a starter `.bca.json` without automation. See
 [Configuration](./configuration.md).
 
 ## 3. Generate the overview

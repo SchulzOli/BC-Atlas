@@ -13,6 +13,7 @@ const capabilities = createCapabilities(packageJson.version);
 const sections = [
   ["Start here", [
     ["Getting started", "getting-started.md"],
+    ["Guided setup (wizard or AI agent)", "setup.md"],
     ["Architecture reports", "reports.md"],
     ["Configuration", "configuration.md"]
   ]],
@@ -27,7 +28,7 @@ const sections = [
     ["Documentation from AL UI tests", "al-ui-test-documentation.md"]
   ]],
   ["Integrate", [
-    ["Automation and CI", "automation-and-ci.md"],
+    ["Automation: hooks, schedules, and pipelines", "automation-and-ci.md"],
     ["Agent integration and MCP", "agent-integration.md"],
     ["MCP JSON example", "examples/mcp.json"]
   ]],

@@ -9,6 +9,8 @@ import { graphCommand, inspectCommand, watchCommand } from "./commands/architect
 import { checkCommand } from "./commands/check.js";
 import { initCommand } from "./commands/init.js";
 import { reportCommand } from "./commands/report.js";
+import { runCommand } from "./commands/run.js";
+import { setupAgentCommand, setupApplyCommand, setupCommand, setupPlanCommand } from "./commands/setup.js";
 import { generateCodeGraph } from "./codegraph.js";
 import { DOCS_COMMANDS } from "./docs/cli.js";
 
@@ -28,7 +30,12 @@ async function mcpCommand() {
 
 const HANDLERS = {
   init: initCommand,
+  setup: setupCommand,
+  "setup.plan": setupPlanCommand,
+  "setup.apply": setupApplyCommand,
+  "setup.agent": setupAgentCommand,
   report: reportCommand,
+  run: runCommand,
   graph: graphCommand,
   watch: watchCommand,
   check: checkCommand,
@@ -60,6 +67,7 @@ function resolveCommand(args) {
     }
     return { id, args: rest };
   }
+  if (first === "setup" && findCommand(capabilities, `setup.${second}`)) return { id: `setup.${second}`, args: rest };
   if (TOP_LEVEL.has(first)) return { id: first, args: args.slice(1) };
   // `bca <path>` remains a shortcut for `bca graph <path>`.
   if (first && !first.startsWith("-") && existsSync(first)) return { id: "graph", args };

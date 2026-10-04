@@ -1,0 +1,62 @@
+name: BC Atlas
+description: Architecture diagrams, health checks, reports, and user documentation for Business Central AL projects.
+author: BC Atlas contributors
+branding:
+  icon: map
+  color: blue
+
+inputs:
+  path:
+    description: AL app folder that contains .bca.json, relative to the repository root.
+    default: "."
+  trigger:
+    description: Trigger from .bca.json whose tasks and sync mode are used (ci, schedule, pre-push, pre-commit, manual).
+    default: ci
+  tasks:
+    description: Comma-separated tasks to run instead of the trigger's tasks (check, report, docs, codegraph, diagrams).
+    default: ""
+  sync:
+    description: Override the sync mode (none, verify, artifact, pull-request, commit).
+    default: ""
+  node-version:
+    description: Node.js version used to run BC Atlas.
+    default: "24"
+
+outputs:
+  outputs:
+    description: Space-separated generated paths, relative to the repository root.
+    value: ${{ steps.run.outputs.outputs }}
+  passed:
+    description: true when every task passed and sync found no outdated files.
+    value: ${{ steps.run.outputs.passed }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+    - name: Install BC Atlas
+      shell: bash
+      run: npm ci --omit=dev --no-audit --no-fund --prefix "$GITHUB_ACTION_PATH"
+    - name: Run BC Atlas
+      id: run
+      shell: bash
+      env:
+        BCA_PATH: ${{ inputs.path }}
+        BCA_TRIGGER: ${{ inputs.trigger }}
+        BCA_TASKS: ${{ inputs.tasks }}
+        BCA_SYNC: ${{ inputs.sync }}
+      run: |
+        args=(run "$BCA_PATH" --trigger "$BCA_TRIGGER")
+        if [ -n "$BCA_TASKS" ]; then args+=(--tasks "$BCA_TASKS"); fi
+        if [ -n "$BCA_SYNC" ]; then args+=(--sync "$BCA_SYNC"); fi
+        status=0
+        node "$GITHUB_ACTION_PATH/src/cli.js" "${args[@]}" --format json > "$RUNNER_TEMP/bca-run.json" || status=$?
+        node -e '
+          const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+          for (const item of result.results) console.log(`${item.ok ? "OK  " : "FAIL"} ${item.task}: ${item.summary}`);
+          if (result.changed.length) console.log(`Outdated generated files:\n  ${result.changed.join("\n  ")}`);
+          require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `outputs=${result.outputs.join(" ")}\npassed=${result.passed}\n`);
+        ' "$RUNNER_TEMP/bca-run.json" || cat "$RUNNER_TEMP/bca-run.json"
+        exit $status

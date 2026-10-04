@@ -16,7 +16,7 @@ Parser and renderer are WebAssembly: Node.js is the only requirement.
 ```sh
 npm install --global bc-atlas
 cd path/to/al-project
-bca init      # create .bca.json
+bca setup     # choose features, Git hooks, pipeline, schedule (or: bca setup agent)
 bca report    # docs/atlas/README.md: overview, diagrams, health
 bca check     # architecture gate for CI
 ```
@@ -25,7 +25,8 @@ bca check     # architecture gate for CI
 
 | Area | Command | What you get |
 | --- | --- | --- |
-| **Get started** | `bca init` | A `.bca.json` tailored to your app: title, excluded test folders, source links for your Git host. |
+| **Get started** | `bca setup` | Guided setup in the terminal or through your AI agent (Claude Code, Copilot, Cursor): features, Husky or Git hooks, GitHub Actions or Azure Pipelines, cron schedule, and sync. |
+| | `bca init` | A starter `.bca.json`: title, excluded test folders, source links for your Git host. |
 | | `bca report` | One Markdown page with an at-a-glance table, six architecture diagrams, and the health summary. [Example](./examples/report/README.md) |
 | **Visualize** | `bca graph` | D2, SVG, PNG, PDF, or JSON for ten focused views (below). |
 | | `bca watch` | The same diagram, rebuilt on every AL change. |
@@ -33,7 +34,8 @@ bca check     # architecture gate for CI
 | | `bca inspect` | The resolved architecture model as JSON for scripts. |
 | **Document** | `bca codegraph` | One linked Markdown page per AL object. |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations. [Example](./examples/docs/index.md) |
-| **Integrate** | `bca capabilities` | A versioned JSON contract of every command for tools and agents. |
+| **Integrate** | `bca run` | One entry point for Git hooks, schedules, and pipelines; verifies, stages, or publishes generated files. Also available as a [GitHub Action](./docs/automation-and-ci.md#github-actions). |
+| | `bca capabilities` | A versioned JSON contract of every command for tools and agents. |
 | | `bca mcp` | A Model Context Protocol server for AI agents. |
 
 Run `bca` for the same overview in your terminal and `bca help <command>` for
@@ -105,7 +107,8 @@ bca check --fail-on warning
 
 Start with the [documentation table of contents](./docs/_TOC_.md):
 
-- [Getting started](./docs/getting-started.md)
+- [Getting started](./docs/getting-started.md) and [guided setup](./docs/setup.md)
+- [Automation: hooks, schedules, and pipelines](./docs/automation-and-ci.md)
 - [Architecture reports](./docs/reports.md) and [health checks](./docs/health-checks.md)
 - [Architecture diagrams and views](./docs/architecture-diagrams.md)
 - [Configuration](./docs/configuration.md) and the complete [`.bca.example.json`](./.bca.example.json)

@@ -6,6 +6,28 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 0.7.0 - 2026-10-04
+
+### Added
+
+- `bca setup`: guided setup of features, Git hooks (Husky or plain Git),
+  pipelines (GitHub Actions or Azure Pipelines), cron schedules, and sync of
+  generated files, as a terminal wizard or with `--yes`.
+- `bca setup plan` and `bca setup apply`: the same setup as detectable facts,
+  questions with recommendations, and a validated, idempotent apply with
+  `--dry-run`.
+- `bca setup --editor vscode`: VS Code tasks for the local loop: health check
+  with findings in the Problems panel, report and docs builds, hook dry runs,
+  a live architecture diagram, and the setup wizard. Existing tasks are kept.
+- `bca setup agent --agent claude|copilot|cursor`: a `/bca-setup` command that
+  lets the user's AI agent guide the setup through the CLI.
+- `bca run --trigger pre-commit|pre-push|ci|schedule`: one entry point for
+  every trigger, configured in the new `automation` section of `.bca.json`,
+  with `verify` and `stage` sync and `docs`, `codegraph`, and `diagrams` tasks.
+- A GitHub Action (`uses: SchulzOli/BC-Atlas@v0.7.0`) with `outputs` and
+  `passed` outputs.
+- MCP tools `bc_atlas_setup_plan`, `bc_atlas_setup_apply`, and `bc_atlas_run`.
+
 ### Added
 
 - `bca docs generate` presents scenarios in the structure of an OASIS DITA 1.3

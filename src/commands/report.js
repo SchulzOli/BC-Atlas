@@ -178,7 +178,7 @@ export async function generateReport(input, values = {}, { log = () => {} } = {}
     model: architecture.model,
     json,
     format,
-    command: commandLine(displayPath(path.resolve(input)), displayValues)
+    command: values.regenerate ?? commandLine(displayPath(path.resolve(input)), displayValues)
   }));
   return { outputDirectory, readme, health, diagrams, codegraph };
 }

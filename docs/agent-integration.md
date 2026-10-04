@@ -17,6 +17,15 @@ The command writes versioned JSON to standard output. It defines command IDs, ar
 5. Run `docs set` and `docs unset` with `--dry-run` first.
 6. Pass `--expected-hash` when you write AL metadata.
 
+## Guided setup
+
+`bca setup agent --agent claude|copilot|cursor` writes a `/bca-setup` command
+that lets the agent set up BC Atlas through the CLI: it reads
+`bca setup plan --format json`, asks the user, previews with
+`bca setup apply --dry-run --format json`, and applies after confirmation.
+`bca setup agent` without `--agent` prints the same instructions for any other
+agent. See [Guided setup](./setup.md).
+
 ## Source of truth
 
 AL source is authoritative. JSON, Markdown, D2, and SVG files are generated outputs.
@@ -81,6 +90,9 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_inspect` returns an architecture model.
 - `bc_atlas_check` returns the architecture health report used by `bca check`.
 - `bc_atlas_report` writes the Markdown architecture report used by `bca report`.
+- `bc_atlas_setup_plan` detects the project and returns setup questions with recommendations.
+- `bc_atlas_setup_apply` previews (default) or writes `.bca.json`, Git hooks, and a pipeline.
+- `bc_atlas_run` runs the tasks configured for a trigger and reports sync status.
 - `bc_atlas_generate_diagram` writes D2, JSON, or SVG.
 - `bc_atlas_docs_list` lists documented scenarios.
 - `bc_atlas_docs_show` reads one scenario and its source hash.

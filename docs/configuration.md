@@ -107,4 +107,27 @@ check; use `--fail-on warning` (or `--strict`) to fail on warnings too.
 See [Architecture health checks](./health-checks.md) and
 [Architecture reports](./reports.md).
 
+## Automate it
+
+`bca setup` adds an `automation` section that says which features run on Git
+hooks, in pipelines, and on a schedule, and how generated files are synced:
+
+```json
+{
+  "automation": {
+    "hooks": "husky",
+    "ci": "github",
+    "triggers": {
+      "pre-commit": { "tasks": ["check"], "sync": "none" },
+      "pre-push": { "tasks": ["report", "docs"], "sync": "verify" },
+      "ci": { "tasks": ["check", "report", "docs"], "sync": "verify" },
+      "schedule": { "cron": "0 6 * * 1", "tasks": ["report", "docs"], "sync": "pull-request" }
+    }
+  },
+  "docs": { "tests": "test", "export": ["markdown", "html"], "outputDir": "docs/guides" }
+}
+```
+
+See [Guided setup](./setup.md) and [Automation](./automation-and-ci.md).
+
 See the [CLI reference](./cli-reference.md#configuration-file) for all properties.

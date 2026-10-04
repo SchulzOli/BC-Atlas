@@ -107,6 +107,7 @@ export async function initCommand(input, values) {
   console.log([
     "",
     "Next steps",
+    `  bca setup ${where}      automate it: Git hooks, pipelines, schedules`,
     `  bca report ${where}     overview, health summary, and diagrams in docs/atlas`,
     `  bca check ${where}      architecture health gate for CI`,
     `  bca graph ${where} -o architecture.svg`
