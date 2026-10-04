@@ -46,7 +46,12 @@ export function mergeHook(existing, manager, hook, options) {
   return `${lines.join("\n")}\n`;
 }
 
-export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24 }) {
+/** How pipelines start BC Atlas: the package.json version, or a pinned npx version. */
+function runner({ version, local }) {
+  return local ? "npx --no-install bca" : `npx --yes bc-atlas@${version}`;
+}
+
+export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24, local = false, packageRoot = "." }) {
   const ci = triggers.ci;
   const schedule = triggers.schedule;
   const outputs = (trigger) => trigger?.outputs ?? [];
@@ -63,10 +68,15 @@ export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24 })
     "      - uses: actions/setup-node@v4",
     "        with:",
     `          node-version: ${nodeVersion}`,
+    ...(local ? [
+      "      - name: Install BC Atlas from package.json",
+      "        run: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi",
+      ...(packageRoot === "." ? [] : [`        working-directory: ${packageRoot}`])
+    ] : []),
     "      - name: Run BC Atlas",
     "        env:",
     `          BCA_TRIGGER: ${trigger}`,
-    `        run: npx --yes bc-atlas@${version} run ${shellQuote(appPath)} --trigger "$BCA_TRIGGER"`
+    `        run: ${runner({ version, local })} run ${shellQuote(appPath)} --trigger "$BCA_TRIGGER"`
   ];
   const artifact = (condition, paths, name) => [
     `      - name: Upload ${name}`,
@@ -135,7 +145,7 @@ export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24 })
   ].join("\n");
 }
 
-export function azurePipeline({ appPath, version, triggers, nodeVersion = 24 }) {
+export function azurePipeline({ appPath, version, triggers, nodeVersion = 24, local = false }) {
   const ci = triggers.ci;
   const schedule = triggers.schedule;
   const lines = [`# ${GENERATED_MARKER}. Change .bca.json or rerun "bca setup apply" instead of editing.`];
@@ -165,9 +175,13 @@ export function azurePipeline({ appPath, version, triggers, nodeVersion = 24 }) 
     "  - task: NodeTool@0",
     "    inputs:",
     `      versionSpec: ${nodeVersion}.x`,
+    ...(local ? [
+      "  - bash: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi",
+      "    displayName: Install BC Atlas from package.json"
+    ] : []),
     "  - bash: |",
     "      if [ \"$BUILD_REASON\" = \"Schedule\" ]; then trigger=schedule; else trigger=ci; fi",
-    `      npx --yes bc-atlas@${version} run ${shellQuote(appPath)} --trigger "$trigger"`,
+    `      ${runner({ version, local })} run ${shellQuote(appPath)} --trigger "$trigger"`,
     "    displayName: Run BC Atlas"
   );
   const publish = (trigger, condition, prefix) => {

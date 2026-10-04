@@ -86,6 +86,15 @@ Skip hooks once with `git commit --no-verify` or `git push --no-verify`.
 
 See [Guided setup](./setup.md#local-development).
 
+## Updates
+
+When a `package.json` declares `bc-atlas` (always the case with Husky),
+generated pipelines install that version with `npm ci` and run
+`npx --no-install bca`, so hooks, tasks, and CI use the same version. Dependabot
+(`bca setup --updates dependabot`) proposes new versions as pull requests;
+`bca update` updates locally and regenerates the setup files. See
+[Staying up to date](./setup.md#staying-up-to-date).
+
 ## Schedules (cron)
 
 A schedule is a five-field cron expression in UTC, for example `0 6 * * 1` for

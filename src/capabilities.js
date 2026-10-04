@@ -232,6 +232,8 @@ export function createCapabilities(version) {
           prePush: string("Features to run before each push, or none.", { group: "Triggers", value: "list" }),
           hookSync: string("How hooks keep generated files in sync.", { group: "Sync", enum: ["verify", "stage", "none"] }),
           editor: string("Editor tasks for the local development loop.", { group: "Triggers", enum: ["vscode", "none"] }),
+          updates: string("Propose new BC Atlas versions as pull requests (needs Husky).", { group: "Triggers", enum: ["dependabot", "none"] }),
+          fromConfig: flag("Start from the answers in the existing .bca.json instead of recommendations.", { group: OUTPUT }),
           ci: string("Pipeline provider.", { group: "Triggers", enum: ["github", "azure-devops", "none"] }),
           ciSync: string("What pull requests and pushes do with generated files.", { group: "Sync", enum: ["verify", "artifact", "none"] }),
           schedule: string("Cron expression (UTC) for scheduled runs, or none.", { group: "Triggers", value: "cron" }),
@@ -523,6 +525,24 @@ export function createCapabilities(version) {
           "bca run --trigger ci",
           "bca run --tasks report,docs --sync verify"
         ]
+      }),
+      command({
+        id: "update",
+        area: "integrate",
+        argv: ["bca", "update", "[app-root]"],
+        purpose: "Check for a new BC Atlas version, show what changed, and update it together with the generated setup files.",
+        options: {
+          check: flag("Only report whether an update exists; exit code 1 when it does."),
+          yes: flag("Update without asking."),
+          dryRun: flag("Show the commands an update would run."),
+          format: string("Output mode.", { enum: ["text", "json"], default: "text" })
+        },
+        output: { type: "json", when: "--format json", schema: "UpdateStatus" },
+        rules: [
+          "Updates the devDependency in package.json when the project declares bc-atlas, else the global installation.",
+          "Afterwards runs bca setup apply --from-config so hooks, tasks, pipelines, and agent commands use the new version."
+        ],
+        examples: ["bca update", "bca update --check", "bca update --yes"]
       }),
       command({
         id: "capabilities",

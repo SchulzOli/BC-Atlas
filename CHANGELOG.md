@@ -26,7 +26,19 @@ follows [Semantic Versioning](https://semver.org/).
   with `verify` and `stage` sync and `docs`, `codegraph`, and `diagrams` tasks.
 - A GitHub Action (`uses: SchulzOli/BC-Atlas@v0.7.0`) with `outputs` and
   `passed` outputs.
-- MCP tools `bc_atlas_setup_plan`, `bc_atlas_setup_apply`, and `bc_atlas_run`.
+- MCP tools `bc_atlas_setup_plan`, `bc_atlas_setup_apply`, `bc_atlas_run`, and
+  `bc_atlas_update_check`.
+- Update cycle: interactive commands show a notice when a newer version is
+  available (checked at most once a day in the background, off in CI, hooks,
+  `bca run`, and JSON output, or with `BCA_NO_UPDATE_CHECK`).
+- `bca update`: release notes since the installed version, a confirmed update
+  of the global or project installation, and regenerated hooks, VS Code tasks,
+  pipelines, and agent commands. `--check` exits with `1` when an update exists.
+- `bca setup --updates dependabot`: Dependabot pull requests for new
+  `bc-atlas` versions; `bca setup apply --from-config` reproduces an existing
+  setup.
+- With a `package.json` that declares `bc-atlas`, generated pipelines and VS
+  Code tasks use that version (`npm ci`, `npx --no-install bca`).
 
 ### Added
 

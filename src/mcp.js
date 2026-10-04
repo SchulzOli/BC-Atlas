@@ -15,6 +15,7 @@ import { createCapabilities, FAIL_LEVELS, REPORT_VIEWS, VIEWS as VIEW_CATALOG } 
 import { runHealthCheck } from "./commands/check.js";
 import { runAutomation } from "./automation/run.js";
 import { applySetup, createPlan } from "./automation/setup.js";
+import { checkForUpdate } from "./commands/update.js";
 import { generateReport } from "./commands/report.js";
 import { resolveOutput, writeArchitecture } from "./output.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
@@ -195,6 +196,7 @@ export function createMcpServer(version = pkg.version) {
         prePush: z.array(z.enum(["check", "report", "docs", "codegraph"])).optional(),
         hookSync: z.enum(["verify", "stage", "none"]).optional(),
         editor: z.enum(["vscode", "none"]).optional(),
+        updates: z.enum(["dependabot", "none"]).optional(),
         ci: z.enum(["github", "azure-devops", "none"]).optional(),
         ciSync: z.enum(["verify", "artifact", "none"]).optional(),
         schedule: z.string().optional().describe("Cron expression (UTC) or none"),
@@ -204,6 +206,12 @@ export function createMcpServer(version = pkg.version) {
       force: z.boolean().default(false)
     })
   }, tool(async ({ path: input, answers, dryRun, force }) => applySetup(input, answers, { dryRun, force, version })));
+
+  server.registerTool("bc_atlas_update_check", {
+    description: "Check whether a newer BC Atlas version is available and return the release notes since the installed version. Update with the CLI: bca update.",
+    inputSchema: z.object({}),
+    annotations: { readOnlyHint: true, openWorldHint: true }
+  }, tool(async () => checkForUpdate(version)));
 
   server.registerTool("bc_atlas_run", {
     description: "Run the BC Atlas tasks configured for a trigger in .bca.json, or explicit tasks, and report sync status.",

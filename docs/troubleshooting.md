@@ -73,6 +73,11 @@ The output directory is replaced atomically. To protect your files, BC Atlas
 refuses to replace a non-empty directory without a generated `index.md`.
 Choose an empty or dedicated `--output-dir`.
 
+## Turn off the update notice
+
+Set `BCA_NO_UPDATE_CHECK=1` (or `NO_UPDATE_NOTIFIER=1`). The notice is never
+shown in CI, Git hooks, `bca run`, or with `--format json`.
+
 ## Generated project documentation is stale
 
 ```sh
