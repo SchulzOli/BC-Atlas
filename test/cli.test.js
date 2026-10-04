@@ -169,27 +169,179 @@ test("accepts workflow entries from the CLI and an explicit workflow config", ()
   }
 });
 
-test("CLI reference lists every help-exposed command and option", () => {
+test("CLI reference documents every command and option from the catalog", () => {
   const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
   const reference = readFileSync(
     fileURLToPath(new URL("../docs/cli-reference.md", import.meta.url)),
     "utf8"
   );
-  const helpOutputs = [
-    spawnSync(process.execPath, [cli, "--help"], { encoding: "utf8" }),
-    spawnSync(process.execPath, [cli, "docs", "--help"], { encoding: "utf8" })
-  ];
-  assert.match(helpOutputs[0].stdout, /^BC Atlas\b/u);
-  assert.match(helpOutputs[0].stdout, /\bbca \[graph\]/u);
-  for (const result of helpOutputs) {
-    assert.equal(result.status, 0, result.stderr);
-    const options = new Set(result.stdout.match(/--[a-z][a-z-]*/gu) ?? []);
-    for (const option of options) {
-      assert.ok(reference.includes(`\`${option}\``), `${option} is missing from CLI reference`);
+  const contract = JSON.parse(spawnSync(process.execPath, [cli, "capabilities"], { encoding: "utf8" }).stdout);
+  for (const definition of contract.commands.filter(({ variantOf }) => !variantOf)) {
+    const name = definition.argv.slice(1).filter((token) => !/^[<[]/u.test(token)).join(" ");
+    assert.ok(reference.includes(`\`${name}\``), `${name} is missing from CLI reference`);
+    const help = spawnSync(process.execPath, [cli, ...name.split(" "), "--help"], { encoding: "utf8" });
+    assert.equal(help.status, 0, help.stderr);
+    assert.match(help.stdout, new RegExp(`^bca ${name} - `, "u"));
+    for (const option of Object.values(definition.options)) {
+      assert.ok(help.stdout.includes(option.cli), `${option.cli} is missing from "${name} --help"`);
+      assert.ok(reference.includes(`\`${option.cli}\``), `${option.cli} (${name}) is missing from CLI reference`);
     }
   }
-  for (const command of ["graph", "inspect", "codegraph", "watch", "docs generate"]) {
-    assert.ok(reference.includes(`\`${command}\``), `${command} is missing from CLI reference`);
+});
+
+test("overview help groups every command by feature area", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  for (const args of [[], ["--help"], ["help"]]) {
+    const result = spawnSync(process.execPath, [cli, ...args], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /^BC Atlas \d/u);
+    for (const heading of ["Get started", "Visualize", "Analyze", "Document", "Integrate"]) {
+      assert.match(result.stdout, new RegExp(`^${heading}$`, "mu"));
+    }
+    for (const command of ["init", "report", "graph", "watch", "check", "inspect", "codegraph", "docs", "capabilities", "mcp"]) {
+      assert.match(result.stdout, new RegExp(`^  ${command} `, "mu"));
+    }
+    assert.doesNotMatch(result.stdout, /\bserve\b/u);
+  }
+  const docs = spawnSync(process.execPath, [cli, "docs"], { encoding: "utf8" });
+  assert.equal(docs.status, 0);
+  assert.match(docs.stdout, /^ {2}generate /mu);
+});
+
+test("rejects unknown commands, removed commands, and invalid enum values as usage errors", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const fixtures = fileURLToPath(new URL("./fixtures", import.meta.url));
+  for (const args of [
+    ["serve", fixtures],
+    ["docs", "serve", fixtures],
+    ["grpah"],
+    ["graph", fixtures, "--view", "nope"],
+    ["graph", fixtures, "--port", "0"],
+    ["inspect", fixtures, "--format", "svg"]
+  ]) {
+    const result = spawnSync(process.execPath, [cli, ...args], { encoding: "utf8" });
+    assert.equal(result.status, 2, `${args.join(" ")}: ${result.stderr}`);
+    assert.match(result.stderr, /^bca: /u);
+  }
+  const missing = spawnSync(process.execPath, [cli, "graph", path.join(fixtures, "missing")], { encoding: "utf8" });
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /path not found/u);
+});
+
+test("check reports architecture health and fails on configured policy violations", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const fixtures = fileURLToPath(new URL("./fixtures", import.meta.url));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-check-"));
+  try {
+    const passed = spawnSync(process.execPath, [cli, "check", fixtures, "--format", "json"], { encoding: "utf8" });
+    assert.equal(passed.status, 0, passed.stderr);
+    const report = JSON.parse(passed.stdout);
+    assert.equal(report.passed, true);
+    assert.ok(report.summary.objects > 0);
+    assert.ok(report.summary.objectsByType.codeunit > 0);
+    assert.ok(report.findings.some(({ rule }) => rule === "unresolved-references"));
+
+    const text = spawnSync(process.execPath, [cli, "check", fixtures], { encoding: "utf8" });
+    assert.equal(text.status, 0, text.stderr);
+    assert.match(text.stdout, /^Result: PASSED/mu);
+
+    const strictInfo = spawnSync(process.execPath, [cli, "check", fixtures, "--fail-on", "info"], { encoding: "utf8" });
+    assert.equal(strictInfo.status, 1);
+    assert.match(strictInfo.stdout, /^Result: FAILED/mu);
+
+    const config = path.join(directory, "policy.json");
+    writeFileSync(config, JSON.stringify({
+      forbiddenDependencies: [{ from: "**", to: "**:table:*", severity: "error", message: "no table access" }]
+    }));
+    const markdown = path.join(directory, "health.md");
+    const violated = spawnSync(process.execPath, [
+      cli, "check", fixtures, "--config", config, "--format", "markdown", "-o", markdown
+    ], { encoding: "utf8" });
+    assert.equal(violated.status, 1, violated.stderr);
+    assert.match(readFileSync(markdown, "utf8"), /forbidden-dependency/u);
+
+    const fanOut = spawnSync(process.execPath, [
+      cli, "check", fixtures, "--max-fan-out", "1", "--fail-on", "warning", "--format", "json"
+    ], { encoding: "utf8" });
+    assert.equal(fanOut.status, 1);
+    assert.ok(JSON.parse(fanOut.stdout).findings.some(({ rule }) => rule === "high-fan-out"));
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("init writes a starter configuration that graph and check accept", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const fixtures = fileURLToPath(new URL("./fixtures", import.meta.url));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-init-"));
+  try {
+    for (const file of ["app.json", "Sales.al", "Operations.al"]) {
+      writeFileSync(path.join(directory, file), readFileSync(path.join(fixtures, file)));
+    }
+    mkdirSync(path.join(directory, "test"));
+    writeFileSync(path.join(directory, "test", "Ignored.al"), "codeunit 50199 IgnoredTest { Subtype = Test; }\n");
+
+    const created = spawnSync(process.execPath, [cli, "init", directory], { encoding: "utf8" });
+    assert.equal(created.status, 0, created.stderr);
+    const config = JSON.parse(readFileSync(path.join(directory, ".bca.json"), "utf8"));
+    assert.equal(config.title, "BC Atlas Fixture architecture");
+    assert.deepEqual(config.exclude, ["test/**"]);
+    assert.equal(config.check.failOn, "error");
+
+    const again = spawnSync(process.execPath, [cli, "init", directory], { encoding: "utf8" });
+    assert.equal(again.status, 1);
+    assert.match(again.stderr, /--force/u);
+
+    const model = JSON.parse(spawnSync(process.execPath, [cli, "inspect", directory], { encoding: "utf8" }).stdout);
+    assert.ok(!model.objects.some(({ name }) => name === "IgnoredTest"));
+    const check = spawnSync(process.execPath, [cli, "check", directory], { encoding: "utf8" });
+    assert.equal(check.status, 0, check.stderr);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("report writes an overview, health summary, and one diagram per view", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const fixtures = fileURLToPath(new URL("./fixtures", import.meta.url));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-report-"));
+  const output = path.join(directory, "atlas");
+  try {
+    const result = spawnSync(process.execPath, [
+      cli, "report", fixtures, "--output-dir", output, "--views", "project,module,events", "--format", "d2", "--codegraph", "--json"
+    ], { encoding: "utf8", timeout: 120_000 });
+    assert.equal(result.status, 0, result.stderr);
+    const readme = readFileSync(path.join(output, "README.md"), "utf8");
+    assert.match(readme, /^# BC Atlas Fixture architecture$/mu);
+    assert.match(readme, /^## At a glance$/mu);
+    assert.match(readme, /^## Architecture health$/mu);
+    assert.match(readme, /\[Object catalog\]\(objects\/index\.md\)/u);
+    assert.ok(existsSync(path.join(output, "project.d2")));
+    assert.ok(existsSync(path.join(output, "module.d2")));
+    assert.ok(existsSync(path.join(output, "model.json")));
+    assert.ok(existsSync(path.join(output, "objects", "index.md")));
+
+    const invalid = spawnSync(process.execPath, [cli, "report", fixtures, "--output-dir", output, "--views", "object"], {
+      encoding: "utf8"
+    });
+    assert.equal(invalid.status, 1);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("codegraph refuses to replace an unrelated non-empty directory", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const fixtures = fileURLToPath(new URL("./fixtures", import.meta.url));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-guard-"));
+  try {
+    writeFileSync(path.join(directory, "keep.md"), "important");
+    const result = spawnSync(process.execPath, [cli, "codegraph", fixtures, "--output-dir", directory], { encoding: "utf8" });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /refusing to replace/u);
+    assert.equal(readFileSync(path.join(directory, "keep.md"), "utf8"), "important");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
   }
 });
 
@@ -213,7 +365,13 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
   assert.equal(contract.name, "bc-atlas");
   assert.equal(contract.transport.stdout, "json");
   assert.deepEqual(contract.exitCodes, { success: 0, operation: 1, usage: 2 });
-  assert.ok(contract.commands.some(({ argv }) => argv.join(" ") === "bca inspect <app-root>"));
+  assert.ok(contract.commands.some(({ argv }) => argv.join(" ") === "bca inspect [app-root]"));
+  assert.deepEqual(contract.areas.map(({ id }) => id), ["start", "visualize", "analyze", "document", "integrate"]);
+  assert.ok(contract.commands.every(({ area }) => contract.areas.some(({ id }) => id === area)));
+  assert.ok(!contract.commands.some(({ id }) => id === "serve" || id === "docs.serve"));
+  for (const id of ["init", "report", "check", "mcp"]) {
+    assert.ok(contract.commands.some((command) => command.id === id), `${id} is missing`);
+  }
   assert.ok(contract.commands.some(({ argv }) =>
     argv.join(" ") === "bca docs validate <test-root>"));
   const codegraph = contract.commands.find(({ id }) => id === "codegraph");

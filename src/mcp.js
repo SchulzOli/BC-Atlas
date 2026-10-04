@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { realpathSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -10,16 +11,17 @@ import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import * as z from "zod/v4";
 
 import { createArchitectureModel } from "./architecture.js";
-import { createCapabilities } from "./capabilities.js";
-import { renderD2 } from "./d2.js";
-import { renderSvg } from "./svg.js";
+import { createCapabilities, FAIL_LEVELS, REPORT_VIEWS, VIEWS as VIEW_CATALOG } from "./capabilities.js";
+import { runHealthCheck } from "./commands/check.js";
+import { generateReport } from "./commands/report.js";
+import { resolveOutput, writeArchitecture } from "./output.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
 import { documentationGlossary } from "./docs/tags.js";
 import { writeCorpusDocumentation } from "./docs/markdown.js";
 import { loadCorpus, scenarioSummary } from "./docs/model.js";
 
 const pkg = JSON.parse(await fs.readFile(new URL("../package.json", import.meta.url)));
-const VIEWS = ["project", "module", "object", "data", "call", "boundary", "contracts", "events", "ui", "workflow"];
+const VIEWS = VIEW_CATALOG.map(([id]) => id);
 
 const architectureFields = {
   path: z.string().min(1).describe("AL file or project directory"),
@@ -87,33 +89,29 @@ function tool(handler) {
   };
 }
 
-function outputPath(requested, format) {
-  const absolute = path.resolve(requested);
-  return path.extname(absolute).toLowerCase() === `.${format}` ? absolute : `${absolute}.${format}`;
-}
-
 async function generateDiagram(args) {
-  const format = args.format ?? "svg";
   const architecture = await createArchitectureModel(args.path, architectureOptions(args));
-  const output = outputPath(args.output, format);
-  await fs.mkdir(path.dirname(output), { recursive: true });
-
-  if (format === "json") {
-    await fs.writeFile(output, `${JSON.stringify(architecture.model, null, 2)}\n`);
-    return { output, format, files: architecture.model.files, nodes: architecture.model.objects.length, edges: architecture.model.edges.length };
-  }
-
-  const d2 = renderD2(architecture.model, architecture.renderOptions);
-  if (format === "d2") {
-    await fs.writeFile(output, d2);
-    return { output, format, files: architecture.model.files, nodes: architecture.model.objects.length, edges: architecture.model.edges.length };
-  }
-
-  const d2Output = output.replace(/\.svg$/iu, ".d2");
-  await fs.writeFile(d2Output, d2);
-  await fs.writeFile(output, await renderSvg(d2, architecture.options));
-  return { output, d2Output, format, files: architecture.model.files, nodes: architecture.model.objects.length, edges: architecture.model.edges.length };
+  const target = resolveOutput({ output: args.output, format: args.format ?? "svg" });
+  const { files } = await writeArchitecture(architecture, target);
+  return {
+    output: target.finalOutput,
+    files,
+    format: target.format,
+    analyzedFiles: architecture.model.files,
+    nodes: architecture.model.objects.length,
+    edges: architecture.model.edges.length
+  };
 }
+
+const projectFields = {
+  path: architectureFields.path,
+  projectRoot: architectureFields.projectRoot,
+  namespace: architectureFields.namespace,
+  type: architectureFields.type,
+  include: architectureFields.include,
+  exclude: architectureFields.exclude,
+  config: architectureFields.config
+};
 
 export function createMcpServer(version = pkg.version) {
   const server = new McpServer({ name: "bc-atlas", version });
@@ -139,6 +137,40 @@ export function createMcpServer(version = pkg.version) {
     }),
     annotations: { idempotentHint: true }
   }, tool(generateDiagram));
+
+  server.registerTool("bc_atlas_check", {
+    description: "Assess architecture health: cycles, policy violations, fan-in/fan-out hot spots, diagnostics, and unresolved references.",
+    inputSchema: z.object({
+      ...projectFields,
+      failOn: z.enum(FAIL_LEVELS).optional(),
+      maxFanIn: z.number().int().positive().optional(),
+      maxFanOut: z.number().int().positive().optional()
+    }),
+    annotations: { readOnlyHint: true, idempotentHint: true }
+  }, tool(async ({ path: input, ...values }) => (await runHealthCheck(input, values)).report));
+
+  server.registerTool("bc_atlas_report", {
+    description: "Write a Markdown architecture report with an overview, health summary, and diagrams for several views.",
+    inputSchema: z.object({
+      ...projectFields,
+      outputDir: z.string().min(1).default("docs/atlas"),
+      views: z.array(z.enum([...REPORT_VIEWS, "call"])).optional(),
+      format: z.enum(["svg", "d2"]).default("svg"),
+      codegraph: z.boolean().optional(),
+      json: z.boolean().optional(),
+      title: z.string().optional()
+    }),
+    annotations: { idempotentHint: true }
+  }, tool(async ({ path: input, views, ...values }) => {
+    const result = await generateReport(input, { ...values, views: views?.join(",") });
+    return {
+      readme: result.readme,
+      outputDirectory: result.outputDirectory,
+      passed: result.health.passed,
+      counts: result.health.counts,
+      diagrams: result.diagrams.map(({ view, skipped, nodes, edges }) => ({ view, skipped, nodes, edges }))
+    };
+  }));
 
   server.registerTool("bc_atlas_docs_list", {
     description: "List documented AL UI-test scenarios.",
@@ -223,10 +255,19 @@ export function createMcpServer(version = pkg.version) {
   return server;
 }
 
-const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (invokedDirectly) {
-  serveStdio(() => createMcpServer(), {
+export async function startMcpServer(version = pkg.version) {
+  serveStdio(() => createMcpServer(version), {
     onerror: (error) => console.error(`bca-mcp: ${error.message}`)
   });
-  console.error("BC Atlas MCP server running on stdio.");
+  console.error(`BC Atlas ${version} MCP server running on stdio.`);
 }
+
+// npm installs bin entries as symlinks, so compare real paths.
+function invokedDirectly() {
+  try {
+    return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+if (invokedDirectly()) await startMcpServer();

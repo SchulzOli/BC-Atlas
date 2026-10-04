@@ -19,6 +19,12 @@ The procedure selected from an owning AL object using receiver type, scope, name
 **Permission Fact**:
 A normalized table-data grant, execute grant, permission-set inclusion, or permission-set classification.
 
+**Health Finding**:
+A rule result (error, warning, or info) derived from the project-view **Architecture Model**, such as a dependency cycle, a forbidden dependency, or a fan-in hot spot.
+
+**Feature Area**:
+One of the five groups that organize every command: get started, visualize, analyze, document, and integrate.
+
 ## Relationships
 
 - An **Architecture Model** contains relationships with zero or more items of **Relation Evidence**.

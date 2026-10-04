@@ -4,9 +4,9 @@ For setup help and usage questions:
 
 1. Read the [README](./README.md), [CLI reference](./docs/cli-reference.md), and
    [examples](./examples/README.md).
-2. Search [existing issues](https://github.com/SchulzOli/ALD2Tree/issues).
+2. Search [existing issues](https://github.com/SchulzOli/BC-Atlas/issues).
 3. Open a question in
-   [GitHub Discussions](https://github.com/SchulzOli/ALD2Tree/discussions) if
+   [GitHub Discussions](https://github.com/SchulzOli/BC-Atlas/discussions) if
    Discussions are enabled; otherwise open an issue with the relevant command,
    Node.js version, operating system, and a minimal AL example.
 

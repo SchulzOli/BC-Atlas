@@ -1,0 +1,33 @@
+direction: right
+title: "BC Atlas Warehouse Example architecture: Events" {
+  shape: text
+  near: top-center
+  style.font-size: 28
+}
+
+g0: "Publishers" {
+  style.stroke-dash: 3
+  n0: "event\nOnRequestProcessed" {
+    shape: rectangle
+    tooltip: "Inventory.al:56"
+    style.fill: "#F5E5FF"
+    style.stroke: "#77449A"
+  }
+}
+
+g1: "Subscribers" {
+  style.stroke-dash: 3
+  n1: "subscriber\nNotifyRequestProcessed" {
+    shape: rectangle
+    tooltip: "Automation.al:8"
+    style.fill: "#FCE8F3"
+    style.stroke: "#A33A78"
+  }
+}
+
+g0.n0 -> g1.n1: "publishes to" {style.stroke: "#A21CAF"}
+
+legend: "Legend\nEdges: publishes #A21CAF\nConfidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; ambiguous = dashed amber #B45309; cycle = red #B91C1C\nData: schema = dashed; runtime access = solid" {
+  shape: text
+  near: bottom-right
+}

@@ -4,9 +4,19 @@ BC Atlas reads `.bca.json` from the input root. Use `--config` to select another
 
 Command-line options override configuration values.
 
-## Start with the example
+## Create a configuration
 
-Copy [`.bca.example.json`](../.bca.example.json) to your AL project as `.bca.json`. Remove settings that you do not need.
+Run `bca init` in the folder that contains `app.json`. It writes a starter
+`.bca.json` with your app name, excluded test folders, source links for your
+Git host, and default `check` and `report` sections. Use `--print` to preview
+it or `--force` to replace an existing file.
+
+```sh
+bca init ./app
+```
+
+The complete reference is [`.bca.example.json`](../.bca.example.json). A
+minimal file looks like this:
 
 ```json
 {
@@ -73,6 +83,28 @@ Add a `forbiddenDependencies` array to detect invalid architectural dependencies
 }
 ```
 
-Run with `--strict` in CI. The command then fails for warning or error diagnostics.
+Run `bca check` in CI. A rule with `"severity": "error"` fails the default
+check; use `--fail-on warning` (or `--strict`) to fail on warnings too.
+
+## Configure health checks and reports
+
+```json
+{
+  "check": {
+    "failOn": "error",
+    "cycles": "warning",
+    "maxFanIn": 25,
+    "maxFanOut": 25
+  },
+  "report": {
+    "outputDir": "docs/atlas",
+    "views": ["project", "module", "data", "contracts", "events", "ui"],
+    "codegraph": false
+  }
+}
+```
+
+See [Architecture health checks](./health-checks.md) and
+[Architecture reports](./reports.md).
 
 See the [CLI reference](./cli-reference.md#configuration-file) for all properties.

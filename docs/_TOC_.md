@@ -1,31 +1,40 @@
 # BC Atlas documentation
 
-Use this table of contents to install, configure, and operate BC Atlas.
-The generated CLI capability reference comes directly from the source code.
+BC Atlas is organized into five feature areas: get started, visualize,
+analyze, document, and integrate. This table of contents follows the same
+structure. The generated CLI capability reference comes directly from the
+source code.
 
 ## Start here
 
 - [Getting started](./getting-started.md)
-- [Architecture diagrams](./architecture-diagrams.md)
+- [Architecture reports](./reports.md)
 - [Configuration](./configuration.md)
 
-## User documentation
+## Visualize
 
-- [Documentation from AL UI tests](./al-ui-test-documentation.md)
+- [Architecture diagrams and views](./architecture-diagrams.md)
+
+## Analyze
+
+- [Architecture health checks](./health-checks.md)
+
+## Document
+
 - [Code Graph as Markdown](./code-graph-markdown-design.md)
-- [Control Center](./control-center.md)
+- [Documentation from AL UI tests](./al-ui-test-documentation.md)
+
+## Integrate
+
 - [Automation and CI](./automation-and-ci.md)
-
-## Integration and support
-
-- [Agent integration](./agent-integration.md)
+- [Agent integration and MCP](./agent-integration.md)
 - [MCP JSON example](./examples/mcp.json)
-- [Troubleshooting](./troubleshooting.md)
 
 ## Reference
 
 - [CLI reference](./cli-reference.md)
 - [Generated CLI capabilities](./reference/cli-capabilities.md)
+- [Troubleshooting](./troubleshooting.md)
 
 ## Generated examples
 

@@ -1,0 +1,37 @@
+direction: right
+title: "BC Atlas Warehouse Example architecture: Modules" {
+  shape: text
+  near: top-center
+  style.font-size: 28
+}
+
+g0: "(modules)" {
+  style.stroke-dash: 3
+  n0: "module\nBCA.Example.Automation" {
+    shape: rectangle
+    style.fill: "#E8ECF3"
+    style.stroke: "#4E5D78"
+  }
+  n1: "module\nBCA.Example.Inventory" {
+    shape: rectangle
+    style.fill: "#E8ECF3"
+    style.stroke: "#4E5D78"
+  }
+  n2: "module\nBCA.Example.UI" {
+    shape: rectangle
+    style.fill: "#E8ECF3"
+    style.stroke: "#4E5D78"
+  }
+}
+
+g0.n0 -> g0.n1: "tabledata [RIMD] (2)" {style.stroke: "#7C3AED"; tooltip: "Table data rights: read, insert, modify, delete"}
+g0.n0 -> g0.n2: "executes [X]" {style.stroke: "#7C3AED"; tooltip: "Permission: execute"}
+g0.n2 -> g0.n1: "reads (3)" {style.stroke: "#0072B2"; tooltip: "Operations: Get\nSource procedures: WarehouseRequests_CreateRequest_PersistsDescription(), WarehouseRequests_ProcessRequest_MarksRequestProcessed()"}
+g0.n2 -> g0.n1: "uses (3)" {style.stroke: "#6B7280"; style.stroke-dash: 3}
+g0.n2 -> g0.n1: "tabledata [RIMD]" {style.stroke: "#7C3AED"; tooltip: "Table data rights: read, insert, modify, delete"}
+g0.n2 -> g0.n1: "writes (3)" {style.stroke: "#D55E00"; tooltip: "Operations: DeleteAll, Insert\nSource procedures: WarehouseRequests_CreateRequest_PersistsDescription(), WarehouseRequests_ProcessRequest_MarksRequestProcessed()\nRelation: runtime\nTransaction segments: 1"}
+
+legend: "Legend\nEdges: permits #7C3AED, reads #0072B2, uses #6B7280, writes #D55E00\nConfidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; ambiguous = dashed amber #B45309; cycle = red #B91C1C\nData: schema = dashed; runtime access = solid" {
+  shape: text
+  near: bottom-right
+}

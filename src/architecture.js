@@ -26,7 +26,17 @@ export function mergeArchitectureOptions(config, values) {
   };
 }
 
-export async function createArchitectureModel(input, values = {}) {
+async function resolvedProject(projectRoot, cache) {
+  if (!cache) return resolveModel(await analyze(projectRoot));
+  if (!cache.has(projectRoot)) cache.set(projectRoot, resolveModel(await analyze(projectRoot)));
+  return structuredClone(cache.get(projectRoot));
+}
+
+/**
+ * Analyzes AL source and projects the requested view. Pass a shared `cache`
+ * Map to reuse one parse when several views of the same project are needed.
+ */
+export async function createArchitectureModel(input, values = {}, { cache } = {}) {
   const config = await loadConfig(values.projectRoot ?? values["project-root"] ?? input, values.config);
   const options = mergeArchitectureOptions(config.values, values);
   const projectRoot = path.resolve(options.projectRoot ?? options["project-root"] ?? input);
@@ -65,7 +75,7 @@ export async function createArchitectureModel(input, values = {}) {
   );
   if (invalidMembers.length) throw new Error(`unsupported member categories: ${invalidMembers.join(", ")}`);
 
-  let model = resolveModel(await analyze(projectRoot));
+  let model = await resolvedProject(projectRoot, cache);
   model.projectRoot = projectRoot;
   model.selectedPath = selectedPath;
   model = filterModel(model, options);
@@ -97,7 +107,7 @@ export async function createArchitectureModel(input, values = {}) {
     maxNodes:
       options["workflow-max-nodes"] ?? options.workflowMaxNodes ?? workflow.maxNodes,
     maxEdges:
-      values["max-edges"] ?? workflow.maxEdges ??
+      values.maxEdges ?? values["max-edges"] ?? workflow.maxEdges ??
       options["max-edges"] ?? options.maxEdges,
     edgeTypes:
       options["workflow-edge-types"] ?? options.workflowEdgeTypes ?? workflow.edgeTypes,
@@ -109,7 +119,7 @@ export async function createArchitectureModel(input, values = {}) {
   });
   model = addInsights(model);
   if (!model.objects.length && !model.emptyMessage) {
-    throw new Error("no AL objects matched");
+    throw new Error(`no AL objects found in ${selectedPath}; check the path and the --include, --exclude, --namespace, and --type filters`);
   }
 
   const seriousDiagnostics = model.diagnostics.filter(

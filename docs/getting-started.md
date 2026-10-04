@@ -1,55 +1,87 @@
 # Getting started
 
-BC Atlas reads Microsoft Dynamics 365 Business Central AL source. It creates architecture diagrams, JSON models, and user documentation.
+BC Atlas reads Microsoft Dynamics 365 Business Central AL source and turns it
+into architecture diagrams, health checks, reports, and documentation. This
+page takes you from installation to a complete architecture report in four
+commands.
 
 ## Requirements
 
-- Install Node.js 20 or later.
-- Use an AL project that contains an `app.json` file.
-- Install the D2 executable only if you need PNG or PDF output.
+- Node.js 20 or later.
+- An AL project that contains an `app.json` file.
+- Optional: the [D2 executable](https://d2lang.com) for PNG or PDF output.
 
-BC Atlas includes the parser and the SVG renderer. D2, JSON, and SVG output need no extra compiler.
+The AL parser and the SVG renderer are bundled as WebAssembly. D2, JSON, SVG,
+and Markdown output need no compiler or extra download.
 
-## Install the CLI
-
-Install the published package:
+## 1. Install
 
 ```sh
 npm install --global bc-atlas
+bca --version
 ```
 
-To use a local checkout, run these commands:
+Run `bca` without arguments to see every feature grouped by area.
+
+## 2. Configure the project
 
 ```sh
+cd path/to/al-project
+bca init
+```
+
+`init` writes `.bca.json`. It names the diagrams after your app, excludes test
+folders, and adds repository source links when the project is in a GitHub,
+GitLab, or Azure DevOps checkout. Review the file and commit it. See
+[Configuration](./configuration.md).
+
+## 3. Generate the overview
+
+```sh
+bca report
+```
+
+This writes `docs/atlas/README.md` with:
+
+- an at-a-glance table (files, objects, relationships, cycles, health);
+- one diagram each for the project, module, data, contracts, events, and UI
+  views;
+- the architecture health summary;
+- the command that regenerates the report.
+
+Add `--codegraph` for one linked Markdown page per AL object. See
+[Architecture reports](./reports.md) and the
+[generated example](../examples/report/README.md).
+
+## 4. Guard the architecture in CI
+
+```sh
+bca check
+```
+
+`check` prints a health summary and exits with `1` when a finding reaches the
+fail level (default: `error`). Use `--fail-on warning` to also block cycles,
+forbidden dependencies, and hot spots. See
+[Architecture health checks](./health-checks.md) and
+[Automation and CI](./automation-and-ci.md).
+
+## Go deeper
+
+| I want to | Command | Read |
+| --- | --- | --- |
+| See one object and its neighbors | `bca graph --view object --object codeunit:50100 -o object.svg` | [Architecture diagrams](./architecture-diagrams.md) |
+| Trace what happens after an action | `bca graph --view workflow --entry action:Release -o flow.svg` | [Architecture diagrams](./architecture-diagrams.md) |
+| Keep a diagram live while coding | `bca watch -o architecture.svg` | [CLI reference](./cli-reference.md#watch) |
+| Feed the model to a script | `bca inspect > model.json` | [CLI reference](./cli-reference.md#inspect) |
+| Turn UI tests into user guides | `bca docs generate ./test --output-dir docs/guides` | [AL UI-test documentation](./al-ui-test-documentation.md) |
+| Let an AI agent use BC Atlas | `bca mcp` | [Agent integration](./agent-integration.md) |
+
+## Run from a checkout
+
+```sh
+git clone https://github.com/SchulzOli/BC-Atlas.git
+cd BC-Atlas
 npm ci
-npm link
+npm link            # optional: makes `bca` available globally
+node src/cli.js --help
 ```
-
-You can also use `node src/cli.js` instead of `bca` in a checkout.
-
-## Create your first diagram
-
-Run this command from any directory:
-
-```sh
-bca graph ./path/to/al-project --view project -o architecture.svg
-```
-
-BC Atlas searches the input path for AL files. It also searches upward for the nearest `app.json` file.
-
-## Inspect the model
-
-Use JSON when a script or tool must read the result:
-
-```sh
-bca inspect ./path/to/al-project > architecture.json
-```
-
-Check the exit code before you parse standard output.
-
-## Next steps
-
-- Read [Architecture diagrams](./architecture-diagrams.md) to select a view.
-- Read [Configuration](./configuration.md) to save project settings.
-- Read [Documentation from AL UI tests](./al-ui-test-documentation.md) to generate user guides.
-- Use the [CLI reference](./cli-reference.md) for every option.

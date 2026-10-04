@@ -13,23 +13,28 @@ const capabilities = createCapabilities(packageJson.version);
 const sections = [
   ["Start here", [
     ["Getting started", "getting-started.md"],
-    ["Architecture diagrams", "architecture-diagrams.md"],
+    ["Architecture reports", "reports.md"],
     ["Configuration", "configuration.md"]
   ]],
-  ["User documentation", [
-    ["Documentation from AL UI tests", "al-ui-test-documentation.md"],
-    ["Code Graph as Markdown", "code-graph-markdown-design.md"],
-    ["Control Center", "control-center.md"],
-    ["Automation and CI", "automation-and-ci.md"]
+  ["Visualize", [
+    ["Architecture diagrams and views", "architecture-diagrams.md"]
   ]],
-  ["Integration and support", [
-    ["Agent integration", "agent-integration.md"],
-    ["MCP JSON example", "examples/mcp.json"],
-    ["Troubleshooting", "troubleshooting.md"]
+  ["Analyze", [
+    ["Architecture health checks", "health-checks.md"]
+  ]],
+  ["Document", [
+    ["Code Graph as Markdown", "code-graph-markdown-design.md"],
+    ["Documentation from AL UI tests", "al-ui-test-documentation.md"]
+  ]],
+  ["Integrate", [
+    ["Automation and CI", "automation-and-ci.md"],
+    ["Agent integration and MCP", "agent-integration.md"],
+    ["MCP JSON example", "examples/mcp.json"]
   ]],
   ["Reference", [
     ["CLI reference", "cli-reference.md"],
     ["Generated CLI capabilities", "reference/cli-capabilities.md"],
+    ["Troubleshooting", "troubleshooting.md"]
   ]],
   ["Generated examples", [
     ["Generated documentation catalog", "generated/index.md"]
@@ -39,8 +44,10 @@ const sections = [
 const toc = [
   "# BC Atlas documentation",
   "",
-  "Use this table of contents to install, configure, and operate BC Atlas.",
-  "The generated CLI capability reference comes directly from the source code.",
+  "BC Atlas is organized into five feature areas: get started, visualize,",
+  "analyze, document, and integrate. This table of contents follows the same",
+  "structure. The generated CLI capability reference comes directly from the",
+  "source code.",
   ""
 ];
 
@@ -55,11 +62,21 @@ for (const [heading, entries] of sections) {
   toc.push("");
 }
 
+const visible = capabilities.commands.filter(({ variantOf }) => !variantOf);
+const areaSections = capabilities.areas.flatMap((area) => [
+  `### ${area.title}`,
+  "",
+  area.summary,
+  "",
+  "| Command | Invocation | Purpose |",
+  "| --- | --- | --- |",
+  ...visible
+    .filter((command) => command.area === area.id)
+    .map(({ id, argv, purpose }) => `| \`${id}\` | \`${argv.join(" ")}\` | ${purpose} |`),
+  ""
+]);
 const graph = capabilities.commands.find(({ id }) => id === "graph");
-const commands = capabilities.commands.map(({ id, argv, purpose }) =>
-  `| \`${id}\` | \`${argv.join(" ")}\` | ${purpose} |`
-);
-const views = graph.options.view.enum.map((view) => `- \`${view}\``);
+const views = capabilities.views.map(({ id, summary }) => `| \`${id}\` | ${summary} |`);
 const formats = graph.options.format.enum.map((format) => `- \`${format}\``);
 
 const capabilityReference = [
@@ -70,24 +87,23 @@ const capabilityReference = [
   `This page describes BC Atlas ${capabilities.version}.`,
   "Run `npm run docs` after a capability changes.",
   "",
-  "## Commands",
+  "## Commands by feature area",
   "",
-  "| ID | Invocation | Purpose |",
-  "| --- | --- | --- |",
-  ...commands,
-  "",
+  ...areaSections,
   "## Architecture views",
   "",
+  "| View | Shows |",
+  "| --- | --- |",
   ...views,
   "",
-  "## Output formats",
+  "## Diagram formats",
   "",
   ...formats,
   "",
   "## Exit codes",
   "",
   `- Success: \`${capabilities.exitCodes.success}\``,
-  `- Operation failure: \`${capabilities.exitCodes.operation}\``,
+  `- Operation failure or failed check: \`${capabilities.exitCodes.operation}\``,
   `- Usage error: \`${capabilities.exitCodes.usage}\``,
   "",
   "For all options and examples, read the [CLI reference](../cli-reference.md).",

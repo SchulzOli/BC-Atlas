@@ -1,0 +1,49 @@
+direction: right
+title: "BC Atlas Warehouse Example architecture: Data model" {
+  shape: text
+  near: top-center
+  style.font-size: 28
+}
+
+g0: "BCA.Example.Inventory" {
+  style.stroke-dash: 3
+  n1: "codeunit 50101\nWarehouse Processor" {
+    shape: rectangle
+    tooltip: "Inventory.al:28"
+    style.fill: "#FFF0D6"
+    style.stroke: "#A96300"
+  }
+  n0: "table 50100\nWarehouse Request\nread-write; reads 4; writes 5" {
+    shape: rectangle
+    tooltip: "Inventory.al:8"
+    style.fill: "#DCEBFF"
+    style.stroke: "#2362A2"
+  }
+}
+
+g1: "BCA.Example.UI" {
+  style.stroke-dash: 3
+  n2: "page 50110\nWarehouse Requests" {
+    shape: rectangle
+    tooltip: "WarehouseUI.al:5"
+    style.fill: "#E5F6E8"
+    style.stroke: "#31783B"
+  }
+  n3: "codeunit 50122\nWarehouseUITests" {
+    shape: rectangle
+    tooltip: "WarehouseUITests.al:11"
+    style.fill: "#FFF0D6"
+    style.stroke: "#A96300"
+  }
+}
+
+g0.n1 -> g0.n0: "reads" {style.stroke: "#0072B2"; tooltip: "Operations: FindFirst\nSource procedures: Process()\nRelation: runtime\nTransaction segments: 1, 1"}
+g0.n1 -> g0.n0: "writes (2)" {style.stroke: "#D55E00"; tooltip: "Operations: Modify\nSource procedures: Process(Record \"Warehouse Request\"), Process()\nRelation: runtime\nTransaction segments: 1, 1, 1"}
+g1.n2 -> g0.n0: "reads" {style.stroke: "#0072B2"}
+g1.n3 -> g0.n0: "writes (3)" {style.stroke: "#D55E00"; tooltip: "Operations: DeleteAll, Insert\nSource procedures: WarehouseRequests_CreateRequest_PersistsDescription(), WarehouseRequests_ProcessRequest_MarksRequestProcessed()\nRelation: runtime\nTransaction segments: 1, 1, 1, 1"}
+g1.n3 -> g0.n0: "reads (2)" {style.stroke: "#0072B2"; tooltip: "Operations: Get\nSource procedures: WarehouseRequests_CreateRequest_PersistsDescription(), WarehouseRequests_ProcessRequest_MarksRequestProcessed()\nRelation: runtime\nTransaction segments: 1, 1, 1"}
+
+legend: "Legend\nEdges: reads #0072B2, writes #D55E00\nConfidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; ambiguous = dashed amber #B45309; cycle = red #B91C1C\nData: schema = dashed; runtime access = solid" {
+  shape: text
+  near: bottom-right
+}

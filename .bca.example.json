@@ -5,26 +5,48 @@
   "title": "Business Central architecture",
   "groupBy": "role",
   "roleMappings": {
-    "Domain": ["Contoso.Sales:table:*", "Contoso.Sales:codeunit:*"]
+    "Domain": [
+      "Contoso.Sales:table:*",
+      "Contoso.Sales:codeunit:*"
+    ]
   },
-  "namespaces": ["Contoso.**"],
-  "exclude": ["**/test/**"],
+  "namespaces": [
+    "Contoso.**"
+  ],
+  "exclude": [
+    "**/test/**"
+  ],
   "moduleDepth": "auto",
   "folderDepth": 1,
   "includeUnresolvedCalls": false,
   "maxEdges": 500,
   "workflow": {
-    "entries": ["ProcessDocument"],
+    "entries": [
+      "ProcessDocument"
+    ],
     "depth": 8,
     "maxNodes": 100,
     "maxEdges": 250,
-    "edgeTypes": ["calls", "events", "writes"],
+    "edgeTypes": [
+      "calls",
+      "events",
+      "writes"
+    ],
     "phases": {
-      "Validation": ["Validate*"],
-      "Processing": ["Process*", "Post*"]
+      "Validation": [
+        "Validate*"
+      ],
+      "Processing": [
+        "Process*",
+        "Post*"
+      ]
     },
-    "stop": ["Finalize*"],
-    "collapse": ["*Telemetry*"]
+    "stop": [
+      "Finalize*"
+    ],
+    "collapse": [
+      "*Telemetry*"
+    ]
   },
   "details": false,
   "noExternal": false,
@@ -40,5 +62,25 @@
       "severity": "warning",
       "message": "Core must not depend on UI"
     }
-  ]
+  ],
+  "check": {
+    "failOn": "error",
+    "cycles": "warning",
+    "maxFanIn": 25,
+    "maxFanOut": 25
+  },
+  "report": {
+    "outputDir": "docs/atlas",
+    "views": [
+      "project",
+      "module",
+      "data",
+      "contracts",
+      "events",
+      "ui"
+    ],
+    "format": "svg",
+    "codegraph": false,
+    "json": false
+  }
 }

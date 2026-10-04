@@ -24,6 +24,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
       tools.map(({ name }) => name).sort(),
       [
         "bc_atlas_capabilities",
+        "bc_atlas_check",
         "bc_atlas_docs_edit",
         "bc_atlas_docs_generate",
         "bc_atlas_docs_glossary",
@@ -31,7 +32,8 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_docs_show",
         "bc_atlas_docs_validate",
         "bc_atlas_generate_diagram",
-        "bc_atlas_inspect"
+        "bc_atlas_inspect",
+        "bc_atlas_report"
       ]
     );
 
@@ -47,6 +49,13 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     const model = JSON.parse(inspection.content[0].text);
     assert.ok(model.files > 0);
     assert.ok(model.objects.length > 0);
+
+    const health = await client.callTool({
+      name: "bc_atlas_check",
+      arguments: { path: path.join(root, "test", "fixtures") }
+    });
+    assert.equal(health.isError, undefined);
+    assert.equal(JSON.parse(health.content[0].text).passed, true);
   } finally {
     await client.close();
   }
