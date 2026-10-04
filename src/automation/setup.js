@@ -13,6 +13,8 @@ import {
   azurePipeline, GENERATED_MARKER, githubWorkflow, mergeHook, PIPELINE_FILES, validatePipelineSync
 } from "./pipelines.js";
 import { hasJsonComments, mergeTasks, vscodeTasks } from "./vscode.js";
+import { agentFile, AGENTS } from "./agent.js";
+import { mergeDependabot } from "./dependabot.js";
 
 const IGNORED = new Set([".git", ".alpackages", ".vscode", "node_modules", ".snapshots", "docs", ".husky", ".github"]);
 const FEATURES = ["check", "report", "docs", "codegraph"];
@@ -118,6 +120,7 @@ function recommend(facts) {
     prePush: features.filter((feature) => feature !== "check"),
     hookSync: "verify",
     editor: facts.vscode ? "vscode" : "none",
+    updates: facts.host === "github" ? "dependabot" : "none",
     ci,
     ciSync: "verify",
     schedule: ci === "none" ? "none" : "0 6 * * 1",
@@ -199,6 +202,14 @@ function questions(facts, recommended) {
       ]
     },
     {
+      id: "updates", flag: "--updates", type: "single", when: "hooks is husky",
+      question: "Should new BC Atlas versions be proposed automatically as pull requests?",
+      options: [
+        option("dependabot", "Dependabot opens a pull request when a new bc-atlas version is released (GitHub)"),
+        option("none", "Update with \"bca update\"; the CLI shows a notice when a new version exists")
+      ]
+    },
+    {
       id: "ci", flag: "--ci", type: "single",
       question: "Which pipeline should run BC Atlas?",
       options: CI_PROVIDERS.map((provider) => option(provider, {
@@ -256,6 +267,7 @@ export const ANSWER_FLAGS = Object.freeze({
   prePush: "--pre-push",
   hookSync: "--hook-sync",
   editor: "--editor",
+  updates: "--updates",
   ci: "--ci",
   ciSync: "--ci-sync",
   schedule: "--schedule",
@@ -294,6 +306,7 @@ export function resolveAnswers(raw, recommended) {
     prePush: hooks === "none" ? [] : parseList(pick("prePush"), FEATURES, "--pre-push"),
     hookSync: pick("hookSync"),
     editor: pick("editor") ?? "none",
+    updates: pick("updates") ?? "none",
     ci,
     ciSync: pick("ciSync"),
     schedule: schedule === "none" || schedule === "" ? "none" : validateCron(schedule),
@@ -302,6 +315,9 @@ export function resolveAnswers(raw, recommended) {
   if (!["guide", "testcase"].includes(answers.docsAs)) throw new Error("--docs-as must be guide or testcase");
   if (!["none", "verify", "stage"].includes(answers.hookSync)) throw new Error("--hook-sync must be verify, stage, or none");
   if (!["vscode", "none"].includes(answers.editor)) throw new Error("--editor must be vscode or none");
+  if (!["dependabot", "none"].includes(answers.updates)) throw new Error("--updates must be dependabot or none");
+  // Dependabot can only bump a version that lives in package.json.
+  if (answers.updates === "dependabot" && answers.hooks !== "husky") answers.updates = "none";
   if (features.includes("docs") && !answers.tests) throw new Error("the docs feature needs --tests <folder with AL UI tests>");
   for (const list of [answers.preCommit, answers.prePush]) {
     const missing = list.filter((task) => !features.includes(task));
@@ -309,6 +325,35 @@ export function resolveAnswers(raw, recommended) {
   }
   validatePipelineSync(ci, answers.ciSync, answers.schedule === "none" ? undefined : answers.scheduleSync);
   return answers;
+}
+
+/** Answers that reproduce an existing setup, e.g. after an update. */
+export function answersFromConfig(config, fallback) {
+  const automation = config.automation ?? {};
+  const triggers = automation.triggers ?? {};
+  const taskList = (name) => triggers[name]?.tasks ?? [];
+  const features = [...new Set([
+    ...taskList("ci"), ...taskList("schedule"), ...taskList("pre-commit"), ...taskList("pre-push"),
+    ...(config.docs?.tests ? ["docs"] : [])
+  ])].filter((task) => ["check", "report", "docs", "codegraph"].includes(task));
+  return {
+    ...fallback,
+    features: features.length ? features : fallback.features,
+    tests: config.docs?.tests ?? fallback.tests,
+    docsExport: config.docs?.export ?? fallback.docsExport,
+    docsAs: config.docs?.as ?? fallback.docsAs,
+    language: config.docs?.language ?? fallback.language,
+    hooks: automation.hooks ?? "none",
+    preCommit: taskList("pre-commit"),
+    prePush: taskList("pre-push"),
+    hookSync: triggers["pre-push"]?.sync ?? triggers["pre-commit"]?.sync ?? fallback.hookSync,
+    editor: automation.editor ?? fallback.editor,
+    updates: automation.updates ?? "none",
+    ci: automation.ci ?? "none",
+    ciSync: triggers.ci?.sync ?? fallback.ciSync,
+    schedule: triggers.schedule?.cron ?? "none",
+    scheduleSync: triggers.schedule?.sync ?? fallback.scheduleSync
+  };
 }
 
 function buildConfig(existing, answers) {
@@ -326,7 +371,7 @@ function buildConfig(existing, answers) {
       sync: answers.scheduleSync
     };
   }
-  config.automation = { hooks: answers.hooks, ci: answers.ci, triggers };
+  config.automation = { hooks: answers.hooks, editor: answers.editor, updates: answers.updates, ci: answers.ci, triggers };
   if (answers.features.includes("report")) config.report = { ...DEFAULTS.report, ...(config.report ?? {}) };
   if (answers.features.includes("codegraph")) config.codegraph = { ...DEFAULTS.codegraph, ...(config.codegraph ?? {}) };
   if (answers.features.includes("docs")) {
@@ -357,10 +402,16 @@ async function plannedWrite(file, content, { gitRoot, force, generatedOnly }) {
  * @param answers raw answers (CLI flags); missing answers use the recommendation
  * @returns { files, commands, nextSteps, config, answers }
  */
-export async function applySetup(input, rawAnswers = {}, { dryRun = false, force = false, version } = {}) {
+export async function applySetup(input, rawAnswers = {}, { dryRun = false, force = false, version, fromConfig = false } = {}) {
   const facts = await detectProject(input);
-  const answers = resolveAnswers(rawAnswers, recommend(facts));
   const { root, gitRoot, appPath } = facts;
+  let base = recommend(facts);
+  if (fromConfig) {
+    const current = await readJson(path.join(root, ".bca.json"));
+    if (!current?.automation) throw new Error("--from-config needs a .bca.json with an automation section; run bca setup first");
+    base = answersFromConfig(current, base);
+  }
+  const answers = resolveAnswers(rawAnswers, base);
   if ((answers.hooks !== "none" || answers.ci !== "none") && !gitRoot) {
     throw new Error("Git hooks and pipelines need a Git repository; run git init first or use --hooks none --ci none");
   }
@@ -387,7 +438,19 @@ export async function applySetup(input, rawAnswers = {}, { dryRun = false, force
     if (!pkg.scripts.prepare) pkg.scripts.prepare = "husky";
     else if (!/\bhusky\b/u.test(pkg.scripts.prepare)) pkg.scripts.prepare = `${pkg.scripts.prepare} && husky`;
     files.push(await plannedWrite(file, `${JSON.stringify(pkg, null, 2)}\n`, options));
-    nextSteps.push("npm install            # installs Husky and BC Atlas and activates the hooks");
+    nextSteps.push("npm install            # installs Husky and BC Atlas, activates the hooks, writes package-lock.json");
+  }
+  // With a package.json that declares bc-atlas, every runner uses that one version.
+  const packageJson = gitRoot ? await readJson(path.join(gitRoot, "package.json")) : undefined;
+  const local = answers.hooks === "husky" || Boolean(packageJson?.devDependencies?.["bc-atlas"] || packageJson?.dependencies?.["bc-atlas"]);
+  if (answers.updates === "dependabot") {
+    const file = path.join(gitRoot, ".github", "dependabot.yml");
+    const merged = mergeDependabot(await readFile(file, "utf8").catch(() => undefined));
+    if (merged.skip) {
+      files.push({ path: ".github/dependabot.yml", action: merged.unchanged ? "unchanged" : "skip", reason: merged.reason });
+    } else {
+      files.push(await plannedWrite(file, merged.content, options));
+    }
   }
   if (answers.hooks === "git") {
     commands.push(["git", "config", "core.hooksPath", ".githooks"]);
@@ -399,7 +462,7 @@ export async function applySetup(input, rawAnswers = {}, { dryRun = false, force
     const workspace = await exists(path.join(root, ".vscode")) || !gitRoot ? root : gitRoot;
     const tasksFile = path.join(workspace, ".vscode", "tasks.json");
     const current = await readFile(tasksFile, "utf8").catch(() => undefined);
-    const command = answers.hooks === "husky" ? ["npx", "--no-install", "bca"] : ["npx", "--yes", `bc-atlas@${version}`];
+    const command = local ? ["npx", "--no-install", "bca"] : ["npx", "--yes", `bc-atlas@${version}`];
     const tasks = vscodeTasks({
       appPath: portable(path.relative(workspace, root)),
       command,
@@ -431,7 +494,7 @@ export async function applySetup(input, rawAnswers = {}, { dryRun = false, force
       const trigger = config.automation.triggers[name];
       if (trigger) triggers[name] = { ...trigger, outputs: outputsFor(trigger.tasks, config, appPath) };
     }
-    const content = (answers.ci === "github" ? githubWorkflow : azurePipeline)({ appPath, version, triggers });
+    const content = (answers.ci === "github" ? githubWorkflow : azurePipeline)({ appPath, version, triggers, local });
     files.push(await plannedWrite(path.join(gitRoot, PIPELINE_FILES[answers.ci]), content, { ...options, generatedOnly: true }));
     if (answers.ci === "azure-devops") nextSteps.push(`Azure DevOps: create a pipeline from ${PIPELINE_FILES["azure-devops"]}`);
     if (answers.scheduleSync === "commit" && answers.schedule !== "none") {
@@ -439,6 +502,17 @@ export async function applySetup(input, rawAnswers = {}, { dryRun = false, force
     }
   } else if (answers.schedule !== "none") {
     nextSteps.push(`Local schedule (crontab -e): ${answers.schedule} cd ${gitRoot ?? root} && bca run ${appPath} --trigger schedule`);
+  }
+  // Agent command files pin the version too; keep existing ones current.
+  if (gitRoot) {
+    for (const [agent, { file }] of Object.entries(AGENTS)) {
+      if (!file) continue;
+      const target = path.join(gitRoot, file);
+      const current = await readFile(target, "utf8").catch(() => undefined);
+      if (current?.includes("# Set up BC Atlas")) {
+        files.push(await plannedWrite(target, agentFile(agent, { version, appPath }), options));
+      }
+    }
   }
   nextSteps.push(config.automation.triggers.ci
     ? `bca run ${appPath} --trigger ci   # first run`

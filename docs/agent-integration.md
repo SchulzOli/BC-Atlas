@@ -93,6 +93,7 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_setup_plan` detects the project and returns setup questions with recommendations.
 - `bc_atlas_setup_apply` previews (default) or writes `.bca.json`, Git hooks, and a pipeline.
 - `bc_atlas_run` runs the tasks configured for a trigger and reports sync status.
+- `bc_atlas_update_check` reports whether a newer BC Atlas version exists, with release notes.
 - `bc_atlas_generate_diagram` writes D2, JSON, or SVG.
 - `bc_atlas_docs_list` lists documented scenarios.
 - `bc_atlas_docs_show` reads one scenario and its source hash.

@@ -61,6 +61,7 @@ Connect BC Atlas to scripts, CI pipelines, and AI agents.
 | Command | Invocation | Purpose |
 | --- | --- | --- |
 | `run` | `bca run [app-root]` | Run the features configured for a trigger (Git hook, pipeline, schedule) and sync their output. |
+| `update` | `bca update [app-root]` | Check for a new BC Atlas version, show what changed, and update it together with the generated setup files. |
 | `capabilities` | `bca capabilities` | Print this machine-readable command contract as JSON. |
 | `mcp` | `bca mcp` | Start the Model Context Protocol server on stdio for AI agents. |
 

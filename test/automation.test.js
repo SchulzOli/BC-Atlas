@@ -72,6 +72,7 @@ test("setup apply previews, writes Husky hooks and a GitHub workflow, and is ide
       "update .husky/pre-commit",
       "create .husky/pre-push",
       "update package.json",
+      "create .github/dependabot.yml",
       "create .github/workflows/bc-atlas.yml"
     ]);
     assert.ok(!existsSync(path.join(app, ".bca.json")), "dry run writes nothing");
@@ -95,7 +96,14 @@ test("setup apply previews, writes Husky hooks and a GitHub workflow, and is ide
     const workflow = readFileSync(path.join(root, ".github", "workflows", "bc-atlas.yml"), "utf8");
     assert.match(workflow, /^ {4}- cron: "0 6 \* \* 1"$/mu);
     assert.match(workflow, /BCA_TRIGGER: \$\{\{ github\.event_name == 'schedule' && 'schedule' \|\| 'ci' \}\}/u);
-    assert.match(workflow, new RegExp(`npx --yes bc-atlas@${pkg.version.replaceAll(".", "\\.")} run apps/warehouse --trigger "\\$BCA_TRIGGER"`, "u"));
+    assert.match(workflow, /run: npx --no-install bca run apps\/warehouse --trigger "\$BCA_TRIGGER"/u, "package.json pins the version");
+    assert.match(workflow, /npm ci; else npm install/u);
+    assert.equal(config.automation.updates, "dependabot");
+    assert.match(readFileSync(path.join(root, ".github", "dependabot.yml"), "utf8"), /dependency-name: bc-atlas/u);
+
+    const fromConfig = bca(["setup", "apply", app, "--from-config", "--format", "json"]);
+    assert.equal(fromConfig.status, 0, fromConfig.stderr);
+    assert.ok(JSON.parse(fromConfig.stdout).files.every(({ action }) => action === "unchanged"), "--from-config reproduces the setup");
     assert.match(workflow, /peter-evans\/create-pull-request@v7[\s\S]*apps\/warehouse\/docs\/atlas\n {12}apps\/warehouse\/docs\/guides/u);
     assert.match(workflow, /^ {2}pull-requests: write$/mu);
 

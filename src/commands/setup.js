@@ -77,6 +77,7 @@ async function apply(input, answers, values) {
     return await applySetup(input, answers, {
       dryRun: values.dryRun,
       force: values.force,
+      fromConfig: values.fromConfig,
       version: await packageVersion()
     });
   } catch (error) {
@@ -93,13 +94,15 @@ export async function setupApplyCommand(input, values) {
   process.stdout.write(resultText(result));
 }
 
+/** Evaluates "<id> includes <value>", "<id> is <value>", or "<id> is not <value>". */
 function applies(condition, answers) {
   if (!condition) return true;
-  const [id, operator, value] = condition.split(" ").length === 3
-    ? condition.split(" ")
-    : [condition.split(" ")[0], "is not", condition.split(" ").at(-1)];
+  const match = /^(\w+) (includes|is not|is) (\S+)$/u.exec(condition);
+  if (!match) return true;
+  const [, id, operator, value] = match;
   const answer = answers[id];
   if (operator === "includes") return Array.isArray(answer) && answer.includes(value);
+  if (operator === "is") return answer === value;
   return Array.isArray(answer) ? answer.length > 0 : answer !== value;
 }
 

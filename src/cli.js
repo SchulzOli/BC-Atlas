@@ -10,6 +10,8 @@ import { checkCommand } from "./commands/check.js";
 import { initCommand } from "./commands/init.js";
 import { reportCommand } from "./commands/report.js";
 import { runCommand } from "./commands/run.js";
+import { updateCommand } from "./commands/update.js";
+import { maybeNotifyUpdate } from "./update.js";
 import { setupAgentCommand, setupApplyCommand, setupCommand, setupPlanCommand } from "./commands/setup.js";
 import { generateCodeGraph } from "./codegraph.js";
 import { DOCS_COMMANDS } from "./docs/cli.js";
@@ -36,6 +38,7 @@ const HANDLERS = {
   "setup.agent": setupAgentCommand,
   report: reportCommand,
   run: runCommand,
+  update: updateCommand,
   graph: graphCommand,
   watch: watchCommand,
   check: checkCommand,
@@ -78,11 +81,17 @@ function resolveCommand(args) {
 }
 
 async function main(args) {
-  if (!args.length || args[0] === "-h" || args[0] === "--help") return process.stdout.write(overviewHelp(capabilities));
-  if (args[0] === "-V" || args[0] === "--version") return console.log(pkg.version);
+  if (!args.length || args[0] === "-h" || args[0] === "--help") {
+    process.stdout.write(overviewHelp(capabilities));
+    return maybeNotifyUpdate(pkg.version, { command: "help" });
+  }
+  if (args[0] === "-V" || args[0] === "--version") {
+    console.log(pkg.version);
+    return maybeNotifyUpdate(pkg.version, { command: "version" });
+  }
   if (args[0] === "help") {
     if (!args[1]) return process.stdout.write(overviewHelp(capabilities));
-    const id = args[1] === "docs" && args[2] ? `docs.${args[2]}` : args[1];
+    const id = args[2] && findCommand(capabilities, `${args[1]}.${args[2]}`) ? `${args[1]}.${args[2]}` : args[1];
     if (id === "docs") return process.stdout.write(docsOverviewHelp(capabilities));
     const definition = findCommand(capabilities, id);
     if (!definition) throw new UsageError(`unknown command "${args.slice(1).join(" ")}"`);
@@ -94,7 +103,8 @@ async function main(args) {
   const definition = findCommand(capabilities, resolved.id);
   const parsed = parseCommandArgs(definition, resolved.args);
   if (parsed.help) return process.stdout.write(commandHelp(definition));
-  return HANDLERS[definition.id](parsed.input, parsed.values);
+  await HANDLERS[definition.id](parsed.input, parsed.values);
+  await maybeNotifyUpdate(pkg.version, { command: definition.id.split(".")[0], values: parsed.values });
 }
 
 main(process.argv.slice(2)).catch((error) => {

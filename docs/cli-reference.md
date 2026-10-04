@@ -32,6 +32,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Document | `docs automation` | Print a CI pipeline that keeps generated guides in sync. |
 | Document | `docs glossary` | List supported documentation tags and prerequisite types. |
 | Integrate | `run` | Run the features configured for a trigger and sync their output. |
+| Integrate | `update` | Check for a new version, show the release notes, and update BC Atlas and the generated setup files. |
 | Integrate | `capabilities` | Print the machine-readable command contract as JSON. |
 | Integrate | `mcp` | Start the MCP stdio server for AI agents (also installed as `bca-mcp`). |
 
@@ -48,6 +49,7 @@ bca check [app-root] [options]
 bca inspect [app-root] [options]
 bca codegraph [app-root] [options]
 bca run [app-root] [options]
+bca update [app-root] [options]
 bca docs <command> <test-root> [options]
 bca docs glossary [options]
 bca capabilities
@@ -118,6 +120,8 @@ means empty.
 | `--pre-push` | list | Features before each push, or `none`. |
 | `--hook-sync` | `verify`, `stage`, `none` | How hooks keep generated files in sync. |
 | `--editor` | `vscode`, `none` | Add `BC Atlas:` tasks to `.vscode/tasks.json` for the local development loop. |
+| `--updates` | `dependabot`, `none` | Propose new BC Atlas versions as Dependabot pull requests. Needs `--hooks husky`, which keeps the version in `package.json`. |
+| `--from-config` | flag | Start from the answers in the existing `.bca.json` instead of the recommendations. `bca update` uses it to regenerate files for a new version. |
 | `--ci` | `github`, `azure-devops`, `none` | Pipeline provider. |
 | `--ci-sync` | `verify`, `artifact`, `none` | What pull requests and pushes do with generated files. |
 | `--schedule` | cron | Five-field cron expression in UTC, or `none`. |
@@ -482,6 +486,35 @@ See [Automation](./automation-and-ci.md).
 
 Exits with `1` when a task fails, `check` finds blocking issues, or `verify`
 finds outdated generated files.
+
+### `update`
+
+```text
+bca update [app-root] [--check] [--yes] [--dry-run] [--format json]
+```
+
+Asks the npm registry for the latest version and shows the release notes
+between the installed and the latest version. After confirmation it:
+
+1. updates the installation: the `bc-atlas` dependency in the project's
+   `package.json` when it declares one (`npm install --save-dev bc-atlas@^x`),
+   otherwise the global installation (`npm install --global bc-atlas@x`);
+2. runs `bca setup apply --from-config` with the new version, so hooks, VS Code
+   tasks, pipelines, and agent commands reference it.
+
+A source checkout is not changed; update it with `git pull` and `npm ci`.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--check` | flag | Only report; exit code `1` when an update is available. |
+| `--yes` | flag | Update without asking. Without a terminal and without `--yes`, nothing is installed. |
+| `--dry-run` | flag | Show the commands an update would run. |
+| `--format` | `text` or `json` | Output mode. Default: `text`. |
+
+Other commands print a one-line notice in interactive terminals when a newer
+version exists. The check runs at most once a day in the background. It is off
+in CI, Git hooks, `bca run`, `--format json`, and when `BCA_NO_UPDATE_CHECK`
+or `NO_UPDATE_NOTIFIER` is set.
 
 ### `capabilities`
 

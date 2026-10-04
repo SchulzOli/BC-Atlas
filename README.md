@@ -34,6 +34,7 @@ bca check     # architecture gate for CI
 | | `bca inspect` | The resolved architecture model as JSON for scripts. |
 | **Document** | `bca codegraph` | One linked Markdown page per AL object. |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations. [Example](./examples/docs/index.md) |
+| | `bca update` | "BC Atlas 0.8.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
 | **Integrate** | `bca run` | One entry point for Git hooks, schedules, and pipelines; verifies, stages, or publishes generated files. Also available as a [GitHub Action](./docs/automation-and-ci.md#github-actions). |
 | | `bca capabilities` | A versioned JSON contract of every command for tools and agents. |
 | | `bca mcp` | A Model Context Protocol server for AI agents. |
