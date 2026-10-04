@@ -7,7 +7,7 @@ commands.
 
 ## Requirements
 
-- Node.js 20 or later.
+- Node.js 22 or later.
 - An AL project that contains an `app.json` file.
 - Optional: the [D2 executable](https://d2lang.com) for PNG or PDF output.
 

@@ -32,6 +32,10 @@ follows [Semantic Versioning](https://semver.org/).
   icon, enter ...", "In the **Field** field, enter ...", "Choose the
   **Action** action."). Scenarios with one `[WHEN]` phase list their
   instructions as top-level steps; repeated blocks become sub-steps.
+- Node.js 22 or later is required; Node.js 20 reached end of life in April 2026.
+  The Docker image and generated pipelines use Node.js 24.
+- CI runs once per pull request instead of twice, starts with one fast check
+  job, then tests Node.js 22 and 24 on Linux and Node.js 24 on Windows.
 
 ## 0.6.0 - 2026-10-04
 

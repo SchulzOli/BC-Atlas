@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - run: npm install --global bc-atlas@${version}
 ${commands.map((command) => `      - run: ${command}`).join("\n")}
 `;
@@ -67,7 +67,7 @@ steps:
   - checkout: self
   - task: NodeTool@0
     inputs:
-      versionSpec: 20.x
+      versionSpec: 24.x
   - script: npm install --global bc-atlas@${version}
     displayName: Install BC Atlas
 ${commands.map((command, index) => `  - script: ${command}\n    displayName: ${["Validate documentation", "Generate Markdown", "Verify generated files"][index]}`).join("\n")}
