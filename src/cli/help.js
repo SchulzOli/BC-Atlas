@@ -44,8 +44,10 @@ export function overviewHelp(capabilities) {
       if (seen.has(name)) continue;
       seen.add(name);
       rows.push(name === "docs"
-        ? ["docs", "Turn AL UI tests into user guides (list, validate, generate, ...)"]
-        : [name, definition.purpose.replace(/\.$/u, "")]);
+        ? ["docs", "Turn AL UI tests into user guides and test cases (list, validate, generate, ...)"]
+        : name === "setup"
+          ? ["setup", "Set up automation: features, hooks, pipelines, schedules (plan, apply, agent)"]
+          : [name, definition.purpose.replace(/\.$/u, "")]);
     }
     lines.push(area.title, ...aligned(rows), "");
   }
@@ -60,7 +62,8 @@ export function overviewHelp(capabilities) {
     ]),
     "",
     "Next steps",
-    "  bca init               create .bca.json for the current AL project",
+    "  bca setup              choose features, Git hooks, pipelines, and schedules",
+    "  bca setup agent        let your AI agent guide the setup (Claude, Copilot, Cursor)",
     "  bca report             write docs/atlas/README.md with diagrams and a health summary",
     "  bca help <command>     show options and examples for one command",
     "",

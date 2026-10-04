@@ -13,6 +13,8 @@ import * as z from "zod/v4";
 import { createArchitectureModel } from "./architecture.js";
 import { createCapabilities, FAIL_LEVELS, REPORT_VIEWS, VIEWS as VIEW_CATALOG } from "./capabilities.js";
 import { runHealthCheck } from "./commands/check.js";
+import { runAutomation } from "./automation/run.js";
+import { applySetup, createPlan } from "./automation/setup.js";
 import { generateReport } from "./commands/report.js";
 import { resolveOutput, writeArchitecture } from "./output.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
@@ -170,6 +172,49 @@ export function createMcpServer(version = pkg.version) {
       counts: result.health.counts,
       diagrams: result.diagrams.map(({ view, skipped, nodes, edges }) => ({ view, skipped, nodes, edges }))
     };
+  }));
+
+  server.registerTool("bc_atlas_setup_plan", {
+    description: "Detect an AL project and return setup questions with recommended answers for features, Git hooks, pipelines, schedules, and sync.",
+    inputSchema: z.object({ path: z.string().min(1).describe("AL app folder") }),
+    annotations: { readOnlyHint: true, idempotentHint: true }
+  }, tool(async ({ path: input }) => createPlan(input)));
+
+  server.registerTool("bc_atlas_setup_apply", {
+    description: "Write .bca.json, Git hooks, and a pipeline from setup answers. Preview with dryRun (default) before writing.",
+    inputSchema: z.object({
+      path: z.string().min(1),
+      answers: z.object({
+        features: z.array(z.enum(["check", "report", "docs", "codegraph"])).optional(),
+        tests: z.string().optional(),
+        docsExport: z.array(z.enum(EXPORT_FORMATS)).optional(),
+        docsAs: z.enum(DOCUMENT_MODES).optional(),
+        language: z.string().optional(),
+        hooks: z.enum(["husky", "git", "none"]).optional(),
+        preCommit: z.array(z.enum(["check", "report", "docs", "codegraph"])).optional(),
+        prePush: z.array(z.enum(["check", "report", "docs", "codegraph"])).optional(),
+        hookSync: z.enum(["verify", "stage", "none"]).optional(),
+        ci: z.enum(["github", "azure-devops", "none"]).optional(),
+        ciSync: z.enum(["verify", "artifact", "none"]).optional(),
+        schedule: z.string().optional().describe("Cron expression (UTC) or none"),
+        scheduleSync: z.enum(["pull-request", "commit", "artifact", "verify", "none"]).optional()
+      }).default({}),
+      dryRun: z.boolean().default(true),
+      force: z.boolean().default(false)
+    })
+  }, tool(async ({ path: input, answers, dryRun, force }) => applySetup(input, answers, { dryRun, force, version })));
+
+  server.registerTool("bc_atlas_run", {
+    description: "Run the BC Atlas tasks configured for a trigger in .bca.json, or explicit tasks, and report sync status.",
+    inputSchema: z.object({
+      path: z.string().min(1),
+      trigger: z.enum(["pre-commit", "pre-push", "ci", "schedule", "manual"]).default("manual"),
+      tasks: z.array(z.enum(["check", "report", "docs", "codegraph", "diagrams"])).optional(),
+      sync: z.enum(["none", "verify", "stage", "artifact", "pull-request", "commit"]).optional()
+    })
+  }, tool(async ({ path: input, ...options }) => {
+    const { root: _root, ...result } = await runAutomation(input, options);
+    return result;
   }));
 
   server.registerTool("bc_atlas_docs_list", {
