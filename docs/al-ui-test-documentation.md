@@ -46,21 +46,29 @@ begin
 end;
 ```
 
-| AL source | Markdown |
-| --- | --- |
-| `[DOC-ID]` | Stable identity and output filename |
-| `[SCENARIO]` | Title and summary |
-| `[PERMISSIONS]` | Required permission sets under “Before you start” |
-| `[GIVEN]` | User-friendly preparation guidance |
-| `TestPage` calls | Detailed page, field, action, and save steps |
-| `[WHEN]` | Numbered user phase and context for derived TestPage steps |
-| `[THEN]` | Expected results |
-| `[TEARDOWN]` | Recognized test cleanup; omitted from the user guide |
+The tags stay exactly as they are in your tests. BC Atlas arranges them in the
+structure of an [OASIS DITA 1.3 task topic](https://docs.oasis-open.org/dita/dita/v1.3/dita-v1.3-part0-overview.html),
+the open standard for step-by-step procedures:
+
+| AL source | Generated output | DITA task element |
+| --- | --- | --- |
+| `[DOC-ID]` | Stable identity and output filename | `task/@id` |
+| `[SCENARIO]` | Title and summary | `title`, `shortdesc` |
+| `[FEATURE]` | Use case that groups scenarios | `keywords`, map `topichead` |
+| `[PERMISSIONS]`, `[GIVEN]`, `[REQUIRES]` | “Before you start” | `prereq` |
+| `[WHEN]` | Numbered user phase | `step` |
+| `TestPage` calls | Page, field, action, and save instructions | `cmd` / `substep` |
+| Field and action `ToolTip` (with `--app`) | Explanation below the instruction | `info` |
+| `[THEN]` between two `[WHEN]` phases | Result of that phase | `stepresult` |
+| `[THEN]` after the last `[WHEN]` | “What should happen” | `result` |
+| `[NEXT]`, `[RELATED]`, `[ALTERNATIVE]` | Links to other guides | `related-links` |
+| `[TEARDOWN]` | Recognized test cleanup; omitted from the user guide | - |
 
 When `[THEN]` has no text, the `[SCENARIO]` sentence is used as the expected
 result. Explicit `[THEN]` text is preferred.
 
-Each `[WHEN]` comment becomes a numbered phase. Supported `TestPage` operations
+Each `[WHEN]` comment becomes a numbered phase. A scenario with only one
+`[WHEN]` phase lists its instructions directly as numbered steps. Supported `TestPage` operations
 following that comment are rendered as detailed steps beneath the phase.
 BC Atlas also follows reachable local procedure calls when a helper contains
 `TestPage` work. Setup-only helpers are not expanded.
@@ -137,6 +145,66 @@ For a directory, BC Atlas generates every documented scenario plus
 bca docs validate test/UITest
 bca docs generate test/UITest --output-dir docs/generated
 ```
+
+## Presentation and export
+
+One run produces any combination of formats from the same AL source:
+
+```powershell
+bca docs generate test/UITest --app app --export markdown,html,dita,ado-csv
+```
+
+| `--export` | Files | Use it for |
+| --- | --- | --- |
+| `markdown` (default) | `<id>.md`, `use-case-<feature>.md`, `index.md`, `journey.d2`/`.svg` | Repository docs, GitHub/Azure DevOps wikis, DocFX |
+| `html` | `index.html` (one self-contained file) | Sharing, printing to PDF, pipeline artifacts |
+| `dita` | `<id>.dita`, `documentation.ditamap` | DITA Open Toolkit, CCMS and help-authoring tools |
+| `ado-csv` | `test-cases.csv` | Azure DevOps Test Plans: grid view → Import test cases |
+
+### User guide or test case
+
+`--as guide` (default) writes task-oriented instructions. `--as testcase`
+writes the same scenario as a test case specification: ID, objective,
+preconditions, a numbered table with action, expected result, pass/fail, and
+actual result, and a sign-off block for UAT. Steps without an explicit
+`[THEN]` get a neutral expected result such as “The page opens”.
+
+```powershell
+bca docs generate test/UITest --app app --as testcase --export markdown,html,ado-csv
+```
+
+### Real captions with `--app`
+
+Without `--app`, BC Atlas derives labels from control names (`PartnerCode`
+becomes “Partner Code”). With `--app <app-root>`, it reads the app's AL source
+and uses what the user actually sees:
+
+- page captions, field captions (falling back to the source table field), and
+  action captions, with access-key markers such as `&Post` removed;
+- part captions for nested controls such as `Lines.Quantity`;
+- field and action tooltips as explanations below each step;
+- page and action coverage in the index: which app pages and actions no
+  documented scenario touches.
+
+### Languages
+
+`--language de-DE` translates the generated wording (headings, instructions,
+test-case columns) and takes captions and tooltips from the app's XLIFF file
+for that language (for example `Translations/MyApp.de-DE.xlf`). Built-in
+wording exists for English and German; other languages use English wording with
+translated captions, and BC Atlas prints a warning. Texts you wrote in the tags
+(`[SCENARIO]`, `[GIVEN]`, `[THEN]`) appear as written.
+
+### Index, use cases, and journey
+
+`index.md` (and the overview of `index.html`) contains:
+
+- one use case per `[FEATURE]`, listing its main scenarios in prerequisite
+  order and the `[ALTERNATIVE]` scenarios separately;
+- a journey diagram of `[REQUIRES]`, `[NEXT]`, `[RELATED]`, and
+  `[ALTERNATIVE]` links;
+- scenarios by page and by permission set;
+- coverage of app pages and actions (with `--app`).
 
 ## Inspect and edit metadata
 

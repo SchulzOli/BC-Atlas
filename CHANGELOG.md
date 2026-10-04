@@ -6,6 +6,33 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- `bca docs generate` presents scenarios in the structure of an OASIS DITA 1.3
+  task topic (prerequisites, steps, step results, result, related links).
+  The AL tags are unchanged.
+- `--export markdown,html,dita,ado-csv`: Markdown, one self-contained HTML
+  file, DITA 1.3 task topics with a map, and an Azure DevOps Test Plans CSV.
+- `--as testcase`: test case specification with preconditions, an
+  action/expected result/pass-fail table, and a sign-off block.
+- `--app`: real page, field, part, and action captions and tooltips from the
+  app's AL source, plus page and action coverage in the index.
+- `--language`: German and English wording; captions and tooltips from the
+  app's XLIFF translations.
+- Use-case pages per `[FEATURE]`, a journey diagram of scenario links, and
+  indexes by page and permission set.
+- `[THEN]` between two `[WHEN]` phases becomes the result of that phase.
+- The MCP tool `bc_atlas_docs_generate` accepts formats, mode, app, and
+  language.
+- Generated example documentation in `examples/docs`.
+
+### Changed
+
+- Instructions follow Business Central help conventions ("Choose the 🔍
+  icon, enter ...", "In the **Field** field, enter ...", "Choose the
+  **Action** action."). Scenarios with one `[WHEN]` phase list their
+  instructions as top-level steps; repeated blocks become sub-steps.
+
 ## 0.6.0 - 2026-10-04
 
 ### Added

@@ -17,7 +17,7 @@ import { generateReport } from "./commands/report.js";
 import { resolveOutput, writeArchitecture } from "./output.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
 import { documentationGlossary } from "./docs/tags.js";
-import { writeCorpusDocumentation } from "./docs/markdown.js";
+import { DOCUMENT_MODES, EXPORT_FORMATS, exportDocumentation } from "./docs/export.js";
 import { loadCorpus, scenarioSummary } from "./docs/model.js";
 
 const pkg = JSON.parse(await fs.readFile(new URL("../package.json", import.meta.url)));
@@ -201,15 +201,20 @@ export function createMcpServer(version = pkg.version) {
   }));
 
   server.registerTool("bc_atlas_docs_generate", {
-    description: "Generate Markdown from documented AL UI tests.",
+    description: "Generate user guides or test cases from documented AL UI tests as Markdown, HTML, DITA 1.3 tasks, or Azure DevOps Test Plans CSV.",
     inputSchema: z.object({
-      path: z.string().min(1),
-      outputDirectory: z.string().min(1).default("docs/generated")
+      path: z.string().min(1).describe("AL UI-test file or directory"),
+      outputDirectory: z.string().min(1).default("docs/generated"),
+      formats: z.array(z.enum(EXPORT_FORMATS)).default(["markdown"]),
+      as: z.enum(DOCUMENT_MODES).default("guide"),
+      appRoot: z.string().min(1).optional().describe("AL app source for real captions, tooltips, and coverage"),
+      language: z.string().optional().describe("Language tag such as de-DE; captions come from the app's XLIFF"),
+      title: z.string().optional()
     }),
     annotations: { idempotentHint: true }
-  }, tool(async ({ path: input, outputDirectory }) => {
-    const written = await writeCorpusDocumentation(await loadCorpus(input), outputDirectory);
-    return { written };
+  }, tool(async ({ path: input, as: mode, ...options }) => {
+    const result = await exportDocumentation(await loadCorpus(input), { ...options, mode });
+    return { written: result.files, warnings: result.warnings };
   }));
 
   server.registerTool("bc_atlas_docs_edit", {

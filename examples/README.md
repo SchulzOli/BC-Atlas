@@ -22,6 +22,12 @@ It also writes the complete [architecture report](./report/README.md) produced
 by `bca report examples/warehouse-app --output-dir examples/report --codegraph`,
 including the health summary and one Markdown page per object.
 
+Finally it generates the [user documentation](./docs/index.md) from the AL UI
+tests in `WarehouseUITests.al`, using real captions and tooltips from the app,
+as Markdown, a single [HTML file](./docs/index.html), DITA 1.3 tasks, and an
+Azure DevOps test-case CSV. The app's `Translations` folder contains a German
+XLIFF file; try `--language de-DE` to see translated output.
+
 You can also explore other views:
 
 ```sh

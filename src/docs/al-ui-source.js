@@ -11,6 +11,8 @@ import {
   PREREQUISITE_TYPES,
   RELATION_TAGS
 } from "./tags.js";
+import { humanizeIdentifier, inlineStep, operationStep } from "./steps.js";
+import { markdown } from "./render/format.js";
 
 const AL_TEST_PATTERN = /\[Test\](?:\s*\[[^\]]+\])*\s*procedure\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/giu;
 const TEST_PAGE_PATTERN =
@@ -177,17 +179,7 @@ function documentIdentity(comments, procedure, diagnostics) {
   };
 }
 
-function humanizeIdentifier(value) {
-  return value
-    .replace(/^"|"$/gu, "")
-    .replaceAll("_", " ")
-    .replace(/([A-Z]+)([A-Z][a-z])/gu, "$1 $2")
-    .replace(/([a-z0-9])([A-Z])/gu, "$1 $2")
-    .replace(/\s+/gu, " ")
-    .trim();
-}
-
-function singular(value) {
+export function singular(value) {
   if (/ies$/iu.test(value)) return value.replace(/ies$/iu, "y");
   if (/sses$/iu.test(value)) return value.replace(/es$/iu, "");
   if (/s$/iu.test(value) && !/ss$/iu.test(value)) return value.slice(0, -1);
@@ -207,84 +199,30 @@ function exampleValue(argument) {
   return { kind: "variable", value: humanizeIdentifier(value) };
 }
 
-function contextPrefix(parts) {
-  if (!parts.length) return "";
-  return `In the **${parts.map(humanizeIdentifier).join(" / ")}** section, `;
-}
-
-function contextual(parts, instruction) {
-  const prefix = contextPrefix(parts);
-  if (prefix) return `${prefix}${instruction}`;
-  return instruction.replace(/^[a-z]/u, (letter) => letter.toUpperCase());
-}
-
 function collectTestPages(source, initial = new Map()) {
   const testPages = new Map(initial);
   for (const match of source.matchAll(TEST_PAGE_PATTERN)) {
-    testPages.set(match[1], match[2] ?? humanizeIdentifier(match[3]));
+    testPages.set(match[1], {
+      name: match[2] ?? match[3],
+      label: match[2] ?? humanizeIdentifier(match[3])
+    });
   }
   return testPages;
 }
 
-function operationGuidance(match, page) {
+// Converts one TestPage call into a structured, language-neutral operation.
+function operationFor(match, page) {
   const parts = match[1].split(".");
   parts.shift();
   const operation = match[2];
-  if (operation === "OpenNew") {
-    return {
-      instruction: `Open **${page}** and create a new record.`,
-      creationTarget: singular(page)
-    };
-  }
-  if (operation === "OpenEdit") {
-    return { instruction: `Open **${page}** in edit mode.` };
-  }
-  if (operation === "OpenView") return { instruction: `Open **${page}**.` };
-  if (operation === "GoToRecord") {
-    return {
-      instruction: "Open the record you want to work with.",
-      record: humanizeIdentifier(match[3])
-    };
-  }
-  if (operation === "Close") {
-    return {
-      instruction: `Finish the entry and close **${page}**. Business Central saves the changes.`
-    };
-  }
-  if (operation === "New") {
-    return { instruction: contextual(parts, "add a new line.") };
-  }
-  if (operation === "Invoke") {
-    const action = parts.pop();
-    return { instruction: contextual(parts, `choose **${humanizeIdentifier(action)}**.`) };
-  }
-  if (operation === "SetValue") {
-    const field = humanizeIdentifier(parts.pop());
-    const example = exampleValue(match[3]);
-    if (example.kind === "boolean") {
-      return {
-        instruction: contextual(parts, `turn **${field}** ${example.value ? "on" : "off"}.`)
-      };
-    }
-    if (example.kind === "choice") {
-      return {
-        instruction: contextual(parts, `in **${field}**, select **${example.value}**.`),
-        hasExample: true
-      };
-    }
-    if (example.kind === "text") {
-      return {
-        instruction: contextual(
-          parts,
-          `in **${field}**, enter a suitable value (for example, **${example.value}**).`
-        ),
-        hasExample: true
-      };
-    }
-    return {
-      instruction: contextual(parts, `enter the required value in **${field}**.`)
-    };
-  }
+  const mode = { OpenNew: "new", OpenEdit: "edit", OpenView: "view" }[operation];
+  if (mode) return { kind: "open", mode, page, creationTarget: mode === "new" ? singular(page.label) : undefined };
+  if (operation === "GoToRecord") return { kind: "go-to-record", page, record: humanizeIdentifier(match[3]) };
+  if (operation === "Close") return { kind: "close", page };
+  if (operation === "New") return { kind: "new-line", page, sections: parts };
+  const member = parts.pop();
+  if (operation === "Invoke") return { kind: "invoke", page, sections: parts, member };
+  if (operation === "SetValue") return { kind: "set", page, sections: parts, member, value: exampleValue(match[3]) };
   return undefined;
 }
 
@@ -302,68 +240,59 @@ function isConditionalOperation(source, range, operationIndex) {
   return /\bif\b[\s\S]*\bthen\s*$/iu.test(prefix.slice(boundary + 1));
 }
 
-function lowerInstruction(value) {
-  return value
-    .replace(/\.$/u, "")
-    .replace(/^[A-Z]/u, (letter) => letter.toLowerCase());
+function repeatedOperation(source, range, operations) {
+  const record = operations.find(({ op }) => op.record)?.op.record ?? "record";
+  return {
+    kind: "repeat",
+    record,
+    steps: operations.map(({ op, index }) => ({ ...op, conditional: isConditionalOperation(source, range, index) }))
+  };
 }
 
-function repeatedGuidance(source, range, operations) {
-  const record = operations.find(({ detail }) => detail.record)?.detail.record ?? "record";
-  const instructions = operations.map(({ detail, index }, itemIndex) => {
-    let instruction = lowerInstruction(detail.instruction);
-    if (isConditionalOperation(source, range, index)) {
-      instruction = `when applicable, ${instruction}`;
-    } else if (itemIndex === operations.length - 1 && operations.length > 1) {
-      instruction = `then ${instruction}`;
-    }
-    return instruction;
-  });
-  return `For each **${record}** record, ${instructions.join("; ")}.`;
+const ENGLISH = { language: "en-US" };
+
+function legacyStep(op) {
+  return markdown(inlineStep(operationStep(op, ENGLISH), ENGLISH.language));
 }
 
 function deriveGuidance(source, knownTestPages = new Map()) {
   const testPages = collectTestPages(source, knownTestPages);
-
-  const steps = [];
   const creationTargets = new Set();
-  let hasExamples = false;
-  const operations = [];
+  const found = [];
   for (const match of source.matchAll(UI_OPERATION_PATTERN)) {
-    const root = match[1].split(".")[0];
-    const page = testPages.get(root);
+    const page = testPages.get(match[1].split(".")[0]);
     if (!page) continue;
-    const detail = operationGuidance(match, page);
-    if (!detail) continue;
-    if (detail.creationTarget) creationTargets.add(detail.creationTarget);
-    if (detail.hasExample) hasExamples = true;
-    operations.push({ index: match.index, detail });
+    const op = operationFor(match, page);
+    if (!op) continue;
+    if (op.creationTarget) creationTargets.add(op.creationTarget);
+    found.push({ index: match.index, op });
   }
 
+  const operations = [];
   const ranges = repeatRanges(source);
   const emittedRanges = new Set();
-  for (const operation of operations) {
-    const range = ranges.find(
-      ({ start, end }) => operation.index >= start && operation.index < end
-    );
+  for (const item of found) {
+    const range = ranges.find(({ start, end }) => item.index >= start && item.index < end);
     if (!range) {
-      steps.push(operation.detail.instruction);
+      operations.push(item.op);
       continue;
     }
     if (emittedRanges.has(range)) continue;
     emittedRanges.add(range);
-    steps.push(repeatedGuidance(
+    operations.push(repeatedOperation(
       source,
       range,
-      operations.filter(({ index }) => index >= range.start && index < range.end)
+      found.filter(({ index }) => index >= range.start && index < range.end)
     ));
   }
 
   const creationTarget = creationTargets.size === 1
     ? creationTargets.values().next().value
     : undefined;
+  const hasExamples = found.some(({ op }) => op.kind === "set" && ["text", "choice"].includes(op.value.kind));
   return {
-    steps,
+    operations,
+    steps: operations.map(legacyStep),
     hasExamples,
     creationTarget,
     title: creationTarget ? `Create a new ${creationTarget}` : undefined,
@@ -446,9 +375,15 @@ function whenBlocks(source) {
       /^\s*\/\/\s*\[(?:WHEN|THEN)\](?:\/\[[A-Z]+\])?/gimu
     );
     const end = nextMarker < 0 ? source.length : afterMarker + nextMarker;
+    const nextWhen = markers[index + 1]?.index ?? source.length;
+    const results = taggedEntries(source.slice(end, nextWhen))
+      .filter(({ tag }) => canonicalTag(tag) === "THEN")
+      .map(({ text }) => text.trim())
+      .filter(Boolean);
     return {
       title: marker[1].trim(),
       source: source.slice(afterMarker, end),
+      results,
       index
     };
   });
@@ -514,9 +449,12 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
   const guidance = deriveGuidance(expanded.source, testPages);
   const guideSections = whenBlocks(sourceText).map((section) => {
     const sectionExpansion = expandUiHelpers(section.source, procedures);
+    const derived = deriveGuidance(sectionExpansion.source, testPages);
     return {
       title: section.title,
-      steps: deriveGuidance(sectionExpansion.source, testPages).steps,
+      steps: derived.steps,
+      operations: derived.operations,
+      results: section.results,
       expandedHelpers: sectionExpansion.expanded
     };
   });
@@ -533,6 +471,8 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
     goal,
     guideGoal: guidance.goal ?? goal,
     guideSteps: guidance.steps,
+    guideOperations: guidance.operations,
+    creationTarget: guidance.creationTarget,
     guideSections,
     expandedHelpers: expanded.expanded,
     hasExampleValues: guidance.hasExamples,

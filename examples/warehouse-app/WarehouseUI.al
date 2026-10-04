@@ -20,16 +20,19 @@ page 50110 "Warehouse Requests"
                 {
                     ApplicationArea = All;
                     Caption = 'Entry No.';
+                    ToolTip = 'Specifies the number that identifies the warehouse request.';
                 }
                 field(Description; Rec.Description)
                 {
                     ApplicationArea = All;
                     Caption = 'Description';
+                    ToolTip = 'Specifies what the warehouse needs to do.';
                 }
                 field(Processed; Rec.Processed)
                 {
                     ApplicationArea = All;
                     Caption = 'Processed';
+                    ToolTip = 'Specifies whether the request has been processed.';
                     Editable = false;
                 }
             }
@@ -44,6 +47,7 @@ page 50110 "Warehouse Requests"
             {
                 ApplicationArea = All;
                 Caption = 'Process';
+                ToolTip = 'Process the selected warehouse request and mark it as processed.';
 
                 trigger OnAction()
                 var

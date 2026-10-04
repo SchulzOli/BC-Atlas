@@ -1,10 +1,12 @@
 import { createAutomationPlan } from "./automation.js";
 import { loadAlUiTest } from "./al-ui-source.js";
-import { writeCorpusDocumentation, writeDocumentation } from "./markdown.js";
+import { writeDocumentation } from "./markdown.js";
+import { exportDocumentation, parseFormats } from "./export.js";
+import { loadCaptionIndex } from "./captions.js";
 import { loadCorpus, scenarioSummary } from "./model.js";
 import { documentationGlossary } from "./tags.js";
 import { planMetadataEdit, writeMetadataEdit } from "./al-ui-writer.js";
-import { CheckFailedError } from "../cli/errors.js";
+import { CheckFailedError, UsageError } from "../cli/errors.js";
 import { displayPath } from "../output.js";
 
 function printJson(value) {
@@ -59,21 +61,43 @@ async function validate(input, values) {
 }
 
 async function generate(input, values) {
-  if (values.procedure) {
-    const source = await loadAlUiTest(input, { procedure: values.procedure });
-    const filename = await writeDocumentation(source, values.outputDir);
+  const options = {
+    mode: values.as,
+    language: values.language,
+    title: values.title
+  };
+  let formats;
+  try {
+    formats = parseFormats(values.export);
+  } catch (error) {
+    throw new UsageError(error.message);
+  }
+  const single = values.procedure || values.id;
+  if (single && formats.some((format) => format !== "markdown")) {
+    throw new UsageError("--id and --procedure generate one Markdown file; omit them to use --export");
+  }
+  if (single) {
+    const captions = values.app ? await loadCaptionIndex(values.app, { language: values.language }) : undefined;
+    let source;
+    let catalog;
+    if (values.procedure) source = await loadAlUiTest(input, { procedure: values.procedure });
+    else {
+      const corpus = await loadCorpus(input);
+      source = selectedScenario(corpus, values.id);
+      catalog = corpus.byId;
+    }
+    const filename = await writeDocumentation(source, values.outputDir, { ...options, captions, catalog });
     return values.format === "json" ? printJson([filename]) : console.log(`Wrote ${display(filename)}`);
   }
-  const corpus = await loadCorpus(input);
-  if (values.id) {
-    const filename = await writeDocumentation(selectedScenario(corpus, values.id), values.outputDir, {
-      catalog: corpus.byId
-    });
-    return values.format === "json" ? printJson([filename]) : console.log(`Wrote ${display(filename)}`);
-  }
-  const files = await writeCorpusDocumentation(corpus, values.outputDir);
-  if (values.format === "json") return printJson(files);
-  for (const filename of files) console.log(`Wrote ${display(filename)}`);
+  const result = await exportDocumentation(await loadCorpus(input), {
+    ...options,
+    formats,
+    appRoot: values.app,
+    outputDirectory: values.outputDir
+  });
+  for (const warning of result.warnings) console.error(`bca: warning: ${warning}`);
+  if (values.format === "json") return printJson(result.files);
+  for (const filename of result.files) console.log(`Wrote ${display(filename)}`);
 }
 
 function glossary(_input, values) {
