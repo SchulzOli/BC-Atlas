@@ -6,17 +6,14 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 0.7.0 - 2026-10-04
+
 ### Added
 
 - Documentation website on GitHub Pages
   (https://schulzoli.github.io/BC-Atlas/), built with VitePress from the
   repository Markdown, with search, a sidebar by feature area, and the
   generated examples.
-
-## 0.7.0 - 2026-10-04
-
-### Added
-
 - `bca setup`: guided setup of features, Git hooks (Husky or plain Git),
   pipelines (GitHub Actions or Azure Pipelines), cron schedules, and sync of
   generated files, as a terminal wizard or with `--yes`.

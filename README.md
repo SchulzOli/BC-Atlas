@@ -209,8 +209,10 @@ Releases are published manually through the `Publish npm package` workflow.
 Update and commit the version in `package.json` and `package-lock.json`, then
 enter that exact version in the workflow form. The workflow rejects mismatched
 or already published versions, runs all checks, and publishes with the selected
-dist-tag. It requires an `NPM_TOKEN` repository secret. Tag the released
-commit as `v<version>` so `uses: SchulzOli/BC-Atlas@v<version>` resolves.
+dist-tag. It then tags the commit as `v<version>`, so
+`uses: SchulzOli/BC-Atlas@v<version>` resolves, and creates a GitHub release
+with the version's `CHANGELOG.md` section. It requires an `NPM_TOKEN`
+repository secret.
 
 ## Contributing and support
 
