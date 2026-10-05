@@ -75,9 +75,10 @@ jobs:
           npm test
           npm pack --dry-run
 
+      # No token: npm authenticates through trusted publishing (OIDC), with
+      # this workflow registered as the package's trusted publisher on npmjs.com.
       - name: Publish package
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           DIST_TAG: ${{ inputs.dist_tag }}
         run: npm publish --access public --tag "$DIST_TAG"
 

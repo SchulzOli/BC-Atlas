@@ -43,9 +43,6 @@ follows [Semantic Versioning](https://semver.org/).
   setup.
 - With a `package.json` that declares `bc-atlas`, generated pipelines and VS
   Code tasks use that version (`npm ci`, `npx --no-install bca`).
-
-### Added
-
 - `bca docs generate` presents scenarios in the structure of an OASIS DITA 1.3
   task topic (prerequisites, steps, step results, result, related links).
   The AL tags are unchanged.
