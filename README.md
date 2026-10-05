@@ -211,8 +211,10 @@ enter that exact version in the workflow form. The workflow rejects mismatched
 or already published versions, runs all checks, and publishes with the selected
 dist-tag. It then tags the commit as `v<version>`, so
 `uses: SchulzOli/BC-Atlas@v<version>` resolves, and creates a GitHub release
-with the version's `CHANGELOG.md` section. It requires an `NPM_TOKEN`
-repository secret.
+with the version's `CHANGELOG.md` section. npm authenticates through
+[trusted publishing](https://docs.npmjs.com/trusted-publishers): the package's
+trusted publisher on npmjs.com is this repository's `publish-npm.yml`
+workflow, so no npm token is stored in GitHub.
 
 ## Contributing and support
 
