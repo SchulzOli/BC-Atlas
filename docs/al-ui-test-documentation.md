@@ -151,15 +151,16 @@ bca docs generate test/UITest --output-dir docs/generated
 One run produces any combination of formats from the same AL source:
 
 ```powershell
-bca docs generate test/UITest --app app --export markdown,html,dita,ado-csv
+bca docs generate test/UITest --app app --export markdown,html,dita,ado-csv,bpmn
 ```
 
 | `--export` | Files | Use it for |
 | --- | --- | --- |
-| `markdown` (default) | `<id>.md`, `use-case-<feature>.md`, `index.md`, `journey.d2`/`.svg` | Repository docs, GitHub/Azure DevOps wikis, DocFX |
+| `markdown` (default) | `<id>.md`, `use-case-<feature>.md`, `index.md`, `journey.d2`/`.svg`, `diagrams/*.svg` | Repository docs, GitHub/Azure DevOps wikis, DocFX |
 | `html` | `index.html` (one self-contained file) | Sharing, printing to PDF, pipeline artifacts |
 | `dita` | `<id>.dita`, `documentation.ditamap` | DITA Open Toolkit, CCMS and help-authoring tools |
 | `ado-csv` | `test-cases.csv` | Azure DevOps Test Plans: grid view → Import test cases |
+| `bpmn` | `use-case-<feature>.bpmn` | Camunda Modeler, bpmn.io, Signavio, and other BPMN 2.0 tools |
 
 ### User guide or test case
 
@@ -195,12 +196,36 @@ wording exists for English and German; other languages use English wording with
 translated captions, and BC Atlas prints a warning. Texts you wrote in the tags
 (`[SCENARIO]`, `[GIVEN]`, `[THEN]`) appear as written.
 
+### Flow diagrams and BPMN
+
+Markdown and HTML include three diagrams, all derived from the same tags:
+
+| Diagram | Where | Shows |
+| --- | --- | --- |
+| Scenario flow | “At a glance” on every guide or test case | Each click as a step, from start to the `[THEN]` result. A `[THEN]` between two `[WHEN]` phases is a milestone; a repeated block has a loop marker. Long flows wrap into rows. |
+| Use-case process | Top of every use-case page | One lane per permission set, one box per scenario in `[NEXT]`/`[REQUIRES]` order, and a decision where `[ALTERNATIVE]` paths branch. In HTML, a box links to its guide. |
+| Journey | `index.md` (D2) | All linked scenarios grouped by use case, with permission set and number of steps; `[RELATED]` and `[ALTERNATIVE]` as dashed lines. |
+
+The scenario flow and the use-case process use BPMN 2.0 notation: a thin
+circle starts, a bold circle ends, a double circle marks a reached state, a
+diamond is a decision, and a box with `+` is a scenario that contains steps.
+
+`--export bpmn` writes the use-case process as a standard BPMN 2.0 file with
+diagram layout. Open it in Camunda Modeler, bpmn.io, Signavio, or any BPMN 2.0
+tool: the pool is the use case, the lanes are permission sets, and each
+scenario is a collapsed sub-process. Double-click a scenario to see its clicks
+as user tasks, with the full instruction in the documentation field. The file
+is generated: change the AL tags and regenerate rather than editing it.
+
+![Use-case process for the warehouse example](../examples/docs/diagrams/use-case-warehouse-requests.svg)
+
 ### Index, use cases, and journey
 
 `index.md` (and the overview of `index.html`) contains:
 
 - one use case per `[FEATURE]`, listing its main scenarios in prerequisite
-  order and the `[ALTERNATIVE]` scenarios separately;
+  order and the `[ALTERNATIVE]` scenarios separately, with its process
+  diagram;
 - a journey diagram of `[REQUIRES]`, `[NEXT]`, `[RELATED]`, and
   `[ALTERNATIVE]` links;
 - scenarios by page and by permission set;

@@ -1,6 +1,7 @@
 // Turns structured UI operations from an AL test into instruction tokens.
 // Tokens are strings or { ui } / { input } objects, so every output format
 // (Markdown, HTML, DITA, CSV) can mark up UI labels and example input itself.
+import { singular } from "./al-ui-source.js";
 import { lowerTokens, mergeText, phrase } from "./phrases.js";
 
 export function humanizeIdentifier(value) {
@@ -44,26 +45,46 @@ function withSections(language, sections, tokens) {
   });
 }
 
+/** Short label for diagrams: "Choose Release", "Components: Enter Qty.". */
+function shortLabel(language, sections, key, values) {
+  const tokens = phrase(language, key, values);
+  return sections.length ? phrase(language, "short.section", { section: { ui: sections.join(" / ") }, instruction: tokens }) : tokens;
+}
+
 function single(op, context) {
   const { language } = context;
   const page = { ui: pageCaption(op, context) };
   switch (op.kind) {
-    case "open":
+    case "open": {
+      const record = { ui: englishLike(language) ? singular(page.ui) : page.ui };
       return {
         cmd: phrase(language, `open.${op.mode}`, { page, new: { ui: phrase(language, "ui.new")[0] } }),
+        short: phrase(language, op.mode === "new" ? "short.open.new" : "short.open", { page, record }),
         expected: phrase(language, op.mode === "new" ? "expect.new" : "expect.open", { page }),
         page: op.page.name
       };
+    }
     case "close":
-      return { cmd: phrase(language, "close", { page }), expected: phrase(language, "expect.close"), page: op.page.name };
+      return {
+        cmd: phrase(language, "close", { page }),
+        short: phrase(language, "short.close", { page }),
+        expected: phrase(language, "expect.close"),
+        page: op.page.name
+      };
     case "go-to-record":
-      return { cmd: phrase(language, "go-to-record"), expected: phrase(language, "expect.select"), page: op.page.name };
+      return {
+        cmd: phrase(language, "go-to-record"),
+        short: phrase(language, "short.go-to-record"),
+        expected: phrase(language, "expect.select"),
+        page: op.page.name
+      };
     case "new-line": {
       const sections = (op.sections ?? []).map((section, index) =>
         context.captions?.member(op.page.name, op.sections.slice(0, index + 1), "", "field")?.sectionCaptions?.[index] ??
         humanizeIdentifier(section));
       return {
         cmd: withSections(language, sections, phrase(language, "new-line")),
+        short: shortLabel(language, sections, "short.new-line"),
         expected: phrase(language, "expect.new-line"),
         page: op.page.name
       };
@@ -72,6 +93,7 @@ function single(op, context) {
       const member = memberInfo(op, context, "action");
       return {
         cmd: withSections(language, member.sections, phrase(language, "invoke", { action: { ui: member.caption } })),
+        short: shortLabel(language, member.sections, "short.invoke", { action: { ui: member.caption } }),
         info: member.tooltip,
         expected: phrase(language, "expect.invoke"),
         page: op.page.name,
@@ -87,6 +109,8 @@ function single(op, context) {
           : op.value.kind === "text" ? "set.text" : "set.variable";
       return {
         cmd: withSections(language, member.sections, phrase(language, key, { field, value: { input: String(op.value.value) } })),
+        short: shortLabel(language, member.sections, op.value.kind === "boolean" || op.value.kind === "choice"
+          ? `short.${key}` : "short.set", { field }),
         info: member.tooltip,
         expected: phrase(language, "expect.set"),
         page: op.page.name,
@@ -117,6 +141,7 @@ export function operationStep(op, context) {
   });
   return {
     cmd: phrase(language, "repeat", { record: { ui: op.record } }),
+    short: phrase(language, "short.repeat", { record: { ui: op.record } }),
     expected: phrase(language, "expect.repeat"),
     items,
     pages: items.map(({ page }) => page),

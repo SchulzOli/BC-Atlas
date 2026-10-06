@@ -59,6 +59,6 @@ await run(["report", input, "--output-dir", path.join("examples", "report"), "--
 await run([
   "docs", "generate", input,
   "--app", input,
-  "--export", "markdown,html,dita,ado-csv",
+  "--export", "markdown,html,dita,ado-csv,bpmn",
   "--output-dir", path.join("examples", "docs")
 ]);

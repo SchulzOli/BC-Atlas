@@ -2,6 +2,12 @@
 
 # Use case: Warehouse requests
 
+## Process
+
+![Warehouse requests](./diagrams/use-case-warehouse-requests.svg)
+
+Open [use-case-warehouse-requests.bpmn](./use-case-warehouse-requests.bpmn) in a BPMN modeler such as Camunda Modeler or bpmn.io to edit the process; double-click a scenario to see its steps.
+
 ## Main scenario
 
 1. [Create a new Warehouse Request](./warehouse-request-create.md)

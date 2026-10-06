@@ -6,6 +6,31 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- `bca docs generate` draws every scenario as a flow of its clicks in BPMN
+  notation ("At a glance"): user tasks, milestones for `[THEN]` between
+  `[WHEN]` phases, loop markers for repeated blocks, and wrapping rows for long
+  flows.
+- Every use case gets a process diagram with one lane per permission set, the
+  scenarios in `[NEXT]`/`[REQUIRES]` order, and an exclusive gateway where
+  `[ALTERNATIVE]` paths branch. In HTML, each scenario links to its guide.
+- `--export bpmn`: `use-case-<feature>.bpmn`, a BPMN 2.0 file with diagram
+  layout and colors for Camunda Modeler, bpmn.io, and Signavio. Each scenario
+  is a collapsed sub-process; double-click it to see its clicks as user tasks.
+
+### Changed
+
+- The journey diagram shows each scenario with its permission set and number
+  of steps. `[NEXT]` and `[REQUIRES]` between the same scenarios are one
+  arrow in flow direction; `[ALTERNATIVE]` and `[RELATED]` are dashed lines.
+
+### Fixed
+
+- Steps on quoted fields and actions, such as
+  `SalesOrder."Sell-to Customer No.".SetValue(...)`, are no longer dropped from
+  generated documentation.
+
 ## 0.7.0 - 2026-10-04
 
 ### Added

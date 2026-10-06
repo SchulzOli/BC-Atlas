@@ -38,7 +38,8 @@ th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-alig
 th{background:var(--soft)}
 .chips span{display:inline-block;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:0 8px;margin:0 4px 4px 0;font-size:12px}
 details{margin-top:12px;font-size:13px;color:var(--muted)}
-.journey svg{max-width:100%;height:auto}
+.journey svg,.diagram svg{max-width:100%;height:auto;border-radius:8px}
+.diagram{overflow-x:auto;margin:8px 0 4px}
 @media (max-width:760px){.layout{grid-template-columns:1fr}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}}
 @media print{nav,header input{display:none}.layout{display:block}article{break-before:page}main{max-width:none}}
 `;
@@ -116,13 +117,18 @@ ${testCaseRows(task).map((row, index) => `<tr><td>${index + 1}</td><td>${html(ro
   ].filter(Boolean).join("\n");
 }
 
-function article(task, mode) {
+function diagram(svg) {
+  return svg ? `<div class="diagram">${svg}</div>` : "";
+}
+
+function article(task, mode, flow) {
   const { language } = task;
   const search = [task.id, task.title, task.goal, ...task.features, ...task.permissions].join(" ").toLowerCase();
   const chips = task.features.length ? `<p class="chips">${task.features.map((feature) => `<span>${escapeXml(humanizeFeature(feature))}</span>`).join("")}</p>` : "";
   return `<article id="${escapeXml(task.id)}" data-search="${escapeXml(search)}">
 <h2>${mode === "testcase" ? `${escapeXml(label(language, "testcase.title", { id: task.id }))}: ` : ""}${escapeXml(task.title)}</h2>
 ${chips}${mode === "testcase" ? "" : `<p class="short">${html(task.shortdesc)}</p>`}
+${diagram(flow)}
 ${mode === "testcase" ? testCaseBody(task) : guideBody(task)}
 <details><summary>${label(language, "heading.source")}</summary>
 ${label(language, "label.file")}: <code>${escapeXml(task.source.file)}</code> · ${label(language, "label.function")}: <code>${escapeXml(task.source.procedure)}</code> · ${label(language, "label.hash")}: <code>${escapeXml(task.source.hash)}</code>
@@ -130,7 +136,7 @@ ${label(language, "label.file")}: <code>${escapeXml(task.source.file)}</code> ·
 </article>`;
 }
 
-function overview(catalog, journeySvg) {
+function overview(catalog, journeySvg, processes) {
   const { language } = catalog;
   const t = (key, values) => label(language, key, values);
   const parts = [`<section id="overview">`];
@@ -138,7 +144,7 @@ function overview(catalog, journeySvg) {
   if (named.length) {
     parts.push(`<h2>${t("heading.use-cases")}</h2>`);
     for (const useCase of catalog.useCases) {
-      parts.push(`<h3 id="${escapeXml(useCase.id)}">${escapeXml(useCase.title)}</h3><ol>${useCase.main.map((task) =>
+      parts.push(`<h3 id="${escapeXml(useCase.id)}">${escapeXml(useCase.title)}</h3>${diagram(processes?.get(useCase.id))}<ol>${useCase.main.map((task) =>
         `<li>${link({ ...task, exists: true })}${sameAsTitle(task) ? "" : ` <span class="muted">${escapeXml(task.goal)}</span>`}</li>`).join("")}</ol>`);
       if (useCase.alternatives.length) {
         parts.push(`<p class="muted">${t("heading.alternatives")}</p><ul>${useCase.alternatives.map((task) =>
@@ -168,7 +174,7 @@ function overview(catalog, journeySvg) {
   return parts.join("\n");
 }
 
-export function renderHtml(catalog, { mode = "guide", journeySvg } = {}) {
+export function renderHtml(catalog, { mode = "guide", journeySvg, flows, processes } = {}) {
   const { language } = catalog;
   const t = (key) => label(language, key);
   const title = catalog.title ?? t("heading.documentation");
@@ -194,8 +200,8 @@ ${navUseCases.length ? `<h2>${t("heading.use-cases")}</h2><ul>${catalog.useCases
 </nav>
 <main>
 <p class="muted">${escapeXml(t("label.generated"))}</p>
-${overview(catalog, svg)}
-${catalog.tasks.map((task) => article(task, mode)).join("\n")}
+${overview(catalog, svg, processes)}
+${catalog.tasks.map((task) => article(task, mode, flows?.get(task.id))).join("\n")}
 </main>
 </div>
 <script>${SCRIPT}</script>

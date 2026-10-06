@@ -18,7 +18,7 @@ const AL_TEST_PATTERN = /\[Test\](?:\s*\[[^\]]+\])*\s*procedure\s+([A-Za-z_][A-Z
 const TEST_PAGE_PATTERN =
   /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*TestPage\s+(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))\s*;/gimu;
 const UI_OPERATION_PATTERN =
-  /^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\.(OpenNew|OpenEdit|OpenView|Close|New|Invoke|SetValue|GoToRecord)\((.*?)\);\s*$/gimu;
+  /^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.(?:[A-Za-z_][A-Za-z0-9_]*|"[^"\n]+"))*)\.(OpenNew|OpenEdit|OpenView|Close|New|Invoke|SetValue|GoToRecord)\((.*?)\);\s*$/gimu;
 const UI_OPERATION_DETECTOR =
   /\.(?:OpenNew|OpenEdit|OpenView|Close|New|Invoke|SetValue|GoToRecord)\s*\(/iu;
 const GRAMMAR_PATH = fileURLToPath(
@@ -212,7 +212,8 @@ function collectTestPages(source, initial = new Map()) {
 
 // Converts one TestPage call into a structured, language-neutral operation.
 function operationFor(match, page) {
-  const parts = match[1].split(".");
+  // Quoted members such as "Sell-to Customer No." may contain dots.
+  const parts = match[1].match(/"[^"]+"|[^.]+/gu).map((part) => part.replace(/^"|"$/gu, ""));
   parts.shift();
   const operation = match[2];
   const mode = { OpenNew: "new", OpenEdit: "edit", OpenView: "view" }[operation];

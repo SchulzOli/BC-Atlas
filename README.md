@@ -37,7 +37,7 @@ bca update    # new version? see what changed and update everything in one step
 | **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, hot spots, diagnostics - with a CI exit code. |
 | | `bca inspect` | The resolved architecture model as JSON for scripts. |
 | **Document** | `bca codegraph` | One linked Markdown page per AL object. |
-| | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations. [Example](./examples/docs/index.md) |
+| | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations, a flow diagram per scenario, and BPMN 2.0 processes per use case. [Example](./examples/docs/index.md) |
 | **Integrate** | `bca run` | One entry point for Git hooks, schedules, and pipelines; verifies, stages, or publishes generated files. Also available as a [GitHub Action](./docs/automation-and-ci.md#github-actions). |
 | | `bca update` | "BC Atlas 0.8.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
 | | `bca capabilities` | A versioned JSON contract of every command for tools and agents. |
