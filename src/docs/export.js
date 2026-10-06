@@ -3,13 +3,16 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { loadCaptionIndex } from "./captions.js";
 import { SUPPORTED_PHRASE_LANGUAGES } from "./phrases.js";
+import { layoutProcess, scenarioProcess, useCaseProcess } from "./process.js";
+import { renderBpmn } from "./render/bpmn.js";
 import { renderAzureDevOpsCsv } from "./render/csv.js";
 import { renderDitaMap, renderDitaTask } from "./render/dita.js";
 import { renderHtml } from "./render/html.js";
 import { renderGuide, renderIndex, renderTestCase, renderUseCase } from "./render/markdown.js";
+import { renderProcessSvg } from "./render/process-svg.js";
 import { buildCatalog, journeyD2 } from "./task.js";
 
-export const EXPORT_FORMATS = Object.freeze(["markdown", "html", "dita", "ado-csv"]);
+export const EXPORT_FORMATS = Object.freeze(["markdown", "html", "dita", "ado-csv", "bpmn"]);
 export const DOCUMENT_MODES = Object.freeze(["guide", "testcase"]);
 
 export function parseFormats(value) {
@@ -32,7 +35,7 @@ async function renderJourneySvg(source) {
 }
 
 /**
- * @param options { outputDirectory, formats, mode, language, appRoot, title }
+ * @param options { outputDirectory, formats, mode, language, appRoot, title, version }
  * @returns { files, catalog, warnings }
  */
 export async function exportDocumentation(corpus, options = {}) {
@@ -68,22 +71,38 @@ export async function exportDocumentation(corpus, options = {}) {
   const files = [];
   const write = async (name, content) => {
     const file = path.join(directory, name);
+    await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.writeFile(file, content);
     files.push(file);
   };
 
+  const visual = formats.includes("markdown") || formats.includes("html");
   const journey = journeyD2(catalog);
   let journeySvg;
-  if (journey && (formats.includes("markdown") || formats.includes("html"))) {
+  if (journey && visual) {
     journeySvg = await renderJourneySvg(journey);
+  }
+  // Every scenario gets a BPMN-style flow of its clicks; every use case a
+  // process with one lane per permission set.
+  const named = catalog.useCases.filter(({ feature }) => feature);
+  const processes = new Map(named.map((useCase) => [useCase.id, useCaseProcess(useCase, catalog)]));
+  const flows = new Map();
+  if (visual) {
+    for (const task of catalog.tasks) flows.set(task.id, renderProcessSvg(layoutProcess(scenarioProcess(task))));
   }
 
   if (formats.includes("markdown")) {
     for (const task of catalog.tasks) {
-      await write(`${task.id}.md`, mode === "testcase" ? renderTestCase(task) : renderGuide(task));
+      await write(`diagrams/${task.id}.svg`, flows.get(task.id));
+      const flowImage = `diagrams/${task.id}.svg`;
+      await write(`${task.id}.md`, mode === "testcase" ? renderTestCase(task, { flowImage }) : renderGuide(task, { flowImage }));
     }
-    for (const useCase of catalog.useCases.filter(({ feature }) => feature)) {
-      await write(`${useCase.id}.md`, renderUseCase(useCase, catalog));
+    for (const useCase of named) {
+      await write(`diagrams/${useCase.id}.svg`, renderProcessSvg(layoutProcess(processes.get(useCase.id))));
+      await write(`${useCase.id}.md`, renderUseCase(useCase, catalog, {
+        processImage: `diagrams/${useCase.id}.svg`,
+        bpmnFile: formats.includes("bpmn") ? `${useCase.id}.bpmn` : undefined
+      }));
     }
     if (journey) {
       await write("journey.d2", journey);
@@ -92,7 +111,10 @@ export async function exportDocumentation(corpus, options = {}) {
     await write("index.md", renderIndex(catalog, { journeyImage: journeySvg ? "journey.svg" : undefined }));
   }
   if (formats.includes("html")) {
-    await write("index.html", renderHtml(catalog, { mode, journeySvg }));
+    const processSvgs = new Map([...processes].map(([id, process]) => [id, renderProcessSvg(layoutProcess(process), {
+      linkFor: (node) => (node.task ? `#${node.task.id}` : undefined)
+    })]));
+    await write("index.html", renderHtml(catalog, { mode, journeySvg, flows, processes: processSvgs }));
   }
   if (formats.includes("dita")) {
     for (const task of catalog.tasks) await write(`${task.id}.dita`, renderDitaTask(task));
@@ -100,6 +122,9 @@ export async function exportDocumentation(corpus, options = {}) {
   }
   if (formats.includes("ado-csv")) {
     await write("test-cases.csv", renderAzureDevOpsCsv(catalog));
+  }
+  if (formats.includes("bpmn")) {
+    for (const [id, process] of processes) await write(`${id}.bpmn`, renderBpmn(process, { version: options.version }));
   }
   return { files, catalog, warnings };
 }

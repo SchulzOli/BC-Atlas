@@ -5,6 +5,10 @@
 
 Use this guide to create a new Warehouse Request.
 
+## At a glance
+
+![Create a new Warehouse Request](./diagrams/warehouse-request-create.svg)
+
 ## Before you start
 
 - Required permission: **WAREHOUSE PROCESS**

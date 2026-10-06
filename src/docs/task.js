@@ -68,6 +68,7 @@ export function buildTask(scenario, context = {}) {
       const items = stepsFor(section.operations, ctx);
       const last = index === sections.length - 1;
       return {
+        phase: true,
         cmd: [section.title],
         items,
         result: last ? [] : section.results ?? [],
@@ -254,40 +255,63 @@ export function buildCatalog(corpus, context = {}) {
   return { language, title: context.title, tasks, useCases, byPage, byPermission, journey, coverage };
 }
 
-/** D2 source for the journey graph between scenarios, grouped by use case. */
+/** Number of clicks in a task: phases count their items. */
+export function clickCount(task) {
+  return task.steps.reduce((count, step) => count + (step.phase ? step.items.length : 1), 0);
+}
+
+/**
+ * D2 source for the journey between scenarios, grouped by use case. Every
+ * scenario is a card with its permission set and number of steps; [NEXT] and
+ * [REQUIRES] read as one flow arrow, alternatives and related guides as
+ * dashed lines.
+ */
 export function journeyD2(catalog) {
   if (!catalog.journey.length) return undefined;
-  const quote = (value) => `"${String(value).replaceAll("\\", "\\\\").replaceAll("\"", "\\\"")}"`;
+  const { language } = catalog;
+  const quote = (value) => `"${String(value).replaceAll("\\", "\\\\").replaceAll("\"", "\\\"").replace(/\r?\n/gu, "\\n")}"`;
   const linked = new Set(catalog.journey.flatMap(({ from, to }) => [from, to]));
-  const lines = ["direction: right", ""];
-  const placed = new Set();
+  const lines = [
+    "direction: right",
+    "classes: {",
+    "  use-case: { style: { fill: \"#f6f8fa\"; stroke: \"#c9d1d9\"; border-radius: 12; font-color: \"#1b1f24\"; font-size: 18 } }",
+    "  scenario: { style: { fill: \"#eef4fd\"; stroke: \"#0b62d6\"; stroke-width: 2; border-radius: 10; font-color: \"#1b1f24\"; font-size: 15 } }",
+    "  flow: { style: { stroke: \"#0b62d6\"; stroke-width: 2 } }",
+    "  alternative: { style: { stroke: \"#e09400\"; stroke-width: 2; stroke-dash: 5; font-color: \"#8a5a00\" } }",
+    "  related: { style: { stroke: \"#9aa4b0\"; stroke-dash: 3; font-color: \"#5b6470\" } }",
+    "}",
+    ""
+  ];
+  const owner = new Map();
   for (const useCase of catalog.useCases) {
-    const members = [...useCase.main, ...useCase.alternatives].filter(({ id }) => linked.has(id) && !placed.has(id));
+    const members = [...useCase.main, ...useCase.alternatives].filter(({ id }) => linked.has(id) && !owner.has(id));
     if (!members.length) continue;
-    lines.push(`${quote(useCase.id)}: ${quote(useCase.title)} {`);
+    lines.push(`${quote(useCase.id)}: ${quote(useCase.title)} {`, "  class: use-case");
     for (const task of members) {
-      placed.add(task.id);
-      lines.push(`  ${quote(task.id)}: ${quote(task.title)}`);
+      owner.set(task.id, useCase.id);
+      const count = clickCount(task);
+      const details = [
+        task.permissions.join(", ") || label(language, "process.user"),
+        count === 1 ? label(language, "process.step") : label(language, "process.steps", { count: String(count) })
+      ].join(" · ");
+      lines.push(`  ${quote(task.id)}: ${quote(`${task.title}\n${details}`)} { class: scenario }`);
     }
     lines.push("}", "");
   }
-  const path = (id) => {
-    const owner = catalog.useCases.find((useCase) =>
-      [...useCase.main, ...useCase.alternatives].some((task) => task.id === id) && linked.has(id));
-    return owner ? `${quote(owner.id)}.${quote(id)}` : quote(id);
-  };
-  const styles = {
-    requires: "{style.stroke-dash: 4}",
-    next: "",
-    related: "{style.stroke-dash: 2; style.opacity: 0.6}",
-    alternative: "{style.stroke-dash: 6}"
-  };
+  const ref = (id) => (owner.has(id) ? `${quote(owner.get(id))}.${quote(id)}` : quote(id));
   const seen = new Set();
-  for (const edge of catalog.journey) {
-    const signature = `${edge.from}\u0000${edge.to}\u0000${edge.kind}`;
-    if (seen.has(signature)) continue;
-    seen.add(signature);
-    lines.push(`${path(edge.from)} -> ${path(edge.to)}: ${edge.kind}${styles[edge.kind] ? ` ${styles[edge.kind]}` : ""}`);
+  const edge = (from, to, kind, text) => {
+    const key = kind === "flow" ? `${from}\u0000${to}` : [from, to].sort().join("\u0000");
+    if (seen.has(`${kind}\u0000${key}`)) return;
+    seen.add(`${kind}\u0000${key}`);
+    const arrow = kind === "flow" ? "->" : "--";
+    lines.push(`${ref(from)} ${arrow} ${ref(to)}${text ? `: ${quote(text)}` : ""} { class: ${kind} }`);
+  };
+  for (const { from, to, kind } of catalog.journey) {
+    if (kind === "next") edge(from, to, "flow");
+    else if (kind === "requires") edge(to, from, "flow");
+    else if (kind === "alternative") edge(from, to, "alternative", label(language, "journey.alternative"));
+    else edge(from, to, "related", label(language, "journey.related"));
   }
   return `${lines.join("\n")}\n`;
 }

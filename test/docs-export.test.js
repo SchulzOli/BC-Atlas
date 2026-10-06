@@ -192,7 +192,8 @@ test("exports guides with captions, step results, use cases, journey, and covera
     });
     const names = result.files.map((file) => path.basename(file)).sort();
     assert.deepEqual(names, [
-      "index.md", "journey.d2", "journey.svg", "use-case-widget-lifecycle.md", "widget-archive.md", "widget-create.md"
+      "index.md", "journey.d2", "journey.svg", "use-case-widget-lifecycle.md", "use-case-widget-lifecycle.svg",
+      "widget-archive.md", "widget-archive.svg", "widget-create.md", "widget-create.svg"
     ]);
 
     const guide = readFileSync(path.join(output, "widget-create.md"), "utf8");
@@ -219,7 +220,13 @@ test("exports guides with captions, step results, use cases, journey, and covera
     const useCase = readFileSync(path.join(output, "use-case-widget-lifecycle.md"), "utf8");
     assert.match(useCase, /1\. \[Create a new Widget List\]\(\.\/widget-create\.md\)[\s\S]*2\. \[Archive a released widget\]/u,
       "prerequisites come first");
-    assert.match(readFileSync(path.join(output, "journey.d2"), "utf8"), /"widget-create" -> .*"widget-archive": next/u);
+    assert.match(useCase, /!\[Widget lifecycle\]\(\.\/diagrams\/use-case-widget-lifecycle\.svg\)/u);
+    assert.doesNotMatch(useCase, /\.bpmn/u, "BPMN is linked only when exported");
+    assert.match(guide, /## At a glance\n\n!\[Create a new Widget List\]\(\.\/diagrams\/widget-create\.svg\)/u);
+    const journey = readFileSync(path.join(output, "journey.d2"), "utf8");
+    assert.match(journey, /"widget-create" -> .*"widget-archive" \{ class: flow \}/u);
+    assert.equal(journey.match(/ -> /gu).length, 1, "[NEXT] and [REQUIRES] between the same scenarios are one arrow");
+    assert.match(journey, /"Create a new Widget List\\nWIDGET EDIT · 6 steps"/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

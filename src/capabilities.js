@@ -224,7 +224,7 @@ export function createCapabilities(version) {
         options: {
           features: string("Features to automate: check, report, docs, codegraph.", { group: "Features", value: "list" }),
           tests: string("Folder with AL UI tests for the docs feature.", { group: "Features", value: "path" }),
-          docsExport: string("Documentation formats: markdown, html, dita, ado-csv.", { group: "Features", value: "list" }),
+          docsExport: string("Documentation formats: markdown, html, dita, ado-csv, bpmn.", { group: "Features", value: "list" }),
           docsAs: string("Documentation type.", { group: "Features", enum: ["guide", "testcase"] }),
           language: string("Documentation language, e.g. de-DE.", { group: "Features", value: "tag" }),
           hooks: string("Git hook manager.", { group: "Triggers", enum: ["husky", "git", "none"] }),
@@ -405,9 +405,9 @@ export function createCapabilities(version) {
         id: "docs.generate",
         area: "document",
         argv: ["bca", "docs", "generate", "<test-root>"],
-        purpose: "Generate user guides or test cases as Markdown, HTML, DITA, or Azure DevOps CSV.",
+        purpose: "Generate user guides or test cases with flow diagrams as Markdown, HTML, DITA, Azure DevOps CSV, or BPMN.",
         options: {
-          export: string("Comma-separated output formats: markdown, html, dita, ado-csv.", {
+          export: string("Comma-separated output formats: markdown, html, dita, ado-csv, bpmn.", {
             group: OUTPUT,
             value: "formats",
             default: "markdown"
@@ -430,12 +430,15 @@ export function createCapabilities(version) {
         },
         output: { type: "directory", pathOption: "outputDir", default: "docs/generated", entry: "index.md" },
         rules: [
-          "markdown writes <id>.md per scenario, use-case-<feature>.md, index.md, and journey.d2/.svg",
+          "markdown writes <id>.md per scenario, use-case-<feature>.md, index.md, journey.d2/.svg, and diagrams/*.svg",
+          "every scenario shows its clicks as a flow; every use case a process with a lane per permission set",
           "html writes one self-contained index.html; dita writes <id>.dita and documentation.ditamap",
-          "ado-csv writes test-cases.csv for the Azure DevOps Test Plans grid import"
+          "ado-csv writes test-cases.csv for the Azure DevOps Test Plans grid import",
+          "bpmn writes use-case-<feature>.bpmn: BPMN 2.0 with diagram layout; each scenario is a sub-process with its clicks"
         ],
         examples: [
           "bca docs generate ./test --app ./app --export markdown,html",
+          "bca docs generate ./test --app ./app --export markdown,bpmn",
           "bca docs generate ./test --app ./app --as testcase --export ado-csv",
           "bca docs generate ./test --app ./app --language de-DE --export html",
           "bca docs generate ./test --export dita --output-dir docs/dita",

@@ -67,6 +67,7 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.3.0",
+    "bpmn-moddle": "^10.3.1",
     "vitepress": "2.0.0-alpha.20"
   }
 }

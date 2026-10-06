@@ -1,9 +1,16 @@
 direction: right
-
-"use-case-warehouse-requests": "Warehouse requests" {
-  "warehouse-request-create": "Create a new Warehouse Request"
-  "warehouse-request-process": "Process an existing warehouse request from the request list"
+classes: {
+  use-case: { style: { fill: "#f6f8fa"; stroke: "#c9d1d9"; border-radius: 12; font-color: "#1b1f24"; font-size: 18 } }
+  scenario: { style: { fill: "#eef4fd"; stroke: "#0b62d6"; stroke-width: 2; border-radius: 10; font-color: "#1b1f24"; font-size: 15 } }
+  flow: { style: { stroke: "#0b62d6"; stroke-width: 2 } }
+  alternative: { style: { stroke: "#e09400"; stroke-width: 2; stroke-dash: 5; font-color: "#8a5a00" } }
+  related: { style: { stroke: "#9aa4b0"; stroke-dash: 3; font-color: "#5b6470" } }
 }
 
-"use-case-warehouse-requests"."warehouse-request-create" -> "use-case-warehouse-requests"."warehouse-request-process": next
-"use-case-warehouse-requests"."warehouse-request-process" -> "use-case-warehouse-requests"."warehouse-request-create": requires {style.stroke-dash: 4}
+"use-case-warehouse-requests": "Warehouse requests" {
+  class: use-case
+  "warehouse-request-create": "Create a new Warehouse Request\nWAREHOUSE PROCESS · 4 steps" { class: scenario }
+  "warehouse-request-process": "Process an existing warehouse request from the request list\nWAREHOUSE PROCESS · 4 steps" { class: scenario }
+}
+
+"use-case-warehouse-requests"."warehouse-request-create" -> "use-case-warehouse-requests"."warehouse-request-process" { class: flow }

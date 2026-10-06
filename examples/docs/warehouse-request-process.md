@@ -5,6 +5,10 @@
 
 Use this guide to process an existing warehouse request from the request list.
 
+## At a glance
+
+![Process an existing warehouse request from the request list](./diagrams/warehouse-request-process.svg)
+
 ## Before you start
 
 - Required permission: **WAREHOUSE PROCESS**

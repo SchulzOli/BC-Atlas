@@ -61,7 +61,7 @@ condition, and a ready `apply` command.
 | --- | --- | --- |
 | Features | `--features` | `check`, `report`, `docs`, `codegraph` |
 | UI tests | `--tests` | Folder with documented AL UI tests (for `docs`) |
-| Doc formats | `--docs-export` | `markdown`, `html`, `dita`, `ado-csv` |
+| Doc formats | `--docs-export` | `markdown`, `html`, `dita`, `ado-csv`, `bpmn` |
 | Doc type | `--docs-as` | `guide`, `testcase` |
 | Language | `--language` | e.g. `en-US`, `de-DE` (captions from the app's XLIFF) |
 | Git hooks | `--hooks` | `husky`, `git`, `none` |

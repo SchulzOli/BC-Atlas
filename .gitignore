@@ -40,6 +40,8 @@ Thumbs.db
 !examples/report/*.svg
 !examples/docs/
 !examples/docs/*.svg
+!examples/docs/diagrams/
+!examples/docs/diagrams/*.svg
 _output_test
 # Documentation website build
 website/.vitepress/dist/

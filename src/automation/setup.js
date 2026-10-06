@@ -153,7 +153,8 @@ function questions(facts, recommended) {
         markdown: "Markdown for the repository or wiki",
         html: "One self-contained HTML page",
         dita: "DITA 1.3 tasks for documentation tools",
-        "ado-csv": "Azure DevOps Test Plans import"
+        "ado-csv": "Azure DevOps Test Plans import",
+        bpmn: "BPMN 2.0 processes for Camunda Modeler, Signavio, or bpmn.io"
       }[format]))
     },
     {

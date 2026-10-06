@@ -112,7 +112,7 @@ means empty.
 | --- | --- | --- |
 | `--features` | list | Features to automate: `check`, `report`, `docs`, `codegraph`. |
 | `--tests` | path | Folder with AL UI tests for the `docs` feature, relative to the app. |
-| `--docs-export` | list | `markdown`, `html`, `dita`, `ado-csv`. |
+| `--docs-export` | list | `markdown`, `html`, `dita`, `ado-csv`, `bpmn`. |
 | `--docs-as` | `guide` or `testcase` | Documentation type. |
 | `--language` | tag | Documentation language, e.g. `de-DE`. |
 | `--hooks` | `husky`, `git`, `none` | Git hook manager. |
@@ -388,7 +388,7 @@ AL UI-test files are the only persisted scenario source. See
 | --- | --- | --- | --- |
 | `--format` | all | `text` or `json` | Human-readable or pipe-safe output. Default: `text`. |
 | `--id` | `show`, `generate`, `set`, `unset` | document ID | Selects a scenario by stable `[DOC-ID]`. Required for `show`, `set`, `unset`. With `generate`, writes one Markdown file. |
-| `--export` | `generate` | formats | Comma-separated `markdown`, `html`, `dita`, `ado-csv`. Default: `markdown`. |
+| `--export` | `generate` | formats | Comma-separated `markdown`, `html`, `dita`, `ado-csv`, `bpmn`. Default: `markdown`. |
 | `--as` | `generate` | `guide` or `testcase` | User guide or test case with an action/expected-result table. Default: `guide`. |
 | `--app` | `generate` | path | AL app source for real captions, tooltips, and page coverage. |
 | `--language` | `generate` | tag | Wording and captions in this language, e.g. `de-DE`; captions come from the app's `.xlf` files. Default: `en-US`. |
@@ -427,7 +427,7 @@ bca docs generate test/PartnerUITest.Codeunit.al --procedure PartnersList_NewPar
 ```
 
 ```text
-bca docs generate test/UITest --app app --export markdown,html,dita,ado-csv
+bca docs generate test/UITest --app app --export markdown,html,dita,ado-csv,bpmn
 bca docs generate test/UITest --app app --as testcase --language de-DE --export html
 ```
 
@@ -437,10 +437,11 @@ generation writes, per format:
 
 | Format | Files |
 | --- | --- |
-| `markdown` | `<document-id>.md`, `use-case-<feature>.md`, `index.md`, `journey.d2`, `journey.svg` |
-| `html` | `index.html` |
+| `markdown` | `<document-id>.md`, `use-case-<feature>.md`, `index.md`, `journey.d2`, `journey.svg`, `diagrams/<id>.svg` (scenario flows and use-case processes) |
+| `html` | `index.html` with every diagram inlined |
 | `dita` | `<document-id>.dita`, `documentation.ditamap` |
 | `ado-csv` | `test-cases.csv` |
+| `bpmn` | `use-case-<feature>.bpmn` (BPMN 2.0 with diagram layout; scenarios are sub-processes) |
 
 `--id` and `--procedure` write a single Markdown file and cannot be combined
 with other formats.

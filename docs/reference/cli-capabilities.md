@@ -48,7 +48,7 @@ Generate Markdown object catalogs and user guides from AL UI tests.
 | `docs.list` | `bca docs list <test-root>` | List documented UI-test scenarios. |
 | `docs.show` | `bca docs show <test-root>` | Show one scenario, its prerequisites, and its diagnostics. |
 | `docs.validate` | `bca docs validate <test-root>` | Validate IDs, tags, links, and prerequisite cycles. |
-| `docs.generate` | `bca docs generate <test-root>` | Generate user guides or test cases as Markdown, HTML, DITA, or Azure DevOps CSV. |
+| `docs.generate` | `bca docs generate <test-root>` | Generate user guides or test cases with flow diagrams as Markdown, HTML, DITA, Azure DevOps CSV, or BPMN. |
 | `docs.set` | `bca docs set <test-root>` | Add or replace documentation metadata in AL source. |
 | `docs.unset` | `bca docs unset <test-root>` | Remove documentation metadata from AL source. |
 | `docs.automation` | `bca docs automation <test-root>` | Print a CI pipeline that keeps generated guides in sync. |
