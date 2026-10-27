@@ -61,7 +61,11 @@
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.0",
     "@terrastruct/d2": "^0.1.33",
+    "3d-force-graph": "^1.80.0",
     "fflate": "^0.8.3",
+    "graphology": "^0.26.0",
+    "graphology-communities-louvain": "^2.0.2",
+    "graphology-metrics": "^2.4.1",
     "web-tree-sitter": "^0.27.0",
     "zod": "^4.6.5"
   },

@@ -8,6 +8,21 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `bca explore`: an interactive 3D dependency explorer in one self-contained,
+  offline HTML file. Dependencies inside one app are kept apart from
+  dependencies across apps, which are checked against `app.json`: `declared`,
+  `implicit` (Microsoft apps), `undeclared`, and `unresolved`. Switch between
+  an object level and an app level; filter by app, dependency class, object
+  type, and relation kind; search, isolate neighborhoods, and inspect the
+  evidence behind every edge.
+- `--history` replays Git history as a fourth dimension: one frame per commit
+  that changed AL files or `app.json`, with added, changed, and removed
+  objects highlighted. Without Git, the timeline replays the build order.
+- `--format json` writes the `bc-atlas.graph` document: a temporal graph with
+  presence spans, PageRank, Louvain communities, build layers, and cycles,
+  built with graphology. The MCP server offers it as `bc_atlas_explore`.
+- `examples/multi-app`, a three-app workspace, and its explorer example.
+
 - `bca docs generate` draws every scenario as a flow of its clicks in BPMN
   notation ("At a glance"): user tasks, milestones for `[THEN]` between
   `[WHEN]` phases, loop markers for repeated blocks, and wrapping rows for long

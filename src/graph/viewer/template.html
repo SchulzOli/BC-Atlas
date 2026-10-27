@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="__GENERATOR__">
+<title>__TITLE__</title>
+<style>
+/*__STYLE__*/
+</style>
+</head>
+<body>
+<div id="graph" aria-label="Interactive dependency graph"></div>
+<div id="labels"></div>
+
+<header id="topbar" class="panel">
+  <button class="icon-button" id="toggle-filters" title="Show or hide filters (F)" aria-pressed="true">☰</button>
+  <h1 id="title"></h1>
+  <span class="badge" id="lens"></span>
+  <div class="segmented" role="group" aria-label="Level">
+    <button data-level="object" aria-pressed="true" title="One node per AL object (1)">Objects</button>
+    <button data-level="app" aria-pressed="false" title="One node per app (2)">Apps</button>
+  </div>
+  <div id="search-box">
+    <input id="search" type="search" placeholder="Search objects, IDs, namespaces (/)" autocomplete="off" spellcheck="false">
+    <div id="search-results" role="listbox"></div>
+  </div>
+  <span class="spacer"></span>
+  <span id="stats"></span>
+  <button class="icon-button" id="fit" title="Fit graph to screen">Fit</button>
+  <button class="icon-button" id="export-png" title="Save the current view as PNG">PNG</button>
+  <button class="icon-button" id="export-json" title="Save the visible graph as JSON">JSON</button>
+  <button class="icon-button" id="theme" title="Toggle light and dark theme">◐</button>
+</header>
+
+<aside id="filters" class="panel" aria-label="Filters"></aside>
+<aside id="details" class="panel" aria-live="polite"></aside>
+<div id="legend" class="panel"></div>
+
+<footer id="timeline" class="panel">
+  <div class="controls">
+    <select id="timeline-mode" title="What the timeline replays">
+      <option value="git">Git history</option>
+      <option value="build">Build order</option>
+    </select>
+    <button class="icon-button" id="step-back" title="Previous frame (←)">⏮</button>
+    <button class="icon-button" id="play" title="Play or pause (Space)">▶</button>
+    <button class="icon-button" id="step-forward" title="Next frame (→)">⏭</button>
+    <select id="speed" title="Playback speed">
+      <option value="0.5">0.5×</option>
+      <option value="1" selected>1×</option>
+      <option value="2">2×</option>
+      <option value="4">4×</option>
+    </select>
+  </div>
+  <div id="track">
+    <canvas id="spark" height="32"></canvas>
+    <input id="frame" type="range" min="0" max="0" value="0" aria-label="Timeline frame">
+  </div>
+  <div id="frame-info"></div>
+</footer>
+
+<div id="toast" role="status"></div>
+<div id="fallback"><div><h2>WebGL is not available</h2><p>The 3D graph needs a browser with WebGL. The data is embedded in this file as JSON (element <code>#bca-graph-data</code>).</p></div></div>
+
+<script id="bca-graph-data" type="application/json">__DATA__</script>
+<script>
+/*__LIBRARY__*/
+</script>
+<script>
+/*__APP__*/
+</script>
+</body>
+</html>

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -986,6 +987,14 @@ async function objectsFromSource(source, file) {
   return result;
 }
 
+async function cachedObjectsFromSource(source, file, cache) {
+  if (!cache) return objectsFromSource(source, file);
+  const key = `${file}\u0000${createHash("sha1").update(source).digest("hex")}`;
+  if (!cache.has(key)) cache.set(key, await objectsFromSource(source, file));
+  // Callers attach apps and keys to the objects, so every caller gets a copy.
+  return structuredClone(cache.get(key));
+}
+
 async function collectAlFiles(input) {
   const absolute = path.resolve(input);
   const stat = await fs.stat(absolute);
@@ -1044,7 +1053,12 @@ async function readAppManifest(file, root, cache) {
   return undefined;
 }
 
-export async function analyze(input) {
+/**
+ * Parses every AL file below `input`. Pass a shared `parseCache` Map to reuse
+ * parse results for unchanged file content across calls (history replay,
+ * watch), and preloaded `symbols` to skip reading .alpackages again.
+ */
+export async function analyze(input, { parseCache, symbols: preloadedSymbols } = {}) {
   const root = path.resolve(input);
   const rootStat = await fs.stat(root);
   const base = rootStat.isDirectory() ? root : path.dirname(root);
@@ -1061,7 +1075,7 @@ export async function analyze(input) {
       base,
       file
     );
-    const result = await objectsFromSource(source, relativeFile || path.basename(file));
+    const result = await cachedObjectsFromSource(source, relativeFile || path.basename(file), parseCache);
     objects.push(...result.objects);
     const app = await readAppManifest(file, root, manifestCache);
     if (app) {
@@ -1080,7 +1094,7 @@ export async function analyze(input) {
     }
   }
 
-  const symbols = await loadSymbolPackages(base);
+  const symbols = preloadedSymbols ?? await loadSymbolPackages(base);
   objects.push(...symbols.objects);
   diagnostics.push(...symbols.diagnostics);
   for (const app of symbols.packages) apps.set(app.id ?? app.name, app);

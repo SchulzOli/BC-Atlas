@@ -9,7 +9,8 @@ export const SECTIONS = [
     ["Configuration", "configuration.md"]
   ]],
   ["Visualize", [
-    ["Architecture diagrams and views", "architecture-diagrams.md"]
+    ["Architecture diagrams and views", "architecture-diagrams.md"],
+    ["Dependency explorer (3D, timeline)", "dependency-explorer.md"]
   ]],
   ["Analyze", [
     ["Architecture health checks", "health-checks.md"]
@@ -30,7 +31,8 @@ export const SECTIONS = [
   ]],
   ["Generated examples", [
     ["Architecture report (warehouse example)", "../examples/report/README.md"],
-    ["User guides from AL UI tests (warehouse example)", "../examples/docs/index.md"]
+    ["User guides from AL UI tests (warehouse example)", "../examples/docs/index.md"],
+    ["Dependency explorer (multi-app example)", "../examples/explorer/README.md"]
   ]]
 ];
 

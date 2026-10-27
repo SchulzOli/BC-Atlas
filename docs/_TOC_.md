@@ -17,6 +17,7 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 ## Visualize
 
 - [Architecture diagrams and views](./architecture-diagrams.md)
+- [Dependency explorer (3D, timeline)](./dependency-explorer.md)
 
 ## Analyze
 
@@ -43,3 +44,4 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 
 - [Architecture report (warehouse example)](./../examples/report/README.md)
 - [User guides from AL UI tests (warehouse example)](./../examples/docs/index.md)
+- [Dependency explorer (multi-app example)](./../examples/explorer/README.md)
