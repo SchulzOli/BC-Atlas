@@ -85,7 +85,9 @@ export function projectCommits(projectRoot, { since } = {}) {
     if (/git executable/u.test(error.message)) throw error;
     throw new Error(`--history needs a Git repository; ${projectRoot} is not inside one`);
   }
-  const prefix = toPosix(path.relative(repository, projectRoot));
+  // Ask Git for the prefix: paths like C:\Users\RUNNER~1 and C:/Users/runneradmin
+  // name the same folder but do not compare equal.
+  const prefix = git(projectRoot, ["rev-parse", "--show-prefix"]).trim().replace(/\/$/u, "");
   const args = ["log", "--reverse", `--format=%H${FIELD}%h${FIELD}%aI${FIELD}%an${FIELD}%s`];
   if (since) args.push(`--since=${since}`);
   const commits = git(repository, [...args, "--", ...pathspecs(prefix)])

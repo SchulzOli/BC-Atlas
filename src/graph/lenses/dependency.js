@@ -20,6 +20,7 @@ export const DEPENDENCY_KINDS = Object.freeze([
 ]);
 
 const MAX_EVIDENCE = 12;
+const toPosix = (file) => file.replaceAll("\\", "/");
 const NO_APP = "(no app.json)";
 const UNRESOLVED_APP = "(unresolved)";
 
@@ -48,7 +49,7 @@ function objectNode(object, inSelection) {
     objectId: object.id,
     app: appKey(object.app),
     namespace: object.namespace,
-    file: object.externalSymbol ? undefined : object.file,
+    file: object.externalSymbol ? undefined : toPosix(object.file),
     line: object.externalSymbol ? undefined : object.location?.line,
     origin: object.externalSymbol ? "symbol" : "workspace",
     ...(inSelection ? {} : { outsideSelection: true })
@@ -132,7 +133,7 @@ function evidenceFor(edge) {
     operation: edge.operation,
     member: edge.sourceProcedure ?? edge.member ?? edge.sourceProcedures?.[0],
     property: edge.property,
-    file: edge.location?.file,
+    file: edge.location?.file && toPosix(edge.location.file),
     line: edge.location?.line
   };
   return Object.fromEntries(Object.entries(evidence).filter(([, value]) => value !== undefined));
