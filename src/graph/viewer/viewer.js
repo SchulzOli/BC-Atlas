@@ -16,6 +16,7 @@
   const FRAMES = DOC.timeline.frames;
   const LAST_FRAME = FRAMES.length - 1;
   const GHOST_FRAMES = 2;
+  const LARGE_EDGES = 20000;
   const $ = (selector) => document.querySelector(selector);
 
   const DEPENDENCIES = {
@@ -899,10 +900,25 @@
     $("#details").classList.remove("open");
     document.querySelectorAll("[data-level]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.level === level)));
     if (state.timeline === "build") state.frame = frameCount() - 1;
+    limitLargeView();
     setupTimeline();
     buildFilters();
     fitted = false;
     render({ layout: true });
+  }
+
+  /**
+   * Tens of thousands of edges inside one module (the Base Application's root
+   * module alone has about 66,000) overwhelm the layout; show the edges that
+   * leave a module first and let the viewer turn the rest back on.
+   */
+  function limitLargeView() {
+    if (state.level !== "object" || !state.dependencies.has("intra-app")) return;
+    computeVisible();
+    if (visible.links.length <= LARGE_EDGES) return;
+    state.dependencies.delete("intra-app");
+    state.hideIsolated = true;
+    toast(`${visible.links.length.toLocaleString()} dependencies: showing those that leave a module. Turn on "Inside one app" to see all.`);
   }
   document.querySelectorAll("[data-level]").forEach((button) => button.addEventListener("click", () => setLevel(known(["object", "module", "app"], button.dataset.level) ?? "object")));
 
@@ -1139,7 +1155,7 @@
   applyBackground();
   // Tens of thousands of object edges (a Base Application) start on the
   // module or app level; drill down from there.
-  const large = levels.object.edges.length > 20000;
+  const large = levels.object.edges.length > LARGE_EDGES;
   if (large) {
     setLevel(levels.module ? "module" : "app");
     toast("Large graph: starting on the module level. Select a module and choose Show its objects.");
