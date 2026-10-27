@@ -129,7 +129,7 @@ function subscriptionEdges(model, objectIndex) {
       for (const attribute of procedure.attributes ?? []) {
         const subscriber = subscriberAttribute(attribute);
         if (!subscriber) continue;
-        const target = objectIndex(subscriber.type, subscriber.target);
+        const target = objectIndex(subscriber.type, subscriber.target, owner);
         edges.push({
           from: owner.key,
           to: target?.key,
@@ -159,10 +159,21 @@ function createObjectIndex(objects) {
     const names = [object.name, `${object.namespace}.${object.name}`, object.id].filter(Boolean);
     for (const name of names) {
       const key = `${object.type}:${normalizeIdentifier(name)}`;
-      if (!index.has(key) || !object.externalSymbol) index.set(key, object);
+      if (!index.has(key)) index.set(key, []);
+      if (!index.get(key).includes(object)) index.get(key).push(object);
     }
   }
-  return (type, name) => index.get(`${type}:${normalizeIdentifier(name)}`);
+  // Same preference as the resolver: the owner's app, then its declared
+  // dependencies, then workspace objects before package symbols.
+  return (type, name, owner) => {
+    const candidates = index.get(`${type}:${normalizeIdentifier(name)}`) ?? [];
+    if (candidates.length < 2) return candidates[0];
+    const declared = declaredDependencyKeys(owner?.app);
+    return candidates.find((candidate) => appKey(candidate.app) === appKey(owner?.app)) ??
+      candidates.find((candidate) => declared.has(appKey(candidate.app))) ??
+      candidates.find((candidate) => !candidate.externalSymbol) ??
+      candidates[0];
+  };
 }
 
 function evidenceFor(edge) {

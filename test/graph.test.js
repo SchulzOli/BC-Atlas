@@ -102,6 +102,35 @@ table 50010 "Price Entry" { fields { field(1; Code; Code[20]) { TableRelation = 
   }
 });
 
+test("event subscriptions prefer the subscriber's own app for duplicate names", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-duplicates-"));
+  try {
+    for (const [folder, id, name] of [["old", "b0000000-0000-0000-0000-000000000001", "Old"], ["new", "b0000000-0000-0000-0000-000000000002", "New"]]) {
+      mkdirSync(path.join(directory, folder));
+      writeFileSync(path.join(directory, folder, "app.json"), JSON.stringify({ id, name, publisher: "Contoso", dependencies: [] }));
+      writeFileSync(path.join(directory, folder, "Line.al"), `
+namespace Contoso;
+table 309 "Series Line" { fields { field(1; Code; Code[20]) { } } }
+`);
+    }
+    writeFileSync(path.join(directory, "new", "Subscriber.al"), `
+namespace Contoso;
+codeunit 50000 "Series Subscriber"
+{
+    [EventSubscriber(ObjectType::Table, Database::"Series Line", 'OnAfterDeleteEvent', '', false, false)]
+    local procedure HandleDelete()
+    begin
+    end;
+}
+`);
+    const document = await createGraphDocument(directory);
+    const edge = document.levels.object.edges.find(({ kinds }) => kinds.subscribes);
+    assert.equal(edge.dependency, "intra-app");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 function git(directory, ...args) {
   const result = spawnSync("git", args, {
     cwd: directory,
