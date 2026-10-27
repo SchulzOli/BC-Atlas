@@ -378,6 +378,24 @@ test("resolves namespace-qualified Record and Codeunit types", async () => {
   assert.equal(model.objects.find(({ key }) => key === granted.to)?.name, "Sales Line");
 });
 
+test("typed references never resolve to an object of another type", async () => {
+  const source = `
+    codeunit 50100 User { }
+    codeunit 50101 Consumer {
+      var
+        Users: Record User;
+        Helper: Codeunit User;
+    }
+  `;
+  const parsed = await testing.objectsFromSource(source, "typed.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  const consumer = model.objects.find(({ name }) => name === "Consumer");
+  const edges = model.edges.filter(({ from }) => from === consumer.key);
+
+  assert.equal(edges.find(({ unresolved }) => unresolved)?.unresolved.type, "table");
+  assert.equal(edges.filter(({ to }) => to).length, 1);
+});
+
 test("resolves chained calls through procedure return types", async () => {
   const source = `
     codeunit 50100 Service {
