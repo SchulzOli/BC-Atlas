@@ -46,3 +46,6 @@ _output_test
 # Documentation website build
 website/.vitepress/dist/
 website/.vitepress/cache/
+
+# Vendored anatomy skill test fixtures
+!.claude/skills/anatomy/tests/fixtures/*.png
