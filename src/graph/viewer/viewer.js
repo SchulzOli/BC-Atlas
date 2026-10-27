@@ -4,8 +4,11 @@
 
   /** Inflates a gzip-compressed, base64-encoded graph document. */
   async function inflate(base64) {
-    const compressed = await (await fetch(`data:application/octet-stream;base64,${base64}`)).blob();
-    const stream = compressed.stream().pipeThrough(new DecompressionStream("gzip"));
+    // atob instead of fetch(data:): pages with a strict connect-src block fetch.
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
     return JSON.parse(await new Response(stream).text());
   }
 
