@@ -152,7 +152,7 @@ test("explorer HTML is self-contained and embeds the graph safely", async () => 
   assert.match(html, /<title>Workspace &lt;\/script&gt;&lt;b&gt;<\/title>/u);
   assert.match(html, /ForceGraph3D/u);
   assert.doesNotMatch(html, /<script[^>]+src=/u, "no external scripts");
-  const data = html.match(/<script id="bca-graph-data" type="application\/json">(.*?)<\/script>/su)[1];
+  const data = html.match(/<script id="bca-graph-data">window\.BCA_GRAPH = (.*?);<\/script>/su)[1];
   assert.doesNotMatch(data, /<\/script/iu);
   assert.equal(JSON.parse(data).title, "Workspace </script><b>");
 });

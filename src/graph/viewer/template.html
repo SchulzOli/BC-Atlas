@@ -61,9 +61,9 @@
 </footer>
 
 <div id="toast" role="status"></div>
-<div id="fallback"><div><h2>WebGL is not available</h2><p>The 3D graph needs a browser with WebGL. The data is embedded in this file as JSON (element <code>#bca-graph-data</code>).</p></div></div>
+<div id="fallback"><div><h2>WebGL is not available</h2><p>The 3D graph needs a browser with WebGL. Run <code>bca explore --format json</code> for the same graph as JSON.</p></div></div>
 
-<script id="bca-graph-data" type="application/json">__DATA__</script>
+<script id="bca-graph-data">window.BCA_GRAPH = __DATA__;</script>
 <script>
 /*__LIBRARY__*/
 </script>

@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const DOC = JSON.parse(document.getElementById("bca-graph-data").textContent);
+  const DOC = window.BCA_GRAPH;
   const FRAMES = DOC.timeline.frames;
   const LAST_FRAME = FRAMES.length - 1;
   const GHOST_FRAMES = 2;
@@ -536,7 +536,8 @@
   requestAnimationFrame(drawLabels);
 
   // -------------------------------------------------------------- selection
-  function select(id, { fly = false } = {}) {
+  function select(requested, { fly = false } = {}) {
+    const id = levels[state.level].byId.get(requested)?.id;
     state.selected = id;
     if (!id) {
       state.focusDepth = 0;
@@ -764,19 +765,50 @@
     ].join("");
   }
 
+  // Values read back from the page are only accepted as one of these
+  // constants, so nothing typed into the DOM ever reaches innerHTML.
+  const LISTS = ["dependencies", "apps", "types", "kinds"];
+  const CHOICES = {
+    colorBy: ["app", "type", "community", "layer", "age", "cross-app"],
+    sizeBy: ["pagerank", "in", "out", "cross-app", "uniform"],
+    layout: ["clusters", "force", "app-layers", "build-layers", "time", "flat"],
+    labels: ["auto", "all", "off"]
+  };
+  const FLAGS = ["appContext", "hideIsolated", "particles", "highlight", "ghosts"];
+  const known = (values, value) => values[values.indexOf(value)];
+  const listValues = (list) => {
+    const name = known(LISTS, list);
+    if (!name) return undefined;
+    const universe = name === "apps" ? [...apps.keys()]
+      : name === "dependencies" ? Object.keys(DEPENDENCIES)
+        : DOC.vocabulary[name];
+    return { name, universe };
+  };
+  const toCount = (value) => Math.max(0, Math.min(10, Math.trunc(Number(value)) || 0));
+
   $("#filters").addEventListener("change", (event) => {
     const input = event.target;
     if (input.dataset.list) {
-      const set = state[input.dataset.list];
-      if (input.checked) set.add(input.value);
-      else set.delete(input.value);
+      const list = listValues(input.dataset.list);
+      const value = list && known(list.universe, input.value);
+      if (value === undefined) return;
+      if (input.checked) state[list.name].add(value);
+      else state[list.name].delete(value);
       return render();
     }
     const setting = input.dataset.setting;
     if (!setting) return;
-    if (input.type === "checkbox") state[setting] = input.checked;
-    else if (input.type === "range") state[setting] = Number(input.value);
-    else state[setting] = input.value;
+    if (input.type === "checkbox") {
+      const flag = known(FLAGS, setting);
+      if (!flag) return;
+      state[flag] = input.checked;
+    } else if (input.type === "range") state.minDegree = toCount(input.value);
+    else {
+      const name = known(Object.keys(CHOICES), setting);
+      const value = name && known(CHOICES[name], input.value);
+      if (!value) return;
+      state[name] = value;
+    }
     if (setting === "layout") return render({ layout: true });
     if (["colorBy", "sizeBy", "particles", "highlight"].includes(setting)) {
       refreshStyles();
@@ -787,16 +819,19 @@
   });
   $("#filters").addEventListener("input", (event) => {
     if (event.target.type !== "range") return;
-    state[event.target.dataset.setting] = Number(event.target.value);
+    state.minDegree = toCount(event.target.value);
     render();
   });
   $("#filters").addEventListener("click", (event) => {
     const bulk = event.target.closest("[data-bulk]");
     if (bulk) {
       event.preventDefault();
-      const list = bulk.dataset.bulk;
-      const values = [...document.querySelectorAll(`input[data-list="${list}"]`)].map((input) => input.value);
-      state[list] = new Set(bulk.dataset.value === "all" ? [...state[list], ...values] : [...state[list]].filter((value) => !values.includes(value)));
+      const list = listValues(bulk.dataset.bulk);
+      if (!list) return;
+      const shown = new Set([...document.querySelectorAll(`input[data-list="${list.name}"]`)].map((input) => input.value));
+      const values = list.universe.filter((value) => shown.has(value));
+      const current = state[list.name];
+      state[list.name] = new Set(bulk.dataset.value === "all" ? [...current, ...values] : [...current].filter((value) => !values.includes(value)));
       buildFilters();
       return render();
     }
@@ -844,7 +879,7 @@
     fitted = false;
     render({ layout: true });
   }
-  document.querySelectorAll("[data-level]").forEach((button) => button.addEventListener("click", () => setLevel(button.dataset.level)));
+  document.querySelectorAll("[data-level]").forEach((button) => button.addEventListener("click", () => setLevel(button.dataset.level === "app" ? "app" : "object")));
 
   // --------------------------------------------------------------- timeline
   let timer;
@@ -857,7 +892,7 @@
   }
 
   function setFrame(frame) {
-    state.frame = Math.max(0, Math.min(frameCount() - 1, frame));
+    state.frame = Math.max(0, Math.min(frameCount() - 1, Math.trunc(Number(frame)) || 0));
     $("#frame").value = String(state.frame);
     render();
   }
@@ -935,11 +970,11 @@
   $("#step-back").addEventListener("click", () => setFrame(state.frame - 1));
   $("#step-forward").addEventListener("click", () => setFrame(state.frame + 1));
   $("#speed").addEventListener("change", (event) => {
-    state.speed = Number(event.target.value);
+    state.speed = Math.max(0.25, Math.min(8, Number(event.target.value) || 1));
     if (state.playing) play(true);
   });
   $("#timeline-mode").addEventListener("change", (event) => {
-    state.timeline = event.target.value;
+    state.timeline = event.target.value === "build" ? "build" : "git";
     state.frame = frameCount() - 1;
     setupTimeline();
     render({ layout: true });
@@ -996,10 +1031,12 @@
     const button = event.target.closest("[data-node]");
     if (button) chooseResult(button.dataset.node);
   });
-  function chooseResult(id) {
+  function chooseResult(requested) {
     results.classList.remove("open");
+    const node = levels[state.level].byId.get(requested);
+    if (!node) return;
+    const id = node.id;
     if (!visible.ids.has(id)) {
-      const node = levels[state.level].byId.get(id);
       state.apps.add(state.level === "app" ? node.id : node.app);
       state.types.add(node.type);
       buildFilters();
