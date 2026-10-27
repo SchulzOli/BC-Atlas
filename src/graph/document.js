@@ -5,7 +5,7 @@ import { mergeArchitectureOptions, positiveInteger } from "../architecture.js";
 import { loadConfig } from "../config.js";
 import { resolveModel } from "../resolver.js";
 import { loadSymbolPackages } from "../symbols.js";
-import { objectFilter } from "../views.js";
+import { objectFilter, pathMatcher } from "../views.js";
 import { findLens } from "./lenses/index.js";
 import { addMetrics } from "./metrics.js";
 import { replayHistory } from "./history.js";
@@ -18,12 +18,13 @@ export const GRAPH_SCHEMA_VERSION = 1;
 
 function vocabulary(levels) {
   const collect = (items, read) => [...new Set(items.flatMap(read))].filter(Boolean).sort();
-  const objects = levels.object;
+  const nodes = Object.values(levels).flatMap((level) => level.nodes);
+  const edges = Object.values(levels).flatMap((level) => level.edges);
   return {
-    types: collect(objects.nodes, ({ type }) => [type]),
-    kinds: collect([...objects.edges, ...levels.app.edges], ({ kinds }) => Object.keys(kinds ?? {})),
-    dependencies: collect([...objects.edges, ...levels.app.edges], ({ dependency }) => [dependency]),
-    origins: collect([...objects.nodes, ...levels.app.nodes], ({ origin }) => [origin])
+    types: collect(levels.object.nodes, ({ type }) => [type]),
+    kinds: collect(edges, ({ kinds }) => Object.keys(kinds ?? {})),
+    dependencies: collect(edges, ({ dependency }) => [dependency]),
+    origins: collect(nodes, ({ origin }) => [origin])
   };
 }
 
@@ -43,16 +44,19 @@ export async function createGraphDocument(input, values = {}) {
   }
   const lens = findLens(options.lens);
   const filter = objectFilter({ ...options, focusPath: focus ? focus.replaceAll("\\", "/") : undefined });
+  const paths = [options.paths ?? []].flat().filter(Boolean);
+  const fileFilter = paths.length ? pathMatcher(paths) : undefined;
   const parseCache = new Map();
   const symbols = await loadSymbolPackages(projectRoot);
-  const build = async (root) => lens.build(resolveModel(await analyze(root, { parseCache, symbols })), { filter });
+  const build = async (root) => lens.build(resolveModel(await analyze(root, { parseCache, symbols, fileFilter })), { filter });
 
   const frames = [];
   let history;
   if (options.history) {
     history = await replayHistory(projectRoot, {
       maxCommits: positiveInteger(options.maxCommits, "max-commits", 60),
-      since: options.since
+      since: options.since,
+      fileFilter
     }, async (directory, frame) => {
       frames.push({ ...frame, levels: await build(directory) });
     });
@@ -69,10 +73,7 @@ export async function createGraphDocument(input, values = {}) {
   }
 
   const levels = mergeFrames(frames);
-  const summary = {
-    object: addMetrics(levels.object),
-    app: addMetrics(levels.app)
-  };
+  const summary = Object.fromEntries(Object.entries(levels).map(([name, level]) => [name, addMetrics(level)]));
   if (!levels.object.nodes.length) {
     throw new Error(`no AL objects found in ${path.resolve(input)}; check the path and the --include, --exclude, --namespace, and --type filters`);
   }

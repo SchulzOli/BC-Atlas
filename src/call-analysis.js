@@ -20,9 +20,23 @@ export function createCallResolver(model, procedureRecords) {
     objects.get(`${type}:${normalizeIdentifier(identity)}`);
   const candidatesFor = (owner, name) =>
     owner ? procedures.get(`${owner.key}:${normalizeIdentifier(name)}`) ?? [] : [];
-  const variableFor = (owner, call, targetType) => (owner.variables ?? [])
-    .filter(({ name, scope, targetType: type }) =>
-      normalizeIdentifier(name) === normalizeIdentifier(call.receiver) &&
+  // Variables by owner and normalized name, in declaration order.
+  const variableIndex = new Map();
+  const variablesNamed = (owner, name) => {
+    let index = variableIndex.get(owner);
+    if (!index) {
+      index = new Map();
+      for (const variable of owner.variables ?? []) {
+        const key = normalizeIdentifier(variable.name);
+        if (!index.has(key)) index.set(key, []);
+        index.get(key).push(variable);
+      }
+      variableIndex.set(owner, index);
+    }
+    return index.get(normalizeIdentifier(name)) ?? [];
+  };
+  const variableFor = (owner, call, targetType) => variablesNamed(owner, call.receiver)
+    .filter(({ scope, targetType: type }) =>
       (scope === undefined || scope === call.scope) && (!targetType || type === targetType)
     )
     .at(-1);

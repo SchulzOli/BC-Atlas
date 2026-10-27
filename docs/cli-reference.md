@@ -341,6 +341,7 @@ bca explore ./app --format json -o dependencies.json
 | `--max-commits` | integer | Most frames to replay; older commits are sampled evenly. Default: `60`. |
 | `--since` | date | Only replay commits after this date (`git log --since` syntax). |
 | `--title` | text | Explorer title. |
+| `--paths` | path or glob | Only analyze AL files in these folders (or matching these globs), relative to the project root. Repeatable. Speeds up large repositories such as BCApps. |
 | `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `graph`. |
 | `--project-root` | path | Analyze a wider workspace; the positional path becomes the selection. |
 | `--config` | path | Configuration file. |

@@ -70,6 +70,31 @@ function cleanName(value) {
     : text;
 }
 
+/**
+ * The referenced object of a Record, Codeunit, Page, ... type. Namespace-
+ * qualified names (Microsoft.Sales.Document."Sales Header") are kept whole so
+ * the resolver can match them against namespace and name; the grammar's
+ * reference field holds only their first segment.
+ */
+function typeReference(node, source) {
+  return objectNameField(node, "reference", source);
+}
+
+const QUALIFIED_NAME = /^[A-Za-z_]\w*(?:\s*\.\s*(?:"(?:""|[^"])*"|[A-Za-z_]\w*))+/u;
+
+/**
+ * Like fieldText, but keeps a namespace-qualified object name whole
+ * (Microsoft.Sales.Document."Sales Header"); the grammar's name fields hold
+ * only its first segment.
+ */
+function objectNameField(node, field, source) {
+  const child = node.childForFieldName(field);
+  if (!child) return undefined;
+  // Some nodes (Database::) end after the first segment, so read past them.
+  const qualified = source.slice(child.startIndex, child.startIndex + 400).match(QUALIFIED_NAME)?.[0];
+  return qualified ? qualified.replace(/\s*\.\s*/gu, ".") : fieldText(node, field, source);
+}
+
 function fieldText(node, field, source) {
   const child = node.childForFieldName(field);
   return child ? cleanName(source.slice(child.startIndex, child.endIndex)) : undefined;
@@ -309,7 +334,7 @@ function preprocessorConditions(node, source) {
 }
 
 function permissionRelation(node, source, add) {
-  const target = fieldText(node, "table_name", source);
+  const target = objectNameField(node, "table_name", source);
   const permission = fieldText(node, "permission", source);
   const type = source.slice(node.startIndex, node.endIndex).trim().match(/^([A-Za-z]+)\b/u)?.[1];
   if (!target || !permission || !type) return;
@@ -377,7 +402,7 @@ function referencesFor(objectNode, source, file) {
     }
 
     if (["report_dataitem", "query_dataitem"].includes(node.type)) {
-      const target = fieldText(node, "table_name", source);
+      const target = objectNameField(node, "table_name", source);
       if (target) add(node, { target, targetType: "table", kind: "reads", property: "dataitem" });
       return;
     }
@@ -419,13 +444,13 @@ function referencesFor(objectNode, source, file) {
     }
 
     if (node.type === "record_type") {
-      const target = fieldText(node, "reference", source);
+      const target = typeReference(node, source);
       if (target) add(node, { target, targetType: "table", kind: "uses" });
       return;
     }
 
     if (node.type === "object_reference_type") {
-      const target = fieldText(node, "reference", source);
+      const target = typeReference(node, source);
       const text = source.slice(node.startIndex, node.endIndex).trim();
       const type = text.split(/\s+/u)[0]?.toLowerCase();
       if (target) add(node, { target, targetType: type, kind: "uses" });
@@ -433,7 +458,7 @@ function referencesFor(objectNode, source, file) {
     }
 
     if (node.type === "database_reference") {
-      const target = fieldText(node, "table_name", source);
+      const target = objectNameField(node, "table_name", source);
       const keyword = fieldText(node, "keyword", source)?.toLowerCase();
       if (target && keyword === "database") {
         add(node, { target, targetType: "table", kind: "uses", property: "database" });
@@ -716,7 +741,7 @@ function membersFor(objectNode, source, file) {
       elements.push({
         kind: "dataitem",
         name: fieldText(node, "name", source),
-        source: fieldText(node, "table_name", source),
+        source: objectNameField(node, "table_name", source),
         properties: propertiesFor(node, source),
         location: locationFor(node, file)
       });
@@ -1021,53 +1046,72 @@ async function collectAlFiles(input) {
   return files.sort();
 }
 
+async function manifestAt(candidate, boundary, cache) {
+  if (cache.has(candidate)) return cache.get(candidate);
+  let app;
+  try {
+    const data = JSON.parse(await fs.readFile(candidate, "utf8"));
+    app = {
+      id: data.id,
+      name: data.name,
+      publisher: data.publisher,
+      version: data.version,
+      path: path.relative(boundary, candidate) || "app.json",
+      root: path.dirname(candidate),
+      dependencies: data.dependencies ?? []
+    };
+  } catch {
+    app = undefined;
+  }
+  cache.set(candidate, app);
+  return app;
+}
+
+const outside = (boundary, directory) => {
+  const relative = path.relative(boundary, directory);
+  return relative.startsWith("..") || path.isAbsolute(relative);
+};
+
+/**
+ * Finds the app that compiles a file and, when app.json files are nested, the
+ * module it belongs to. The AL compiler builds every file below an app
+ * folder, so a nested app.json (as in BCApps' System Application or Base
+ * Application) marks a module of the outer app, not an app of its own. Above
+ * the analyzed root only the nearest manifest counts.
+ */
 async function readAppManifest(file, root, cache) {
-  let directory = path.dirname(file);
   const boundary = (await fs.stat(root)).isDirectory() ? root : path.dirname(root);
+  const found = [];
+  let directory = path.dirname(file);
   while (true) {
-    const candidate = path.join(directory, "app.json");
-    if (cache.has(candidate)) return cache.get(candidate);
-    try {
-      const data = JSON.parse(await fs.readFile(candidate, "utf8"));
-      const app = {
-        id: data.id,
-        name: data.name,
-        publisher: data.publisher,
-        version: data.version,
-        path: path.relative(boundary, candidate) || "app.json",
-        root: path.dirname(candidate),
-        dependencies: data.dependencies ?? []
-      };
-      cache.set(candidate, app);
-      return app;
-    } catch (error) {
-      if (error.code !== "ENOENT") {
-        cache.set(candidate, undefined);
-        return undefined;
-      }
-    }
+    const app = await manifestAt(path.join(directory, "app.json"), boundary, cache);
+    if (app) found.push(app);
     const parent = path.dirname(directory);
-    if (parent === directory) break;
+    if (parent === directory || (found.length && outside(boundary, parent))) break;
     directory = parent;
   }
-  return undefined;
+  if (!found.length) return {};
+  return { app: found.at(-1), module: found.length > 1 ? found[0] : undefined };
 }
 
 /**
  * Parses every AL file below `input`. Pass a shared `parseCache` Map to reuse
  * parse results for unchanged file content across calls (history replay,
- * watch), and preloaded `symbols` to skip reading .alpackages again.
+ * watch), preloaded `symbols` to skip reading .alpackages again, and a
+ * `fileFilter` for root-relative paths to analyze part of a large repository.
  */
-export async function analyze(input, { parseCache, symbols: preloadedSymbols } = {}) {
+export async function analyze(input, { parseCache, symbols: preloadedSymbols, fileFilter } = {}) {
   const root = path.resolve(input);
   const rootStat = await fs.stat(root);
   const base = rootStat.isDirectory() ? root : path.dirname(root);
-  const files = await collectAlFiles(root);
+  const files = (await collectAlFiles(root))
+    .filter((file) => !fileFilter || fileFilter(path.relative(base, file).replaceAll("\\", "/")));
   const objects = [];
   const parseErrors = [];
   const diagnostics = [];
   const manifestCache = new Map();
   const apps = new Map();
+  const modules = new Map();
 
   for (const file of files) {
     const source = await fs.readFile(file, "utf8");
@@ -1077,10 +1121,15 @@ export async function analyze(input, { parseCache, symbols: preloadedSymbols } =
     );
     const result = await cachedObjectsFromSource(source, relativeFile || path.basename(file), parseCache);
     objects.push(...result.objects);
-    const app = await readAppManifest(file, root, manifestCache);
+    const { app, module } = await readAppManifest(file, root, manifestCache);
     if (app) {
       apps.set(app.id ?? app.name, app);
       for (const object of result.objects) object.app = app;
+    }
+    if (module) {
+      modules.set(module.id ?? module.name, { ...module, app: app.id ?? app.name });
+      const reference = { id: module.id, name: module.name, path: module.path };
+      for (const object of result.objects) object.module = reference;
     }
     if (result.hasError) {
       const reportedFile = relativeFile || path.basename(file);
@@ -1104,6 +1153,7 @@ export async function analyze(input, { parseCache, symbols: preloadedSymbols } =
     root,
     files: files.length,
     apps: [...apps.values()],
+    ...(modules.size ? { modules: [...modules.values()] } : {}),
     symbolPackages: symbols.packages,
     objects,
     parseErrors,

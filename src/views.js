@@ -49,6 +49,17 @@ export function objectFilter(options = {}) {
   };
 }
 
+/**
+ * Matches project-relative file paths: a plain path selects that folder or
+ * file, a glob (with * or ?) is matched against the whole path.
+ */
+export function pathMatcher(patterns = []) {
+  const normalized = patterns.map((pattern) => String(pattern).replaceAll("\\", "/").replace(/^\.\//u, "").replace(/\/$/u, ""));
+  return (file) => normalized.some((pattern) => /[*?]/u.test(pattern)
+    ? globToRegExp(pattern).test(file)
+    : file === pattern || file.startsWith(`${pattern}/`));
+}
+
 export function filterModel(model, options = {}) {
   const focusPath = options.focusPath?.replaceAll("\\", "/").replace(/^\.\//u, "");
   const objects = model.objects.filter(objectFilter(options));

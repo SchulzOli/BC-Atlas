@@ -1,8 +1,15 @@
 /* BC Atlas graph explorer: runs in the browser on the embedded graph document. */
-(() => {
+(async () => {
   "use strict";
 
-  const DOC = window.BCA_GRAPH;
+  /** Inflates a gzip-compressed, base64-encoded graph document. */
+  async function inflate(base64) {
+    const compressed = await (await fetch(`data:application/octet-stream;base64,${base64}`)).blob();
+    const stream = compressed.stream().pipeThrough(new DecompressionStream("gzip"));
+    return JSON.parse(await new Response(stream).text());
+  }
+
+  const DOC = window.BCA_GRAPH ?? await inflate(window.BCA_GRAPH_GZIP);
   const FRAMES = DOC.timeline.frames;
   const LAST_FRAME = FRAMES.length - 1;
   const GHOST_FRAMES = 2;
@@ -10,8 +17,9 @@
 
   const DEPENDENCIES = {
     "intra-app": { label: "Inside one app", color: "#7b8ba6" },
+    "cross-module": { label: "Across modules of one app", color: "#b07aa1" },
     declared: { label: "Declared app dependency", color: "#2bb673" },
-    implicit: { label: "Implicit (Microsoft platform)", color: "#5b8def" },
+    implicit: { label: "Implicit (Microsoft apps, platform)", color: "#5b8def" },
     undeclared: { label: "Undeclared app dependency", color: "#ff4d4f" },
     unresolved: { label: "Unresolved or external", color: "#f5a623" },
     "declared-unused": { label: "Declared but unused", color: "#a0a8b8" }
@@ -32,13 +40,13 @@
 
   // ---------------------------------------------------------------- indexes
   const apps = new Map();
-  const workspaceFirst = { workspace: 0, "declared-only": 1, symbol: 2, unresolved: 3 };
+  const workspaceFirst = { workspace: 0, "declared-only": 1, symbol: 2, platform: 3, unresolved: 4 };
   [...DOC.levels.app.nodes]
     .sort((a, b) => (workspaceFirst[a.origin] ?? 9) - (workspaceFirst[b.origin] ?? 9) || a.label.localeCompare(b.label))
     .forEach((app, index) => {
       apps.set(app.id, {
         ...app,
-        color: app.origin === "unresolved" ? "#8a8f98" : PALETTE[index % PALETTE.length],
+        color: app.origin === "unresolved" ? "#8a8f98" : app.origin === "platform" ? "#6b8fb3" : PALETTE[index % PALETTE.length],
         order: index
       });
     });
@@ -133,20 +141,21 @@
 
   function computeVisible() {
     const level = levels[state.level];
-    const typeOk = (node) => state.level === "app" || state.types.has(node.type);
+    const typeOk = (node) => state.level !== "object" || state.types.has(node.type);
     const nodeState = new Map();
     for (const node of level.nodes) {
       const value = visibility(node, true);
       if (value !== "absent" && typeOk(node)) nodeState.set(node.id, value);
     }
-    const inSelection = (node) => state.apps.has(state.level === "app" ? node.id : node.app);
+    const inSelection = (node) => state.apps.has(state.level === "app" ? node.id : node.app) &&
+      !(state.level === "object" && state.module && node.module !== state.module);
 
     const candidateEdges = [];
     for (const edge of level.edges) {
       if (!nodeState.has(edge.source) || !nodeState.has(edge.target)) continue;
       if (!state.dependencies.has(edge.dependency)) continue;
       const weight = enabledWeight(edge);
-      const declaredOnly = state.level === "app" && edge.dependency === "declared-unused";
+      const declaredOnly = state.level !== "object" && edge.dependency === "declared-unused";
       if (!weight && !declaredOnly) continue;
       const edgeState = visibility(edge, false);
       if (edgeState === "absent") continue;
@@ -295,7 +304,7 @@
 
   function baseSize(node) {
     const level = levels[state.level];
-    if (state.level === "app") return 3 + Math.sqrt(node.objectCount ?? 1) * 3;
+    if (state.level !== "object") return 3 + Math.sqrt(node.objectCount ?? 1) * 3;
     switch (state.sizeBy) {
       case "in": return 1 + node.metrics.inDegree * 1.6;
       case "out": return 1 + node.metrics.outDegree * 1.6;
@@ -316,7 +325,7 @@
   const crossesApps = (link) => link.edge.scope === "inter-app";
   function linkWidth(link) {
     const selected = state.selected && (link.edge.source === state.selected || link.edge.target === state.selected);
-    if (state.level === "app") return 0.6 + Math.log2(1 + link.weight) * 0.8 + (selected ? 1 : 0);
+    if (state.level !== "object") return 0.6 + Math.log2(1 + link.weight) * 0.8 + (selected ? 1 : 0);
     if (crossesApps(link)) return 0.8 + Math.log2(1 + link.weight) * 0.5 + (selected ? 0.8 : 0);
     return selected ? 0.8 : 0;
   }
@@ -372,7 +381,7 @@
     .linkWidth(linkWidth)
     .linkOpacity(0.55)
     .linkLabel(linkTooltip)
-    .linkDirectionalArrowLength((link) => state.level === "app" ? 5 : crossesApps(link) ? 4 : 2.5)
+    .linkDirectionalArrowLength((link) => state.level !== "object" ? 5 : crossesApps(link) ? 4 : 2.5)
     .linkDirectionalArrowRelPos(1)
     .linkDirectionalArrowColor(linkColor)
     .linkDirectionalParticles(linkParticles)
@@ -415,7 +424,7 @@
   }
 
   function clusterForce(alpha) {
-    if (state.level !== "object" || !["clusters", "app-layers"].includes(state.layout)) return;
+    if (state.level === "app" || !["clusters", "app-layers"].includes(state.layout)) return;
     const strength = state.layout === "clusters" ? 0.12 : 0.05;
     for (const node of visible.nodes) {
       const anchor = appAnchor(node.app);
@@ -482,7 +491,7 @@
 
   function renderStats() {
     const inter = visible.links.filter(crossesApps).length;
-    const noun = state.level === "app" ? "apps" : "objects";
+    const noun = { app: "apps", module: "modules" }[state.level] ?? "objects";
     $("#stats").textContent = `${visible.nodes.length} ${noun} · ${visible.links.length} dependencies · ${inter} across apps`;
   }
 
@@ -607,7 +616,17 @@
     const incoming = level.edges.filter((edge) => edge.target === id && visibility(edge, false) === "present");
     const metrics = node.metrics;
     const panel = $("#details");
-    const rows = state.level === "app"
+    const rows = state.level === "module"
+      ? [
+          ["App", app ? `<span class="swatch" style="display:inline-block;background:${app.color}"></span> ${escapeHtml(app.label)}` : ""],
+          ["Manifest", node.path ? `<span class="mono">${escapeHtml(node.path)}</span>` : "app root"],
+          ["Objects", node.objectCount],
+          ["Depends on", `${metrics.outDegree} module(s)`],
+          ["Used by", `${metrics.inDegree} module(s)`],
+          ["Build layer", metrics.buildLayer],
+          ["Cycle", metrics.cycle === undefined ? "no" : `yes (#${metrics.cycle + 1})`]
+        ]
+      : state.level === "app"
       ? [
           ["Publisher", node.publisher], ["Version", node.version], ["App ID", node.appId],
           ["Origin", node.origin], ["Objects", node.objectCount], ["Build layer", metrics.buildLayer]
@@ -626,12 +645,12 @@
     panel.innerHTML = `
       <button class="icon-button close" data-action="close" title="Close (Esc)">✕</button>
       <h2>${escapeHtml(node.label)}</h2>
-      <div class="subtitle">${escapeHtml(state.level === "app" ? "app" : `${node.type}${node.objectId ? ` ${node.objectId}` : ""}`)}${node.outsideSelection ? " · outside the selected path" : ""}</div>
+      <div class="subtitle">${escapeHtml(state.level === "object" ? `${node.type}${node.objectId ? ` ${node.objectId}` : ""}` : state.level)}${node.outsideSelection ? " · outside the selected path" : ""}</div>
       <div class="actions">
         <button class="icon-button" data-action="fly">Fly to</button>
         <button class="icon-button" data-action="focus" aria-pressed="${state.focusDepth > 0}">${state.focusDepth > 0 ? `Neighborhood ${state.focusDepth}` : "Isolate neighborhood"}</button>
         ${state.focusDepth > 0 ? `<button class="icon-button" data-action="deeper">+1 level</button>` : ""}
-        ${state.level === "app" ? `<button class="icon-button" data-action="drill">Show its objects</button>` : `<button class="icon-button" data-action="only-app">Only this app</button>`}
+        ${state.level === "object" ? `<button class="icon-button" data-action="only-app">Only this app</button>` : `<button class="icon-button" data-action="drill">Show its objects</button>`}
       </div>
       <dl>${rows.filter(([, value]) => value !== undefined && value !== "").map(([label, value]) => `<dt>${label}</dt><dd>${typeof value === "string" && value.startsWith("<") ? value : escapeHtml(value)}</dd>`).join("")}</dl>
       <h3>Depends on (${outgoing.length})</h3>${dependencyList(outgoing, "out")}
@@ -689,8 +708,10 @@
       render({ layout: true });
     }
     if (action === "drill" && node) {
-      state.apps = new Set([node.id]);
+      state.apps = new Set([state.level === "app" ? node.id : node.app]);
+      state.module = state.level === "module" ? node.id : undefined;
       setLevel("object");
+      if (state.module) toast(`Objects of module ${node.label}; Reset filters shows all`);
     }
   });
 
@@ -843,7 +864,8 @@
         kinds: new Set(DOC.vocabulary.kinds),
         minDegree: 0,
         hideIsolated: false,
-        focusDepth: 0
+        focusDepth: 0,
+        module: undefined
       });
       buildFilters();
       render();
@@ -879,7 +901,7 @@
     fitted = false;
     render({ layout: true });
   }
-  document.querySelectorAll("[data-level]").forEach((button) => button.addEventListener("click", () => setLevel(button.dataset.level === "app" ? "app" : "object")));
+  document.querySelectorAll("[data-level]").forEach((button) => button.addEventListener("click", () => setLevel(known(["object", "module", "app"], button.dataset.level) ?? "object")));
 
   // --------------------------------------------------------------- timeline
   let timer;
@@ -915,7 +937,7 @@
       const level = levels[state.level];
       const added = level.nodes.filter((node) => presentAt(node, LAST_FRAME) && node.metrics.buildLayer === state.frame).length;
       info.innerHTML = `<div class="title">Build layer ${state.frame} of ${frameCount() - 1}</div>
-        <div class="meta"><span class="delta-add">+${added}</span> ${state.level === "app" ? "apps" : "objects"} whose dependencies are all in place</div>`;
+        <div class="meta"><span class="delta-add">+${added}</span> ${{ app: "apps", module: "modules" }[state.level] ?? "objects"} whose dependencies are all in place</div>`;
       return;
     }
     const frame = FRAMES[state.frame];
@@ -1100,18 +1122,28 @@
       searchInput.focus();
     } else if (event.key === "Escape") select(undefined);
     else if (event.key === "1") setLevel("object");
-    else if (event.key === "2") setLevel("app");
+    else if (event.key === "2" && levels.module) setLevel("module");
+    else if (event.key === "3" || (event.key === "2" && !levels.module)) setLevel("app");
     else if (event.key.toLowerCase() === "f") $("#toggle-filters").click();
   });
 
   // ------------------------------------------------------------------- init
+  if (!levels.module) document.querySelector('[data-level="module"]').hidden = true;
   $("#title").textContent = DOC.title;
   $("#title").title = DOC.title;
   $("#lens").textContent = `${DOC.lens.title} · ${FRAMES.length > 1 ? `${FRAMES.length} frames` : "snapshot"}`;
   state.frame = frameCount() - 1;
   applyBackground();
-  setupTimeline();
-  buildFilters();
-  render({ layout: true });
+  // Tens of thousands of object edges (a Base Application) start on the
+  // module or app level; drill down from there.
+  const large = levels.object.edges.length > 20000;
+  if (large) {
+    setLevel(levels.module ? "module" : "app");
+    toast("Large graph: starting on the module level. Select a module and choose Show its objects.");
+  } else {
+    setupTimeline();
+    buildFilters();
+    render({ layout: true });
+  }
   window.bcaExplorer = { graph, state, document: DOC, render, setFrame, setLevel, select };
 })();

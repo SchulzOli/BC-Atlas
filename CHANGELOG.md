@@ -22,6 +22,16 @@ follows [Semantic Versioning](https://semver.org/).
   presence spans, PageRank, Louvain communities, build layers, and cycles,
   built with graphology. The MCP server offers it as `bc_atlas_explore`.
 - `examples/multi-app`, a three-app workspace, and its explorer example.
+- Nested `app.json` files are modules of the enclosing app, as in BCApps'
+  System Application and Base Application. The explorer adds a module level,
+  checks module dependencies against the module manifests, and marks
+  dependencies between modules of one app as `cross-module`.
+- Platform system objects (`Integer`, `Date`, `Field`, `AllObjWithCaption`,
+  `Company`, ...) and `System "..."` permissions count as implicit
+  dependencies instead of unresolved ones.
+- `bca explore --paths` analyzes and replays only some folders of a large
+  repository. Large explorer files embed their graph gzip-compressed and start
+  on the module level.
 
 - `bca docs generate` draws every scenario as a flow of its clicks in BPMN
   notation ("At a glance"): user tasks, milestones for `[THEN]` between
@@ -41,6 +51,14 @@ follows [Semantic Versioning](https://semver.org/).
   arrow in flow direction; `[ALTERNATIVE]` and `[RELATED]` are dashed lines.
 
 ### Fixed
+
+- Namespace-qualified references such as
+  `Record Microsoft.Sales.Document."Sales Header"`,
+  `TableData Microsoft.Sales.Document."Sales Line" = R`, and
+  `Database::Microsoft.Sales.Document."Sales Header"` resolve to their object
+  instead of an unresolved object named `Microsoft`.
+- The call view no longer slows down quadratically on large apps: resolving
+  calls in the Base Application takes about 2.5 instead of 70 seconds.
 
 - Steps on quoted fields and actions, such as
   `SalesOrder."Sell-to Customer No.".SetValue(...)`, are no longer dropped from

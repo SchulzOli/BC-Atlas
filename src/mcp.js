@@ -149,6 +149,7 @@ export function createMcpServer(version = pkg.version) {
       output: z.string().min(1).describe("Output file path (.html or .json)"),
       format: z.enum(["html", "json"]).optional(),
       lens: z.enum(["dependency"]).optional(),
+      paths: z.array(z.string()).optional().describe("Only analyze AL files below these project-relative folders or globs"),
       history: z.boolean().optional(),
       maxCommits: z.number().int().positive().optional(),
       since: z.string().optional(),

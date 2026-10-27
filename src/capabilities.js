@@ -153,6 +153,11 @@ const exploreOptions = {
   maxCommits: string("Most frames to replay; older commits are sampled evenly.", { group: "Timeline", value: "n", default: "60" }),
   since: string("Only replay commits after this date (anything git log --since accepts).", { group: "Timeline", value: "date" }),
   title: string("Explorer title.", { group: OUTPUT, value: "text" }),
+  paths: string("Only analyze AL files in this folder or matching this glob, relative to the project root.", {
+    group: FILTERS,
+    repeatable: true,
+    value: "path"
+  }),
   ...filterOptions,
   projectRoot: projectOptions.projectRoot,
   config: projectOptions.config
@@ -363,7 +368,8 @@ export function createCapabilities(version) {
         examples: [
           "bca explore ./workspace -o dependencies.html",
           "bca explore ./workspace --history --max-commits 120 -o dependencies.html",
-          "bca explore ./app --format json -o dependencies.json"
+          "bca explore ./app --format json -o dependencies.json",
+          "bca explore ./BCApps/src --paths \"Layers/W1/BaseApp\" --paths \"System Application/App\" --history -o base-app.html"
         ]
       }),
       command({

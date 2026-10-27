@@ -32,9 +32,10 @@ owns the source object:
 
 | Class | Meaning | Color |
 | --- | --- | --- |
-| `intra-app` | Source and target belong to the same app. | gray |
+| `intra-app` | Source and target belong to the same app (and the same module). | gray |
+| `cross-module` | Source and target belong to different modules of the same app. | purple |
 | `declared` | The target app is listed in the source app's `app.json` dependencies. | green |
-| `implicit` | The target is a Microsoft app (Base Application, System Application) that `app.json` pulls in through `application` or `platform`. | blue |
+| `implicit` | The target is a Microsoft app from `.alpackages` that `app.json` pulls in through `application` or `platform`, or a platform system object such as `Integer`, `Date`, `Field`, `AllObjWithCaption`, `Company`, or a `System "..."` permission. | blue |
 | `undeclared` | The target belongs to another workspace app that `app.json` does not declare. The app will not compile on its own. | red |
 | `unresolved` | The target could not be resolved, usually because `.alpackages` symbols are missing. | amber |
 
@@ -43,16 +44,48 @@ direction of the dependency; undeclared ones carry more. Add `.alpackages`
 symbols to resolve Base Application and System Application objects instead of
 seeing them as unresolved.
 
-### Two levels
+### Three levels
 
 - **Objects** shows one node per AL object. By default, apps are pulled into
   their own clusters, so dependencies inside an app stay local and cross-app
   dependencies span the space between clusters.
+- **Modules** appears when an app contains nested `app.json` files, as the
+  System Application and the Base Application in
+  [BCApps](https://github.com/microsoft/BCApps) do. The AL compiler builds
+  every file below an app folder, so a nested `app.json` marks a module of
+  that app, not an app of its own. Each module manifest declares which modules
+  and apps the module may use, and module edges are checked against it:
+  `declared`, `declared-unused`, `undeclared` (a module uses another module it
+  does not declare), and `cross-module` (the app's root code uses a module).
+  Select a module and choose **Show its objects** to drill down.
 - **Apps** shows one node per app. Its edges merge the declared dependencies
   from `app.json` with the observed object references: `declared` (declared
   and used), `declared-unused` (declared but no object uses it), `undeclared`,
   `implicit`, and `unresolved`. Select an app and choose **Show its objects**
   to drill down.
+
+## Large repositories
+
+`--paths` restricts analysis and history replay to some folders of a large
+repository; everything else is not even parsed. For the Base Application in
+BCApps, include its declared dependencies so that they resolve:
+
+```sh
+bca explore ./BCApps/src \
+  --paths "Layers/W1/BaseApp" \
+  --paths "System Application/App" \
+  --paths "Business Foundation/App" \
+  --history --since 2026-06-28 --max-commits 40 \
+  -o base-application.html
+```
+
+That graph has about 8,600 objects and 72,000 dependency edges. The explorer
+embeds graphs above 2 MB gzip-compressed (about a tenth of the size) and
+starts graphs with more than 20,000 object edges on the module level; drill
+down from a module or app to its objects. Replaying a frame of the Base
+Application takes about 15 seconds after the first one, because only changed
+files are parsed again. Give Node.js more memory for such graphs, for example
+`NODE_OPTIONS=--max-old-space-size=12000`.
 
 ## Relationship kinds
 
@@ -73,7 +106,8 @@ A dependency edge aggregates every way one object depends on another. The
 | `permits`, `includes` | Permission sets granting access and including other sets. |
 
 Each edge keeps its weight per kind and up to twelve pieces of evidence (file,
-line, procedure). Click an edge to see them.
+line, procedure), or three for edges inside one module. Click an edge to see
+them.
 
 ## The fourth dimension: time
 
@@ -122,7 +156,7 @@ level** widens the neighborhood. Right-click a node to fly to it, drag it to
 pin it. **PNG** saves the current view and **JSON** the visible subgraph.
 
 Keyboard: `Space` play, `←` `→` step, `/` search, `Esc` clear selection, `1`
-objects, `2` apps, `F` filters.
+objects, `2` modules, `3` apps, `F` filters.
 
 ## Metrics
 

@@ -19,14 +19,15 @@
   <span class="badge" id="lens"></span>
   <div class="segmented" role="group" aria-label="Level">
     <button data-level="object" aria-pressed="true" title="One node per AL object (1)">Objects</button>
-    <button data-level="app" aria-pressed="false" title="One node per app (2)">Apps</button>
+    <button data-level="module" aria-pressed="false" title="One node per module: app.json files nested in an app (2)">Modules</button>
+    <button data-level="app" aria-pressed="false" title="One node per app (3)">Apps</button>
   </div>
   <div id="search-box">
     <input id="search" type="search" placeholder="Search objects, IDs, namespaces (/)" autocomplete="off" spellcheck="false">
     <div id="search-results" role="listbox"></div>
   </div>
   <span class="spacer"></span>
-  <span id="stats"></span>
+  <span id="stats">Loading graph…</span>
   <button class="icon-button" id="fit" title="Fit graph to screen">Fit</button>
   <button class="icon-button" id="export-png" title="Save the current view as PNG">PNG</button>
   <button class="icon-button" id="export-json" title="Save the visible graph as JSON">JSON</button>
@@ -63,7 +64,7 @@
 <div id="toast" role="status"></div>
 <div id="fallback"><div><h2>WebGL is not available</h2><p>The 3D graph needs a browser with WebGL. Run <code>bca explore --format json</code> for the same graph as JSON.</p></div></div>
 
-<script id="bca-graph-data">window.BCA_GRAPH = __DATA__;</script>
+<script id="bca-graph-data">__DATA__</script>
 <script>
 /*__LIBRARY__*/
 </script>

@@ -165,6 +165,7 @@
           "type": "table",
           "objectId": "50000",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Items",
           "file": "core/Items.al",
           "line": 3,
@@ -192,6 +193,7 @@
           "type": "table",
           "objectId": "50001",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Items",
           "file": "core/Items.al",
           "line": 21,
@@ -219,6 +221,7 @@
           "type": "page",
           "objectId": "50000",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Items",
           "file": "core/Items.al",
           "line": 37,
@@ -245,6 +248,7 @@
           "label": "CON Price Calculation",
           "type": "interface",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Pricing",
           "file": "core/Pricing.al",
           "line": 5,
@@ -272,6 +276,7 @@
           "type": "codeunit",
           "objectId": "50010",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Pricing",
           "file": "core/Pricing.al",
           "line": 10,
@@ -299,6 +304,7 @@
           "type": "codeunit",
           "objectId": "50011",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Pricing",
           "file": "core/Pricing.al",
           "line": 24,
@@ -326,6 +332,7 @@
           "type": "codeunit",
           "objectId": "50019",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Pricing",
           "file": "core/Legacy.al",
           "line": 5,
@@ -353,6 +360,7 @@
           "type": "table",
           "objectId": "50100",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "namespace": "Contoso.Sales.Quotes",
           "file": "sales/Quotes.al",
           "line": 6,
@@ -380,6 +388,7 @@
           "type": "codeunit",
           "objectId": "50100",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "namespace": "Contoso.Sales.Quotes",
           "file": "sales/Quotes.al",
           "line": 24,
@@ -407,6 +416,7 @@
           "type": "page",
           "objectId": "50100",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "namespace": "Contoso.Sales.Quotes",
           "file": "sales/Quotes.al",
           "line": 41,
@@ -434,6 +444,7 @@
           "type": "permissionset",
           "objectId": "50100",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "namespace": "Contoso.Sales.Quotes",
           "file": "sales/Quotes.al",
           "line": 74,
@@ -461,6 +472,7 @@
           "type": "codeunit",
           "objectId": "50200",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "namespace": "Contoso.Integration",
           "file": "integration/Export.al",
           "line": 5,
@@ -487,6 +499,7 @@
           "label": "Customer",
           "type": "table",
           "app": "(unresolved)",
+          "module": "(unresolved)",
           "namespace": "(unknown)",
           "origin": "unresolved",
           "presence": [
@@ -512,6 +525,7 @@
           "type": "codeunit",
           "objectId": "50201",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "namespace": "Contoso.Integration",
           "file": "integration/ItemSync.al",
           "line": 6,
@@ -541,6 +555,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "relates": 1
@@ -569,6 +585,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "reads": 1
@@ -597,6 +615,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::interface::con price calculation",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "implements": 1
@@ -624,6 +644,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -659,6 +681,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -694,6 +718,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -727,6 +753,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -762,6 +790,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "declared",
           "kinds": {
             "relates": 1
@@ -790,6 +820,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -825,6 +857,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50011",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "declared",
           "kinds": {
             "uses": 1,
@@ -865,6 +899,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "reads": 1
@@ -893,6 +929,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -926,6 +964,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "permits": 1
@@ -953,6 +993,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "permits": 1
@@ -980,6 +1022,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "permits": 1
@@ -1007,6 +1051,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "declared",
           "kinds": {
             "uses": 1,
@@ -1042,6 +1088,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "declared",
           "kinds": {
             "uses": 1,
@@ -1075,6 +1123,8 @@
           "target": "unresolved::table::customer",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "targetApp": "(unresolved)",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetModule": "(unresolved)",
           "dependency": "unresolved",
           "kinds": {
             "uses": 1,
@@ -1110,6 +1160,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "undeclared",
           "kinds": {
             "uses": 1,
