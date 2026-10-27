@@ -152,7 +152,7 @@ export async function replayHistory(projectRoot, { maxCommits = 60, since, fileF
         author: commit.author,
         commits: span,
         changedFiles: new Set(changes.map(({ file }) => toPosix(path.relative(directory, local(file)))))
-      }, index);
+      }, index, commits.length);
       previous = commit;
     }
   } finally {

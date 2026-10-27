@@ -9,7 +9,7 @@ import { objectFilter, pathMatcher } from "../views.js";
 import { findLens } from "./lenses/index.js";
 import { addMetrics } from "./metrics.js";
 import { replayHistory } from "./history.js";
-import { frameStatistics, mergeFrames } from "./temporal.js";
+import { createTemporalGraph, frameStatistics } from "./temporal.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
@@ -32,7 +32,7 @@ function vocabulary(levels) {
  * Creates a temporal graph document for one lens: object and app levels with
  * metrics, plus one frame per sampled commit when `history` is set.
  */
-export async function createGraphDocument(input, values = {}) {
+export async function createGraphDocument(input, values = {}, { onFrame } = {}) {
   const config = await loadConfig(values.projectRoot ?? input, values.config);
   const options = mergeArchitectureOptions(config.values, values);
   // A single AL file is analyzed as the focus of its folder.
@@ -50,19 +50,26 @@ export async function createGraphDocument(input, values = {}) {
   const symbols = await loadSymbolPackages(projectRoot);
   const build = async (root) => lens.build(resolveModel(await analyze(root, { parseCache, symbols, fileFilter })), { filter });
 
+  // Frames keep their metadata; their graphs go straight into the merge.
   const frames = [];
+  const temporal = createTemporalGraph();
+  const addFrame = (frame) => {
+    temporal.add(frame);
+    frames.push({ ...frame, levels: undefined });
+  };
   let history;
   if (options.history) {
     history = await replayHistory(projectRoot, {
       maxCommits: positiveInteger(options.maxCommits, "max-commits", 60),
       since: options.since,
       fileFilter
-    }, async (directory, frame) => {
-      frames.push({ ...frame, levels: await build(directory) });
+    }, async (directory, frame, index, total) => {
+      addFrame({ ...frame, levels: await build(directory) });
+      onFrame?.(frame, index, total);
     });
   }
   if (!frames.length || history?.workingTreeChanges.length) {
-    frames.push({
+    addFrame({
       id: "working-tree",
       kind: "working-tree",
       label: frames.length ? "Uncommitted changes" : "Current source",
@@ -72,7 +79,7 @@ export async function createGraphDocument(input, values = {}) {
     });
   }
 
-  const levels = mergeFrames(frames);
+  const levels = temporal.result();
   const summary = Object.fromEntries(Object.entries(levels).map(([name, level]) => [name, addMetrics(level)]));
   if (!levels.object.nodes.length) {
     throw new Error(`no AL objects found in ${path.resolve(input)}; check the path and the --include, --exclude, --namespace, and --type filters`);
