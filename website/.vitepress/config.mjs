@@ -19,7 +19,8 @@ const EXCLUDE = [
 const REWRITES = {
   "README.md": "index.md",
   "examples/README.md": "examples/index.md",
-  "examples/report/README.md": "examples/report/index.md"
+  "examples/report/README.md": "examples/report/index.md",
+  "examples/explorer/README.md": "examples/explorer/index.md"
 };
 
 function markdownPages(directory = ROOT, relative = "") {

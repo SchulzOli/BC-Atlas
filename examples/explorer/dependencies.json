@@ -1,0 +1,1348 @@
+{
+  "schema": "bc-atlas.graph",
+  "schemaVersion": 1,
+  "generator": "bc-atlas 0.7.0",
+  "title": "Contoso workspace: dependencies",
+  "lens": {
+    "id": "dependency",
+    "title": "Dependencies",
+    "summary": "Which objects and apps depend on which, inside one app and across apps"
+  },
+  "project": {
+    "name": "contoso-workspace"
+  },
+  "timeline": {
+    "source": "git",
+    "commits": 5,
+    "frames": [
+      {
+        "index": 0,
+        "id": "65c6194",
+        "sha": "65c6194e7520a02065ba600669abe2b31f1aa0bc",
+        "kind": "commit",
+        "label": "Core: items, price groups, and pricing",
+        "date": "2026-01-12T09:00:00.000Z",
+        "author": "Contoso Developer",
+        "commits": 1,
+        "changedFiles": 3,
+        "stats": {
+          "nodes": 6,
+          "edges": 6,
+          "addedNodes": 6,
+          "removedNodes": 0,
+          "changedNodes": 0,
+          "addedEdges": 6,
+          "removedEdges": 0
+        }
+      },
+      {
+        "index": 1,
+        "id": "6aa2116",
+        "sha": "6aa21160dacbd82d97691765fbb85845242ceabb",
+        "kind": "commit",
+        "label": "Core: legacy pricing for imported items",
+        "date": "2026-02-02T09:00:00.000Z",
+        "author": "Contoso Developer",
+        "commits": 1,
+        "changedFiles": 1,
+        "stats": {
+          "nodes": 7,
+          "edges": 7,
+          "addedNodes": 1,
+          "removedNodes": 0,
+          "changedNodes": 0,
+          "addedEdges": 1,
+          "removedEdges": 0
+        }
+      },
+      {
+        "index": 2,
+        "id": "2f78060",
+        "sha": "2f780602a93feac791b81cc14a0b425934c26ee9",
+        "kind": "commit",
+        "label": "Sales: quotes priced through Contoso Core",
+        "date": "2026-03-09T09:00:00.000Z",
+        "author": "Contoso Developer",
+        "commits": 1,
+        "changedFiles": 2,
+        "stats": {
+          "nodes": 11,
+          "edges": 15,
+          "addedNodes": 4,
+          "removedNodes": 0,
+          "changedNodes": 0,
+          "addedEdges": 8,
+          "removedEdges": 0
+        }
+      },
+      {
+        "index": 3,
+        "id": "ca91a7a",
+        "sha": "ca91a7a6f8d3297a80c3ee9afcc7263d3ba29bf8",
+        "kind": "commit",
+        "label": "Integration: export quotes",
+        "date": "2026-04-13T09:00:00.000Z",
+        "author": "Contoso Developer",
+        "commits": 1,
+        "changedFiles": 2,
+        "stats": {
+          "nodes": 13,
+          "edges": 18,
+          "addedNodes": 2,
+          "removedNodes": 0,
+          "changedNodes": 0,
+          "addedEdges": 3,
+          "removedEdges": 0
+        }
+      },
+      {
+        "index": 4,
+        "id": "d3ba7b3",
+        "sha": "d3ba7b3dbdcb0bc36f0dcf3b800b0d68fa0f1465",
+        "kind": "commit",
+        "label": "Integration: item sync; remove legacy pricing",
+        "date": "2026-05-18T09:00:00.000Z",
+        "author": "Contoso Developer",
+        "commits": 1,
+        "changedFiles": 2,
+        "stats": {
+          "nodes": 13,
+          "edges": 18,
+          "addedNodes": 1,
+          "removedNodes": 1,
+          "changedNodes": 0,
+          "addedEdges": 1,
+          "removedEdges": 1
+        }
+      }
+    ]
+  },
+  "summary": {
+    "object": {
+      "cycles": 0,
+      "layers": 7
+    },
+    "app": {
+      "cycles": 0,
+      "layers": 3
+    }
+  },
+  "vocabulary": {
+    "types": [
+      "codeunit",
+      "interface",
+      "page",
+      "permissionset",
+      "table"
+    ],
+    "kinds": [
+      "calls",
+      "implements",
+      "permits",
+      "reads",
+      "relates",
+      "subscribes",
+      "uses",
+      "writes"
+    ],
+    "dependencies": [
+      "declared",
+      "intra-app",
+      "undeclared",
+      "unresolved"
+    ],
+    "origins": [
+      "unresolved",
+      "workspace"
+    ]
+  },
+  "levels": {
+    "object": {
+      "nodes": [
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "label": "CON Item",
+          "type": "table",
+          "objectId": "50000",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "namespace": "Contoso.Core.Items",
+          "file": "core/Items.al",
+          "line": 3,
+          "origin": "workspace",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 5,
+            "outDegree": 1,
+            "crossAppIn": 2,
+            "crossAppOut": 0,
+            "pagerank": 0.202674,
+            "community": 0,
+            "buildLayer": 1
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
+          "label": "CON Price Group",
+          "type": "table",
+          "objectId": "50001",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "namespace": "Contoso.Core.Items",
+          "file": "core/Items.al",
+          "line": 21,
+          "origin": "workspace",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 2,
+            "outDegree": 0,
+            "crossAppIn": 0,
+            "crossAppOut": 0,
+            "pagerank": 0.230721,
+            "community": 0,
+            "buildLayer": 0
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::page::50000",
+          "label": "CON Item Card",
+          "type": "page",
+          "objectId": "50000",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "namespace": "Contoso.Core.Items",
+          "file": "core/Items.al",
+          "line": 37,
+          "origin": "workspace",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 0,
+            "outDegree": 1,
+            "crossAppIn": 0,
+            "crossAppOut": 0,
+            "pagerank": 0.029714,
+            "community": 0,
+            "buildLayer": 2
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::interface::con price calculation",
+          "label": "CON Price Calculation",
+          "type": "interface",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "namespace": "Contoso.Core.Pricing",
+          "file": "core/Pricing.al",
+          "line": 5,
+          "origin": "workspace",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 1,
+            "outDegree": 0,
+            "crossAppIn": 0,
+            "crossAppOut": 0,
+            "pagerank": 0.044082,
+            "community": 0,
+            "buildLayer": 0
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010",
+          "label": "CON Standard Pricing",
+          "type": "codeunit",
+          "objectId": "50010",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "namespace": "Contoso.Core.Pricing",
+          "file": "core/Pricing.al",
+          "line": 10,
+          "origin": "workspace",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 1,
+            "outDegree": 3,
+            "crossAppIn": 0,
+            "crossAppOut": 0,
+            "pagerank": 0.084519,
+            "community": 0,
+            "buildLayer": 2
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50011",
+          "label": "CON Pricing Mgt.",
+          "type": "codeunit",
+          "objectId": "50011",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "namespace": "Contoso.Core.Pricing",
+          "file": "core/Pricing.al",
+          "line": 24,
+          "origin": "workspace",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 1,
+            "outDegree": 1,
+            "crossAppIn": 1,
+            "crossAppOut": 0,
+            "pagerank": 0.064476,
+            "community": 1,
+            "buildLayer": 3
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50019",
+          "label": "CON Legacy Pricing",
+          "type": "codeunit",
+          "objectId": "50019",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "namespace": "Contoso.Core.Pricing",
+          "file": "core/Legacy.al",
+          "line": 5,
+          "origin": "workspace",
+          "presence": [
+            [
+              1,
+              4
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 0,
+            "outDegree": 1,
+            "crossAppIn": 0,
+            "crossAppOut": 0,
+            "pagerank": 0.029714,
+            "community": 0,
+            "buildLayer": 2
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
+          "label": "CON Sales Quote",
+          "type": "table",
+          "objectId": "50100",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "namespace": "Contoso.Sales.Quotes",
+          "file": "sales/Quotes.al",
+          "line": 6,
+          "origin": "workspace",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 4,
+            "outDegree": 1,
+            "crossAppIn": 1,
+            "crossAppOut": 1,
+            "pagerank": 0.080531,
+            "community": 1,
+            "buildLayer": 2
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
+          "label": "CON Quote Mgt.",
+          "type": "codeunit",
+          "objectId": "50100",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "namespace": "Contoso.Sales.Quotes",
+          "file": "sales/Quotes.al",
+          "line": 24,
+          "origin": "workspace",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 3,
+            "outDegree": 2,
+            "crossAppIn": 1,
+            "crossAppOut": 1,
+            "pagerank": 0.068161,
+            "community": 1,
+            "buildLayer": 4
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100",
+          "label": "CON Sales Quote",
+          "type": "page",
+          "objectId": "50100",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "namespace": "Contoso.Sales.Quotes",
+          "file": "sales/Quotes.al",
+          "line": 41,
+          "origin": "workspace",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 1,
+            "outDegree": 2,
+            "crossAppIn": 0,
+            "crossAppOut": 0,
+            "pagerank": 0.038133,
+            "community": 1,
+            "buildLayer": 5
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100",
+          "label": "CON Sales",
+          "type": "permissionset",
+          "objectId": "50100",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "namespace": "Contoso.Sales.Quotes",
+          "file": "sales/Quotes.al",
+          "line": 74,
+          "origin": "workspace",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 0,
+            "outDegree": 3,
+            "crossAppIn": 0,
+            "crossAppOut": 0,
+            "pagerank": 0.029714,
+            "community": 1,
+            "buildLayer": 6
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200",
+          "label": "CON Quote Export",
+          "type": "codeunit",
+          "objectId": "50200",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "namespace": "Contoso.Integration",
+          "file": "integration/Export.al",
+          "line": 5,
+          "origin": "workspace",
+          "presence": [
+            [
+              3,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 0,
+            "outDegree": 3,
+            "crossAppIn": 0,
+            "crossAppOut": 3,
+            "pagerank": 0.029714,
+            "community": 1,
+            "buildLayer": 5
+          }
+        },
+        {
+          "id": "unresolved::table::customer",
+          "label": "Customer",
+          "type": "table",
+          "app": "(unresolved)",
+          "namespace": "(unknown)",
+          "origin": "unresolved",
+          "presence": [
+            [
+              3,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 1,
+            "outDegree": 0,
+            "crossAppIn": 1,
+            "crossAppOut": 0,
+            "pagerank": 0.038133,
+            "community": 1,
+            "buildLayer": 0
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50201",
+          "label": "CON Item Sync",
+          "type": "codeunit",
+          "objectId": "50201",
+          "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "namespace": "Contoso.Integration",
+          "file": "integration/ItemSync.al",
+          "line": 6,
+          "origin": "workspace",
+          "presence": [
+            [
+              4,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 0,
+            "outDegree": 1,
+            "crossAppIn": 0,
+            "crossAppOut": 1,
+            "pagerank": 0.029714,
+            "community": 0,
+            "buildLayer": 2
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "dependency": "intra-app",
+          "kinds": {
+            "relates": 1
+          },
+          "weight": 1,
+          "evidence": [
+            {
+              "kind": "relates",
+              "property": "tablerelation",
+              "file": "core/Items.al",
+              "line": 12
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::page::50000->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::page::50000",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "dependency": "intra-app",
+          "kinds": {
+            "reads": 1
+          },
+          "weight": 1,
+          "evidence": [
+            {
+              "kind": "reads",
+              "property": "sourcetable",
+              "file": "core/Items.al",
+              "line": 40
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::interface::con price calculation",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::interface::con price calculation",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "dependency": "intra-app",
+          "kinds": {
+            "implements": 1
+          },
+          "weight": 1,
+          "evidence": [
+            {
+              "kind": "implements",
+              "file": "core/Pricing.al",
+              "line": 10
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "dependency": "intra-app",
+          "kinds": {
+            "uses": 1,
+            "reads": 1
+          },
+          "weight": 2,
+          "evidence": [
+            {
+              "kind": "uses",
+              "file": "core/Pricing.al",
+              "line": 14
+            },
+            {
+              "kind": "reads",
+              "operation": "Get",
+              "member": "UnitPrice(Code[20])",
+              "file": "core/Pricing.al",
+              "line": 17
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "dependency": "intra-app",
+          "kinds": {
+            "uses": 1,
+            "reads": 1
+          },
+          "weight": 2,
+          "evidence": [
+            {
+              "kind": "uses",
+              "file": "core/Pricing.al",
+              "line": 15
+            },
+            {
+              "kind": "reads",
+              "operation": "Get",
+              "member": "UnitPrice(Code[20])",
+              "file": "core/Pricing.al",
+              "line": 18
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50011->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50011",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "dependency": "intra-app",
+          "kinds": {
+            "uses": 1,
+            "calls": 1
+          },
+          "weight": 2,
+          "evidence": [
+            {
+              "kind": "uses",
+              "file": "core/Pricing.al",
+              "line": 28
+            },
+            {
+              "kind": "calls",
+              "file": "core/Pricing.al",
+              "line": 31
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50019->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50019",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "dependency": "intra-app",
+          "kinds": {
+            "uses": 1,
+            "reads": 1
+          },
+          "weight": 2,
+          "evidence": [
+            {
+              "kind": "uses",
+              "file": "core/Legacy.al",
+              "line": 9
+            },
+            {
+              "kind": "reads",
+              "operation": "Get",
+              "member": "Price(Code[20])",
+              "file": "core/Legacy.al",
+              "line": 11
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              1,
+              4
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "dependency": "declared",
+          "kinds": {
+            "relates": 1
+          },
+          "weight": 1,
+          "evidence": [
+            {
+              "kind": "relates",
+              "property": "tablerelation",
+              "file": "sales/Quotes.al",
+              "line": 13
+            }
+          ],
+          "scope": "inter-app",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "dependency": "intra-app",
+          "kinds": {
+            "uses": 1,
+            "writes": 1
+          },
+          "weight": 2,
+          "evidence": [
+            {
+              "kind": "uses",
+              "file": "sales/Quotes.al",
+              "line": 26
+            },
+            {
+              "kind": "writes",
+              "operation": "Modify",
+              "member": "Recalculate(Record \"CON Sales Quote\")",
+              "file": "sales/Quotes.al",
+              "line": 31
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50011",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50011",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "dependency": "declared",
+          "kinds": {
+            "uses": 1,
+            "subscribes": 1,
+            "calls": 1
+          },
+          "weight": 3,
+          "evidence": [
+            {
+              "kind": "uses",
+              "file": "sales/Quotes.al",
+              "line": 28
+            },
+            {
+              "kind": "subscribes",
+              "member": "RoundPrice",
+              "file": "sales/Quotes.al",
+              "line": 35
+            },
+            {
+              "kind": "calls",
+              "file": "sales/Quotes.al",
+              "line": 30
+            }
+          ],
+          "scope": "inter-app",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "dependency": "intra-app",
+          "kinds": {
+            "reads": 1
+          },
+          "weight": 1,
+          "evidence": [
+            {
+              "kind": "reads",
+              "property": "sourcetable",
+              "file": "sales/Quotes.al",
+              "line": 44
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "dependency": "intra-app",
+          "kinds": {
+            "uses": 1,
+            "calls": 1
+          },
+          "weight": 2,
+          "evidence": [
+            {
+              "kind": "uses",
+              "file": "sales/Quotes.al",
+              "line": 65
+            },
+            {
+              "kind": "calls",
+              "file": "sales/Quotes.al",
+              "line": 67
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "dependency": "intra-app",
+          "kinds": {
+            "permits": 1
+          },
+          "weight": 1,
+          "evidence": [
+            {
+              "kind": "permits",
+              "file": "sales/Quotes.al",
+              "line": 77
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "dependency": "intra-app",
+          "kinds": {
+            "permits": 1
+          },
+          "weight": 1,
+          "evidence": [
+            {
+              "kind": "permits",
+              "file": "sales/Quotes.al",
+              "line": 78
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "dependency": "intra-app",
+          "kinds": {
+            "permits": 1
+          },
+          "weight": 1,
+          "evidence": [
+            {
+              "kind": "permits",
+              "file": "sales/Quotes.al",
+              "line": 79
+            }
+          ],
+          "scope": "intra-app",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "dependency": "declared",
+          "kinds": {
+            "uses": 1,
+            "writes": 1
+          },
+          "weight": 2,
+          "evidence": [
+            {
+              "kind": "uses",
+              "file": "integration/Export.al",
+              "line": 7
+            },
+            {
+              "kind": "writes",
+              "operation": "Modify",
+              "member": "Export(Record \"CON Sales Quote\")",
+              "file": "integration/Export.al",
+              "line": 14
+            }
+          ],
+          "scope": "inter-app",
+          "presence": [
+            [
+              3,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "dependency": "declared",
+          "kinds": {
+            "uses": 1,
+            "calls": 1
+          },
+          "weight": 2,
+          "evidence": [
+            {
+              "kind": "uses",
+              "file": "integration/Export.al",
+              "line": 9
+            },
+            {
+              "kind": "calls",
+              "file": "integration/Export.al",
+              "line": 11
+            }
+          ],
+          "scope": "inter-app",
+          "presence": [
+            [
+              3,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200->unresolved::table::customer",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200",
+          "target": "unresolved::table::customer",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetApp": "(unresolved)",
+          "dependency": "unresolved",
+          "kinds": {
+            "uses": 1,
+            "reads": 1
+          },
+          "weight": 2,
+          "evidence": [
+            {
+              "kind": "uses",
+              "file": "integration/Export.al",
+              "line": 18
+            },
+            {
+              "kind": "reads",
+              "operation": "Get",
+              "member": "Export(Record \"CON Sales Quote\")",
+              "file": "integration/Export.al",
+              "line": 13
+            }
+          ],
+          "scope": "inter-app",
+          "presence": [
+            [
+              3,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50201->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50201",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+          "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "dependency": "undeclared",
+          "kinds": {
+            "uses": 1,
+            "reads": 1,
+            "writes": 1
+          },
+          "weight": 3,
+          "evidence": [
+            {
+              "kind": "uses",
+              "file": "integration/ItemSync.al",
+              "line": 10
+            },
+            {
+              "kind": "reads",
+              "operation": "Get",
+              "member": "Sync(Code[20])",
+              "file": "integration/ItemSync.al",
+              "line": 12
+            },
+            {
+              "kind": "writes",
+              "operation": "Modify",
+              "member": "Sync(Code[20])",
+              "file": "integration/ItemSync.al",
+              "line": 13
+            }
+          ],
+          "scope": "inter-app",
+          "presence": [
+            [
+              4,
+              null
+            ]
+          ],
+          "changes": []
+        }
+      ]
+    },
+    "app": {
+      "nodes": [
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "label": "Contoso Core",
+          "type": "app",
+          "appId": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "publisher": "BC Atlas contributors",
+          "version": "1.0.0.0",
+          "origin": "workspace",
+          "objectCount": 6,
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 2,
+            "outDegree": 0,
+            "crossAppIn": 2,
+            "crossAppOut": 0,
+            "pagerank": 0.40764,
+            "community": 0,
+            "buildLayer": 0
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "label": "Contoso Sales",
+          "type": "app",
+          "appId": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "publisher": "BC Atlas contributors",
+          "version": "1.0.0.0",
+          "origin": "workspace",
+          "objectCount": 4,
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 1,
+            "outDegree": 1,
+            "crossAppIn": 1,
+            "crossAppOut": 1,
+            "pagerank": 0.228824,
+            "community": 0,
+            "buildLayer": 1
+          }
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "label": "Contoso Integration",
+          "type": "app",
+          "appId": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "publisher": "BC Atlas contributors",
+          "version": "1.0.0.0",
+          "origin": "workspace",
+          "objectCount": 2,
+          "presence": [
+            [
+              3,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 0,
+            "outDegree": 3,
+            "crossAppIn": 0,
+            "crossAppOut": 3,
+            "pagerank": 0.166083,
+            "community": 1,
+            "buildLayer": 2
+          }
+        },
+        {
+          "id": "(unresolved)",
+          "label": "(unresolved)",
+          "type": "app",
+          "origin": "unresolved",
+          "objectCount": 1,
+          "presence": [
+            [
+              3,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 1,
+            "outDegree": 0,
+            "crossAppIn": 1,
+            "crossAppOut": 0,
+            "pagerank": 0.197453,
+            "community": 1,
+            "buildLayer": 0
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "declared": true,
+          "kinds": {
+            "relates": 1,
+            "uses": 1,
+            "subscribes": 1,
+            "calls": 1
+          },
+          "weight": 4,
+          "objectEdges": 2,
+          "scope": "inter-app",
+          "dependency": "declared",
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "declared": true,
+          "kinds": {
+            "uses": 2,
+            "writes": 1,
+            "calls": 1
+          },
+          "weight": 4,
+          "objectEdges": 2,
+          "scope": "inter-app",
+          "dependency": "declared",
+          "presence": [
+            [
+              3,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03->(unresolved)",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "target": "(unresolved)",
+          "declared": false,
+          "kinds": {
+            "uses": 1,
+            "reads": 1
+          },
+          "weight": 2,
+          "objectEdges": 1,
+          "scope": "inter-app",
+          "dependency": "unresolved",
+          "presence": [
+            [
+              3,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "declared": false,
+          "kinds": {
+            "uses": 1,
+            "reads": 1,
+            "writes": 1
+          },
+          "weight": 3,
+          "objectEdges": 1,
+          "scope": "inter-app",
+          "dependency": "undeclared",
+          "presence": [
+            [
+              4,
+              null
+            ]
+          ],
+          "changes": []
+        }
+      ]
+    }
+  }
+}

@@ -28,6 +28,7 @@ Render focused architecture diagrams from AL source.
 | --- | --- | --- |
 | `graph` | `bca graph [app-root]` | Write an architecture diagram (D2, SVG, PNG, PDF) or model file (JSON). |
 | `watch` | `bca watch [app-root]` | Rebuild a diagram whenever AL source, app.json, or .bca.json changes. |
+| `explore` | `bca explore [app-root]` | Write an interactive 3D dependency explorer: inside one app vs. across apps, filterable, replayable over Git history. |
 
 ### Analyze
 

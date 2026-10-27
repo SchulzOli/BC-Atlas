@@ -16,6 +16,7 @@ import { runHealthCheck } from "./commands/check.js";
 import { runAutomation } from "./automation/run.js";
 import { applySetup, createPlan } from "./automation/setup.js";
 import { checkForUpdate } from "./commands/update.js";
+import { writeExplorer } from "./commands/explore.js";
 import { generateReport } from "./commands/report.js";
 import { resolveOutput, writeArchitecture } from "./output.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
@@ -140,6 +141,34 @@ export function createMcpServer(version = pkg.version) {
     }),
     annotations: { idempotentHint: true }
   }, tool(generateDiagram));
+
+  server.registerTool("bc_atlas_explore", {
+    description: "Write the interactive dependency explorer (HTML) or its temporal graph document (JSON): object and app dependencies classified as intra-app, declared, implicit, undeclared, or unresolved, optionally replayed over Git history.",
+    inputSchema: z.object({
+      ...projectFields,
+      output: z.string().min(1).describe("Output file path (.html or .json)"),
+      format: z.enum(["html", "json"]).optional(),
+      lens: z.enum(["dependency"]).optional(),
+      history: z.boolean().optional(),
+      maxCommits: z.number().int().positive().optional(),
+      since: z.string().optional(),
+      title: z.string().optional()
+    }),
+    annotations: { idempotentHint: true }
+  }, tool(async ({ path: input, ...values }) => {
+    const { document, file, format } = await writeExplorer(input, values);
+    return {
+      output: file,
+      format,
+      frames: document.timeline.frames.length,
+      objects: document.levels.object.nodes.length,
+      dependencies: document.levels.object.edges.length,
+      crossApp: document.levels.object.edges.filter(({ scope }) => scope === "inter-app").length,
+      apps: document.levels.app.nodes.map(({ id, label, origin }) => ({ id, label, origin })),
+      appDependencies: document.levels.app.edges.map(({ source, target, dependency, objectEdges }) =>
+        ({ source, target, dependency, objectEdges }))
+    };
+  }));
 
   server.registerTool("bc_atlas_check", {
     description: "Assess architecture health: cycles, policy violations, fan-in/fan-out hot spots, diagnostics, and unresolved references.",

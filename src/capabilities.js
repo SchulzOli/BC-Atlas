@@ -141,6 +141,23 @@ const checkOptions = {
   ...projectOptions
 };
 
+const exploreOptions = {
+  output: string("Output file path.", { group: OUTPUT, short: "o", value: "path", default: "bc-atlas-explorer.html" }),
+  format: string("html: interactive offline explorer; json: the temporal graph document.", {
+    group: OUTPUT,
+    short: "f",
+    enum: ["html", "json"]
+  }),
+  lens: string("Relationship family to explore.", { group: SELECTION, enum: ["dependency"], default: "dependency" }),
+  history: flag("Replay Git history: one frame per commit that changed AL files or app.json.", { group: "Timeline" }),
+  maxCommits: string("Most frames to replay; older commits are sampled evenly.", { group: "Timeline", value: "n", default: "60" }),
+  since: string("Only replay commits after this date (anything git log --since accepts).", { group: "Timeline", value: "date" }),
+  title: string("Explorer title.", { group: OUTPUT, value: "text" }),
+  ...filterOptions,
+  projectRoot: projectOptions.projectRoot,
+  config: projectOptions.config
+};
+
 const docsFormat = string("Output mode.", { group: OUTPUT, enum: ["text", "json"], default: "text" });
 
 const cliName = (name) => `--${name.replaceAll(/([a-z])([A-Z])/gu, "$1-$2").toLowerCase()}`;
@@ -330,6 +347,24 @@ export function createCapabilities(version) {
         },
         output: { type: "process", termination: "SIGINT" },
         examples: ["bca watch ./app --view module -o modules.svg"]
+      }),
+      command({
+        id: "explore",
+        area: "visualize",
+        argv: ["bca", "explore", "[app-root]"],
+        purpose: "Write an interactive 3D dependency explorer: inside one app vs. across apps, filterable, replayable over Git history.",
+        options: exploreOptions,
+        output: { type: "file", pathOption: "output", default: "bc-atlas-explorer.html" },
+        rules: [
+          "html is one self-contained file that works offline; json is the GraphDocument behind it",
+          "--history needs Git; without it the timeline replays the build order (dependencies first)",
+          "edges are classified as intra-app, declared, implicit (Microsoft), undeclared, or unresolved"
+        ],
+        examples: [
+          "bca explore ./workspace -o dependencies.html",
+          "bca explore ./workspace --history --max-commits 120 -o dependencies.html",
+          "bca explore ./app --format json -o dependencies.json"
+        ]
       }),
       command({
         id: "check",

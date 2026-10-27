@@ -62,3 +62,12 @@ await run([
   "--export", "markdown,html,dita,ado-csv,bpmn",
   "--output-dir", path.join("examples", "docs")
 ]);
+
+const { createExplorerExample } = await import("./explorer-example.js");
+const explorer = await createExplorerExample(root);
+await fs.mkdir(path.join(root, "examples", "explorer"), { recursive: true });
+await fs.writeFile(
+  path.join(root, "examples", "explorer", "dependencies.json"),
+  `${JSON.stringify(explorer, null, 2)}\n`
+);
+console.log("Wrote examples/explorer/dependencies.json");

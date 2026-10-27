@@ -7,7 +7,7 @@ function wildcard(pattern) {
   return new RegExp(`^${escaped}$`, "iu");
 }
 
-function findCycles(objects, edges) {
+export function findCycles(objects, edges) {
   const keys = new Set(objects.map(({ key }) => key));
   const graph = new Map([...keys].map((key) => [key, []]));
   for (const edge of edges) {

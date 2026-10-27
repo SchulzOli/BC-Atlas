@@ -20,6 +20,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Get started | `report` | Write a complete architecture report: overview, health, and diagrams. |
 | Visualize | `graph` | Write a diagram (D2, SVG, PNG, PDF) or model file (JSON). Default command. |
 | Visualize | `watch` | Rebuild a diagram whenever AL source, `app.json`, or `.bca.json` changes. |
+| Visualize | `explore` | Write an interactive 3D dependency explorer (HTML) or its graph document (JSON), optionally replayed over Git history. |
 | Analyze | `check` | Score architecture health and fail CI on cycles, policy violations, or diagnostics. |
 | Analyze | `inspect` | Print the resolved architecture model as JSON. |
 | Document | `codegraph` | Generate one linked Markdown page per AL object. |
@@ -45,6 +46,7 @@ bca init [app-root] [options]
 bca report [app-root] [options]
 bca graph [app-root] [options]      # or: bca <app-root> [options]
 bca watch [app-root] [options]
+bca explore [app-root] [options]
 bca check [app-root] [options]
 bca inspect [app-root] [options]
 bca codegraph [app-root] [options]
@@ -312,6 +314,36 @@ Builds once, then watches recursively for AL files, `app.json`, and
 | `--debounce` | milliseconds | Rebuild debounce. Default: `250`. |
 
 Stop with `Ctrl+C`.
+
+### `explore`
+
+```text
+bca explore [app-root] [options]
+```
+
+Writes the interactive dependency explorer: one self-contained HTML file with a
+3D graph of AL objects and apps, filters, and a timeline. Dependencies inside
+one app are kept apart from dependencies across apps. See
+[Dependency explorer](./dependency-explorer.md).
+
+```text
+bca explore ./workspace -o dependencies.html
+bca explore ./workspace --history --max-commits 120 -o dependencies.html
+bca explore ./app --format json -o dependencies.json
+```
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `-o`, `--output` | path | Output path. Default: `bc-atlas-explorer.html`. |
+| `-f`, `--format` | format | `html` (explorer) or `json` (graph document). Inferred from the extension. |
+| `--lens` | lens | Relationship family. Default and currently only value: `dependency`. |
+| `--history` | flag | Replay Git history, one frame per commit that changed AL files or `app.json`. |
+| `--max-commits` | integer | Most frames to replay; older commits are sampled evenly. Default: `60`. |
+| `--since` | date | Only replay commits after this date (`git log --since` syntax). |
+| `--title` | text | Explorer title. |
+| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `graph`. |
+| `--project-root` | path | Analyze a wider workspace; the positional path becomes the selection. |
+| `--config` | path | Configuration file. |
 
 ## Analyze
 

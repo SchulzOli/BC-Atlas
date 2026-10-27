@@ -34,6 +34,7 @@ bca update    # new version? see what changed and update everything in one step
 | | `bca report` | One Markdown page with an at-a-glance table, six architecture diagrams, and the health summary. [Example](./examples/report/README.md) |
 | **Visualize** | `bca graph` | D2, SVG, PNG, PDF, or JSON for ten focused views (below). |
 | | `bca watch` | The same diagram, rebuilt on every AL change. |
+| | `bca explore` | An interactive 3D dependency explorer: inside one app vs. across apps, filterable, replayable over Git history. [Guide](./docs/dependency-explorer.md) |
 | **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, hot spots, diagnostics - with a CI exit code. |
 | | `bca inspect` | The resolved architecture model as JSON for scripts. |
 | **Document** | `bca codegraph` | One linked Markdown page per AL object. |
@@ -60,6 +61,22 @@ options and examples.
 | `events` | Which subscribers react to which publishers? | `bca graph --view events --focus OnPosted -o events.svg` |
 | `ui` | How do pages, actions, and source tables connect? | `bca graph --view ui --focus "Sales Order" -o ui.svg` |
 | `workflow` | What happens after an action or entry point? | `bca graph --view workflow --entry action:Release -o flow.svg` |
+
+### Interactive dependency explorer
+
+`bca explore` writes one offline HTML file with a 3D graph of every AL object
+and app. Dependencies inside one app stay gray; dependencies across apps are
+checked against `app.json` and colored as declared, implicit (Microsoft),
+undeclared, or unresolved. Filter by app, class, type, or relation kind,
+switch to the app level, and press play: with `--history` the timeline replays
+how objects and dependencies were added, changed, and removed commit by
+commit.
+
+```sh
+bca explore ./workspace --history -o dependencies.html
+```
+
+![Dependency explorer with three apps, an undeclared cross-app dependency, and the commit timeline](./docs/generated/images/explorer-view.png)
 
 ### Screenshots
 

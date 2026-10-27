@@ -7,6 +7,7 @@ import { describeError, UsageError } from "./cli/errors.js";
 import { commandHelp, docsOverviewHelp, overviewHelp } from "./cli/help.js";
 import { graphCommand, inspectCommand, watchCommand } from "./commands/architecture.js";
 import { checkCommand } from "./commands/check.js";
+import { exploreCommand } from "./commands/explore.js";
 import { initCommand } from "./commands/init.js";
 import { reportCommand } from "./commands/report.js";
 import { runCommand } from "./commands/run.js";
@@ -41,6 +42,7 @@ const HANDLERS = {
   update: updateCommand,
   graph: graphCommand,
   watch: watchCommand,
+  explore: exploreCommand,
   check: checkCommand,
   inspect: inspectCommand,
   codegraph: codegraphCommand,

@@ -1,0 +1,15 @@
+{
+  "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+  "name": "Contoso Integration",
+  "publisher": "BC Atlas contributors",
+  "version": "1.0.0.0",
+  "runtime": "13.0",
+  "dependencies": [
+    {
+      "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+      "name": "Contoso Sales",
+      "publisher": "BC Atlas contributors",
+      "version": "1.0.0.0"
+    }
+  ]
+}

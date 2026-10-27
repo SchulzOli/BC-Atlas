@@ -28,6 +28,14 @@ as Markdown, a single [HTML file](./docs/index.html), DITA 1.3 tasks, and an
 Azure DevOps test-case CSV. The app's `Translations` folder contains a German
 XLIFF file; try `--language de-DE` to see translated output.
 
+`multi-app` is a workspace with three apps that depend on each other, one of
+them without declaring it. `npm run examples` replays it as a Git history and
+writes the [dependency explorer example](./explorer/README.md):
+
+```sh
+node src/cli.js explore examples/multi-app -o dependencies.html
+```
+
 You can also explore other views:
 
 ```sh

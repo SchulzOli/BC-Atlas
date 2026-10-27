@@ -17,7 +17,11 @@ function matchesAny(value, patterns = []) {
   return patterns.some((pattern) => globToRegExp(pattern).test(value));
 }
 
-export function filterModel(model, options = {}) {
+/**
+ * Returns a predicate for workspace objects that honors --type, --namespace,
+ * --include, --exclude, and the focus path.
+ */
+export function objectFilter(options = {}) {
   const types = new Set(
     (options.types ?? [])
       .flatMap((value) => value.split(","))
@@ -29,7 +33,7 @@ export function filterModel(model, options = {}) {
   const exclude = options.exclude ?? [];
   const focusPath = options.focusPath?.replaceAll("\\", "/").replace(/^\.\//u, "");
 
-  const objects = model.objects.filter((object) => {
+  return (object) => {
     if (object.externalSymbol) return false;
     const searchable = `${object.type}:${object.id ?? ""}:${object.name}`;
     if (types.size && !types.has(object.type)) return false;
@@ -42,7 +46,12 @@ export function filterModel(model, options = {}) {
       return false;
     }
     return !matchesAny(file, exclude) && !matchesAny(searchable, exclude);
-  });
+  };
+}
+
+export function filterModel(model, options = {}) {
+  const focusPath = options.focusPath?.replaceAll("\\", "/").replace(/^\.\//u, "");
+  const objects = model.objects.filter(objectFilter(options));
   const keys = new Set(objects.map(({ key }) => key));
   const objectByKey = new Map(model.objects.map((object) => [object.key, object]));
   const boundaryObjects = new Map();
@@ -671,7 +680,7 @@ function contractsView(model, options = {}) {
   return view;
 }
 
-function subscriberAttribute(attribute) {
+export function subscriberAttribute(attribute) {
   const match = attribute.match(
     /EventSubscriber\s*\(\s*ObjectType::([\w.]+)\s*,\s*([^,]+?)\s*,\s*'((?:''|[^'])*)'/iu
   );
