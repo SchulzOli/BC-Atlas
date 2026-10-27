@@ -93,7 +93,8 @@ export function projectCommits(projectRoot, { since } = {}) {
     .filter(Boolean)
     .map((line) => {
       const [sha, short, date, author, subject] = line.split(FIELD);
-      return { sha, short, date, author, subject };
+      // Git versions print %aI as "Z" or "+00:00"; normalize to UTC for stable output.
+      return { sha, short, date: new Date(date).toISOString(), author, subject };
     });
   return { repository, prefix, commits };
 }
