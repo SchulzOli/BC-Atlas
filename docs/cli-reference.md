@@ -12,14 +12,13 @@ Command-line values override values loaded from `.bca.json`. An omitted
 
 | Area | Command | Purpose |
 | --- | --- | --- |
-| Get started | `app` | Open the BC Atlas app in the browser for one project. Default command: `bca <app-root>`. |
 | Get started | `setup` | Set up a project interactively, or with `--yes`: `.bca.json`, Git hooks, pipelines, schedules. |
 | Get started | `setup plan` | Detect the project and list setup questions with recommended answers. |
 | Get started | `setup apply` | Write `.bca.json`, Git hooks, and a pipeline from setup answers. |
 | Get started | `setup agent` | Add a `/bca-setup` command for Claude Code, Copilot, or Cursor. |
 | Analyze | `check` | Score architecture health and fail CI on cycles, policy violations, architecture violations, or diagnostics. |
 | Analyze | `architecture` | Find a target architecture, list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
-| Export | `export` | Write what the app shows as files: the app as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, a diagram, or the resolved model as JSON. |
+| Export | `export` | Write files: the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, a diagram, or the resolved model as JSON. |
 | Export | `docs list` | List documented UI-test scenarios. |
 | Export | `docs show` | Show one scenario, its prerequisites, and its diagnostics. |
 | Export | `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
@@ -33,7 +32,6 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Integrate | `mcp` | Start the MCP stdio server for AI agents (also installed as `bca-mcp`). |
 
 ```text
-bca app [app-root] [options]        # or: bca <app-root> [options]
 bca setup [app-root] [--yes] [--dry-run]
 bca setup plan [app-root] [options]
 bca setup apply [app-root] [options]
@@ -51,15 +49,15 @@ bca help [<command>] [--format json]
 
 ### Earlier commands
 
-Several commands are now part of `app` and `export`:
+Several commands are now part of `export` and the [VS Code extension](./vscode.md):
 
 | Before | Now |
 | --- | --- |
 | `bca init` | `bca setup` (it writes `.bca.json`), or `bca setup apply --hooks none --ci none --editor none --schedule none` for the file alone |
 | `bca report` | `bca export --view report` (`--output-dir` is now `-o`) |
-| `bca graph`, `bca <app-root>` with diagram options | `bca export --view <view>`; `bca <app-root>` now opens the app |
-| `bca watch` | `bca export --view <view> --watch`, or the app, which updates itself |
-| `bca explore` | `bca export --view explorer`, or the app's Dependencies page |
+| `bca graph`, `bca <app-root>` | `bca export --view <view>` |
+| `bca watch` | `bca export --view <view> --watch`, or the VS Code extension, which updates itself |
+| `bca explore` | `bca export --view explorer`, or the Dependencies page in VS Code |
 | `bca inspect` | `bca export --view <view> --format json` (stdout) |
 | `bca codegraph` | `bca export --view catalog` (`--output-dir` is now `-o`) |
 | `bca capabilities` | `bca help --format json` |
@@ -75,32 +73,6 @@ Several commands are now part of `app` and `export`:
 Global flags: `-h`, `--help` shows help; `-V`, `--version` shows the version.
 
 ## Get started
-
-### `app`
-
-```text
-bca app [app-root] [--port <port>] [--no-open]
-bca <app-root>
-```
-
-Analyzes the project, starts a local web server, and opens the BC Atlas app
-in the browser: overview, health, architecture, 3D dependencies, diagrams,
-objects, and docs on one screen. The app re-analyzes when AL files,
-`app.json`, `.bca.json`, or the architecture baseline change, and open pages
-refresh. Stop it with `Ctrl+C`. See [The BC Atlas app](./app.md).
-
-| Option | Value | Description |
-| --- | --- | --- |
-| `--port` | port | Port on localhost. Default: `4317`, or the next free one. |
-| `--no-open` | flag | Print the URL without opening a browser. |
-| `--paths` | path or glob | Only analyze AL files in these folders. Repeatable. |
-| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `export`. |
-| `--project-root` | path | Analyze a wider workspace; the positional path becomes the focus. |
-| `--config` | path | Configuration file. |
-
-The server listens on `127.0.0.1` only. Changes from the app (adopting an
-architecture, accepting violations) need a token that only the page the
-command served knows.
 
 ### `setup`
 
@@ -253,11 +225,11 @@ unresolved references. Exits with `1` when a finding reaches `--fail-on`. See
 bca export [app-root] [--view <what>] [-o <path>] [options]
 ```
 
-Writes what the app shows as files. `--view` selects what:
+Writes what the VS Code extension shows as files. `--view` selects what:
 
 | `--view` | Writes | Default output | Formats |
 | --- | --- | --- | --- |
-| `app` (default) | The app as one self-contained, offline HTML file: every page, the report diagrams, the 3D explorer, and the docs. | `bc-atlas.html` | `html` |
+| `app` (default) | The BC Atlas pages as one self-contained, offline HTML file to share: every page, the report diagrams, the 3D explorer, and the docs. | `bc-atlas.html` | `html` |
 | `report` | Markdown report: `README.md` with an at-a-glance table, one section and diagram per view, the health summary, and a regeneration command. See [Architecture reports](./reports.md). | `docs/atlas` | `svg` or `d2` diagrams |
 | `explorer` | The interactive 3D dependency explorer, or its graph document. See [Dependency explorer](./dependency-explorer.md). | `bc-atlas-explorer.html` | `html` or `json` |
 | `catalog` | One linked Markdown page per AL object. See [Code Graph](./code-graph-markdown-design.md). | `docs/codegraph` | Markdown |

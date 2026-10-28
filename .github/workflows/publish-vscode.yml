@@ -1,0 +1,62 @@
+name: Publish VS Code extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact vscode/package.json version to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vscode-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Confirm requested version
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          node --input-type=commonjs <<'NODE'
+          const pkg = require("./vscode/package.json");
+          if (pkg.version !== process.env.EXPECTED_VERSION) {
+            console.error(`Requested ${process.env.EXPECTED_VERSION}, but vscode/package.json contains ${pkg.version}.`);
+            process.exit(1);
+          }
+          NODE
+
+      - run: npm ci
+      - run: npm ci
+        working-directory: vscode
+      - run: npm test
+        working-directory: vscode
+      - run: npm run package -- --out bc-atlas.vsix
+        working-directory: vscode
+
+      # A personal access token of the Marketplace publisher "schulzoli".
+      - name: Publish to the Visual Studio Marketplace
+        working-directory: vscode
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish --packagePath bc-atlas.vsix
+
+      # Open VSX serves VSCodium, Cursor, and other editors; skipped without a token.
+      - name: Publish to Open VSX
+        working-directory: vscode
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then echo "OVSX_PAT is not set; skipping Open VSX."; exit 0; fi
+          npx --yes ovsx@1.2.0 publish bc-atlas.vsix

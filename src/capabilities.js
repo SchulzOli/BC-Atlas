@@ -18,7 +18,7 @@ export const VIEWS = Object.freeze([
 export const FORMATS = Object.freeze(["d2", "json", "svg", "png", "pdf"]);
 // What `bca export` can write besides the diagram views.
 export const EXPORTS = Object.freeze([
-  ["app", "The app as one offline HTML file: every page, the diagrams, the 3D explorer, and the docs"],
+  ["app", "The BC Atlas pages as one offline HTML file to share: every page, the diagrams, the 3D explorer, and the docs"],
   ["report", "Markdown report (README.md) with health, diagrams, and an optional object catalog"],
   ["explorer", "Interactive 3D dependency explorer (HTML), replayable over Git history, or its graph as JSON"],
   ["catalog", "One linked Markdown page per AL object"]
@@ -31,7 +31,7 @@ export const FEATURE_AREAS = Object.freeze([
   {
     id: "start",
     title: "Get started",
-    summary: "Open the app for a project, or set up automation for it."
+    summary: "Set up a project; in VS Code, the BC Atlas extension shows everything in the editor."
   },
   {
     id: "analyze",
@@ -193,15 +193,6 @@ const blueprintOptions = {
   config: projectOptions.config
 };
 
-const appOptions = {
-  port: string("Port on localhost (default: 4317, or the next free one).", { value: "port" }),
-  noOpen: flag("Do not open a browser."),
-  paths: pathsOption,
-  ...filterOptions,
-  projectRoot: projectOptions.projectRoot,
-  config: projectOptions.config
-};
-
 const docsFormat = string("Output mode.", { group: OUTPUT, enum: ["text", "json"], default: "text" });
 
 const cliName = (name) => `--${name.replaceAll(/([a-z])([A-Z])/gu, "$1-$2").toLowerCase()}`;
@@ -244,20 +235,6 @@ export function createCapabilities(version) {
     exports: EXPORTS.map(([id, summary]) => ({ id, summary })),
     views: VIEWS.map(([id, summary]) => ({ id, summary })),
     commands: [
-      command({
-        id: "app",
-        area: "start",
-        argv: ["bca", "app", "[app-root]"],
-        aliases: ["bca <app-root>"],
-        purpose: "Open BC Atlas in the browser: overview, health, architecture, 3D dependencies, diagrams, objects, and docs for one project, updated when AL files change.",
-        options: appOptions,
-        output: { type: "process", transport: "http", termination: "SIGINT" },
-        rules: [
-          "Listens on localhost only; changes (adopting an architecture, accepting violations) need the token of the page the command opened.",
-          "Without a terminal or browser, use export --view app for the same pages as one offline file."
-        ],
-        examples: ["bca app", "bca ./app", "bca app ./workspace --port 8080 --no-open"]
-      }),
       command({
         id: "setup",
         area: "start",
@@ -371,7 +348,7 @@ export function createCapabilities(version) {
         id: "export",
         area: "export",
         argv: ["bca", "export", "[app-root]"],
-        purpose: "Write what the app shows as files: the app as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view.",
+        purpose: "Write files: the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view.",
         options: exportOptions,
         output: { type: "file", pathOption: "output", default: "bc-atlas.html" },
         rules: [

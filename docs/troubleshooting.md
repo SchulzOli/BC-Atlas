@@ -8,26 +8,27 @@ Run `npm install --global bc-atlas`. For a checkout, run `npm ci` and
 ## "unknown command or path"
 
 The first argument is neither a command nor an existing path. Run `bca` to see
-all commands. `bca <path>` is a shortcut for `bca app <path>`, so check the
-path for typos.
+all commands. A path alone is not a command: use `bca check <path>` or
+`bca export <path>`, or open the folder in VS Code with the BC Atlas extension.
 
 ## "unknown command" for `graph`, `report`, `explore`, `inspect`, ...
 
-These commands are now part of `bca export` and `bca app`. See the table
+These commands are now part of `bca export` and the VS Code extension. See the table
 [Earlier commands](./cli-reference.md#earlier-commands) in the CLI
 reference.
 
-## The app does not open in the browser
+## The BC Atlas extension shows nothing
 
-`bca app` prints its URL (`http://127.0.0.1:4317/` by default). Open it
-yourself when no browser starts, for example in a container or over SSH (use
-port forwarding there). `--port` selects another port; `--no-open` skips the
-browser. The app only answers on the local machine.
+The extension starts when the workspace contains an `app.json`. Run
+**BC Atlas: Show Output** for the analysis log and **BC Atlas: Select
+Project…** to choose the app, or a folder above several apps. The engine needs
+Node.js 22: VS Code 1.101 or later brings it; for older versions set
+`bcAtlas.nodePath` to a Node.js 22 executable.
 
 ## "serve" is no longer available
 
 The documentation server (`bca serve`, `bca docs serve`) was removed in 0.6.0.
-Use `bca app` for a browsable overview, `bca export --view report` for a
+Use the BC Atlas extension in VS Code for a browsable overview, `bca export --view report` for a
 static one in any Markdown viewer and your repository host, and
 `bca docs ...` for documentation metadata.
 
@@ -58,11 +59,11 @@ when you do not need raster or PDF output.
 
 ## A diagram is too large
 
-Use the app or `bca export --view report` for an overview, then select a
+Use the BC Atlas panel in VS Code or `bca export --view report` for an overview, then select a
 focused view. Add filters. The bundled SVG renderer draws at most 1,500 nodes;
 larger views (the project view of the Base Application has about 9,500) stop
 with a message and keep the `.d2` file, which the `d2` executable can render
-with more memory. In the app, the Diagrams page has a namespace filter.
+with more memory. In VS Code, the Diagrams page has a namespace filter.
 Reduce `--max-edges` only after you select the required scope.
 
 ## Many unresolved references

@@ -1,5 +1,5 @@
-// Assembles the BC Atlas app page: the shared theme, the app styles and
-// script, and either the live-server settings or an embedded snapshot.
+// Assembles the BC Atlas pages: the shared theme, the styles and script, and
+// either the VS Code bridge settings or an embedded snapshot.
 import { readFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 
@@ -20,12 +20,13 @@ const embed = (value) => JSON.stringify(value)
 const packed = (text) => gzipSync(text, { level: 9 }).toString("base64");
 
 /**
- * @param mode "live" (served by bca app) or "static" (one offline file)
- * @param token the live server's write token
+ * @param mode "vscode" (a webview of the VS Code extension, which answers the
+ *   page's requests) or "static" (one offline file)
  * @param snapshot for static pages: the data every page reads, plus the
  *   explorer and documentation pages as HTML strings
+ * @param csp a Content-Security-Policy for the page (the extension's webview)
  */
-export function renderAppHtml({ mode, token, snapshot, title = "BC Atlas" }) {
+export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
   let boot;
   if (mode === "static") {
     const { explorerHtml, docsHtml, ...data } = snapshot;
@@ -35,11 +36,14 @@ export function renderAppHtml({ mode, token, snapshot, title = "BC Atlas" }) {
       explorerHtml ? `window.BCA_EXPLORER_GZIP = "${packed(explorerHtml)}";` : "",
       docsHtml ? `window.BCA_DOCS_GZIP = "${packed(docsHtml)}";` : ""
     ].join("\n");
+  } else if (mode === "vscode") {
+    boot = `window.BCA_APP = ${embed({ mode, version: pkg.version })};`;
   } else {
-    boot = `window.BCA_APP = ${embed({ mode: "live", token, version: pkg.version })};`;
+    throw new Error(`unknown page mode "${mode}"`);
   }
   // Function replacements keep "$" sequences literal.
   return read("index.html")
+    .replace('<meta charset="utf-8">', () => `<meta charset="utf-8">${csp ? `\n<meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}">` : ""}`)
     .replace("__TITLE__", () => escapeHtml(title))
     .replace("__GENERATOR__", () => `BC Atlas ${pkg.version}`)
     .replace("/*__STYLE__*/", () => `${theme()}\n${read("app.css")}`)

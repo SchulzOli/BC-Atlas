@@ -93,6 +93,8 @@ a.stat:hover { border-color: var(--border-strong); text-decoration: none; }
 .btn:disabled { opacity: 0.55; cursor: default; }
 .icon-button { border: 1px solid var(--border); background: transparent; border-radius: 8px; padding: 4px 9px; cursor: pointer; }
 .icon-button:hover { background: var(--hover); }
+button.link { border: 0; background: none; padding: 0; color: var(--accent); cursor: pointer; text-align: left; font: inherit; }
+button.link:hover { text-decoration: underline; }
 #theme-toggle { display: grid; place-items: center; padding: 5px; }
 #theme-toggle svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; }
 kbd { font: 11px var(--mono); border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--surface); }

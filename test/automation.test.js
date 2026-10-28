@@ -213,7 +213,6 @@ test("setup adds VS Code tasks next to existing tasks for the local loop", () =>
       "BC Atlas: User documentation",
       "BC Atlas: Run pre-commit hook",
       "BC Atlas: Run pre-push hook",
-      "BC Atlas: Open the app",
       "BC Atlas: Set up automation"
     ]);
     const check = tasks.find(({ label }) => label === "BC Atlas: Health check");
@@ -224,7 +223,7 @@ test("setup adds VS Code tasks next to existing tasks for the local loop", () =>
       "Core must not depend on UI", "src/Sales.al", "19"
     ]);
     assert.deepEqual(tasks.find(({ label }) => label.endsWith("pre-push hook")).args.slice(-2), ["--trigger", "pre-push"]);
-    assert.equal(readFileSync(path.join(app, ".bca", ".gitignore"), "utf8").trim().split("\n").at(-1), "*");
+    assert.deepEqual(JSON.parse(readFileSync(path.join(app, ".vscode", "extensions.json"), "utf8")).recommendations, ["schulzoli.bc-atlas"]);
 
     writeFileSync(path.join(app, ".vscode", "tasks.json"), "// my tasks\n{ \"version\": \"2.0.0\", \"tasks\": [] }\n");
     const commented = JSON.parse(bca(["setup", "apply", app, "--format", "json", "--ci", "none", "--schedule", "none"]).stdout);

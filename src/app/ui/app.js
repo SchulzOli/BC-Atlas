@@ -1,11 +1,14 @@
-// BC Atlas app: one page per question (overview, health, architecture,
-// dependencies, diagrams, objects, docs). Live pages read the JSON API of
-// `bca app`; exported pages read the same data from an embedded snapshot.
+// BC Atlas pages: one page per question (overview, health, architecture,
+// dependencies, diagrams, objects, docs). In VS Code the extension answers
+// the page's requests (LIVE); exported pages read the same data from an
+// embedded snapshot.
 (async () => {
   "use strict";
 
-  const BOOT = window.BCA_APP ?? { mode: "live" };
-  const LIVE = BOOT.mode === "live";
+  const BOOT = window.BCA_APP ?? { mode: "static" };
+  // VS Code: data can change, and the page can open files and change the architecture.
+  const LIVE = BOOT.mode === "vscode";
+  const vscode = LIVE ? acquireVsCodeApi() : undefined;
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const esc = (value) => String(value ?? "").replace(/[&<>"']/gu, (character) =>
@@ -49,47 +52,58 @@
       }
     };
   }
+  // Requests to the extension: { type: "request", id, method, params } is
+  // answered with { type: "response", id, result } or { id, error }.
   let cache = new Map();
+  let nextRequest = 0;
+  const pending = new Map();
+  addEventListener("message", (event) => {
+    const message = event.data;
+    if (message?.type !== "response" || !pending.has(message.id)) return;
+    const { resolve, reject } = pending.get(message.id);
+    pending.delete(message.id);
+    if (message.error) reject(new Error(message.error));
+    else resolve(message.result);
+  });
 
-  async function fetchJson(path, params = {}) {
-    const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== "" && value !== false));
-    const url = `${path}${query.size ? `?${query}` : ""}`;
-    if (!cache.has(url)) {
-      const promise = fetch(url).then(async (response) => {
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(body.error ?? `${response.status} ${response.statusText}`);
-        return body;
-      });
-      cache.set(url, promise);
-      promise.catch(() => cache.delete(url));
-    }
-    return cache.get(url);
+  function call(method, params = {}) {
+    return new Promise((resolve, reject) => {
+      const id = ++nextRequest;
+      pending.set(id, { resolve, reject });
+      vscode.postMessage({ type: "request", id, method, params });
+    });
   }
 
-  async function post(path, body = {}) {
-    const response = await fetch(path, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-bca-token": BOOT.token },
-      body: JSON.stringify(body)
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error ?? response.statusText);
-    return result;
+  // Read requests are cached until the source changes.
+  function read(method, params = {}) {
+    const clean = Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== "" && value !== false));
+    const key = `${method}:${JSON.stringify(clean)}`;
+    if (!cache.has(key)) {
+      const promise = call(method, clean);
+      cache.set(key, promise);
+      promise.catch(() => cache.delete(key));
+    }
+    return cache.get(key);
   }
 
   const api = {
-    overview: () => LIVE ? fetchJson("/api/overview") : SNAPSHOT.overview,
-    health: () => LIVE ? fetchJson("/api/health") : SNAPSHOT.health,
-    architecture: (settings = {}) => LIVE ? fetchJson("/api/architecture", settings) : SNAPSHOT.architecture,
-    objects: () => LIVE ? fetchJson("/api/objects") : SNAPSHOT.objects,
-    object: async (id) => (LIVE ? fetchJson("/api/object", { id }) : snapshotObject(id)),
-    views: () => LIVE ? fetchJson("/api/views") : SNAPSHOT.views,
+    overview: () => LIVE ? read("overview") : SNAPSHOT.overview,
+    health: () => LIVE ? read("health") : SNAPSHOT.health,
+    architecture: (settings = {}) => LIVE ? read("architecture", settings) : SNAPSHOT.architecture,
+    objects: () => LIVE ? read("objects") : SNAPSHOT.objects,
+    object: async (id) => (LIVE ? read("object", { id }) : snapshotObject(id)),
+    views: () => LIVE ? read("views") : SNAPSHOT.views,
     diagram: async (settings) => {
-      if (LIVE) return fetchJson("/api/diagram", settings);
+      if (LIVE) return read("diagram", settings);
       const diagram = SNAPSHOT.diagrams[settings.view];
-      if (!diagram) throw new Error("This view is not part of the export; open the project with bca app to render it.");
+      if (!diagram) throw new Error("This view is not part of the export; open the project in VS Code with the BC Atlas extension to render it.");
       return diagram;
-    }
+    },
+    explorer: (settings) => LIVE ? read("explorer", settings) : embeddedPage("explorer", window.BCA_EXPLORER_GZIP),
+    docsHtml: () => LIVE ? read("docsHtml") : embeddedPage("docs", window.BCA_DOCS_GZIP),
+    // Only in VS Code: the extension opens files and saves downloads.
+    openFile: (file, line) => call("openFile", { file, line }),
+    saveFile: (name, content) => call("saveFile", { name, content })
   };
 
   // Embedded pages of an exported app load through srcdoc: hosts such as
@@ -103,7 +117,9 @@
   // ----------------------------------------------------------------- theme
   const THEME_KEY = "bca-theme";
   const storedTheme = (() => { try { return localStorage.getItem(THEME_KEY); } catch { return undefined; } })();
-  let theme = storedTheme ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  // In VS Code the page follows the editor's color theme.
+  const editorTheme = () => document.body.classList.contains("vscode-light") || document.body.classList.contains("vscode-high-contrast-light") ? "light" : "dark";
+  let theme = LIVE ? editorTheme() : storedTheme ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   const applyTheme = () => {
     document.documentElement.dataset.theme = theme;
     for (const frame of $$("iframe[data-theme-sync]")) frame.contentWindow?.postMessage({ type: "bca-theme", theme }, "*");
@@ -112,6 +128,14 @@
     }
   };
   applyTheme();
+  if (LIVE) {
+    $("#theme-toggle").hidden = true;
+    new MutationObserver(() => {
+      if (editorTheme() === theme) return;
+      theme = editorTheme();
+      applyTheme();
+    }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  }
   $("#theme-toggle").addEventListener("click", () => {
     theme = theme === "dark" ? "light" : "dark";
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* optional */ }
@@ -481,14 +505,14 @@
         const ok = await confirmDialog("Adopt this architecture?",
           `This saves ${plural(summary.components, "component")} with their layers and allowed dependencies to .bca.json and accepts today's ${plural(summary.violations, "wrong-way dependency", "wrong-way dependencies")} in the baseline. From then on, bca check fails on new ones.`, "Adopt");
         if (!ok) return;
-        const result = await post("/api/architecture/adopt", { ...settings, propose: true, updateBaseline: true }).catch((error) => toast(error.message));
+        const result = await call("adoptArchitecture", { ...settings, propose: true, updateBaseline: true }).catch((error) => toast(error.message));
         if (result) { toast(`Saved to ${result.file}; accepted ${fmt(result.accepted)} violation(s)`); refresh(); go("architecture"); }
       }
       if (action === "baseline") {
         const ok = await confirmDialog("Accept the current violations?",
           `The baseline then holds ${plural(data.violationCount, "violation")}; bca check only fails on new ones. Fixed violations leave the baseline the next time you accept.`, "Accept");
         if (!ok) return;
-        const result = await post("/api/architecture/baseline").catch((error) => toast(error.message));
+        const result = await call("updateBaseline").catch((error) => toast(error.message));
         if (result) { toast(`Accepted ${fmt(result.accepted)} violation(s)`); refresh(); render(); }
       }
     };
@@ -514,8 +538,11 @@
       const select = params.get("select");
       if (select) frame.contentWindow?.postMessage({ type: "bca-select", id: select }, "*");
     });
-    if (LIVE) frame.src = `/explorer?${new URLSearchParams({ theme, ...(propose ? { propose: 1 } : {}), ...(history ? { history } : {}), ...(history && last ? { last } : {}) })}`;
-    else frame.srcdoc = await embeddedPage("explorer", window.BCA_EXPLORER_GZIP);
+    try {
+      frame.srcdoc = await api.explorer({ propose: propose ? 1 : undefined, history, last: history ? last : undefined });
+    } catch (error) {
+      $(".frame-wrap", page).innerHTML = `<div class="error-box">${esc(error.message)}</div>`;
+    }
     $("#page-actions").onchange = () => go("dependencies", {
       propose: $("#propose")?.checked ? 1 : undefined,
       history: $("#history")?.value || undefined,
@@ -612,7 +639,7 @@
             <label class="field"><span>Direction</span><select name="direction">${["right", "down", "left", "up"].map((value) => `<option${(params.get("direction") ?? "right") === value ? " selected" : ""}>${value}</option>`).join("")}</select></label>
             <label class="check"><input type="checkbox" name="details" value="1"${params.get("details") ? " checked" : ""}> Member counts</label>
             <label class="check"><input type="checkbox" name="noExternal" value="1"${params.get("noExternal") ? " checked" : ""}> Hide external objects</label>
-            <button class="btn primary">Render</button>` : '<p class="muted small">Exported views use their default settings. Open the project with <code>bca app</code> to change them.</p>'}
+            <button class="btn primary">Render</button>` : '<p class="muted small">Exported views use their default settings. Open the project in VS Code with the BC Atlas extension to change them.</p>'}
         </form>
         <div id="diagram-area">${loading("Rendering the diagram…")}</div>
       </div>`;
@@ -646,7 +673,9 @@
         if (zoom === "fit") controls.fit();
         else if (zoom) controls.zoom(zoom === "in" ? 1.25 : 0.8);
         const format = event.target.closest("[data-download]")?.dataset.download;
-        if (format) {
+        if (format && LIVE) {
+          api.saveFile(`${view}.${format}`, format === "svg" ? diagram.svg : diagram.d2).catch((error) => toast(error.message));
+        } else if (format) {
           const link = document.createElement("a");
           link.href = URL.createObjectURL(new Blob([format === "svg" ? diagram.svg : diagram.d2], { type: format === "svg" ? "image/svg+xml" : "text/plain" }));
           link.download = `${view}.${format}`;
@@ -723,7 +752,7 @@
   async function objectPage(page, { arg }) {
     const object = await api.object(arg);
     const actions = [
-      object.source.editor ? `<a class="btn" href="${esc(object.source.editor)}">Open in VS Code</a>` : "",
+      LIVE && object.source.file ? '<button class="btn primary" data-action="open-source">Open source</button>' : "",
       object.source.url && /^https?:/iu.test(object.source.url) ? `<a class="btn" href="${esc(object.source.url)}" target="_blank" rel="noopener">View source</a>` : "",
       `<a class="btn" href="#/dependencies?${new URLSearchParams({ select: object.id })}">Show in 3D</a>`,
       LIVE ? `<a class="btn" href="#/diagrams?${new URLSearchParams({ view: "object", object: `${object.type}:${object.objectId ?? object.label}` })}">Object diagram</a>` : ""
@@ -731,10 +760,13 @@
     setHeader(object.label,
       `<span class="type">${esc(object.type)}</span>${object.objectId ? ` ${esc(object.objectId)}` : ""} · ${esc(object.namespace ?? "no namespace")}${object.app ? ` · ${esc(object.app)}` : ""} · <span class="mono">${esc(object.source.file ?? "")}${object.source.line ? `:${object.source.line}` : ""}</span>`,
       actions);
+    $("#page-actions").onclick = (event) => {
+      if (event.target.closest('[data-action="open-source"]')) api.openFile(object.source.file, object.source.line).catch((error) => toast(error.message));
+    };
     const members = object.members ?? {};
     const memberCards = [
       members.fields?.length ? `<section class="card"><h2>Fields <span class="muted">${fmt(members.fields.length)}</span></h2><div class="table-scroll"><table class="data"><thead><tr><th class="num">No.</th><th>Name</th><th>Type</th></tr></thead><tbody>${members.fields.map((field) => `<tr><td class="num">${esc(field.number ?? "")}</td><td>${esc(field.name)}</td><td class="mono">${esc(field.type ?? field.kind ?? "")}</td></tr>`).join("")}</tbody></table></div></section>` : "",
-      members.procedures?.length ? `<section class="card"><h2>Procedures and triggers <span class="muted">${fmt(members.procedures.length)}</span></h2><ul class="list">${members.procedures.map((procedure) => `<li><span class="grow mono">${esc(procedure.signature ?? procedure.name)}</span>${procedure.event ? '<span class="pill accent">event</span>' : ""}<span class="muted small nowrap">${esc([procedure.visibility, procedure.kind].filter(Boolean).join(" "))}</span></li>`).join("")}</ul></section>` : "",
+      members.procedures?.length ? `<section class="card"><h2>Procedures and triggers <span class="muted">${fmt(members.procedures.length)}</span></h2><ul class="list">${members.procedures.map((procedure) => `<li><span class="grow mono">${LIVE && procedure.line ? `<button class="link mono" data-open-line="${esc(procedure.line)}" title="Open in the editor">${esc(procedure.signature ?? procedure.name)}</button>` : esc(procedure.signature ?? procedure.name)}</span>${procedure.event ? '<span class="pill accent">event</span>' : ""}<span class="muted small nowrap">${esc([procedure.visibility, procedure.kind].filter(Boolean).join(" "))}</span></li>`).join("")}</ul></section>` : "",
       members.actions?.length ? `<section class="card"><h2>Actions <span class="muted">${fmt(members.actions.length)}</span></h2><ul class="list">${members.actions.map((action) => `<li><span class="grow">${esc(action.name)}</span><span class="muted small">${esc(action.container ?? "")}</span></li>`).join("")}</ul></section>` : "",
       members.parts?.length ? `<section class="card"><h2>Parts <span class="muted">${fmt(members.parts.length)}</span></h2><ul class="list">${members.parts.map((part) => `<li><span class="grow">${esc(part.name)}</span><span class="muted small">${esc(part.target ?? "")}</span></li>`).join("")}</ul></section>` : "",
       object.properties.length ? `<section class="card"><h2>Properties</h2><dl class="facts">${object.properties.map((property) => `<dt>${esc(property.name)}</dt><dd class="mono">${esc(property.value)}</dd>`).join("")}</dl></section>` : ""
@@ -755,6 +787,12 @@
         <section class="card"><h2>Used by <span class="muted">${fmt(object.usedBy.length)}</span></h2>${linkRows(object.usedBy, "No other object uses it.")}</section>
       </div>
       ${memberCards.length ? `<div class="grid">${memberCards.join("")}</div>` : ""}`;
+    page.addEventListener("click", (event) => {
+      const line = event.target.closest("[data-open-line]")?.dataset.openLine;
+      if (!line) return;
+      event.preventDefault();
+      api.openFile(object.source.file, Number(line)).catch((error) => toast(error.message));
+    });
   }
 
   async function docsPage(page) {
@@ -772,8 +810,11 @@
       $(".frame-wrap .loading", page)?.remove();
       applyTheme();
     });
-    if (LIVE) frame.src = "/docs";
-    else frame.srcdoc = await embeddedPage("docs", window.BCA_DOCS_GZIP);
+    try {
+      frame.srcdoc = await api.docsHtml();
+    } catch (error) {
+      $(".frame-wrap", page).innerHTML = `<div class="error-box">${esc(error.message)}</div>`;
+    }
   }
 
   const RENDERERS = {
@@ -827,18 +868,22 @@
   }
 
   if (LIVE) {
-    setStatus("Live", "live");
-    const events = new EventSource("/api/events");
-    events.addEventListener("changed", () => {
-      cache = new Map();
-      setStatus("Updated", "live");
-      toast("The source changed; the page shows the new analysis.");
-      refresh();
-      // The explorer and docs reload on their own when opened again.
-      if (!["dependencies", "docs"].includes(route().page)) render();
+    // Messages from the extension: the source changed, or show a page.
+    addEventListener("message", (event) => {
+      const message = event.data;
+      if (message?.type === "changed") {
+        cache = new Map();
+        setStatus("Updated", "live");
+        toast("The source changed; the page shows the new analysis.");
+        refresh();
+        // The explorer and docs reload on their own when opened again.
+        if (!["dependencies", "docs"].includes(route().page)) render();
+      }
+      if (message?.type === "navigate" && typeof message.hash === "string" && message.hash.startsWith("#/")) {
+        if (location.hash === message.hash) render();
+        else location.hash = message.hash;
+      }
     });
-    events.onerror = () => setStatus("Disconnected", "");
-    events.onopen = () => setStatus("Live", "live");
   } else {
     setStatus(`Exported ${new Date(SNAPSHOT.generatedAt).toLocaleDateString()}`, "");
   }
@@ -856,6 +901,19 @@
     }
   });
 
+  // VS Code webviews treat "#..." links as in-page anchors, so the page
+  // follows its own "#/page" links before the webview sees the click.
+  if (LIVE) {
+    addEventListener("click", (event) => {
+      const link = event.target.closest?.('a[href^="#/"]');
+      if (!link || event.button !== 0 || event.metaKey || event.ctrlKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (location.hash === link.getAttribute("href")) render();
+      else location.hash = link.getAttribute("href");
+    }, true);
+  }
+
   addEventListener("hashchange", render);
   renderNav();
   if (LIVE) setStatus("Analyzing…", "busy");
@@ -864,7 +922,7 @@
     const overview = await api.overview();
     renderNav(overview);
     $("#project-name").textContent = overview.title;
-    if (LIVE) setStatus("Live", "live");
+    if (LIVE) setStatus("Up to date", "live");
   } catch (error) {
     setStatus("Analysis failed", "");
   }

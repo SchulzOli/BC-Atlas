@@ -12,7 +12,7 @@ import { findGitRoot, git, hostOf, remoteUrl } from "./git.js";
 import {
   azurePipeline, GENERATED_MARKER, githubWorkflow, mergeHook, PIPELINE_FILES, validatePipelineSync
 } from "./pipelines.js";
-import { hasJsonComments, mergeTasks, vscodeTasks } from "./vscode.js";
+import { hasJsonComments, mergeRecommendations, mergeTasks, vscodeTasks } from "./vscode.js";
 import { agentFile, AGENTS } from "./agent.js";
 import { mergeDependabot } from "./dependabot.js";
 
@@ -485,8 +485,20 @@ export async function applySetup(input, rawAnswers = {}, { dryRun = false, force
       }
       files.push(await plannedWrite(tasksFile, content, options));
     }
-    files.push(await plannedWrite(path.join(root, ".bca", ".gitignore"), "# Local BC Atlas output, e.g. the live diagram.\n*\n", options));
-    nextSteps.push("VS Code: Terminal > Run Task > BC Atlas: ...");
+    const extensionsFile = path.join(workspace, ".vscode", "extensions.json");
+    const currentExtensions = await readFile(extensionsFile, "utf8").catch(() => undefined);
+    if (currentExtensions !== undefined && hasJsonComments(currentExtensions) && !force) {
+      files.push({ path: portable(path.relative(gitRoot ?? root, extensionsFile)), action: "skip", reason: "contains comments; use --force to rewrite it (comments are removed)" });
+    } else {
+      let recommended;
+      try {
+        recommended = mergeRecommendations(currentExtensions);
+      } catch (error) {
+        throw new Error(`cannot read ${extensionsFile}: ${error.message}`);
+      }
+      if (!recommended.unchanged) files.push(await plannedWrite(extensionsFile, recommended.content, options));
+    }
+    nextSteps.push("VS Code: install the recommended BC Atlas extension; Terminal > Run Task > BC Atlas: ... runs the hooks' tasks");
   }
 
   if (answers.ci !== "none") {

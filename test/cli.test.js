@@ -198,7 +198,7 @@ test("overview help groups every command by feature area", () => {
     for (const heading of ["Get started", "Analyze", "Export", "Integrate"]) {
       assert.match(result.stdout, new RegExp(`^${heading}$`, "mu"));
     }
-    for (const command of ["app", "setup", "check", "architecture", "export", "docs", "run", "update", "mcp"]) {
+    for (const command of ["setup", "check", "architecture", "export", "docs", "run", "update", "mcp"]) {
       assert.match(result.stdout, new RegExp(`^  ${command} `, "mu"));
     }
     for (const removed of ["init", "graph", "watch", "explore", "inspect", "codegraph", "capabilities"]) {
@@ -218,6 +218,8 @@ test("rejects unknown commands, removed commands, and invalid enum values as usa
     ["serve", fixtures],
     ["docs", "serve", fixtures],
     ["grpah"],
+    ["app", fixtures],
+    [fixtures],
     ["graph", fixtures],
     ["inspect", fixtures],
     ["capabilities"],
@@ -375,13 +377,10 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
   assert.deepEqual(contract.areas.map(({ id }) => id), ["start", "analyze", "export", "integrate"]);
   assert.ok(contract.commands.every(({ area }) => contract.areas.some(({ id }) => id === area)));
   assert.deepEqual([...new Set(contract.commands.map(({ id }) => id.split(".")[0]))],
-    ["app", "setup", "check", "architecture", "export", "docs", "run", "update", "mcp"]);
+    ["setup", "check", "architecture", "export", "docs", "run", "update", "mcp"]);
   assert.ok(contract.commands.some(({ argv }) =>
     argv.join(" ") === "bca docs validate <test-root>"));
-  const app = contract.commands.find(({ id }) => id === "app");
-  assert.deepEqual(app.aliases, ["bca <app-root>"]);
-  assert.equal(app.options.port.cli, "--port");
-  assert.equal(app.options.noOpen.type, "boolean");
+  assert.ok(!contract.commands.some(({ id }) => id === "app"), "the app lives in the VS Code extension");
   const exporter = contract.commands.find(({ id }) => id === "export");
   assert.equal(exporter.options.view.default, "app");
   assert.ok(["app", "report", "explorer", "catalog", "project", "workflow"].every((view) => exporter.options.view.enum.includes(view)));

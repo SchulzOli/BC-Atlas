@@ -63,7 +63,7 @@ export async function createSnapshot(workspace, { log = () => {}, history = fals
   const explorerHtml = await workspace.explorer({ history, last });
   return {
     generatedAt: new Date().toISOString(),
-    overview: { ...overview, live: false, root: undefined },
+    overview: { ...overview, live: false, root: undefined, projectRoot: undefined },
     health,
     architecture,
     objects: index.list,

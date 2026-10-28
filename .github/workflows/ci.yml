@@ -32,6 +32,31 @@ jobs:
       - name: Documentation website builds without dead links
         run: npm run site:build
 
+  # The VS Code extension: its tests and a .vsix with the engine inside.
+  vscode:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            vscode/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: vscode
+      - run: npm test
+        working-directory: vscode
+      - run: npm run package -- --out bc-atlas.vsix
+        working-directory: vscode
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bc-atlas-vsix
+          path: vscode/bc-atlas.vsix
+
   test:
     needs: check
     runs-on: ${{ matrix.os }}

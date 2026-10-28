@@ -1,4 +1,4 @@
-// One analyzed AL project, shared by the BC Atlas app (live server) and its
+// One analyzed AL project, shared by the VS Code extension (worker.js) and its
 // static export. Every page reads from here, so the app, `bca check`,
 // `bca architecture`, and `bca export` always show the same numbers.
 import { readFileSync } from "node:fs";
@@ -110,6 +110,8 @@ export class Workspace {
     return {
       title: options.title?.replace(/ architecture$/u, "") ?? (report.summary.apps.length === 1 ? report.summary.apps[0].name : path.basename(this.input)),
       root: this.input,
+      // File paths in findings and object pages are relative to this folder.
+      projectRoot: options.projectRoot,
       version: pkg.version,
       live: this.live,
       updatedAt: this.updatedAt,

@@ -36,6 +36,8 @@ Read the [generated capability summary](./reference/cli-capabilities.md) for the
 
 BC Atlas includes a local MCP server. Install the package, then configure your MCP host to start `bca-mcp` (or `bca mcp`; both start the same server).
 
+In VS Code, the [BC Atlas extension](./vscode.md) registers the server for you: agents in the editor (for example GitHub Copilot in agent mode) list **BC Atlas** among their MCP servers without any configuration.
+
 ### `.mcp.json` example
 
 Copy [the MCP JSON example](./examples/mcp.json) to the configuration location for your MCP host.

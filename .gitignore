@@ -42,7 +42,11 @@ Thumbs.db
 !examples/docs/*.svg
 !examples/docs/diagrams/
 !examples/docs/diagrams/*.svg
+!vscode/media/
+!vscode/media/*
 _output_test
 # Documentation website build
 website/.vitepress/dist/
 website/.vitepress/cache/
+vscode/.build/
+*.vsix

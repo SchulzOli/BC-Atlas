@@ -1,0 +1,141 @@
+{
+  "name": "bc-atlas",
+  "displayName": "BC Atlas",
+  "description": "Architecture, health, dependencies in 3D, diagrams, and documentation for Business Central AL apps, in the editor.",
+  "version": "0.8.0",
+  "publisher": "schulzoli",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "homepage": "https://schulzoli.github.io/BC-Atlas/",
+  "bugs": {
+    "url": "https://github.com/SchulzOli/BC-Atlas/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SchulzOli/BC-Atlas.git",
+    "directory": "vscode"
+  },
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "categories": [
+    "Visualization",
+    "Linters",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "al",
+    "business central",
+    "dynamics 365",
+    "architecture",
+    "dependencies",
+    "clean architecture",
+    "mcp"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/app.json"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "bcAtlas.open", "title": "Open", "category": "BC Atlas", "icon": "$(compass)" },
+      { "command": "bcAtlas.openPage", "title": "Open Page…", "category": "BC Atlas" },
+      { "command": "bcAtlas.showObject", "title": "Show This Object", "category": "BC Atlas" },
+      { "command": "bcAtlas.showObjectIn3D", "title": "Show This Object in 3D", "category": "BC Atlas" },
+      { "command": "bcAtlas.objectDiagram", "title": "Diagram of This Object", "category": "BC Atlas" },
+      { "command": "bcAtlas.check", "title": "Run Health Check", "category": "BC Atlas", "icon": "$(pulse)" },
+      { "command": "bcAtlas.proposeArchitecture", "title": "Propose an Architecture", "category": "BC Atlas" },
+      { "command": "bcAtlas.acceptViolations", "title": "Accept Current Violations in the Baseline", "category": "BC Atlas" },
+      { "command": "bcAtlas.refresh", "title": "Analyze Again", "category": "BC Atlas", "icon": "$(refresh)" },
+      { "command": "bcAtlas.export", "title": "Export…", "category": "BC Atlas", "icon": "$(export)" },
+      { "command": "bcAtlas.generateDocs", "title": "Generate Documentation from UI Tests…", "category": "BC Atlas" },
+      { "command": "bcAtlas.setup", "title": "Set Up Automation (Hooks, Pipeline, Schedule)", "category": "BC Atlas" },
+      { "command": "bcAtlas.runTasks", "title": "Run Tasks of a Trigger…", "category": "BC Atlas" },
+      { "command": "bcAtlas.selectProject", "title": "Select Project…", "category": "BC Atlas" },
+      { "command": "bcAtlas.showOutput", "title": "Show Output", "category": "BC Atlas" }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "bcAtlas.showObject", "when": "resourceExtname == .al" },
+        { "command": "bcAtlas.showObjectIn3D", "when": "resourceExtname == .al" },
+        { "command": "bcAtlas.objectDiagram", "when": "resourceExtname == .al" }
+      ],
+      "editor/context": [
+        { "command": "bcAtlas.showObject", "when": "resourceExtname == .al", "group": "navigation@90" },
+        { "command": "bcAtlas.showObjectIn3D", "when": "resourceExtname == .al", "group": "navigation@91" },
+        { "command": "bcAtlas.objectDiagram", "when": "resourceExtname == .al", "group": "navigation@92" }
+      ],
+      "editor/title": [
+        { "command": "bcAtlas.open", "when": "resourceExtname == .al", "group": "navigation" }
+      ],
+      "view/title": [
+        { "command": "bcAtlas.refresh", "when": "view == bcAtlas.pages", "group": "navigation@1" },
+        { "command": "bcAtlas.check", "when": "view == bcAtlas.pages", "group": "navigation@2" },
+        { "command": "bcAtlas.export", "when": "view == bcAtlas.pages", "group": "navigation@3" },
+        { "command": "bcAtlas.proposeArchitecture", "when": "view == bcAtlas.pages", "group": "more@1" },
+        { "command": "bcAtlas.acceptViolations", "when": "view == bcAtlas.pages", "group": "more@2" },
+        { "command": "bcAtlas.generateDocs", "when": "view == bcAtlas.pages", "group": "more@3" },
+        { "command": "bcAtlas.setup", "when": "view == bcAtlas.pages", "group": "more@4" },
+        { "command": "bcAtlas.runTasks", "when": "view == bcAtlas.pages", "group": "more@5" },
+        { "command": "bcAtlas.selectProject", "when": "view == bcAtlas.pages", "group": "more@6" }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "bcAtlas", "title": "BC Atlas", "icon": "media/atlas.svg" }
+      ]
+    },
+    "views": {
+      "bcAtlas": [
+        { "id": "bcAtlas.pages", "name": "Pages", "icon": "media/atlas.svg" }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "bcAtlas.pages",
+        "contents": "BC Atlas analyzes the AL apps in this workspace.\n[Open BC Atlas](command:bcAtlas.open)\n[Select Project](command:bcAtlas.selectProject)"
+      }
+    ],
+    "configuration": {
+      "title": "BC Atlas",
+      "properties": {
+        "bcAtlas.project": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Folder to analyze, relative to the first workspace folder: an app (with `app.json`) or a folder above several apps. Empty: the first app in the workspace, or the workspace folder when it holds several apps."
+        },
+        "bcAtlas.paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "markdownDescription": "Only analyze AL files in these folders or matching these globs, relative to the project (like `--paths`). Speeds up large repositories such as BCApps."
+        },
+        "bcAtlas.problems": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show health and architecture findings in the Problems panel."
+        },
+        "bcAtlas.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show how often each AL object is used, and its wrong-way dependencies, above its declaration."
+        },
+        "bcAtlas.nodePath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Node.js 22 or later to run the BC Atlas engine. Empty: the runtime built into VS Code."
+        }
+      }
+    },
+    "mcpServerDefinitionProviders": [
+      { "id": "bcAtlas.mcp", "label": "BC Atlas" }
+    ]
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "package": "node scripts/package.js"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "4.0.0"
+  }
+}

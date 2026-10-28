@@ -81,7 +81,7 @@ export async function refreshCache() {
 export function updateCheckEnabled({ command, values = {}, env = process.env, stderrIsTTY = process.stderr.isTTY } = {}) {
   if (!stderrIsTTY) return false;
   if (env.CI || env.BCA_NO_UPDATE_CHECK || env.NO_UPDATE_NOTIFIER || env.GIT_DIR || env.HUSKY_GIT_PARAMS) return false;
-  if (["run", "mcp", "update", "app"].includes(command) || values.watch) return false;
+  if (["run", "mcp", "update"].includes(command) || values.watch) return false;
   return values.format !== "json";
 }
 

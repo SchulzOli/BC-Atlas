@@ -2,7 +2,7 @@
 
 The dependency explorer turns an AL app or a multi-app workspace into an
 interactive 3D graph you can rotate, filter, search, and replay over time. It
-is the Dependencies page of the app (`bca app`), and
+is the Dependencies page of the BC Atlas panel in [VS Code](./vscode.md), and
 `bca export --view explorer` writes it as a file. It answers two
 questions the static diagrams cannot answer at a glance:
 
