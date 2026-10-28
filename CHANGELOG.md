@@ -8,7 +8,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- BC Atlas for VS Code (`vscode/`, `schulzoli.bc-atlas`): everything BC Atlas
+- BC Atlas for VS Code (`vscode/`, `SchulzOli.bc-atlas`): everything BC Atlas
   does, in the editor, with the engine inside. A panel with one look and feel
   for all of it: an overview, health findings, the architecture (layers, work
   items, components; adopt a proposal or accept violations with one click),

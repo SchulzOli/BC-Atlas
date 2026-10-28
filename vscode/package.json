@@ -3,7 +3,7 @@
   "displayName": "BC Atlas: AL Architecture & Dependencies",
   "description": "See and enforce the architecture of Business Central AL apps: dependencies in 3D, clean-architecture checks with fixes, health in the Problems panel, CodeLens, diagrams, and an MCP server for AI agents.",
   "version": "0.8.0",
-  "publisher": "schulzoli",
+  "publisher": "SchulzOli",
   "license": "MIT",
   "icon": "media/icon.png",
   "galleryBanner": {

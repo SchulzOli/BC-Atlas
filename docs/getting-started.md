@@ -22,7 +22,7 @@ and Markdown output need no compiler or extra download.
 ## 1. Install
 
 - **In VS Code** (daily work): install the **BC Atlas** extension
-  (`schulzoli.bc-atlas`). It brings the engine with it; nothing else is needed.
+  (`SchulzOli.bc-atlas`). It brings the engine with it; nothing else is needed.
 - **On the command line, in Git hooks and pipelines**:
 
   ```sh
