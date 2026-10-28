@@ -192,7 +192,7 @@ bca architecture ./app --extract Sales --format markdown -o extract-sales.md
 | `-f`, `--format` | format | `text`, `markdown`, or `json`. Default: `text`. |
 | `-o`, `--output` | path | Write the report to a file instead of stdout. |
 | `--propose` | flag | Propose an architecture even when `.bca.json` defines one. |
-| `--group-by` | mode | `auto`, `namespace`, `folder`, `module`, or `app`. Default `auto`: modules (or apps), and any that is still too large split by namespace. |
+| `--group-by` | mode | `auto`, `coupling`, `namespace`, `folder`, `module`, or `app`. Default `auto`: modules (or apps), and any that is still too large split by namespace. `coupling`: namespaces that are tightly coupled to each other. |
 | `--depth` | integer | Namespace or folder segments per component. Default: split until no component holds more than 15% of the objects. |
 | `--min-objects` | integer | Merge smaller groups into the component they depend on most. Default: `1`. |
 | `--extract` | component | Plan extracting this component as an app: blockers, dependencies, `app.json`, tables whose data moves, and steps. Never fails the command. |

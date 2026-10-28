@@ -82,7 +82,11 @@
     const degrees = level.nodes.map(({ metrics }) => metrics.inDegree + metrics.outDegree).sort((a, b) => a - b);
     const maxLinks = Math.max(10, Math.min(200, degrees[Math.floor(degrees.length * 0.95)] ?? 10));
     level.edges.forEach((edge) => { edge.firstFrame = edge.presence[0][0]; });
-    levels[name] = { ...level, byId, maxRank, maxLayer, maxLinks };
+    // Coupling (how hard a dependency is to cut) sets how close linked nodes sit;
+    // the 95th percentile counts as tight, so a few extreme edges do not flatten the rest.
+    const couplings = level.edges.map(({ coupling }) => coupling ?? 1).sort((a, b) => a - b);
+    const tightCoupling = Math.max(1, couplings[Math.floor(couplings.length * 0.95)] ?? 1);
+    levels[name] = { ...level, byId, maxRank, maxLayer, maxLinks, tightCoupling };
   }
 
   const count = (items, read) => {
@@ -172,6 +176,7 @@
   }
 
   function computeVisible() {
+    refreshGroups();
     const level = levels[state.level];
     const typeOk = (node) => state.level !== "object" || state.types.has(node.type);
     const nodeState = new Map();
@@ -458,6 +463,41 @@
   }
 
   // ----------------------------------------------------------------- layout
+  // What drifts together follows the color: apps, components, communities,
+  // object types, or build layers each get a place of their own.
+  function groupKey(node) {
+    switch (state.colorBy) {
+      case "community": return `community:${node.metrics.community}`;
+      case "type": return `type:${node.type}`;
+      case "layer": return `layer:${node.metrics.buildLayer}`;
+      case "app": return `app:${node.app}`;
+      case "component": return node.component ? `component:${node.component}` : `app:${node.app}`;
+      default: return ARCHITECTURE && node.component ? `component:${node.component}` : `app:${node.app}`;
+    }
+  }
+  let groupIndex = new Map();
+  let groupCount = 1;
+  function refreshGroups() {
+    const sizes = new Map();
+    for (const node of levels[state.level].nodes) sizes.set(groupKey(node), (sizes.get(groupKey(node)) ?? 0) + 1);
+    // Groups of one or two (loose objects) share a place instead of scattering the space.
+    const ranked = [...sizes].filter(([, size]) => size > 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([key]) => key);
+    groupCount = Math.max(1, ranked.length + (ranked.length < sizes.size ? 1 : 0));
+    // Places on the sphere in golden-ratio order, so consecutive (large) groups land far apart.
+    const fraction = (value) => value - Math.floor(value);
+    const places = [...Array(groupCount).keys()].sort((a, b) => fraction(a * 0.6180339887) - fraction(b * 0.6180339887));
+    groupIndex = new Map([...sizes.keys()].map((key) => [key, places[ranked.includes(key) ? ranked.indexOf(key) : groupCount - 1]]));
+  }
+  function groupAnchor(node) {
+    const total = groupCount;
+    const index = groupIndex.get(groupKey(node)) ?? 0;
+    const radius = (90 + 30 * Math.sqrt(total)) * state.spacing;
+    const y = total === 1 ? 0 : 1 - (index / (total - 1)) * 2;
+    const ring = Math.sqrt(1 - y * y);
+    const theta = Math.PI * (3 - Math.sqrt(5)) * index;
+    return { x: Math.cos(theta) * ring * radius, y: y * radius * 0.6, z: Math.sin(theta) * ring * radius };
+  }
+
   function appAnchor(appId) {
     const app = apps.get(appId);
     const total = Math.max(1, apps.size);
@@ -481,14 +521,14 @@
   }
 
   // Open space spreads the cluster centers with the size of the graph.
-  const spread = () => state.layout === "space" ? 1.8 * Math.max(1, Math.cbrt(visible.nodes.length / 120)) : 1;
+  const spread = () => state.layout === "space" ? 2.4 * Math.max(1, Math.cbrt(visible.nodes.length / 120)) : 1;
 
   function clusterForce(alpha) {
     if (["app", "component"].includes(state.level) || !["space", "clusters", "app-layers", "component-layers"].includes(state.layout)) return;
-    const strength = { space: 0.012, clusters: 0.12 }[state.layout] ?? 0.05;
+    const strength = { space: 0.04, clusters: 0.12 }[state.layout] ?? 0.05;
     const scale = spread();
     for (const node of visible.nodes) {
-      const anchor = ARCHITECTURE && node.component ? componentAnchor(node.component) : appAnchor(node.app);
+      const anchor = state.layout === "space" ? groupAnchor(node) : ARCHITECTURE && node.component ? componentAnchor(node.component) : appAnchor(node.app);
       node.vx += (anchor.x * scale - node.x) * strength * alpha;
       if (["space", "clusters"].includes(state.layout)) node.vy += (anchor.y * scale - node.y) * strength * alpha;
       node.vz += (anchor.z * scale - node.z) * strength * alpha;
@@ -501,7 +541,10 @@
   const nodeRadius = (node) => 4 * Math.cbrt(Math.max(1, nodeSize(node)));
   function applySpacing() {
     const open = state.layout === "space" && state.level === "object";
-    graph.d3Force("link")?.distance((link) => state.spacing * ((open ? 34 : 20) + nodeRadius(link.source) + nodeRadius(link.target)));
+    // Tightly coupled objects (writes, extends) sit closer than loosely coupled ones (events, grants).
+    const tight = levels[state.level].tightCoupling;
+    const closeness = (link) => open ? 1.35 - 0.7 * Math.min(1, Math.sqrt((link.edge?.coupling ?? 1) / tight)) : 1;
+    graph.d3Force("link")?.distance((link) => state.spacing * ((open ? 34 : 20) + nodeRadius(link.source) + nodeRadius(link.target)) * closeness(link));
     // Repulsion reaches only so far, so unconnected objects do not drift off into the distance.
     graph.d3Force("charge")?.strength((open ? -70 : -30) * state.spacing * state.spacing).distanceMax(open ? 320 * state.spacing : Infinity);
     graph.linkOpacity(open ? 0.32 : 0.55);
@@ -1017,6 +1060,12 @@
       state[name] = value;
     }
     if (setting === "layout") return render({ layout: true });
+    // In open space, the color decides what drifts together.
+    if (setting === "colorBy" && state.layout === "space") {
+      refreshGroups();
+      graph.d3ReheatSimulation();
+      fitWhenSettled();
+    }
     if (["colorBy", "sizeBy", "particles", "highlight"].includes(setting)) {
       refreshStyles();
       return renderLegend();

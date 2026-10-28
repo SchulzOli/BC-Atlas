@@ -123,7 +123,8 @@ test("proposes components and layers that follow today's dependencies", async ()
   ]);
   assert.equal(result.violations.length, 0);
   assert.equal(result.summary.extractable, 3);
-  assert.deepEqual(proposal.moves.map(({ object, to }) => [object.label, to]), [["CON Quote Export", "Sales"]]);
+  // Weighted by coupling: CON Item Sync writes Core's table, so it is bound to Core more than to Integration.
+  assert.deepEqual(proposal.moves.map(({ object, to, gain }) => [object.label, to, gain]), [["CON Quote Export", "Sales", 9], ["CON Item Sync", "Core", 8]]);
 
   // A dependency against the grain becomes the one thing to resolve.
   const cyclic = structuredClone(levels);
@@ -131,7 +132,7 @@ test("proposes components and layers that follow today's dependencies", async ()
   const sales = cyclic.object.nodes.find(({ label }) => label === "CON Quote Mgt.");
   cyclic.object.edges.push({ id: "back", source: core.id, target: sales.id, kinds: { calls: 1 }, weight: 1, evidence: [] });
   const backwards = proposeArchitecture(cyclic, { groupBy: "namespace" });
-  assert.deepEqual(backwards.feedback, [{ source: "Core", target: "Sales", objectEdges: 1 }]);
+  assert.deepEqual(backwards.feedback, [{ source: "Core", target: "Sales", objectEdges: 1, coupling: 2 }]);
   const checked = evaluateArchitecture(cyclic, backwards.architecture);
   assert.deepEqual(checked.violations.map(({ source, target }) => `${source.label} -> ${target.label}`), ["CON Item -> CON Quote Mgt."]);
 });
@@ -359,3 +360,48 @@ test("the explorer shows components and violations per frame", async () => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("coupling weights what it takes to cut a dependency", async () => {
+  const { coupling, couplingWeights, COUPLING_WEIGHTS } = await import("../src/graph/coupling.js");
+  assert.equal(coupling({ writes: 1 }), 5);
+  assert.equal(coupling({ subscribes: 1 }), 1);
+  assert.ok(coupling({ calls: 10 }) < 10 * coupling({ calls: 1 }), "repeated uses count logarithmically");
+  assert.ok(coupling({ permits: 50 }) < coupling({ uses: 1 }), "permission grants barely bind");
+  assert.equal(couplingWeights({ writes: 8 }).writes, 8);
+  assert.equal(couplingWeights({ writes: 8 }).calls, COUPLING_WEIGHTS.calls);
+  assert.throws(() => couplingWeights({ eats: 1 }), /unknown relation kind "eats"/u);
+  assert.throws(() => couplingWeights({ writes: -1 }), /must be a number of 0 or more/u);
+});
+
+test("grouping by coupling forms components from namespaces that belong together, and every architecture gets a quality score", async () => {
+  const monolith = path.join(root, "examples", "monolith");
+  const { proposal, result } = await assessArchitecture(monolith, { propose: true, groupBy: "coupling" });
+  assert.deepEqual(proposal.architecture.components.map(({ name, match }) => [name, match]).sort(), [
+    ["Core", ["namespace:Contoso.Core"]],
+    ["Permissions", ["namespace:Contoso.Permissions"]],
+    ["Sales", ["namespace:Contoso.Sales"]],
+    ["Warehouse", ["namespace:Contoso.Warehouse"]]
+  ]);
+  assert.ok(result.summary.coupling.share > 0 && result.summary.coupling.share < 1);
+  assert.equal(typeof result.summary.coupling.modularity, "number");
+  const core = result.components.find(({ name }) => name === "Core");
+  assert.ok(core.metrics.cohesion > 0.5, "most of Core's coupling stays inside Core");
+
+  // One component holding everything keeps all coupling inside, but scores no modularity.
+  const levels = (await assessArchitecture(monolith)).levels;
+  const single = evaluateArchitecture(levels, { components: [{ name: "All", match: ["*"] }] });
+  assert.equal(single.summary.coupling.share, 1);
+  assert.equal(single.summary.coupling.modularity, 0);
+
+  // Weights from .bca.json shape the score.
+  const heavy = evaluateArchitecture(levels, { components: LAYERED_MONOLITH, couplingWeights: { writes: 50 } });
+  const light = evaluateArchitecture(levels, { components: LAYERED_MONOLITH });
+  assert.notEqual(heavy.summary.coupling.share, light.summary.coupling.share);
+});
+
+const LAYERED_MONOLITH = [
+  { name: "Core", layer: 0, match: ["folder:src/Core"] },
+  { name: "Sales", layer: 1, match: ["folder:src/Sales"] },
+  { name: "Warehouse", layer: 2, match: ["folder:src/Warehouse"] },
+  { name: "Permissions", layer: 3, match: ["folder:src/Permissions"] }
+];

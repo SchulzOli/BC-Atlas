@@ -103,9 +103,9 @@ const diagramOptions = {
     value: "selector"
   }),
   focus: string("Name fragment for the contracts, events, or ui view.", { group: SELECTION, value: "text" }),
-  groupBy: string("Diagram views: role, namespace, folder, or type (default: role for project, else namespace). Proposed architecture: auto, namespace, folder, module, or app.", {
+  groupBy: string("Diagram views: role, namespace, folder, or type (default: role for project, else namespace). Proposed architecture: auto, coupling, namespace, folder, module, or app.", {
     group: SELECTION,
-    enum: ["auto", "namespace", "folder", "module", "app", "type", "role"]
+    enum: ["auto", "coupling", "namespace", "folder", "module", "app", "type", "role"]
   }),
   moduleDepth: string("Namespace segments in the module view, or auto.", { group: SELECTION, value: "n", default: "auto" }),
   folderDepth: string("Folder segments in a folder-grouped module view.", { group: SELECTION, value: "n", default: "1" }),
@@ -190,9 +190,9 @@ const blueprintOptions = {
   format: string("Report format.", { group: OUTPUT, short: "f", enum: ["text", "markdown", "json"], default: "text" }),
   output: string("Write the report to a file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
   propose: flag("Propose an architecture from today's dependencies, even when .bca.json defines one.", { group: "Proposal" }),
-  groupBy: string("How the proposal groups objects into components; auto: modules or apps, too large ones split by namespace.", {
+  groupBy: string("How the proposal groups objects into components; auto: modules or apps, too large ones split by namespace; coupling: namespaces that are tightly coupled to each other.", {
     group: "Proposal",
-    enum: ["auto", "namespace", "folder", "module", "app"],
+    enum: ["auto", "coupling", "namespace", "folder", "module", "app"],
     default: "auto"
   }),
   depth: string("Namespace or folder segments per component; default: split until no component is too large.", { group: "Proposal", value: "n" }),

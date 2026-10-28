@@ -1,5 +1,6 @@
 import { SEVERITIES } from "../capabilities.js";
 import { DEPENDENCY_KINDS } from "../graph/lenses/dependency.js";
+import { coupling, couplingWeights } from "../graph/coupling.js";
 import { findCycles } from "../insights.js";
 import { compileSelector, componentAssigner, selectorContext } from "./components.js";
 import { dataOwnership } from "./ownership.js";
@@ -111,6 +112,45 @@ function compilePolicy(rule, index, context) {
 }
 
 const matchesAny = (matchers, node) => matchers.some((matcher) => matcher(node));
+
+/**
+ * How well the components contain the coupling: per component, the share of
+ * its coupling that stays inside (cohesion), and for the whole architecture
+ * the share inside components and the weighted modularity
+ * Q = sum over components of (inside / total - (degree / 2 total)^2).
+ */
+function couplingQuality(edges, componentOf, weights, names) {
+  const inside = new Map(names.map((name) => [name, 0]));
+  const across = new Map(names.map((name) => [name, 0]));
+  const degree = new Map(names.map((name) => [name, 0]));
+  let total = 0;
+  for (const edge of edges) {
+    const source = componentOf.get(edge.source);
+    const target = componentOf.get(edge.target);
+    if (!source || !target || edge.source === edge.target) continue;
+    const weight = coupling(edge.kinds, weights);
+    if (!weight) continue;
+    total += weight;
+    degree.set(source, degree.get(source) + weight);
+    degree.set(target, degree.get(target) + weight);
+    if (source === target) inside.set(source, inside.get(source) + weight);
+    else {
+      across.set(source, across.get(source) + weight);
+      across.set(target, across.get(target) + weight);
+    }
+  }
+  // "|| 0" turns a rounded -0 into 0.
+  const round = (value) => Number(value.toFixed(3)) || 0;
+  const internal = [...inside.values()].reduce((sum, value) => sum + value, 0);
+  const modularity = total ? names.reduce((sum, name) => sum + inside.get(name) / total - (degree.get(name) / (2 * total)) ** 2, 0) : 0;
+  return {
+    cohesion: new Map(names.map((name) => {
+      const own = inside.get(name) + across.get(name);
+      return [name, own ? round(inside.get(name) / own) : undefined];
+    })),
+    summary: { inside: round(internal), across: round(total - internal), share: total ? round(internal / total) : 0, modularity: round(modularity) }
+  };
+}
 
 function objectSummary(node) {
   return {
@@ -386,12 +426,13 @@ export function evaluateArchitecture(levels, architecture = {}) {
       targetInstability: metrics.get(target).instability
     }));
 
+  const quality = couplingQuality(levels.object.edges, componentOf, couplingWeights(architecture.couplingWeights), [...components.keys()]);
   const summaries = [...components.values()].map((component) => {
     // Rules of .bca.json do not decide whether a component can become an app.
     const outgoingViolations = violations.filter(({ sourceComponent, rule }) => sourceComponent === component.name && rule !== "dependency-rule");
     return {
       ...component,
-      metrics: metrics.get(component.name),
+      metrics: { ...metrics.get(component.name), ...(quality.cohesion.get(component.name) === undefined ? {} : { cohesion: quality.cohesion.get(component.name) }) },
       dependsOnActual: [...componentEdges.values()].filter(({ source }) => source === component.name).map(({ target }) => target).sort(),
       violations: outgoingViolations.length,
       inCycle: inCycle.has(component.name),
@@ -425,6 +466,7 @@ export function evaluateArchitecture(levels, architecture = {}) {
         return counts;
       }, {})).sort((a, b) => b[1] - a[1])),
       cycles: cycles.length,
+      coupling: quality.summary,
       checks: checks.length,
       sharedTables: ownership.filter(({ status }) => status === "shared-writes").length,
       extractable: summaries.filter(({ extractable }) => extractable).length

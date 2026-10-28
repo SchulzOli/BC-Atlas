@@ -54,8 +54,11 @@ seeing them as unresolved.
   space**), the graph floats freely in a large space, like the
   [large-graph example](https://vasturiano.github.io/3d-force-graph/example/large-graph/)
   of 3d-force-graph: small nodes, hairline links colored by dependency class,
-  and apps (or components) that only drift together, so there is room to fly
-  through the graph. **App clusters** pulls each app into a tight cluster
+  and groups that drift together, so there is room to fly through the graph.
+  The groups follow **Color**: apps, components, communities, object types,
+  or build layers. Tightly coupled objects (one writes or extends the other)
+  sit closer together than loosely coupled ones (events, permission grants);
+  see [Coupling weights](./clean-architecture.md#coupling-weights). **App clusters** pulls each app into a tight cluster
   instead; cross-app dependencies then span the space between clusters.
 - **Modules** appears when an app contains nested `app.json` files, as the
   System Application and the Base Application in
@@ -177,8 +180,8 @@ objects are placed from left to right by the commit that introduced them.
 | Search (`/`) | Highlights matches by name, ID, type, namespace, file, or app; **Enter** flies to the first match. |
 | Min. links, hide unconnected | Remove weakly connected nodes. The slider runs from 0 to the number of links that 95% of the nodes stay under (at least 10, at most 200), so it also thins out large graphs. |
 | Spacing | Room between nodes, from 50 % to 500 %: longer links (longest between large nodes), stronger repulsion, and more distance between clusters and floors. The explorer remembers it. |
-| Color | App, object type, community (Louvain clustering), build layer, age (first commit), or cross-app coupling. |
-| Size | PageRank (default), used by, depends on, cross-app links, or uniform. |
+| Color | App, object type, community (Louvain clustering on coupling weights), build layer, age (first commit), or cross-app coupling. In open space, also what drifts together. |
+| Size | PageRank on coupling weights (default), used by, depends on, cross-app links, or uniform. |
 | Layout | Open space (default), app or component clusters, free force, architecture layers as floors, apps as floors, build order as floors, commit timeline axis, or flat 2D. |
 
 Click a node to highlight its neighborhood and open its details: app,

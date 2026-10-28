@@ -6,16 +6,21 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
-### Changed
-
-- `internal-access` is on by default: a configured architecture can report
-  new violations where a component uses an `Access = Internal` object of
-  another one. Accept them with `bca architecture --update-baseline`, or set
-  `"severities": { "internal-access": "off" }` when components are layers of
-  one app that never split.
-
 ### Added
 
+- Coupling weights: every dependency weighs what it takes to cut it
+  (`writes` 5, `extends` 4, `relates`/`implements` 3, calls and reads 2,
+  subscribers 1, permission grants 0.1; repeats count logarithmically;
+  `architecture.couplingWeights` changes them). The proposal orders
+  components, merges small groups, and finds objects that belong elsewhere
+  by coupling; PageRank and communities use it too.
+- `--group-by coupling`: components from namespaces that are tightly coupled
+  to each other (Louvain communities on the coupling).
+- Every architecture gets a score: cohesion per component, the share of the
+  coupling inside components, and modularity, to compare groupings.
+- Dependency explorer: in open space, what drifts together follows the
+  color (apps, components, communities, types, build layers), groups are
+  spread apart, and tightly coupled objects sit closer together.
 - Dependency explorer: the new default layout **Open space** lets the graph
   float freely in a large space, like the large-graph example of
   3d-force-graph: small nodes, hairline links, apps or components that only
@@ -193,6 +198,11 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `internal-access` is on by default: a configured architecture can report
+  new violations where a component uses an `Access = Internal` object of
+  another one. Accept them with `bca architecture --update-baseline`, or set
+  `"severities": { "internal-access": "off" }` when components are layers of
+  one app that never split.
 - The *Publish VS Code extension* workflow signs in to the Marketplace with
   Microsoft Entra ID (GitHub OIDC, `vsce --azure-credential`) instead of the
   `VSCE_PAT` token, because Azure DevOps retires global personal access

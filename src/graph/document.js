@@ -8,6 +8,7 @@ import { loadProjectSymbols } from "../symbols.js";
 import { objectFilter, pathMatcher } from "../views.js";
 import { findLens } from "./lenses/index.js";
 import { addMetrics } from "./metrics.js";
+import { couplingWeights } from "./coupling.js";
 import { replayHistory } from "./history.js";
 import { createTemporalGraph, frameStatistics } from "./temporal.js";
 import { annotateLevels } from "../blueprint/annotate.js";
@@ -63,7 +64,7 @@ export async function createGraphDocument(input, values = {}, { onFrame } = {}) 
   let current;
   if (values.propose) {
     current = await graph(projectRoot);
-    architecture = proposeArchitecture(current, { groupBy: values.groupBy, depth: values.depth }).architecture;
+    architecture = proposeArchitecture(current, { groupBy: values.groupBy, depth: values.depth, weights: couplingWeights(options.architecture?.couplingWeights) }).architecture;
   }
   let assessment;
   const build = async (root) => {
@@ -104,7 +105,8 @@ export async function createGraphDocument(input, values = {}, { onFrame } = {}) 
   }
 
   const levels = temporal.result();
-  const summary = Object.fromEntries(Object.entries(levels).map(([name, level]) => [name, addMetrics(level)]));
+  const weights = couplingWeights(options.architecture?.couplingWeights);
+  const summary = Object.fromEntries(Object.entries(levels).map(([name, level]) => [name, addMetrics(level, { weights })]));
   if (!levels.object.nodes.length) {
     throw new Error(`no AL objects found in ${path.resolve(input)}; check the path and the --include, --exclude, --namespace, and --type filters`);
   }

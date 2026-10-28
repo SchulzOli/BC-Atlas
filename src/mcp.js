@@ -186,7 +186,7 @@ export function createMcpServer(version = pkg.version) {
     inputSchema: z.object({
       ...projectFields,
       propose: z.boolean().optional().describe("Propose an architecture even when .bca.json defines one"),
-      groupBy: z.enum(["auto", "namespace", "folder", "module", "app"]).optional(),
+      groupBy: z.enum(["auto", "coupling", "namespace", "folder", "module", "app"]).optional().describe("auto: modules or apps, too large ones split by namespace; coupling: namespaces that are tightly coupled to each other"),
       depth: z.number().int().positive().optional(),
       paths: z.array(z.string()).optional(),
       limit: z.number().int().positive().default(50).describe("Most work items to return")

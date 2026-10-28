@@ -216,6 +216,12 @@
         "declare-dependency": 1
       },
       "cycles": 0,
+      "coupling": {
+        "inside": 28.3,
+        "across": 24,
+        "share": 0.541,
+        "modularity": 0.159
+      },
       "checks": 2,
       "sharedTables": 2,
       "extractable": 2
@@ -270,7 +276,7 @@
             "outDegree": 1,
             "crossAppIn": 2,
             "crossAppOut": 0,
-            "pagerank": 0.202674,
+            "pagerank": 0.209425,
             "community": 0,
             "buildLayer": 1
           }
@@ -299,8 +305,8 @@
             "outDegree": 0,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.230721,
-            "community": 0,
+            "pagerank": 0.228841,
+            "community": 1,
             "buildLayer": 0
           }
         },
@@ -328,7 +334,7 @@
             "outDegree": 1,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.029714,
+            "pagerank": 0.029895,
             "community": 0,
             "buildLayer": 2
           }
@@ -356,8 +362,8 @@
             "outDegree": 0,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.044082,
-            "community": 0,
+            "pagerank": 0.050829,
+            "community": 1,
             "buildLayer": 0
           }
         },
@@ -385,8 +391,8 @@
             "outDegree": 3,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.084519,
-            "community": 0,
+            "pagerank": 0.073884,
+            "community": 1,
             "buildLayer": 2
           }
         },
@@ -414,7 +420,7 @@
             "outDegree": 1,
             "crossAppIn": 1,
             "crossAppOut": 0,
-            "pagerank": 0.064476,
+            "pagerank": 0.051752,
             "community": 1,
             "buildLayer": 3
           }
@@ -443,7 +449,7 @@
             "outDegree": 1,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.029714,
+            "pagerank": 0.029895,
             "community": 0,
             "buildLayer": 2
           }
@@ -472,8 +478,8 @@
             "outDegree": 1,
             "crossAppIn": 1,
             "crossAppOut": 1,
-            "pagerank": 0.080531,
-            "community": 1,
+            "pagerank": 0.096899,
+            "community": 2,
             "buildLayer": 2
           }
         },
@@ -501,8 +507,8 @@
             "outDegree": 2,
             "crossAppIn": 1,
             "crossAppOut": 1,
-            "pagerank": 0.068161,
-            "community": 1,
+            "pagerank": 0.064284,
+            "community": 2,
             "buildLayer": 4
           }
         },
@@ -530,8 +536,8 @@
             "outDegree": 2,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.038133,
-            "community": 1,
+            "pagerank": 0.038365,
+            "community": 2,
             "buildLayer": 5
           }
         },
@@ -559,8 +565,8 @@
             "outDegree": 3,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.029714,
-            "community": 1,
+            "pagerank": 0.029895,
+            "community": 2,
             "buildLayer": 6
           }
         },
@@ -588,8 +594,8 @@
             "outDegree": 3,
             "crossAppIn": 0,
             "crossAppOut": 3,
-            "pagerank": 0.029714,
-            "community": 1,
+            "pagerank": 0.029895,
+            "community": 2,
             "buildLayer": 5
           }
         },
@@ -613,8 +619,8 @@
             "outDegree": 0,
             "crossAppIn": 1,
             "crossAppOut": 0,
-            "pagerank": 0.038133,
-            "community": 1,
+            "pagerank": 0.036248,
+            "community": 2,
             "buildLayer": 0
           }
         },
@@ -642,7 +648,7 @@
             "outDegree": 1,
             "crossAppIn": 0,
             "crossAppOut": 1,
-            "pagerank": 0.029714,
+            "pagerank": 0.029895,
             "community": 0,
             "buildLayer": 2
           }
@@ -677,7 +683,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 3
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::page::50000->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
@@ -707,7 +714,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 2
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::interface::con price calculation",
@@ -736,7 +744,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 3
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
@@ -773,7 +782,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 3
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
@@ -810,7 +820,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 3
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50011->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010",
@@ -845,7 +856,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 3
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50019->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
@@ -882,7 +894,8 @@
               4
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 3
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
@@ -912,7 +925,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 3
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
@@ -949,7 +963,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 6
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50011",
@@ -991,7 +1006,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 4
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
@@ -1021,7 +1037,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 2
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
@@ -1056,7 +1073,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 3
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
@@ -1085,7 +1103,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 0.1
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
@@ -1114,7 +1133,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 0.1
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100",
@@ -1143,7 +1163,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 0.1
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
@@ -1180,7 +1201,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 6
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
@@ -1215,7 +1237,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 3
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200->unresolved::table::customer",
@@ -1252,7 +1275,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 3
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50201->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
@@ -1306,7 +1330,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 8
         }
       ]
     },
@@ -1333,7 +1358,7 @@
             "outDegree": 0,
             "crossAppIn": 2,
             "crossAppOut": 0,
-            "pagerank": 0.40764,
+            "pagerank": 0.417821,
             "community": 0,
             "buildLayer": 0
           }
@@ -1359,7 +1384,7 @@
             "outDegree": 1,
             "crossAppIn": 1,
             "crossAppOut": 1,
-            "pagerank": 0.228824,
+            "pagerank": 0.22813,
             "community": 0,
             "buildLayer": 1
           }
@@ -1385,7 +1410,7 @@
             "outDegree": 3,
             "crossAppIn": 0,
             "crossAppOut": 3,
-            "pagerank": 0.166083,
+            "pagerank": 0.166204,
             "community": 1,
             "buildLayer": 2
           }
@@ -1408,7 +1433,7 @@
             "outDegree": 0,
             "crossAppIn": 1,
             "crossAppOut": 0,
-            "pagerank": 0.197453,
+            "pagerank": 0.187844,
             "community": 1,
             "buildLayer": 0
           }
@@ -1436,7 +1461,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 7
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
@@ -1458,7 +1484,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 8.585
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03->(unresolved)",
@@ -1479,7 +1506,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 3
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
@@ -1501,7 +1529,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 8
         }
       ]
     },
@@ -1522,7 +1551,8 @@
             "efferentCoupling": 0,
             "instability": 0,
             "abstractness": 0.167,
-            "distance": 0.833
+            "distance": 0.833,
+            "cohesion": 0.531
           },
           "violations": 0,
           "extractable": true,
@@ -1539,7 +1569,7 @@
             "outDegree": 0,
             "crossAppIn": 2,
             "crossAppOut": 0,
-            "pagerank": 0.513831,
+            "pagerank": 0.519118,
             "community": 0,
             "buildLayer": 0
           }
@@ -1559,7 +1589,8 @@
             "efferentCoupling": 2,
             "instability": 0.667,
             "abstractness": 0,
-            "distance": 0.333
+            "distance": 0.333,
+            "cohesion": 0.414
           },
           "violations": 0,
           "extractable": true,
@@ -1579,7 +1610,7 @@
             "outDegree": 1,
             "crossAppIn": 1,
             "crossAppOut": 1,
-            "pagerank": 0.290584,
+            "pagerank": 0.283799,
             "community": 0,
             "buildLayer": 1
           }
@@ -1599,7 +1630,8 @@
             "efferentCoupling": 2,
             "instability": 1,
             "abstractness": 0,
-            "distance": 0
+            "distance": 0,
+            "cohesion": 0
           },
           "violations": 1,
           "extractable": false,
@@ -1619,7 +1651,7 @@
             "outDegree": 2,
             "crossAppIn": 0,
             "crossAppOut": 2,
-            "pagerank": 0.195585,
+            "pagerank": 0.197083,
             "community": 1,
             "buildLayer": 2
           }
@@ -1647,7 +1679,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 7
         },
         {
           "id": "component::Integration->component::Sales",
@@ -1669,7 +1702,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 8.585
         },
         {
           "id": "component::Integration->component::Core",
@@ -1691,7 +1725,8 @@
               null
             ]
           ],
-          "changes": []
+          "changes": [],
+          "coupling": 8
         }
       ]
     }

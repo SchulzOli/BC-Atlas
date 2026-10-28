@@ -445,7 +445,7 @@
       <section class="card"><div class="controls">
         ${data.configured ? `<div class="field"><span>Show</span><div class="segmented"><button data-mode="configured" aria-pressed="${!proposal}">Configured</button><button data-mode="proposal" aria-pressed="${proposal}">New proposal</button></div></div>` : ""}
         ${proposal ? `
-          <label class="field"><span>Group objects by</span><select id="group-by">${["auto", "module", "app", "namespace", "folder"].map((value) => `<option${value === (data.proposal.groupBy ?? "auto") ? " selected" : ""}>${value}</option>`).join("")}</select></label>
+          <label class="field"><span>Group objects by</span><select id="group-by">${["auto", "coupling", "module", "app", "namespace", "folder"].map((value) => `<option${value === (data.proposal.groupBy ?? "auto") ? " selected" : ""}>${value}</option>`).join("")}</select></label>
           <label class="field"><span>Namespace depth</span><input type="number" id="depth" min="1" placeholder="auto" value="${esc(settings.depth ?? "")}"></label>
           <label class="field"><span>Merge groups below</span><input type="number" id="min-objects" min="1" placeholder="1" value="${esc(settings.minObjects ?? "")}"></label>
           <button class="btn" data-action="apply">Propose again</button>` : ""}
@@ -458,6 +458,7 @@
         ${stat({ label: "Components", value: fmt(summary.components), sub: `${plural(layers.filter((layer) => layer !== undefined).length, "layer")}, ${plural(summary.assigned, "object")}` })}
         ${stat({ label: "Violations", value: fmt(summary.violations), tone: summary.violations ? (!proposal && data.baseline.new.length ? "bad" : "warn") : "good", sub: `of ${plural(summary.dependencies, "dependency", "dependencies")} across components` })}
         ${stat({ label: "Work items", value: fmt(summary.workItems), sub: Object.entries(summary.byStrategy).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([strategy, count]) => `${fmt(count)} ${esc(strategy)}`).join(", ") || "nothing to resolve" })}
+        ${summary.coupling ? stat({ label: "Coupling inside components", value: `${Math.round(summary.coupling.share * 100)}%`, tone: summary.coupling.share >= 0.7 ? "good" : undefined, sub: `modularity ${summary.coupling.modularity.toFixed(2)}${proposal ? " · compare groupings below" : ""}` }) : ""}
         ${stat({ label: "Can become apps today", value: fmt(summary.extractable), tone: summary.extractable === summary.components ? "good" : undefined, sub: `of ${plural(summary.components, "component")}` })}
         ${proposal ? stat({ label: "Objects that belong elsewhere", value: fmt(data.proposal.moves.length), sub: "move them to shrink the work" }) : stat({ label: "Baseline", value: fmt(data.baseline.new.length), tone: data.baseline.new.length ? "bad" : "good", sub: baseline })}
       </div>
@@ -474,9 +475,10 @@
           <div class="legend"><span class="ok">can become an app today</span><span class="bad">has wrong-way dependencies (count in red)</span><span>blocked only by dependencies on it</span></div>
         </section>
         <section class="card"><h2>${proposal ? "How it was derived" : "How it is enforced"}</h2>
-          ${proposal ? `<p class="muted">Each module or app is a component; one that holds more than 15% of the objects (at least 40) is split by namespace. Components are ordered so that as few dependencies as possible point the wrong way, and each one sits one layer above the deepest component it uses.</p>
+          ${proposal ? `<p class="muted">${data.proposal.groupBy === "coupling" ? "Namespaces that are tightly coupled to each other form a component (communities of the coupling, inside each module or app)." : "Each module or app is a component; one that holds more than 15% of the objects (at least 40) is split by namespace."} Components are ordered so that as little coupling as possible points the wrong way, and each one sits one layer above the deepest component it uses. Try another grouping and compare the coupling inside components.</p>
             ${data.proposal.feedback.length ? `<h3 class="small muted">Dependencies against the order</h3><ul class="list">${data.proposal.feedback.slice(0, 8).map((edge) => `<li><span class="grow">${esc(edge.source)} → ${esc(edge.target)}</span><span class="muted small nowrap">${plural(edge.objectEdges, "object link")}</span></li>`).join("")}</ul>` : ""}`
             : `<dl class="facts">
+                <dt>Cohesion</dt><dd>${summary.coupling ? `${Math.round(summary.coupling.share * 100)}% of the coupling stays inside components (modularity ${summary.coupling.modularity.toFixed(2)}); weights per relation kind in architecture.couplingWeights` : "–"}</dd>
                 <dt>Rules</dt><dd>dependsOn first; otherwise only to ${data.settings.strictLayers ? "the layer directly below" : "lower layers"}${data.settings.allowSameLayer ? " or the same layer" : ""}; only public objects of other components${data.architecture.rules?.length ? `; ${plural(data.architecture.rules.length, "rule")} of .bca.json` : ""}</dd>
                 <dt>Baseline</dt><dd>${baseline}</dd>
                 <dt>Cycles</dt><dd>${data.cycles.length ? data.cycles.map((cycle) => esc(cycle.join(" → "))).join("<br>") : "none"}</dd>
@@ -568,6 +570,7 @@
         { key: "layer", label: "Layer", numeric: true, value: (row) => row.layer ?? -1, render: (row) => row.layer ?? "–" },
         { key: "objects", label: "Objects", numeric: true, value: (row) => row.metrics.objects, render: (row) => fmt(row.metrics.objects) },
         { key: "dependsOn", label: "May use", value: (row) => (row.dependsOn ?? []).length, render: (row) => `<span class="small">${esc((row.dependsOn ?? []).join(", ") || "–")}</span>` },
+        { key: "cohesion", label: "Cohesion", numeric: true, value: (row) => row.metrics.cohesion ?? -1, render: (row) => row.metrics.cohesion === undefined ? "–" : `${Math.round(row.metrics.cohesion * 100)}%` },
         { key: "instability", label: "I", numeric: true, value: (row) => row.metrics.instability, render: (row) => row.metrics.instability.toFixed(2) },
         { key: "abstractness", label: "A", numeric: true, value: (row) => row.metrics.abstractness, render: (row) => row.metrics.abstractness.toFixed(2) },
         { key: "distance", label: "D", numeric: true, value: (row) => row.metrics.distance, render: (row) => row.metrics.distance.toFixed(2) },
