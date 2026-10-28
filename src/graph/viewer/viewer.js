@@ -643,7 +643,8 @@
   function frameLabel(index) {
     const frame = FRAMES[index];
     if (!frame) return "";
-    return `${frame.kind === "commit" ? frame.id : "working tree"} · ${frame.date?.slice(0, 10) ?? ""}`;
+    const kind = { "pull-request": "PR ", release: "release ", unreleased: "" }[frame.kind] ?? "";
+    return `${frame.kind === "working-tree" ? "working tree" : `${kind}${frame.id}`} · ${frame.date?.slice(0, 10) ?? ""}`;
   }
 
   function dependencyList(edges, direction) {
@@ -1068,7 +1069,9 @@
     slider.max = String(frameCount() - 1);
     slider.value = String(Math.min(state.frame, frameCount() - 1));
     $("#timeline-mode").value = state.timeline;
-    $("#timeline-mode").querySelector('[value="git"]').disabled = FRAMES.length < 2;
+    const git = $("#timeline-mode").querySelector('[value="git"]');
+    git.disabled = FRAMES.length < 2;
+    git.textContent = { prs: "Pull requests", releases: "Releases" }[DOC.timeline.by] ?? "Git history";
   }
 
   function setFrame(frame) {
@@ -1101,7 +1104,7 @@
     const frame = FRAMES[state.frame];
     const stats = frame.stats;
     info.innerHTML = `<div class="title" title="${escapeHtml(frame.label)}">${escapeHtml(frame.label || frame.id)}</div>
-      <div class="meta">${escapeHtml(frameLabel(state.frame))}${frame.author ? ` · ${escapeHtml(frame.author)}` : ""}${frame.commits > 1 ? ` · ${frame.commits} commits` : ""}
+      <div class="meta">${escapeHtml(frameLabel(state.frame))}${frame.author ? ` · ${escapeHtml(frame.author)}` : ""}${frame.commits > 1 ? ` · ${frame.commits} commits` : ""}${frame.includes > 1 ? ` · ${frame.includes} ${{ "pull-request": "pull requests", release: "releases" }[frame.kind] ?? "steps"}` : ""}
       · <span class="delta-add">+${stats.addedNodes}</span> <span class="delta-remove">−${stats.removedNodes}</span> <span class="delta-change">~${stats.changedNodes}</span>${Number.isFinite(frame.violations) ? ` · <span class="delta-remove">${Number(frame.violations).toLocaleString("en-US")} against the architecture</span>` : ""}</div>`;
   }
 

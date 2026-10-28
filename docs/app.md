@@ -63,8 +63,9 @@ publish it from CI, attach it to a pull request, or send it. The exported app
 contains the diagrams of the report views (`project`, `module`, `data`,
 `contracts`, `events`, `ui`) with their default settings, the explorer, every
 object page, and the docs. It cannot change files; open the project with
-`bca app` for that. Add `--history` to include the Git timeline in the
-explorer.
+`bca app` for that. Add `--history` (one frame per commit) or
+`--history-by prs` or `--history-by releases` to include the Git timeline in
+the explorer, and `--last 20` to keep it short.
 
 ## Security
 
@@ -85,4 +86,6 @@ second. The first rendering of a large diagram view can take 20 seconds; it
 is cached until the source changes. Views with more than 1,500 nodes are not
 drawn; filter them by namespace or pick a focused view. Use `--paths` to analyze only some
 folders of a large repository, and open the Dependencies page without
-**Replay Git history** first: replaying many commits takes longer.
+a **Timeline** first: replaying many commits takes longer. The timeline can
+step through commits, merged pull requests, or releases, and **Last** limits
+it to the most recent ones.

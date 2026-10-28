@@ -297,10 +297,18 @@ export class Workspace {
     return VIEWS.map(([id, summary]) => ({ id, summary }));
   }
 
-  /** The 3D dependency explorer for this project, as one HTML page. */
-  explorer({ propose = false, history = false } = {}) {
-    return this.remember(`explorer:${propose}:${history}`, async () => {
-      const document = await createGraphDocument(this.input, { ...this.values, propose: propose || undefined, history: history || undefined });
+  /**
+   * The 3D dependency explorer for this project, as one HTML page.
+   * @param history false, or the timeline steps: commits, prs, or releases
+   * @param last only the last n steps
+   */
+  explorer({ propose = false, history = false, last } = {}) {
+    return this.remember(`explorer:${propose}:${history}:${last ?? ""}`, async () => {
+      const document = await createGraphDocument(this.input, {
+        ...this.values,
+        propose: propose || undefined,
+        ...(history ? { history: true, historyBy: history === true ? "commits" : history, last } : {})
+      });
       return renderExplorerHtml(document);
     });
   }

@@ -108,6 +108,8 @@ label.check { display: inline-flex; align-items: center; gap: 6px; cursor: point
 label.check input { accent-color: var(--accent); margin: 0; }
 .field { display: grid; gap: 4px; }
 .field > span { font-size: 12px; color: var(--muted); font-weight: 500; }
+.field.inline { display: inline-flex; align-items: center; gap: 6px; }
+.field.inline input[type="number"] { width: 72px; }
 
 .chip {
   display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;

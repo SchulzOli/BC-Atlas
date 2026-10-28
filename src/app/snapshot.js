@@ -37,7 +37,7 @@ function compactDetails(index) {
   return { nodes, details };
 }
 
-export async function createSnapshot(workspace, { log = () => {}, history = false, title } = {}) {
+export async function createSnapshot(workspace, { log = () => {}, history = false, last, title } = {}) {
   const overview = { ...await workspace.overview(), ...(title ? { title } : {}) };
   const [health, architecture, index, docsHtml] = await Promise.all([
     workspace.healthReport(),
@@ -60,7 +60,7 @@ export async function createSnapshot(workspace, { log = () => {}, history = fals
       log(`Skipped ${id} view: ${error.message}`);
     }
   }
-  const explorerHtml = await workspace.explorer({ history });
+  const explorerHtml = await workspace.explorer({ history, last });
   return {
     generatedAt: new Date().toISOString(),
     overview: { ...overview, live: false, root: undefined },

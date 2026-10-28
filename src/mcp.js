@@ -153,6 +153,8 @@ export function createMcpServer(version = pkg.version) {
       lens: z.enum(["dependency"]).optional(),
       paths: z.array(z.string()).optional().describe("Only analyze AL files below these project-relative folders or globs"),
       history: z.boolean().optional(),
+      historyBy: z.enum(["commits", "prs", "releases"]).optional().describe("One frame per commit, merged pull request, or release tag; implies history"),
+      last: z.number().int().positive().optional().describe("Only the last n steps"),
       maxCommits: z.number().int().positive().optional(),
       since: z.string().optional(),
       title: z.string().optional()

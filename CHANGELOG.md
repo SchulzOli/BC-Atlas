@@ -21,6 +21,11 @@ follows [Semantic Versioning](https://semver.org/).
   writes the app as one offline HTML file to share or publish from CI;
   `report`, `explorer`, `catalog`, and the ten diagram views write what the
   former commands wrote; `--watch` writes again on every change.
+- The Git timeline can step by merged pull request (`--history-by prs`:
+  GitHub, Azure DevOps, GitLab, and squash merges, with the number of commits
+  each brought) or by release tag (`--history-by releases`, plus unreleased
+  commits); `--last n` keeps the most recent steps. The app's Dependencies
+  page has the same choice.
 - One design system (`src/ui/theme.css`) for the app, the explorer, and the
   HTML documentation, with light and dark themes.
 

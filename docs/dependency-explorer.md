@@ -16,6 +16,8 @@ questions the static diagrams cannot answer at a glance:
 ```sh
 bca export ./workspace --view explorer -o dependencies.html            # current source
 bca export ./workspace --view explorer --history -o dependencies.html  # replay Git history
+bca export ./workspace --view explorer --history-by prs -o dependencies.html       # one frame per pull request
+bca export ./workspace --view explorer --history-by releases -o dependencies.html  # one frame per release
 bca export ./workspace --view explorer --format json -o graph.json     # the data behind it
 ```
 
@@ -124,8 +126,22 @@ them.
 The timeline at the bottom replays the graph frame by frame. Press **Space**
 to play, **←** and **→** to step, or click a bar.
 
-- **Git history** (`--history`): one frame per commit that changed an AL file
-  or `app.json` below the project root. Objects that appear in a frame are
+- **Git history** (`--history`): one frame per step that changed an AL file
+  or `app.json` below the project root. `--history-by` chooses the step:
+
+  | `--history-by` | One frame per | Frame shows |
+  | --- | --- | --- |
+  | `commits` (default) | commit | the commit message |
+  | `prs` | merged pull request on the main line (first parent) | `PR #12`, the pull request title, and how many commits it brought |
+  | `releases` | release tag reachable from `HEAD`, plus "Unreleased" for later commits | the tag, its message, and how many commits changed AL since the previous release |
+
+  Pull requests are recognized from GitHub merge commits ("Merge pull request
+  #12"), squash merges ("Title (#12)"), Azure DevOps ("Merged PR 12: Title"),
+  and GitLab merge commits ("See merge request group/project!12"). Commits
+  pushed directly to the main line stay frames of their own. Tags from before
+  the project existed are skipped.
+
+  Objects that appear in a frame are
   cyan, objects whose file changed are yellow, and removed objects stay as red
   ghosts for two frames. Newly added nodes grow out of an existing neighbor,
   so you can watch the architecture being built. With uncommitted AL changes,
@@ -136,10 +152,11 @@ to play, **←** and **→** to step, or click a bar.
   Cycle members share one layer.
 
 The bar chart above the slider shows the size of the graph per frame with
-added, changed, and removed marks. For long histories, `--max-commits` samples
-the commits evenly and always keeps the first and the last one; `--since`
-limits the replay to recent work. Each frame then covers several commits, and
-the frame info says how many.
+added, changed, and removed marks. `--last 10` replays only the last 10
+steps, and `--since` only recent work. For long histories, `--max-commits`
+samples the steps evenly and always keeps the first and the last one. A frame
+then covers several steps, and the frame info says how many commits (and pull
+requests or releases) it stands for.
 
 Choose the layout **Commit timeline axis (4D)** to turn time into space:
 objects are placed from left to right by the commit that introduced them.

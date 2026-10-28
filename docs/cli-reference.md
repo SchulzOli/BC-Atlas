@@ -267,6 +267,7 @@ Writes what the app shows as files. `--view` selects what:
 bca export ./app -o atlas.html
 bca export ./app --view report --codegraph
 bca export ./workspace --view explorer --history -o dependencies.html
+bca export ./workspace --view explorer --history-by releases -o releases.html
 bca export ./app --view module -o modules.svg
 bca export ./app --view workflow --entry ProcessDocument -o workflow.svg --watch
 bca export ./app --view project --format json > model.json
@@ -312,8 +313,10 @@ rendering.
 | `--lens` | lens | Relationship family. Default and currently only value: `dependency`. |
 | `--propose` | flag | Show a proposed target architecture (components, layers) when `.bca.json` defines none. With an `architecture` section, the explorer always shows it. |
 | `--group-by` | mode | With `--propose`: how the proposal groups objects, `auto` (default), `namespace`, `folder`, `module`, or `app`. |
-| `--history` | flag | Replay Git history, one frame per commit that changed AL files or `app.json`. Also for `--view app`. |
-| `--max-commits` | integer | Most frames to replay; older commits are sampled evenly. Default: `60`. |
+| `--history` | flag | Replay Git history, one frame per step that changed AL files or `app.json`. Also for `--view app`. |
+| `--history-by` | mode | `commits` (default), `prs` (one frame per merged pull request), or `releases` (one frame per release tag, plus unreleased commits). Implies `--history`. |
+| `--last` | integer | Only the last n steps. |
+| `--max-commits` | integer | Most frames to replay; older steps are sampled evenly. Default: `60`. |
 | `--since` | date | Only replay commits after this date (`git log --since` syntax). |
 
 #### View selection

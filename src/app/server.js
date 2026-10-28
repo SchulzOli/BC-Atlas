@@ -109,10 +109,17 @@ export async function startAppServer(workspace, { port = 0, host = "127.0.0.1", 
       const docs = await workspace.docs();
       return docs ? { path: docs.path, scenarios: docs.scenarios } : { scenarios: 0 };
     },
-    "GET /explorer": async (url) => new Page(await workspace.explorer({
-      propose: flag(url.searchParams.get("propose")),
-      history: flag(url.searchParams.get("history"))
-    })),
+    "GET /explorer": async (url) => {
+      const history = url.searchParams.get("history") || undefined;
+      if (history && !["commits", "prs", "releases", "1"].includes(history)) throw new HttpError(400, "history must be commits, prs, or releases");
+      const last = url.searchParams.get("last") || undefined;
+      if (last && !/^[1-9]\d*$/u.test(last)) throw new HttpError(400, "last must be a positive integer");
+      return new Page(await workspace.explorer({
+        propose: flag(url.searchParams.get("propose")),
+        history: history === "1" ? "commits" : history ?? false,
+        last: last ? Number(last) : undefined
+      }));
+    },
     "GET /docs": async () => {
       const html = await workspace.docsHtml();
       if (!html) throw new HttpError(404, "no UI-test documentation found");

@@ -39,7 +39,12 @@ function checkFormat(view, format) {
 async function exportApp(input, values, log) {
   const output = path.resolve(values.output ?? "bc-atlas.html");
   const workspace = new Workspace(input, values, { live: false });
-  const { html, snapshot } = await renderSnapshotHtml(workspace, { log, history: values.history, title: values.title });
+  const { html, snapshot } = await renderSnapshotHtml(workspace, {
+    log,
+    history: values.history || values.historyBy ? values.historyBy ?? "commits" : false,
+    last: values.last === undefined ? undefined : positiveInteger(values.last, "last"),
+    title: values.title
+  });
   await fs.mkdir(path.dirname(output), { recursive: true });
   await fs.writeFile(output, html);
   const { summary, health, architecture } = snapshot.overview;
@@ -62,7 +67,7 @@ async function exportExplorer(input, values, log) {
     `${document.lens.title}: ${objects.nodes.length} object(s), ${objects.edges.length} dependency edge(s), ` +
     `${crossApp} across apps, ${document.levels.app.nodes.length} app(s)` +
     `${undeclared ? `, ${undeclared} undeclared app dependency(ies)` : ""}` +
-    `${frames > 1 ? `; ${frames} frame(s) from ${document.timeline.commits} commit(s)` : ""}.`
+    `${frames > 1 ? `; ${frames} frame(s) ${{ prs: "by pull request", releases: "by release" }[document.timeline.by] ?? "by commit"}, ${document.timeline.commits} commit(s)` : ""}.`
   );
   return [file];
 }

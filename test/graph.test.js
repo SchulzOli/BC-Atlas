@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createGraphDocument } from "../src/graph/document.js";
-import { sampleCommits } from "../src/graph/history.js";
+import { pullRequestOf, sampleCommits } from "../src/graph/history.js";
 import { renderExplorerHtml } from "../src/graph/html.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -173,6 +173,77 @@ codeunit 50019 "CON Legacy Pricing"
   commit("apps on top; legacy removed");
   return { directory, project };
 }
+
+// main: core (direct, tag v1.0) -> merged pull request #2 (two commits:
+// sales) -> squash merge #3 (integration, tag v1.1) -> a direct commit.
+function pullRequestFixture() {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-prs-"));
+  git(directory, "init", "-q", "-b", "main");
+  git(directory, "config", "user.email", "test@example.com");
+  git(directory, "config", "user.name", "Test");
+  git(directory, "config", "commit.gpgsign", "false");
+  git(directory, "config", "tag.gpgsign", "false");
+  const commit = (message) => {
+    git(directory, "add", "-A");
+    git(directory, "commit", "-q", "-m", message);
+  };
+  writeFileSync(path.join(directory, "README.md"), "not AL\n");
+  commit("readme before the project");
+  git(directory, "tag", "v0.1");
+  cpSync(path.join(workspace, "core"), path.join(directory, "core"), { recursive: true });
+  commit("core");
+  git(directory, "tag", "-a", "v1.0", "-m", "First release");
+  git(directory, "checkout", "-q", "-b", "sales");
+  cpSync(path.join(workspace, "sales"), path.join(directory, "sales"), { recursive: true });
+  commit("sales app");
+  writeFileSync(path.join(directory, "sales", "Extra.al"), "codeunit 50150 \"CON Extra\" { }\n");
+  commit("sales extra");
+  git(directory, "checkout", "-q", "main");
+  git(directory, "merge", "-q", "--no-ff", "sales", "-m", "Merge pull request #2 from contoso/sales\n\nAdd the sales app");
+  cpSync(path.join(workspace, "integration"), path.join(directory, "integration"), { recursive: true });
+  commit("Add the integration app (#3)");
+  git(directory, "tag", "v1.1");
+  writeFileSync(path.join(directory, "core", "Note.al"), "codeunit 50099 \"CON Note\" { }\n");
+  commit("hotfix on main");
+  return directory;
+}
+
+test("recognizes merged pull requests from GitHub, Azure DevOps, GitLab, and squash merges", () => {
+  assert.deepEqual(pullRequestOf("Merge pull request #12 from contoso/sales", "Add the sales app\n"), { number: 12, id: "#12", title: "Add the sales app" });
+  assert.deepEqual(pullRequestOf("Merged PR 7: Move pricing"), { number: 7, id: "#7", title: "Move pricing" });
+  assert.deepEqual(pullRequestOf("Merge branch 'pricing' into 'main'", "Move pricing\n\nSee merge request contoso/bc!5"), { number: 5, id: "!5", title: "Move pricing" });
+  assert.deepEqual(pullRequestOf("Add the integration app (#3)"), { number: 3, id: "#3", title: "Add the integration app" });
+  assert.equal(pullRequestOf("hotfix on main"), undefined);
+});
+
+test("history replays one frame per pull request or per release", async () => {
+  const directory = pullRequestFixture();
+  try {
+    const prs = await createGraphDocument(directory, { historyBy: "prs" });
+    assert.equal(prs.timeline.by, "prs");
+    assert.deepEqual(prs.timeline.frames.map(({ kind, id, label, commits }) => [kind, id, label, commits]), [
+      ["commit", prs.timeline.frames[0].id, "core", 1],
+      ["pull-request", "#2", "Add the sales app", 2],
+      ["pull-request", "#3", "Add the integration app", 1],
+      ["commit", prs.timeline.frames[3].id, "hotfix on main", 1]
+    ]);
+    assert.ok(objectNamed(prs, "CON Extra").presence[0][0] === 1, "the pull request brings both of its commits");
+
+    const releases = await createGraphDocument(directory, { historyBy: "releases" });
+    assert.deepEqual(releases.timeline.frames.map(({ kind, id, label, commits }) => [kind, id, label, commits]), [
+      // v0.1 predates the AL source and is skipped.
+      ["release", "v1.0", "v1.0: First release", 1],
+      ["release", "v1.1", "v1.1", 3],
+      ["unreleased", "unreleased", "Unreleased: hotfix on main", 1]
+    ]);
+
+    const last = await createGraphDocument(directory, { historyBy: "prs", last: 2 });
+    assert.deepEqual(last.timeline.frames.map(({ id }) => id).slice(0, 1), ["#3"]);
+    assert.equal(last.timeline.frames.length, 2);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 test("history replays commits that changed AL files and tracks additions and removals", async () => {
   const { directory, project } = historyFixture();

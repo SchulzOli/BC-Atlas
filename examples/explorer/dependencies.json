@@ -13,6 +13,8 @@
   },
   "timeline": {
     "source": "git",
+    "by": "commits",
+    "steps": 5,
     "commits": 5,
     "frames": [
       {

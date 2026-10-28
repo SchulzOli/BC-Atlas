@@ -495,12 +495,16 @@
   async function dependenciesPage(page, { params }) {
     $("#main").classList.add("full");
     const propose = params.get("propose") === "1";
-    const history = params.get("history") === "1";
+    const history = ["commits", "prs", "releases"].includes(params.get("history")) ? params.get("history") : undefined;
+    const last = /^[1-9]\d*$/u.test(params.get("last") ?? "") ? params.get("last") : undefined;
+    const STEPS = { commits: "commits", prs: "pull requests", releases: "releases" };
     setHeader("Dependencies", "Objects, modules, apps, and components in 3D: inside one app vs. across apps. Click a node for its links; drag to rotate.",
       LIVE ? `<label class="check"><input type="checkbox" id="propose"${propose ? " checked" : ""}> Proposed architecture</label>
-        <label class="check" title="One frame per commit; analyzing every commit takes a while"><input type="checkbox" id="history"${history ? " checked" : ""}> Replay Git history</label>` : "");
+        <label class="field inline" title="Replay how the dependencies grew: one frame per commit, merged pull request, or release tag. Analyzing many steps takes a while."><span>Timeline</span>
+          <select id="history"><option value="">Build order</option>${Object.entries({ commits: "Commits", prs: "Pull requests", releases: "Releases" }).map(([value, label]) => `<option value="${value}"${value === history ? " selected" : ""}>${label}</option>`).join("")}</select></label>
+        <label class="field inline"${history ? "" : " hidden"}><span>Last</span><input type="number" id="last" min="1" placeholder="all" value="${esc(last ?? "")}"></label>` : "");
     page.innerHTML = `<div class="muted small">Levels: 1 objects · 2 modules · 3 apps · 4 components. <kbd>/</kbd> searches, <kbd>Space</kbd> plays the timeline.</div>
-      <div class="frame-wrap"><iframe title="3D dependency explorer" data-theme-sync></iframe>${loading(history ? "Replaying the Git history…" : "Building the 3D graph…")}</div>`;
+      <div class="frame-wrap"><iframe title="3D dependency explorer" data-theme-sync></iframe>${loading(history ? `Replaying ${last ? `the last ${last} ` : "the "}${STEPS[history]}…` : "Building the 3D graph…")}</div>`;
     const frame = $("iframe", page);
     frame.addEventListener("load", () => {
       $(".frame-wrap .loading", page)?.remove();
@@ -509,9 +513,13 @@
       if (select) frame.contentWindow?.postMessage({ type: "bca-select", id: select }, "*");
     });
     frame.src = LIVE
-      ? `/explorer?${new URLSearchParams({ theme, ...(propose ? { propose: 1 } : {}), ...(history ? { history: 1 } : {}) })}`
+      ? `/explorer?${new URLSearchParams({ theme, ...(propose ? { propose: 1 } : {}), ...(history ? { history } : {}), ...(history && last ? { last } : {}) })}`
       : await blobUrl("explorer", window.BCA_EXPLORER_GZIP);
-    $("#page-actions").onchange = () => go("dependencies", { propose: $("#propose")?.checked ? 1 : undefined, history: $("#history")?.checked ? 1 : undefined });
+    $("#page-actions").onchange = () => go("dependencies", {
+      propose: $("#propose")?.checked ? 1 : undefined,
+      history: $("#history")?.value || undefined,
+      last: $("#history")?.value ? $("#last")?.value : undefined
+    });
   }
 
   // Inserts a rendered SVG without anything that could run script.
