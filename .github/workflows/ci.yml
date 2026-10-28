@@ -52,6 +52,11 @@ jobs:
         working-directory: vscode
       - run: npm run package -- --out bc-atlas.vsix
         working-directory: vscode
+      - name: Test the packaged extension (bundled engine)
+        working-directory: vscode
+        run: |
+          unzip -q bc-atlas.vsix -d .packaged
+          BCA_EXTENSION_MAIN=.packaged/extension/dist/extension.js npm test
       - uses: actions/upload-artifact@v4
         with:
           name: bc-atlas-vsix

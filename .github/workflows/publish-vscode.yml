@@ -49,6 +49,11 @@ jobs:
         working-directory: vscode
       - run: npm run package -- --out bc-atlas.vsix
         working-directory: vscode
+      - name: Test the packaged extension (bundled engine)
+        working-directory: vscode
+        run: |
+          unzip -q bc-atlas.vsix -d .packaged
+          BCA_EXTENSION_MAIN=.packaged/extension/dist/extension.js npm test
 
       # Microsoft Entra ID instead of a personal access token: Azure DevOps
       # retires global PATs, the only kind the Marketplace accepted, on

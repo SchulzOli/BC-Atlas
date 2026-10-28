@@ -16,6 +16,9 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- VS Code: the extension and its engine are bundled with esbuild; the
+  `.vsix` holds about 50 instead of 1,200 files, and CI tests the packaged
+  extension.
 - More architecture rules in `bca check`, `bca architecture`, and the
   Architecture page:
   - **Public objects:** a component may use only public objects of another

@@ -151,4 +151,14 @@ npm run package      # bc-atlas-<version>.vsix with the engine inside
 ```
 
 `npm run package` packs the BC Atlas engine with `npm pack`, adds it to the
-extension, and leaves out what the engine never loads.
+extension, and bundles both with esbuild: the extension becomes
+`dist/extension.js`, and each engine entry it starts (the analysis worker, the
+panel page, the CLI, the MCP server) becomes one file with its dependencies.
+Only D2, web-tree-sitter, and the 3D explorer's browser bundle stay packages,
+because they load their WebAssembly and worker files from next to themselves.
+The `.vsix` holds about 50 files.
+
+```sh
+unzip -q bc-atlas-<version>.vsix -d .packaged
+BCA_EXTENSION_MAIN=.packaged/extension/dist/extension.js npm test   # the tests against the package
+```

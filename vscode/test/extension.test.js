@@ -144,7 +144,8 @@ test("the extension analyzes the workspace and fills the editor and the panel", 
   t.after(() => {
     Module._load = load;
   });
-  const extension = require("../src/extension");
+  // BCA_EXTENSION_MAIN runs the same test against a packaged extension (dist/extension.js of an unpacked .vsix).
+  const extension = require(process.env.BCA_EXTENSION_MAIN ? path.resolve(process.env.BCA_EXTENSION_MAIN) : "../src/extension");
   const context = { subscriptions: [], extensionPath: path.join(__dirname, ".."), workspaceState: { get: () => undefined, update: async () => {} } };
   t.after(() => extension.deactivate());
   await extension.activate(context);
