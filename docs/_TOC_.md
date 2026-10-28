@@ -21,6 +21,7 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 
 ## Analyze
 
+- [Clean architecture: find, resolve, enforce](./clean-architecture.md)
 - [Architecture health checks](./health-checks.md)
 
 ## Document

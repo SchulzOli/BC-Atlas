@@ -25,6 +25,9 @@ function lookupKeys(object) {
   ]);
 }
 
+// Variable types that reference an object of another type.
+const TYPE_ALIASES = { testpage: "page", testrequestpage: "report" };
+
 function appIdentity(app) {
   return normalizeIdentifier(app?.id ?? app?.name);
 }
@@ -79,10 +82,10 @@ export function resolveModel(model) {
 
   function resolve(source, relation) {
     const target = normalizeIdentifier(relation.target);
-    let candidates =
-      index.get(`${relation.targetType ?? "*"}:${target}`) ??
-      index.get(`*:${target}`) ??
-      [];
+    // A typed reference (Record User) only matches objects of that type; the
+    // platform table User must not resolve to a codeunit named User.
+    const type = TYPE_ALIASES[relation.targetType] ?? relation.targetType ?? "*";
+    let candidates = index.get(`${type}:${target}`) ?? [];
     if (relation.targetAppId) {
       const targetAppId = normalizeIdentifier(relation.targetAppId);
       candidates = candidates.filter((candidate) => appIdentity(candidate.app) === targetAppId);

@@ -13,6 +13,7 @@ export const SECTIONS = [
     ["Dependency explorer (3D, timeline)", "dependency-explorer.md"]
   ]],
   ["Analyze", [
+    ["Clean architecture: find, resolve, enforce", "clean-architecture.md"],
     ["Architecture health checks", "health-checks.md"]
   ]],
   ["Document", [

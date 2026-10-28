@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
+import { gunzipSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -60,6 +61,74 @@ test("dependency lens honors object filters and keeps targets as context", async
   const workspaceNodes = document.levels.object.nodes.filter(({ outsideSelection, origin }) => !outsideSelection && origin === "workspace");
   assert.deepEqual(workspaceNodes.map(({ label }) => label).sort(), ["CON Item Sync", "CON Quote Export"]);
   assert.ok(objectNamed(document, "CON Item").outsideSelection);
+});
+
+test("nested app.json files are modules of the outer app; platform objects are implicit", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-modules-"));
+  try {
+    const module = path.join(directory, "Modules", "Pricing");
+    mkdirSync(module, { recursive: true });
+    writeFileSync(path.join(directory, "app.json"), JSON.stringify({ id: "a0000000-0000-0000-0000-000000000001", name: "Core", publisher: "Contoso", dependencies: [] }));
+    writeFileSync(path.join(module, "app.json"), JSON.stringify({ id: "a0000000-0000-0000-0000-000000000002", name: "Pricing", publisher: "Contoso", dependencies: [] }));
+    writeFileSync(path.join(directory, "Root.al"), `
+namespace Core;
+table 50000 "Root Table" { fields { field(1; Code; Code[20]) { } } }
+codeunit 50001 "Root Logic"
+{
+    var
+        Price: Record Core.Pricing."Price Entry";
+        Numbers: Record Integer;
+}
+`);
+    writeFileSync(path.join(module, "Price.al"), `
+namespace Core.Pricing;
+table 50010 "Price Entry" { fields { field(1; Code; Code[20]) { TableRelation = "Root Table".Code; } } }
+`);
+    const document = await createGraphDocument(directory);
+    assert.deepEqual(document.levels.app.nodes.map(({ label, origin }) => [label, origin]).sort(), [["(platform)", "platform"], ["Core", "workspace"]]);
+    assert.equal(edgeBetween(document, "Root Logic", "Price Entry").dependency, "cross-module");
+    assert.equal(edgeBetween(document, "Root Logic", "Price Entry").scope, "intra-app");
+    assert.equal(edgeBetween(document, "Root Logic", "Integer").dependency, "implicit");
+    assert.equal(objectNamed(document, "Integer").origin, "platform");
+
+    const modules = new Map(document.levels.module.nodes.map((node) => [node.label, node]));
+    assert.equal(modules.get("Pricing").path, "Modules/Pricing/app.json");
+    const moduleEdge = (from, to) => document.levels.module.edges.find((edge) =>
+      edge.source === modules.get(from).id && edge.target === modules.get(to).id);
+    assert.equal(moduleEdge("Core", "Pricing").dependency, "cross-module");
+    assert.equal(moduleEdge("Pricing", "Core").dependency, "undeclared", "a module must declare what it uses");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("event subscriptions prefer the subscriber's own app for duplicate names", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-duplicates-"));
+  try {
+    for (const [folder, id, name] of [["old", "b0000000-0000-0000-0000-000000000001", "Old"], ["new", "b0000000-0000-0000-0000-000000000002", "New"]]) {
+      mkdirSync(path.join(directory, folder));
+      writeFileSync(path.join(directory, folder, "app.json"), JSON.stringify({ id, name, publisher: "Contoso", dependencies: [] }));
+      writeFileSync(path.join(directory, folder, "Line.al"), `
+namespace Contoso;
+table 309 "Series Line" { fields { field(1; Code; Code[20]) { } } }
+`);
+    }
+    writeFileSync(path.join(directory, "new", "Subscriber.al"), `
+namespace Contoso;
+codeunit 50000 "Series Subscriber"
+{
+    [EventSubscriber(ObjectType::Table, Database::"Series Line", 'OnAfterDeleteEvent', '', false, false)]
+    local procedure HandleDelete()
+    begin
+    end;
+}
+`);
+    const document = await createGraphDocument(directory);
+    const edge = document.levels.object.edges.find(({ kinds }) => kinds.subscribes);
+    assert.equal(edge.dependency, "intra-app");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 function git(directory, ...args) {
@@ -155,6 +224,16 @@ test("explorer HTML is self-contained and embeds the graph safely", async () => 
   const data = html.match(/<script id="bca-graph-data">window\.BCA_GRAPH = (.*?);<\/script>/su)[1];
   assert.doesNotMatch(data, /<\/script/iu);
   assert.equal(JSON.parse(data).title, "Workspace </script><b>");
+});
+
+test("explorer HTML compresses large graphs", async () => {
+  const document = await createGraphDocument(workspace);
+  document.padding = "x".repeat(3 * 1024 * 1024);
+  const html = renderExplorerHtml(document);
+  const base64 = html.match(/window\.BCA_GRAPH_GZIP = "([A-Za-z0-9+/=]+)";/u)[1];
+  assert.ok(base64.length < 200 * 1024);
+  const restored = JSON.parse(gunzipSync(Buffer.from(base64, "base64")).toString("utf8"));
+  assert.equal(restored.title, document.title);
 });
 
 test("explore command writes HTML or JSON", () => {

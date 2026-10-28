@@ -351,6 +351,51 @@ test("resolves namespace-qualified EventSubscriber publisher arguments", async (
   assert.ok(events.edges.some(({ kind, to }) => kind === "publishes" && to));
 });
 
+test("resolves namespace-qualified Record and Codeunit types", async () => {
+  const source = `
+    namespace Contoso.Sales.Document;
+    table 50100 "Sales Line" { }
+    codeunit 50101 "Line Posting" { }
+    codeunit 50102 Consumer {
+      var
+        Line: Record Contoso.Sales.Document."Sales Line" temporary;
+        Posting: Codeunit Contoso.Sales.Document."Line Posting";
+    }
+    codeunit 50103 Granter {
+      Permissions = TableData Contoso.Sales.Document."Sales Line" = rm;
+    }
+  `;
+  const parsed = await testing.objectsFromSource(source, "qualified.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  const consumer = model.objects.find(({ name }) => name === "Consumer");
+  const targets = model.edges
+    .filter(({ from, kind }) => from === consumer.key && kind === "uses")
+    .map(({ to }) => model.objects.find(({ key }) => key === to)?.name);
+
+  assert.deepEqual(targets.sort(), ["Line Posting", "Sales Line"]);
+  const granter = model.objects.find(({ name }) => name === "Granter");
+  const granted = model.edges.find(({ from, kind }) => from === granter.key && kind === "permits");
+  assert.equal(model.objects.find(({ key }) => key === granted.to)?.name, "Sales Line");
+});
+
+test("typed references never resolve to an object of another type", async () => {
+  const source = `
+    codeunit 50100 User { }
+    codeunit 50101 Consumer {
+      var
+        Users: Record User;
+        Helper: Codeunit User;
+    }
+  `;
+  const parsed = await testing.objectsFromSource(source, "typed.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  const consumer = model.objects.find(({ name }) => name === "Consumer");
+  const edges = model.edges.filter(({ from }) => from === consumer.key);
+
+  assert.equal(edges.find(({ unresolved }) => unresolved)?.unresolved.type, "table");
+  assert.equal(edges.filter(({ to }) => to).length, 1);
+});
+
 test("resolves chained calls through procedure return types", async () => {
   const source = `
     codeunit 50100 Service {

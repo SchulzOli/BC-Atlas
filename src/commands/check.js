@@ -4,16 +4,25 @@ import { createArchitectureModel } from "../architecture.js";
 import { CheckFailedError } from "../cli/errors.js";
 import { displayPath } from "../output.js";
 import { assessHealth, formatHealthMarkdown, formatHealthText, healthResultLine } from "../health.js";
+import { assessArchitecture } from "../blueprint/index.js";
 
 export async function runHealthCheck(input, values = {}, context = {}) {
   // Strict mode becomes a fail threshold so the report is still produced.
-  const architecture = await createArchitectureModel(input, { ...values, view: "project", strict: false }, context);
+  const cache = context.cache ?? new Map();
+  const architecture = await createArchitectureModel(input, { ...values, view: "project", strict: false }, { ...context, cache });
   const settings = { ...(architecture.options.check ?? {}) };
   if (values.strict) settings.failOn = "warning";
   for (const name of ["failOn", "maxFanIn", "maxFanOut"]) {
     if (values[name] !== undefined) settings[name] = values[name];
   }
-  return { architecture, report: assessHealth(architecture.model, settings) };
+  // The target architecture from .bca.json is part of the health check.
+  let blueprint;
+  if (architecture.options.architecture?.components?.length) {
+    const model = structuredClone(cache.get(architecture.options.projectRoot));
+    blueprint = await assessArchitecture(input, { ...values, propose: false }, { model });
+    settings.architecture = blueprint;
+  }
+  return { architecture, blueprint, report: assessHealth(architecture.model, settings) };
 }
 
 export function renderHealth(report, format) {

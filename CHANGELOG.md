@@ -8,6 +8,25 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `bca architecture`: clean architecture for AL apps. Define components
+  (namespace, folder, app, module, type, or object selectors), layers, and
+  allowed dependencies in `.bca.json`, or let BC Atlas propose them from
+  today's dependencies (`--propose`, weighted feedback arc set and layering).
+  Every dependency that points outward, sideways, or undeclared becomes a work
+  item with a resolution strategy in AL terms: declare the dependency, move an
+  extension, subscriber, permissions, or navigation, move a related field into
+  a table extension, move an object, or invert the dependency with an
+  interface or event. Reports instability, abstractness, and distance per
+  component and which components can become apps of their own; text,
+  Markdown with a Mermaid diagram, and JSON.
+- `--write` saves the architecture to `.bca.json`; `--update-baseline`
+  accepts today's violations. `bca check` fails on new violations, reports
+  fixed ones so the baseline only shrinks, and warns about component cycles.
+- `bca explore` shows the architecture: a Components level, violating edges
+  in red with their resolution, an Architecture panel with the largest work
+  items, violations per commit on the timeline, and architecture layers as a
+  layout. The MCP server offers `bc_atlas_architecture`.
+
 - `bca explore`: an interactive 3D dependency explorer in one self-contained,
   offline HTML file. Dependencies inside one app are kept apart from
   dependencies across apps, which are checked against `app.json`: `declared`,
@@ -22,6 +41,16 @@ follows [Semantic Versioning](https://semver.org/).
   presence spans, PageRank, Louvain communities, build layers, and cycles,
   built with graphology. The MCP server offers it as `bc_atlas_explore`.
 - `examples/multi-app`, a three-app workspace, and its explorer example.
+- Nested `app.json` files are modules of the enclosing app, as in BCApps'
+  System Application and Base Application. The explorer adds a module level,
+  checks module dependencies against the module manifests, and marks
+  dependencies between modules of one app as `cross-module`.
+- Platform system objects (`Integer`, `Date`, `Field`, `AllObjWithCaption`,
+  `Company`, ...) and `System "..."` permissions count as implicit
+  dependencies instead of unresolved ones.
+- `bca explore --paths` analyzes and replays only some folders of a large
+  repository. Large explorer files embed their graph gzip-compressed and start
+  on the module level.
 
 - `bca docs generate` draws every scenario as a flow of its clicks in BPMN
   notation ("At a glance"): user tasks, milestones for `[THEN]` between
@@ -41,6 +70,14 @@ follows [Semantic Versioning](https://semver.org/).
   arrow in flow direction; `[ALTERNATIVE]` and `[RELATED]` are dashed lines.
 
 ### Fixed
+
+- Namespace-qualified references such as
+  `Record Microsoft.Sales.Document."Sales Header"`,
+  `TableData Microsoft.Sales.Document."Sales Line" = R`, and
+  `Database::Microsoft.Sales.Document."Sales Header"` resolve to their object
+  instead of an unresolved object named `Microsoft`.
+- The call view no longer slows down quadratically on large apps: resolving
+  calls in the Base Application takes about 2.5 instead of 70 seconds.
 
 - Steps on quoted fields and actions, such as
   `SalesOrder."Sell-to Customer No.".SetValue(...)`, are no longer dropped from

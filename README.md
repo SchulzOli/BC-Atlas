@@ -35,7 +35,8 @@ bca update    # new version? see what changed and update everything in one step
 | **Visualize** | `bca graph` | D2, SVG, PNG, PDF, or JSON for ten focused views (below). |
 | | `bca watch` | The same diagram, rebuilt on every AL change. |
 | | `bca explore` | An interactive 3D dependency explorer: inside one app vs. across apps, filterable, replayable over Git history. [Guide](./docs/dependency-explorer.md) |
-| **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, hot spots, diagnostics - with a CI exit code. |
+| **Analyze** | `bca architecture` | Find a target architecture (components, layers), list every dependency that blocks it with how to resolve it, and enforce it with a shrinking baseline. [Guide](./docs/clean-architecture.md) |
+| | `bca check` | Health findings - cycles, forbidden dependencies, hot spots, diagnostics - with a CI exit code. |
 | | `bca inspect` | The resolved architecture model as JSON for scripts. |
 | **Document** | `bca codegraph` | One linked Markdown page per AL object. |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations, a flow diagram per scenario, and BPMN 2.0 processes per use case. [Example](./examples/docs/index.md) |
@@ -61,6 +62,23 @@ options and examples.
 | `events` | Which subscribers react to which publishers? | `bca graph --view events --focus OnPosted -o events.svg` |
 | `ui` | How do pages, actions, and source tables connect? | `bca graph --view ui --focus "Sales Order" -o ui.svg` |
 | `workflow` | What happens after an action or entry point? | `bca graph --view workflow --entry action:Release -o flow.svg` |
+
+### Clean architecture
+
+`bca architecture` finds a target architecture for an app or workspace
+(components in layers, dependencies pointing inward), lists every dependency
+that stands in the way as a work item with a concrete resolution (declare it,
+move an extension or subscriber, move a field into a table extension, invert
+it with an interface), and shows which components can become apps of their
+own. Save it to `.bca.json`, accept today's violations in a baseline, and
+`bca check` keeps the architecture from eroding: new violations fail CI,
+fixed ones shrink the baseline.
+
+```sh
+bca architecture ./app --propose --format markdown -o architecture.md
+bca architecture ./app --propose --write --update-baseline
+bca check ./app
+```
 
 ### Interactive dependency explorer
 

@@ -17,13 +17,14 @@
     "frames": [
       {
         "index": 0,
-        "id": "65c6194",
-        "sha": "65c6194e7520a02065ba600669abe2b31f1aa0bc",
+        "id": "4aa634d",
+        "sha": "4aa634de8359d3a19e939140c27b8075c54938a3",
         "kind": "commit",
         "label": "Core: items, price groups, and pricing",
         "date": "2026-01-12T09:00:00.000Z",
         "author": "Contoso Developer",
         "commits": 1,
+        "violations": 0,
         "changedFiles": 3,
         "stats": {
           "nodes": 6,
@@ -37,13 +38,14 @@
       },
       {
         "index": 1,
-        "id": "6aa2116",
-        "sha": "6aa21160dacbd82d97691765fbb85845242ceabb",
+        "id": "499d655",
+        "sha": "499d65586692ff8c4dae6fc3da5162b3d9e25721",
         "kind": "commit",
         "label": "Core: legacy pricing for imported items",
         "date": "2026-02-02T09:00:00.000Z",
         "author": "Contoso Developer",
         "commits": 1,
+        "violations": 0,
         "changedFiles": 1,
         "stats": {
           "nodes": 7,
@@ -57,13 +59,14 @@
       },
       {
         "index": 2,
-        "id": "2f78060",
-        "sha": "2f780602a93feac791b81cc14a0b425934c26ee9",
+        "id": "1336594",
+        "sha": "1336594cbbe9b3ef11d3875cc040168a995bfd04",
         "kind": "commit",
         "label": "Sales: quotes priced through Contoso Core",
         "date": "2026-03-09T09:00:00.000Z",
         "author": "Contoso Developer",
         "commits": 1,
+        "violations": 0,
         "changedFiles": 2,
         "stats": {
           "nodes": 11,
@@ -77,13 +80,14 @@
       },
       {
         "index": 3,
-        "id": "ca91a7a",
-        "sha": "ca91a7a6f8d3297a80c3ee9afcc7263d3ba29bf8",
+        "id": "f66a2fa",
+        "sha": "f66a2faa0ac5a94c825d812ca6c5005b728cac3a",
         "kind": "commit",
         "label": "Integration: export quotes",
         "date": "2026-04-13T09:00:00.000Z",
         "author": "Contoso Developer",
         "commits": 1,
+        "violations": 0,
         "changedFiles": 2,
         "stats": {
           "nodes": 13,
@@ -97,13 +101,14 @@
       },
       {
         "index": 4,
-        "id": "d3ba7b3",
-        "sha": "d3ba7b3dbdcb0bc36f0dcf3b800b0d68fa0f1465",
+        "id": "37368ae",
+        "sha": "37368aec726d1afed3e6611f66c879c992b38467",
         "kind": "commit",
         "label": "Integration: item sync; remove legacy pricing",
         "date": "2026-05-18T09:00:00.000Z",
         "author": "Contoso Developer",
         "commits": 1,
+        "violations": 1,
         "changedFiles": 2,
         "stats": {
           "nodes": 13,
@@ -123,6 +128,10 @@
       "layers": 7
     },
     "app": {
+      "cycles": 0,
+      "layers": 3
+    },
+    "component": {
       "cycles": 0,
       "layers": 3
     }
@@ -146,14 +155,85 @@
       "writes"
     ],
     "dependencies": [
+      "allowed",
       "declared",
       "intra-app",
       "undeclared",
-      "unresolved"
+      "unresolved",
+      "violation"
     ],
     "origins": [
+      "component",
       "unresolved",
       "workspace"
+    ]
+  },
+  "architecture": {
+    "mode": "configured",
+    "components": [
+      {
+        "name": "Core",
+        "layer": 0,
+        "match": [
+          "app:Contoso Core"
+        ]
+      },
+      {
+        "name": "Sales",
+        "layer": 1,
+        "match": [
+          "app:Contoso Sales"
+        ],
+        "dependsOn": [
+          "Core"
+        ]
+      },
+      {
+        "name": "Integration",
+        "layer": 2,
+        "match": [
+          "app:Contoso Integration"
+        ],
+        "dependsOn": [
+          "Sales"
+        ]
+      }
+    ],
+    "summary": {
+      "components": 3,
+      "objects": 12,
+      "assigned": 12,
+      "unassigned": 0,
+      "dependencies": 5,
+      "violations": 1,
+      "workItems": 1,
+      "byStrategy": {
+        "declare-dependency": 1
+      },
+      "cycles": 0,
+      "extractable": 2
+    },
+    "workItems": [
+      {
+        "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50201|Core|declare-dependency",
+        "source": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50201",
+        "sourceComponent": "Integration",
+        "targetComponent": "Core",
+        "strategy": "declare-dependency",
+        "title": "Declare the dependency; it points inward",
+        "effort": "S",
+        "violations": 1,
+        "steps": [
+          "Add Core to dependsOn of Integration in .bca.json (and to app.json when they are separate apps)."
+        ],
+        "alternatives": [
+          {
+            "strategy": "use-facade",
+            "title": "Go through a component you already depend on",
+            "effort": "M"
+          }
+        ]
+      }
     ]
   },
   "levels": {
@@ -165,10 +245,12 @@
           "type": "table",
           "objectId": "50000",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Items",
           "file": "core/Items.al",
           "line": 3,
           "origin": "workspace",
+          "component": "Core",
           "presence": [
             [
               0,
@@ -192,10 +274,12 @@
           "type": "table",
           "objectId": "50001",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Items",
           "file": "core/Items.al",
           "line": 21,
           "origin": "workspace",
+          "component": "Core",
           "presence": [
             [
               0,
@@ -219,10 +303,12 @@
           "type": "page",
           "objectId": "50000",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Items",
           "file": "core/Items.al",
           "line": 37,
           "origin": "workspace",
+          "component": "Core",
           "presence": [
             [
               0,
@@ -245,10 +331,12 @@
           "label": "CON Price Calculation",
           "type": "interface",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Pricing",
           "file": "core/Pricing.al",
           "line": 5,
           "origin": "workspace",
+          "component": "Core",
           "presence": [
             [
               0,
@@ -272,10 +360,12 @@
           "type": "codeunit",
           "objectId": "50010",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Pricing",
           "file": "core/Pricing.al",
           "line": 10,
           "origin": "workspace",
+          "component": "Core",
           "presence": [
             [
               0,
@@ -299,10 +389,12 @@
           "type": "codeunit",
           "objectId": "50011",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Pricing",
           "file": "core/Pricing.al",
           "line": 24,
           "origin": "workspace",
+          "component": "Core",
           "presence": [
             [
               0,
@@ -326,10 +418,12 @@
           "type": "codeunit",
           "objectId": "50019",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "namespace": "Contoso.Core.Pricing",
           "file": "core/Legacy.al",
           "line": 5,
           "origin": "workspace",
+          "component": "Core",
           "presence": [
             [
               1,
@@ -353,10 +447,12 @@
           "type": "table",
           "objectId": "50100",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "namespace": "Contoso.Sales.Quotes",
           "file": "sales/Quotes.al",
           "line": 6,
           "origin": "workspace",
+          "component": "Sales",
           "presence": [
             [
               2,
@@ -380,10 +476,12 @@
           "type": "codeunit",
           "objectId": "50100",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "namespace": "Contoso.Sales.Quotes",
           "file": "sales/Quotes.al",
           "line": 24,
           "origin": "workspace",
+          "component": "Sales",
           "presence": [
             [
               2,
@@ -407,10 +505,12 @@
           "type": "page",
           "objectId": "50100",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "namespace": "Contoso.Sales.Quotes",
           "file": "sales/Quotes.al",
           "line": 41,
           "origin": "workspace",
+          "component": "Sales",
           "presence": [
             [
               2,
@@ -434,10 +534,12 @@
           "type": "permissionset",
           "objectId": "50100",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "namespace": "Contoso.Sales.Quotes",
           "file": "sales/Quotes.al",
           "line": 74,
           "origin": "workspace",
+          "component": "Sales",
           "presence": [
             [
               2,
@@ -461,10 +563,12 @@
           "type": "codeunit",
           "objectId": "50200",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "namespace": "Contoso.Integration",
           "file": "integration/Export.al",
           "line": 5,
           "origin": "workspace",
+          "component": "Integration",
           "presence": [
             [
               3,
@@ -487,6 +591,7 @@
           "label": "Customer",
           "type": "table",
           "app": "(unresolved)",
+          "module": "(unresolved)",
           "namespace": "(unknown)",
           "origin": "unresolved",
           "presence": [
@@ -512,10 +617,12 @@
           "type": "codeunit",
           "objectId": "50201",
           "app": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "module": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "namespace": "Contoso.Integration",
           "file": "integration/ItemSync.al",
           "line": 6,
           "origin": "workspace",
+          "component": "Integration",
           "presence": [
             [
               4,
@@ -541,6 +648,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "relates": 1
@@ -569,6 +678,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "reads": 1
@@ -597,6 +708,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::interface::con price calculation",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "implements": 1
@@ -624,6 +737,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -659,6 +774,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -694,6 +811,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -727,6 +846,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -762,6 +883,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "declared",
           "kinds": {
             "relates": 1
@@ -790,6 +913,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -825,6 +950,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50011",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "declared",
           "kinds": {
             "uses": 1,
@@ -865,6 +992,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "reads": 1
@@ -893,6 +1022,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "uses": 1,
@@ -926,6 +1057,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "permits": 1
@@ -953,6 +1086,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "permits": 1
@@ -980,6 +1115,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
             "permits": 1
@@ -1007,6 +1144,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "declared",
           "kinds": {
             "uses": 1,
@@ -1042,6 +1181,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "declared",
           "kinds": {
             "uses": 1,
@@ -1075,6 +1216,8 @@
           "target": "unresolved::table::customer",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "targetApp": "(unresolved)",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetModule": "(unresolved)",
           "dependency": "unresolved",
           "kinds": {
             "uses": 1,
@@ -1110,6 +1253,8 @@
           "target": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
           "sourceApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
           "targetApp": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+          "sourceModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+          "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "undeclared",
           "kinds": {
             "uses": 1,
@@ -1139,6 +1284,15 @@
             }
           ],
           "scope": "inter-app",
+          "violation": {
+            "rule": "undeclared-component-dependency",
+            "strategy": "declare-dependency",
+            "title": "Declare the dependency; it points inward",
+            "effort": "S",
+            "steps": [
+              "Add Core to dependsOn of Integration in .bca.json (and to app.json when they are separate apps)."
+            ]
+          },
           "presence": [
             [
               4,
@@ -1334,6 +1488,196 @@
           "objectEdges": 1,
           "scope": "inter-app",
           "dependency": "undeclared",
+          "presence": [
+            [
+              4,
+              null
+            ]
+          ],
+          "changes": []
+        }
+      ]
+    },
+    "component": {
+      "nodes": [
+        {
+          "id": "component::Core",
+          "label": "Core",
+          "type": "component",
+          "component": "Core",
+          "componentIndex": 0,
+          "layer": 0,
+          "objectCount": 6,
+          "componentMetrics": {
+            "objects": 6,
+            "interfaces": 1,
+            "afferentCoupling": 3,
+            "efferentCoupling": 0,
+            "instability": 0,
+            "abstractness": 0.167,
+            "distance": 0.833
+          },
+          "violations": 0,
+          "extractable": true,
+          "origin": "component",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 2,
+            "outDegree": 0,
+            "crossAppIn": 2,
+            "crossAppOut": 0,
+            "pagerank": 0.513831,
+            "community": 0,
+            "buildLayer": 0
+          }
+        },
+        {
+          "id": "component::Sales",
+          "label": "Sales",
+          "type": "component",
+          "component": "Sales",
+          "componentIndex": 1,
+          "layer": 1,
+          "objectCount": 4,
+          "componentMetrics": {
+            "objects": 4,
+            "interfaces": 0,
+            "afferentCoupling": 1,
+            "efferentCoupling": 2,
+            "instability": 0.667,
+            "abstractness": 0,
+            "distance": 0.333
+          },
+          "violations": 0,
+          "extractable": true,
+          "dependsOn": [
+            "Core"
+          ],
+          "origin": "component",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 1,
+            "outDegree": 1,
+            "crossAppIn": 1,
+            "crossAppOut": 1,
+            "pagerank": 0.290584,
+            "community": 0,
+            "buildLayer": 1
+          }
+        },
+        {
+          "id": "component::Integration",
+          "label": "Integration",
+          "type": "component",
+          "component": "Integration",
+          "componentIndex": 2,
+          "layer": 2,
+          "objectCount": 2,
+          "componentMetrics": {
+            "objects": 2,
+            "interfaces": 0,
+            "afferentCoupling": 0,
+            "efferentCoupling": 2,
+            "instability": 1,
+            "abstractness": 0,
+            "distance": 0
+          },
+          "violations": 1,
+          "extractable": false,
+          "dependsOn": [
+            "Sales"
+          ],
+          "origin": "component",
+          "presence": [
+            [
+              0,
+              null
+            ]
+          ],
+          "changes": [],
+          "metrics": {
+            "inDegree": 0,
+            "outDegree": 2,
+            "crossAppIn": 0,
+            "crossAppOut": 2,
+            "pagerank": 0.195585,
+            "community": 1,
+            "buildLayer": 2
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "component::Sales->component::Core",
+          "source": "component::Sales",
+          "target": "component::Core",
+          "dependency": "allowed",
+          "scope": "inter-app",
+          "kinds": {
+            "relates": 1,
+            "uses": 1,
+            "subscribes": 1,
+            "calls": 1
+          },
+          "weight": 4,
+          "objectEdges": 2,
+          "violations": 0,
+          "presence": [
+            [
+              2,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "component::Integration->component::Sales",
+          "source": "component::Integration",
+          "target": "component::Sales",
+          "dependency": "allowed",
+          "scope": "inter-app",
+          "kinds": {
+            "uses": 2,
+            "writes": 1,
+            "calls": 1
+          },
+          "weight": 4,
+          "objectEdges": 2,
+          "violations": 0,
+          "presence": [
+            [
+              3,
+              null
+            ]
+          ],
+          "changes": []
+        },
+        {
+          "id": "component::Integration->component::Core",
+          "source": "component::Integration",
+          "target": "component::Core",
+          "dependency": "violation",
+          "scope": "inter-app",
+          "kinds": {
+            "uses": 1,
+            "reads": 1,
+            "writes": 1
+          },
+          "weight": 3,
+          "objectEdges": 1,
+          "violations": 1,
           "presence": [
             [
               4,

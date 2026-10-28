@@ -22,6 +22,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Visualize | `watch` | Rebuild a diagram whenever AL source, `app.json`, or `.bca.json` changes. |
 | Visualize | `explore` | Write an interactive 3D dependency explorer (HTML) or its graph document (JSON), optionally replayed over Git history. |
 | Analyze | `check` | Score architecture health and fail CI on cycles, policy violations, or diagnostics. |
+| Analyze | `architecture` | Find a target architecture, list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
 | Analyze | `inspect` | Print the resolved architecture model as JSON. |
 | Document | `codegraph` | Generate one linked Markdown page per AL object. |
 | Document | `docs list` | List documented UI-test scenarios. |
@@ -48,6 +49,7 @@ bca graph [app-root] [options]      # or: bca <app-root> [options]
 bca watch [app-root] [options]
 bca explore [app-root] [options]
 bca check [app-root] [options]
+bca architecture [app-root] [options]
 bca inspect [app-root] [options]
 bca codegraph [app-root] [options]
 bca run [app-root] [options]
@@ -337,15 +339,52 @@ bca explore ./app --format json -o dependencies.json
 | `-o`, `--output` | path | Output path. Default: `bc-atlas-explorer.html`. |
 | `-f`, `--format` | format | `html` (explorer) or `json` (graph document). Inferred from the extension. |
 | `--lens` | lens | Relationship family. Default and currently only value: `dependency`. |
+| `--propose` | flag | Show a proposed target architecture (components, layers) when `.bca.json` defines none. With an `architecture` section, the explorer always shows it. |
+| `--group-by` | mode | How a proposed architecture groups objects: `auto` (default), `namespace`, `folder`, `module`, or `app`. |
 | `--history` | flag | Replay Git history, one frame per commit that changed AL files or `app.json`. |
 | `--max-commits` | integer | Most frames to replay; older commits are sampled evenly. Default: `60`. |
 | `--since` | date | Only replay commits after this date (`git log --since` syntax). |
 | `--title` | text | Explorer title. |
+| `--paths` | path or glob | Only analyze AL files in these folders (or matching these globs), relative to the project root. Repeatable. Speeds up large repositories such as BCApps. |
 | `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `graph`. |
 | `--project-root` | path | Analyze a wider workspace; the positional path becomes the selection. |
 | `--config` | path | Configuration file. |
 
 ## Analyze
+
+### `architecture`
+
+```text
+bca architecture [app-root] [options]
+```
+
+Checks the target architecture in the `architecture` section of `.bca.json`,
+or proposes one from today's dependencies when there is none. Lists every
+dependency that points the wrong way, grouped into work items with a
+resolution strategy, plus clean-architecture metrics per component. Exits with
+`1` when the configured architecture has violations that are not in the
+baseline. See [Clean architecture](./clean-architecture.md).
+
+```text
+bca architecture ./app --propose --format markdown -o architecture.md
+bca architecture ./app --propose --write --update-baseline
+bca architecture ./app --format json
+```
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `-f`, `--format` | format | `text`, `markdown`, or `json`. Default: `text`. |
+| `-o`, `--output` | path | Write the report to a file instead of stdout. |
+| `--propose` | flag | Propose an architecture even when `.bca.json` defines one. |
+| `--group-by` | mode | `auto`, `namespace`, `folder`, `module`, or `app`. Default `auto`: modules (or apps), and any that is still too large split by namespace. |
+| `--depth` | integer | Namespace or folder segments per component. Default: split until no component holds more than 15% of the objects. |
+| `--min-objects` | integer | Merge smaller groups into the component they depend on most. Default: `1`. |
+| `--write` | flag | Save the architecture to the `architecture` section of `.bca.json`. |
+| `--update-baseline` | flag | Accept today's violations in `.bca-architecture-baseline.json`; only new ones fail afterwards. |
+| `--paths` | path or glob | Only analyze AL files in these folders. Repeatable. |
+| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `graph`. |
+| `--project-root` | path | Analyze a wider workspace. |
+| `--config` | path | Configuration file. |
 
 ### `check`
 

@@ -19,14 +19,44 @@ export const DEPENDENCY_KINDS = Object.freeze([
   "includes"
 ]);
 
+// Evidence kept per edge; edges inside one module keep less to bound the size
+// of large graphs (a Base Application has ~70,000 of them).
 const MAX_EVIDENCE = 12;
+const MAX_LOCAL_EVIDENCE = 3;
 const toPosix = (file) => file.replaceAll("\\", "/");
 const NO_APP = "(no app.json)";
 const UNRESOLVED_APP = "(unresolved)";
+const PLATFORM_APP = "(platform)";
+
+// System tables and objects that the Business Central platform provides; they
+// never appear in AL source or in .alpackages of the Base Application.
+const PLATFORM_OBJECTS = new Set([
+  "Access Control", "Active Session", "Aggregate Permission Set", "All Profile", "AllObj",
+  "AllObjWithCaption", "Application Object Metadata", "Codeunit Metadata", "Company", "Database Locks",
+  "Date", "Event Subscription", "Expanded Permission", "Field", "Integer", "Key", "Media",
+  "Media Resources", "Media Set", "NAV App Installed App", "Object", "Object Metadata", "Object Options",
+  "Page Metadata", "Permission", "Permission Set", "Profile", "Published Application",
+  "Report Metadata", "Scheduled Task", "Server Instance", "Session", "Session Event",
+  "Table Information", "Table Metadata", "Tenant Media", "Tenant Media Set", "Tenant Media Thumbnails",
+  "Tenant Permission", "Tenant Permission Set", "Tenant Profile", "User", "User Metadata",
+  "User Personalization", "User Property", "Windows Language"
+].map((name) => name.toLowerCase()));
+
+function isPlatform(unresolved) {
+  return String(unresolved.type).toLowerCase() === "system" ||
+    PLATFORM_OBJECTS.has(normalizeIdentifier(unresolved.name));
+}
 
 export function appKey(app) {
   if (!app) return normalizeIdentifier(NO_APP);
   return normalizeIdentifier(app.id ?? app.name);
+}
+
+/** Root module of an app, or the nested module (app.json below the app) an object belongs to. */
+export function moduleKey(object) {
+  return object.module
+    ? `module::${normalizeIdentifier(object.module.id ?? object.module.name)}`
+    : appKey(object.app);
 }
 
 function declaredDependencyKeys(app) {
@@ -48,6 +78,7 @@ function objectNode(object, inSelection) {
     type: object.type,
     objectId: object.id,
     app: appKey(object.app),
+    module: moduleKey(object),
     namespace: object.namespace,
     file: object.externalSymbol ? undefined : toPosix(object.file),
     line: object.externalSymbol ? undefined : object.location?.line,
@@ -58,29 +89,36 @@ function objectNode(object, inSelection) {
 
 function unresolvedNode(unresolved) {
   const type = String(unresolved.type ?? "object").toLowerCase();
+  const platform = isPlatform(unresolved);
+  const app = normalizeIdentifier(platform ? PLATFORM_APP : UNRESOLVED_APP);
   return {
-    id: `unresolved::${type}::${normalizeIdentifier(unresolved.name)}`,
+    id: `${platform ? "platform" : "unresolved"}::${type}::${normalizeIdentifier(unresolved.name)}`,
     label: unresolved.name,
     type,
-    app: normalizeIdentifier(UNRESOLVED_APP),
-    namespace: "(unknown)",
-    origin: "unresolved"
+    app,
+    module: app,
+    namespace: platform ? "(platform)" : "(unknown)",
+    origin: platform ? "platform" : "unresolved"
   };
 }
 
 /**
- * Classifies one dependency from the source app's point of view.
- * intra-app stays inside one app; every other value crosses an app boundary.
+ * Classifies one dependency from the source app's point of view. intra-app
+ * and cross-module stay inside one app; every other value crosses an app
+ * boundary.
  */
-function dependencyClass(sourceApp, targetApp, target) {
-  if (!target) return "unresolved";
-  if (appKey(sourceApp) === appKey(targetApp)) return "intra-app";
-  const declared = declaredDependencyKeys(sourceApp);
-  if ([targetApp?.id, targetApp?.name].filter(Boolean).map(normalizeIdentifier).some((key) => declared.has(key))) {
+function dependencyClass(source, target, targetNode) {
+  if (!target) return targetNode.origin === "platform" ? "implicit" : "unresolved";
+  if (appKey(source.app) === appKey(target.app)) {
+    return moduleKey(source) === moduleKey(target) ? "intra-app" : "cross-module";
+  }
+  const declared = declaredDependencyKeys(source.app);
+  if ([target.app?.id, target.app?.name].filter(Boolean).map(normalizeIdentifier).some((key) => declared.has(key))) {
     return "declared";
   }
-  // app.json "application" and "platform" pull in Microsoft apps implicitly.
-  if (isMicrosoft(targetApp)) return "implicit";
+  // app.json "application" and "platform" pull in Microsoft apps implicitly;
+  // a Microsoft app that is part of the workspace still has to be declared.
+  if (target.externalSymbol && isMicrosoft(target.app)) return "implicit";
   return "undeclared";
 }
 
@@ -91,7 +129,7 @@ function subscriptionEdges(model, objectIndex) {
       for (const attribute of procedure.attributes ?? []) {
         const subscriber = subscriberAttribute(attribute);
         if (!subscriber) continue;
-        const target = objectIndex(subscriber.type, subscriber.target);
+        const target = objectIndex(subscriber.type, subscriber.target, owner);
         edges.push({
           from: owner.key,
           to: target?.key,
@@ -121,10 +159,21 @@ function createObjectIndex(objects) {
     const names = [object.name, `${object.namespace}.${object.name}`, object.id].filter(Boolean);
     for (const name of names) {
       const key = `${object.type}:${normalizeIdentifier(name)}`;
-      if (!index.has(key) || !object.externalSymbol) index.set(key, object);
+      if (!index.has(key)) index.set(key, []);
+      if (!index.get(key).includes(object)) index.get(key).push(object);
     }
   }
-  return (type, name) => index.get(`${type}:${normalizeIdentifier(name)}`);
+  // Same preference as the resolver: the owner's app, then its declared
+  // dependencies, then workspace objects before package symbols.
+  return (type, name, owner) => {
+    const candidates = index.get(`${type}:${normalizeIdentifier(name)}`) ?? [];
+    if (candidates.length < 2) return candidates[0];
+    const declared = declaredDependencyKeys(owner?.app);
+    return candidates.find((candidate) => appKey(candidate.app) === appKey(owner?.app)) ??
+      candidates.find((candidate) => declared.has(appKey(candidate.app))) ??
+      candidates.find((candidate) => !candidate.externalSymbol) ??
+      candidates[0];
+  };
 }
 
 function evidenceFor(edge) {
@@ -188,24 +237,106 @@ export function dependencyLens(model, { filter = () => true } = {}) {
       target: targetNode.id,
       sourceApp: appKey(source.app),
       targetApp: targetNode.app,
-      dependency: dependencyClass(source.app, target?.app, target),
+      sourceModule: moduleKey(source),
+      targetModule: targetNode.module,
+      dependency: dependencyClass(source, target, targetNode),
       kinds: {},
       weight: 0,
       evidence: []
     };
     edge.kinds[relation.kind] = (edge.kinds[relation.kind] ?? 0) + (relation.weight ?? 1);
     edge.weight += relation.weight ?? 1;
-    if (edge.evidence.length < MAX_EVIDENCE) edge.evidence.push(evidenceFor(relation));
+    const limit = edge.dependency === "intra-app" ? MAX_LOCAL_EVIDENCE : MAX_EVIDENCE;
+    if (edge.evidence.length < limit) edge.evidence.push(evidenceFor(relation));
     edges.set(id, edge);
   }
   for (const edge of edges.values()) {
-    edge.scope = edge.dependency === "intra-app" ? "intra-app" : "inter-app";
+    edge.scope = ["intra-app", "cross-module"].includes(edge.dependency) ? "intra-app" : "inter-app";
   }
 
   return {
     object: { nodes: [...nodes.values()], edges: [...edges.values()] },
+    ...(model.modules?.length ? { module: moduleLevel(model, nodes, edges) } : {}),
     app: appLevel(model, nodes, edges)
   };
+}
+
+function knownAppsOf(model) {
+  const knownApps = new Map();
+  for (const app of model.apps ?? []) knownApps.set(appKey(app), app);
+  for (const object of model.objects) if (object.app) knownApps.set(appKey(object.app), object.app);
+  return knownApps;
+}
+
+/**
+ * Module level: one node per nested module plus one root module per app. Module
+ * manifests declare which modules and apps a module may use; observed object
+ * references between modules are checked against them.
+ */
+function moduleLevel(model, objectNodes, objectEdges) {
+  const knownApps = knownAppsOf(model);
+  const manifests = new Map((model.modules ?? []).map((module) => [moduleKey({ module }), module]));
+  const modules = new Map();
+  for (const node of objectNodes.values()) {
+    if (!modules.has(node.module)) {
+      const manifest = manifests.get(node.module);
+      const app = knownApps.get(node.app);
+      modules.set(node.module, {
+        id: node.module,
+        label: manifest?.name ?? app?.name ??
+          ({ unresolved: UNRESOLVED_APP, platform: PLATFORM_APP }[node.origin] ?? NO_APP),
+        type: "module",
+        app: node.app,
+        appId: (manifest ?? app)?.id,
+        path: manifest?.path?.replaceAll("\\", "/"),
+        origin: manifest ? "module" : node.origin === "workspace" ? "workspace" : node.origin,
+        objectCount: 0
+      });
+    }
+    modules.get(node.module).objectCount++;
+  }
+
+  const edges = new Map();
+  const edgeFor = (source, target) => {
+    const id = `${source}->${target}`;
+    if (!edges.has(id)) {
+      edges.set(id, { id, source, target, declared: false, kinds: {}, weight: 0, objectEdges: 0, classes: [] });
+    }
+    return edges.get(id);
+  };
+  const moduleOrApp = (dependency) => {
+    const identity = normalizeIdentifier(dependency.id ?? dependency.appId ?? dependency.name);
+    if (modules.has(`module::${identity}`)) return `module::${identity}`;
+    return modules.has(identity) ? identity : undefined;
+  };
+  for (const [key, manifest] of manifests) {
+    if (!modules.has(key)) continue;
+    for (const dependency of manifest.dependencies ?? []) {
+      const target = moduleOrApp(dependency);
+      if (target && target !== key) edgeFor(key, target).declared = true;
+    }
+  }
+  for (const edge of objectEdges.values()) {
+    if (edge.sourceModule === edge.targetModule) continue;
+    const moduleEdge = edgeFor(edge.sourceModule, edge.targetModule);
+    moduleEdge.objectEdges++;
+    moduleEdge.weight += edge.weight;
+    for (const [kind, weight] of Object.entries(edge.kinds)) {
+      moduleEdge.kinds[kind] = (moduleEdge.kinds[kind] ?? 0) + weight;
+    }
+    if (!moduleEdge.classes.includes(edge.dependency)) moduleEdge.classes.push(edge.dependency);
+  }
+  for (const edge of edges.values()) {
+    const { classes } = edge;
+    delete edge.classes;
+    const sameApp = modules.get(edge.source)?.app === modules.get(edge.target)?.app;
+    edge.scope = sameApp ? "intra-app" : "inter-app";
+    edge.dependency = edge.declared
+      ? edge.objectEdges ? "declared" : "declared-unused"
+      : ["undeclared", "unresolved", "implicit"].find((value) => classes.includes(value)) ??
+        (!sameApp ? "declared" : manifests.has(edge.source) ? "undeclared" : "cross-module");
+  }
+  return { nodes: [...modules.values()], edges: [...edges.values()] };
 }
 
 function appLevel(model, objectNodes, objectEdges) {
@@ -213,14 +344,13 @@ function appLevel(model, objectNodes, objectEdges) {
   const counts = new Map();
   for (const node of objectNodes.values()) counts.set(node.app, (counts.get(node.app) ?? 0) + 1);
 
-  const knownApps = new Map();
-  for (const app of model.apps ?? []) knownApps.set(appKey(app), app);
-  for (const object of model.objects) if (object.app) knownApps.set(appKey(object.app), object.app);
+  const knownApps = knownAppsOf(model);
 
   for (const node of objectNodes.values()) {
     if (apps.has(node.app)) continue;
-    if (node.origin === "unresolved") {
-      apps.set(node.app, { ...appNode({ name: UNRESOLVED_APP }, "unresolved"), id: node.app });
+    if (["unresolved", "platform"].includes(node.origin)) {
+      const name = node.origin === "platform" ? PLATFORM_APP : UNRESOLVED_APP;
+      apps.set(node.app, { ...appNode({ name, publisher: node.origin === "platform" ? "Microsoft" : undefined }, node.origin), id: node.app });
       continue;
     }
     const app = knownApps.get(node.app);

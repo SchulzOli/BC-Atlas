@@ -5,11 +5,13 @@ import { mergeArchitectureOptions, positiveInteger } from "../architecture.js";
 import { loadConfig } from "../config.js";
 import { resolveModel } from "../resolver.js";
 import { loadSymbolPackages } from "../symbols.js";
-import { objectFilter } from "../views.js";
+import { objectFilter, pathMatcher } from "../views.js";
 import { findLens } from "./lenses/index.js";
 import { addMetrics } from "./metrics.js";
 import { replayHistory } from "./history.js";
-import { frameStatistics, mergeFrames } from "./temporal.js";
+import { createTemporalGraph, frameStatistics } from "./temporal.js";
+import { annotateLevels } from "../blueprint/annotate.js";
+import { proposeArchitecture } from "../blueprint/propose.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
@@ -18,12 +20,13 @@ export const GRAPH_SCHEMA_VERSION = 1;
 
 function vocabulary(levels) {
   const collect = (items, read) => [...new Set(items.flatMap(read))].filter(Boolean).sort();
-  const objects = levels.object;
+  const nodes = Object.values(levels).flatMap((level) => level.nodes);
+  const edges = Object.values(levels).flatMap((level) => level.edges);
   return {
-    types: collect(objects.nodes, ({ type }) => [type]),
-    kinds: collect([...objects.edges, ...levels.app.edges], ({ kinds }) => Object.keys(kinds ?? {})),
-    dependencies: collect([...objects.edges, ...levels.app.edges], ({ dependency }) => [dependency]),
-    origins: collect([...objects.nodes, ...levels.app.nodes], ({ origin }) => [origin])
+    types: collect(levels.object.nodes, ({ type }) => [type]),
+    kinds: collect(edges, ({ kinds }) => Object.keys(kinds ?? {})),
+    dependencies: collect(edges, ({ dependency }) => [dependency]),
+    origins: collect(nodes, ({ origin }) => [origin])
   };
 }
 
@@ -31,7 +34,7 @@ function vocabulary(levels) {
  * Creates a temporal graph document for one lens: object and app levels with
  * metrics, plus one frame per sampled commit when `history` is set.
  */
-export async function createGraphDocument(input, values = {}) {
+export async function createGraphDocument(input, values = {}, { onFrame } = {}) {
   const config = await loadConfig(values.projectRoot ?? input, values.config);
   const options = mergeArchitectureOptions(config.values, values);
   // A single AL file is analyzed as the focus of its folder.
@@ -43,22 +46,47 @@ export async function createGraphDocument(input, values = {}) {
   }
   const lens = findLens(options.lens);
   const filter = objectFilter({ ...options, focusPath: focus ? focus.replaceAll("\\", "/") : undefined });
+  const paths = [options.paths ?? []].flat().filter(Boolean);
+  const fileFilter = paths.length ? pathMatcher(paths) : undefined;
   const parseCache = new Map();
   const symbols = await loadSymbolPackages(projectRoot);
-  const build = async (root) => lens.build(resolveModel(await analyze(root, { parseCache, symbols })), { filter });
+  const graph = async (root) => lens.build(resolveModel(await analyze(root, { parseCache, symbols, fileFilter })), { filter });
 
+  // The target architecture: from .bca.json, or proposed from the current
+  // source. Every frame is checked against the same one.
+  let architecture = options.architecture?.components?.length && !values.propose ? options.architecture : undefined;
+  let current;
+  if (values.propose) {
+    current = await graph(projectRoot);
+    architecture = proposeArchitecture(current, { groupBy: values.groupBy, depth: values.depth }).architecture;
+  }
+  let assessment;
+  const build = async (root) => {
+    const levels = root === projectRoot && current ? current : await graph(root);
+    if (architecture) assessment = annotateLevels(levels, architecture);
+    return levels;
+  };
+
+  // Frames keep their metadata; their graphs go straight into the merge.
   const frames = [];
+  const temporal = createTemporalGraph();
+  const addFrame = (frame) => {
+    temporal.add(frame);
+    frames.push({ ...frame, levels: undefined, ...(architecture ? { violations: assessment.summary.violations } : {}) });
+  };
   let history;
   if (options.history) {
     history = await replayHistory(projectRoot, {
       maxCommits: positiveInteger(options.maxCommits, "max-commits", 60),
-      since: options.since
-    }, async (directory, frame) => {
-      frames.push({ ...frame, levels: await build(directory) });
+      since: options.since,
+      fileFilter
+    }, async (directory, frame, index, total) => {
+      addFrame({ ...frame, levels: await build(directory) });
+      onFrame?.(frame, index, total);
     });
   }
   if (!frames.length || history?.workingTreeChanges.length) {
-    frames.push({
+    addFrame({
       id: "working-tree",
       kind: "working-tree",
       label: frames.length ? "Uncommitted changes" : "Current source",
@@ -68,11 +96,8 @@ export async function createGraphDocument(input, values = {}) {
     });
   }
 
-  const levels = mergeFrames(frames);
-  const summary = {
-    object: addMetrics(levels.object),
-    app: addMetrics(levels.app)
-  };
+  const levels = temporal.result();
+  const summary = Object.fromEntries(Object.entries(levels).map(([name, level]) => [name, addMetrics(level)]));
   if (!levels.object.nodes.length) {
     throw new Error(`no AL objects found in ${path.resolve(input)}; check the path and the --include, --exclude, --namespace, and --type filters`);
   }
@@ -96,6 +121,15 @@ export async function createGraphDocument(input, values = {}) {
     },
     summary,
     vocabulary: vocabulary(levels),
+    ...(architecture ? {
+      architecture: {
+        mode: options.architecture?.components?.length && !values.propose ? "configured" : "proposal",
+        components: architecture.components,
+        summary: assessment.summary,
+        workItems: assessment.workItems.slice(0, 300).map(({ id, source, sourceComponent, targetComponent, strategy, title, effort, violations, steps, alternatives }) =>
+          ({ id, source: source.id, sourceComponent, targetComponent, strategy, title, effort, violations, steps, alternatives }))
+      }
+    } : {}),
     levels
   };
 }

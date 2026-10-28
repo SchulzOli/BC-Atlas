@@ -1,53 +1,82 @@
 function edgeSignature(edge) {
-  return JSON.stringify(Object.entries(edge.kinds ?? {}).sort()) + (edge.declared ? "|declared" : "");
+  return JSON.stringify(Object.entries(edge.kinds ?? {}).sort()) + (edge.declared ? "|declared" : "") +
+    (edge.violation ? `|${edge.violation.rule}` : "") + (edge.dependency ?? "");
 }
 
 function nodeSignature(node) {
   return [node.type, node.label, node.namespace, node.file, node.app].join("|");
 }
 
-function mergeItems(frames, select, { signature, touched }) {
+function itemTracker({ signature, touched }) {
   const merged = new Map();
-  frames.forEach((frame, index) => {
-    const present = new Set();
-    for (const item of select(frame)) {
-      present.add(item.id);
-      const entry = merged.get(item.id);
-      if (!entry) {
-        merged.set(item.id, { item, presence: [[index, null]], changes: [], signature: signature(item) });
-        continue;
+  return {
+    add(items, frame, index) {
+      const present = new Set();
+      for (const item of items) {
+        present.add(item.id);
+        const entry = merged.get(item.id);
+        if (!entry) {
+          merged.set(item.id, { item, presence: [[index, null]], changes: [], signature: signature(item) });
+          continue;
+        }
+        const open = entry.presence.at(-1)[1] === null;
+        if (!open) entry.presence.push([index, null]);
+        else if (entry.signature !== signature(item) || touched?.(item, frame)) entry.changes.push(index);
+        entry.item = item;
+        entry.signature = signature(item);
       }
-      const open = entry.presence.at(-1)[1] === null;
-      if (!open) entry.presence.push([index, null]);
-      else if (entry.signature !== signature(item) || touched?.(item, frame)) entry.changes.push(index);
-      entry.item = item;
-      entry.signature = signature(item);
+      for (const [id, entry] of merged) {
+        const span = entry.presence.at(-1);
+        if (span[1] === null && !present.has(id)) span[1] = index;
+      }
+    },
+    result() {
+      return [...merged.values()].map(({ item, presence, changes }) => ({ ...item, presence, changes }));
     }
-    for (const [id, entry] of merged) {
-      const span = entry.presence.at(-1);
-      if (span[1] === null && !present.has(id)) span[1] = index;
-    }
-  });
-  return [...merged.values()].map(({ item, presence, changes }) => ({ ...item, presence, changes }));
+  };
 }
 
 /**
- * Merges lens results of consecutive frames into one temporal graph. Every
- * node and edge gets `presence` spans ([first frame, end frame or null]) and
- * the frames in which it changed, so a viewer can replay how the graph grew.
+ * Merges lens results frame by frame into one temporal graph. Every node and
+ * edge gets `presence` spans ([first frame, end frame or null]) and the frames
+ * in which it changed, so a viewer can replay how the graph grew. Frames are
+ * added one at a time, so a long history never holds more than one frame.
  */
+export function createTemporalGraph() {
+  const levels = new Map();
+  let index = -1;
+  const trackers = (level) => {
+    if (!levels.has(level)) {
+      levels.set(level, {
+        nodes: itemTracker({
+          signature: nodeSignature,
+          touched: (node, frame) => Boolean(node.file && frame.changedFiles?.has(node.file))
+        }),
+        edges: itemTracker({ signature: edgeSignature })
+      });
+    }
+    return levels.get(level);
+  };
+  return {
+    add(frame) {
+      index++;
+      for (const level of Object.keys(frame.levels)) trackers(level);
+      for (const [level, tracker] of levels) {
+        tracker.nodes.add(frame.levels[level]?.nodes ?? [], frame, index);
+        tracker.edges.add(frame.levels[level]?.edges ?? [], frame, index);
+      }
+    },
+    result() {
+      return Object.fromEntries([...levels].map(([level, tracker]) =>
+        [level, { nodes: tracker.nodes.result(), edges: tracker.edges.result() }]));
+    }
+  };
+}
+
 export function mergeFrames(frames) {
-  const levels = {};
-  for (const level of Object.keys(frames.at(-1)?.levels ?? {})) {
-    levels[level] = {
-      nodes: mergeItems(frames, (frame) => frame.levels[level]?.nodes ?? [], {
-        signature: nodeSignature,
-        touched: (node, frame) => Boolean(node.file && frame.changedFiles?.has(node.file))
-      }),
-      edges: mergeItems(frames, (frame) => frame.levels[level]?.edges ?? [], { signature: edgeSignature })
-    };
-  }
-  return levels;
+  const temporal = createTemporalGraph();
+  for (const frame of frames) temporal.add(frame);
+  return temporal.result();
 }
 
 /** Adds per-frame counts of present, added, removed, and changed items. */

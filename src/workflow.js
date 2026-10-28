@@ -296,10 +296,12 @@ function selectProjection(objects, edges, seeds, options) {
 export function markCycles(objects, edges) {
   const keys = new Set(objects.map(({ key }) => key));
   const adjacency = new Map([...keys].map((key) => [key, []]));
+  const selfLoops = new Set();
   for (const edge of edges) {
     if (edge.to && keys.has(edge.from) && keys.has(edge.to)) {
       adjacency.get(edge.from).push(edge.to);
     }
+    if (edge.from === edge.to) selfLoops.add(edge.from);
   }
   let currentIndex = 0;
   const indexes = new Map();
@@ -331,7 +333,7 @@ export function markCycles(objects, edges) {
     } while (member !== key);
     if (
       component.length > 1 ||
-      edges.some(({ from, to }) => from === key && to === key)
+      selfLoops.has(key)
     ) components.push(component);
   }
 

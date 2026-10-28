@@ -21,9 +21,9 @@ function exploreTarget(output = "bc-atlas-explorer.html", format) {
 }
 
 /** Writes the interactive explorer (HTML) or the temporal graph document (JSON). */
-export async function writeExplorer(input, values = {}) {
+export async function writeExplorer(input, values = {}, { onFrame } = {}) {
   const target = exploreTarget(values.output, values.format);
-  const document = await createGraphDocument(input, values);
+  const document = await createGraphDocument(input, values, { onFrame });
   const content = target.format === "json"
     ? `${JSON.stringify(document, null, 2)}\n`
     : renderExplorerHtml(document);
@@ -33,7 +33,13 @@ export async function writeExplorer(input, values = {}) {
 }
 
 export async function exploreCommand(input, values) {
-  const { document, file } = await writeExplorer(input, values);
+  const started = Date.now();
+  const { document, file } = await writeExplorer(input, values, {
+    onFrame: (frame, index, total) => console.error(
+      `Frame ${index + 1}/${total}: ${frame.id} ${frame.date.slice(0, 10)} ` +
+      `(${Math.round((Date.now() - started) / 1000)} s)`
+    )
+  });
   const objects = document.levels.object;
   const crossApp = objects.edges.filter(({ scope }) => scope === "inter-app").length;
   const undeclared = document.levels.app.edges.filter(({ dependency }) => dependency === "undeclared").length;

@@ -22,9 +22,10 @@ function pathspecs(prefix) {
   return [`:(glob)${base}**/*.al`, `:(glob)${base}**/app.json`, `:(glob)${base}app.json`];
 }
 
-function relevant(prefix, file) {
+function relevant(prefix, file, fileFilter) {
   if (prefix && !file.startsWith(`${prefix}/`)) return false;
-  return /\.al$/iu.test(file) || /(^|\/)app\.json$/iu.test(file);
+  if (/(^|\/)app\.json$/iu.test(file)) return true;
+  return /\.al$/iu.test(file) && (!fileFilter || fileFilter(prefix ? file.slice(prefix.length + 1) : file));
 }
 
 /** Keeps the first and last commit and spreads the rest evenly. */
@@ -107,7 +108,7 @@ export function projectCommits(projectRoot, { since } = {}) {
  * `visit`. The working tree becomes a last frame when it has uncommitted
  * AL changes.
  */
-export async function replayHistory(projectRoot, { maxCommits = 60, since } = {}, visit) {
+export async function replayHistory(projectRoot, { maxCommits = 60, since, fileFilter } = {}, visit) {
   const { repository, prefix, commits: all } = projectCommits(projectRoot, { since });
   const commits = sampleCommits(all, maxCommits);
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "bca-history-"));
@@ -126,9 +127,9 @@ export async function replayHistory(projectRoot, { maxCommits = 60, since } = {}
             if (position % 2 === 0) items.push({ status: token, file: tokens[position + 1] });
             return items;
           }, [])
-          .filter(({ file }) => relevant(prefix, file))
+          .filter(({ file }) => relevant(prefix, file, fileFilter))
         : git(repository, ["ls-tree", "-r", "-z", "--name-only", commit.sha])
-          .split("\0").filter((file) => file && relevant(prefix, file))
+          .split("\0").filter((file) => file && relevant(prefix, file, fileFilter))
           .map((file) => ({ status: "A", file }));
       for (const { status, file } of changes) {
         const target = local(file);
@@ -151,7 +152,7 @@ export async function replayHistory(projectRoot, { maxCommits = 60, since } = {}
         author: commit.author,
         commits: span,
         changedFiles: new Set(changes.map(({ file }) => toPosix(path.relative(directory, local(file)))))
-      }, index);
+      }, index, commits.length);
       previous = commit;
     }
   } finally {
@@ -162,7 +163,7 @@ export async function replayHistory(projectRoot, { maxCommits = 60, since } = {}
   const dirty = git(repository, ["status", "--porcelain", "-z", "--untracked-files=all"])
     .split("\0").filter(Boolean)
     .map((entry) => entry.slice(3))
-    .filter((file) => relevant(prefix, file))
+    .filter((file) => relevant(prefix, file, fileFilter))
     .map((file) => prefix ? file.slice(prefix.length + 1) : file);
   return { commits: all.length, sampled: commits.length, workingTreeChanges: dirty };
 }

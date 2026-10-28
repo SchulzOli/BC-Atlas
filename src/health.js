@@ -41,6 +41,45 @@ function finding(severity, rule, message, details = {}) {
 }
 
 /**
+ * Findings for the target architecture: one per work item that is not in the
+ * baseline, plus progress notes for accepted and fixed violations.
+ */
+function architectureFindings({ result, baseline, architecture }) {
+  const severity = architecture.severity ?? "error";
+  if (!SEVERITIES.includes(severity)) throw new Error(`architecture.severity must be one of: ${SEVERITIES.join(", ")}`);
+  const findings = [];
+  const fresh = new Set(baseline.new.map(({ id }) => id));
+  const items = new Map();
+  for (const violation of result.violations.filter(({ id }) => fresh.has(id))) {
+    const key = `${violation.source.id}|${violation.targetComponent}`;
+    const item = items.get(key) ?? { violation, count: 0 };
+    item.count++;
+    items.set(key, item);
+  }
+  for (const { violation, count } of items.values()) {
+    const { source, sourceComponent, targetComponent, resolution } = violation;
+    findings.push(finding(severity, "architecture-violation",
+      `${source.type} ${source.label} (${sourceComponent}) depends on ${count} object(s) in ${targetComponent}; ${resolution.title.toLowerCase()} (${resolution.strategy})`,
+      { file: violation.evidence[0]?.file ?? source.file, line: violation.evidence[0]?.line ?? source.line, strategy: resolution.strategy }));
+  }
+  if (baseline.known.length) {
+    findings.push(finding("info", "architecture-baseline", `${baseline.known.length} accepted architecture violation(s) remain in the baseline`));
+  }
+  if (baseline.fixed.length) {
+    findings.push(finding("info", "architecture-progress",
+      `${baseline.fixed.length} accepted architecture violation(s) are fixed; run "bca architecture --update-baseline" to lock in the progress`));
+  }
+  for (const cycle of result.cycles) {
+    findings.push(finding("warning", "component-cycle", `Components depend on each other in a cycle: ${cycle.join(" -> ")} -> ${cycle[0]}`));
+  }
+  if (result.unassigned.length) {
+    findings.push(finding(architecture.unassigned ?? "info", "unassigned-objects",
+      `${result.unassigned.length} object(s) belong to no architecture component: ${result.unassigned.slice(0, 5).map(({ type, label }) => `${type} ${label}`).join(", ")}${result.unassigned.length > 5 ? ", ..." : ""}`));
+  }
+  return findings;
+}
+
+/**
  * Builds a health report for a project-view architecture model.
  * Thresholds come from CLI options or the `check` section of .bca.json.
  */
@@ -103,6 +142,8 @@ export function assessHealth(model, settings = {}) {
       `${unresolved.length} reference(s) to ${targets.length} external or unresolved target(s); add .alpackages symbols to resolve them`,
       { targets }));
   }
+
+  if (settings.architecture) findings.push(...architectureFindings(settings.architecture, model));
 
   findings.sort((left, right) =>
     SEVERITY_RANK[right.severity] - SEVERITY_RANK[left.severity] ||
