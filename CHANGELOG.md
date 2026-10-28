@@ -16,6 +16,12 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Dependency explorer: the new default layout **Open space** lets the graph
+  float freely in a large space, like the large-graph example of
+  3d-force-graph: small nodes, hairline links, apps or components that only
+  drift together, and the camera frames the connected objects once the layout
+  has settled. The filters start collapsed (☰ or `F`) so the graph has the
+  whole window.
 - Tools to split a monolith into apps (see the new guide
   [Split a monolith into apps](./docs/modularization.md) and the example
   `examples/monolith`):
