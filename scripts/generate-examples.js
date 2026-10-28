@@ -31,6 +31,9 @@ function run(arguments_) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, ...arguments_], {
       cwd: root,
+      // The examples are compared in CI, so they must not depend on whether
+      // the machine has Microsoft's AL toolchain installed.
+      env: { ...process.env, BCA_AL_COMPILER: "off" },
       stdio: "inherit"
     });
     child.on("error", reject);

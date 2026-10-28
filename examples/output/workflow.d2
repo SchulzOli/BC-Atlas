@@ -55,8 +55,17 @@ g1: "Workflow" {
   }
 }
 
+external: "External / unresolved" {
+  style.stroke-dash: 5
+  e0: "procedure\nwarehouserequest.validate" {
+    style.fill: "#FAFAFA"
+    style.stroke: "#999999"
+  }
+}
+
 g1.n2 -> g1.n3: "calls #2 [definite]" {style.stroke: "#4C78A8"}
 g1.n3 -> g1.n4: "calls #1 [definite]" {style.stroke: "#4C78A8"}
+g1.n3 -> external.e0: "calls #2 [definite] [syntactic]" {style.stroke: "#6B7280"; style.stroke-dash: 4}
 g1.n3 -> g0.n6: "Modify #3 [definite]" {style.stroke: "#D55E00"}
 g1.n3 -> g1.n5: "calls #4 [definite]" {style.stroke: "#4C78A8"}
 g1.n5 -> g1.n0: "dispatches event [inferred] [inferred]" {style.stroke: "#A21CAF"; style.stroke-dash: 3}
