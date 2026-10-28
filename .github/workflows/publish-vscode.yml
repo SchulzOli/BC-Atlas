@@ -60,6 +60,14 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
 
+      # The Marketplace knows identities by their Azure DevOps profile, not by
+      # their Entra IDs: add this ID as a Contributor of the publisher.
+      - name: Show the identity the Marketplace sees
+        run: |
+          az rest --method get --resource 499b84ac-1321-427f-aa17-267ca6975798 \
+            --url "https://app.vssps.visualstudio.com/_apis/profile/profiles/me?api-version=6.0" \
+            --query "{profileId: id, name: displayName}" --output table || true
+
       - name: Check access to the publisher
         working-directory: vscode
         run: npx vsce verify-pat --azure-credential "$(node -p 'require("./package.json").publisher')"
