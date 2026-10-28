@@ -187,12 +187,14 @@ export class Workspace {
         list.push(violation);
         violations.set(violation.source.id, list);
       }
+      // Findings and the model may differ in path separators on Windows.
+      const posix = (file) => file?.replaceAll("\\", "/");
       const byFile = new Map();
       for (const object of model.objects) {
         if (!object.file || !nodes.has(object.key)) continue;
-        const list = byFile.get(object.file) ?? [];
+        const list = byFile.get(posix(object.file)) ?? [];
         list.push(object);
-        byFile.set(object.file, list);
+        byFile.set(posix(object.file), list);
       }
       const summary = (node) => ({
         id: node.id,
@@ -246,7 +248,7 @@ export class Workspace {
       };
       // Maps a file and line (as findings report them) to the object there.
       const locate = (file, line) => {
-        const candidates = byFile.get(file);
+        const candidates = byFile.get(posix(file));
         if (!candidates?.length) return undefined;
         const inside = candidates.find(({ location }) => location && line >= location.line && line <= (location.endLine ?? location.line));
         return (inside ?? (candidates.length === 1 ? candidates[0] : undefined))?.key;
