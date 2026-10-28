@@ -110,6 +110,26 @@ test("the VS Code page talks to the extension and carries its Content-Security-P
   assert.throws(() => renderAppHtml({ mode: "live" }), /unknown page mode/u);
 });
 
+test("in VS Code the page inherits the editor's color theme", () => {
+  const html = renderAppHtml({ mode: "vscode", csp: "default-src 'none'" });
+  assert.match(html, /<html lang="en" data-host="vscode">/u);
+  for (const [token, variable] of [
+    ["--bg", "--vscode-editor-background"], ["--text", "--vscode-foreground"], ["--accent", "--vscode-button-background"],
+    ["--border", "--vscode-panel-border"], ["--font", "--vscode-font-family"], ["--mono", "--vscode-editor-font-family"],
+    ["--selected", "--vscode-list-activeSelectionBackground"], ["--error", "--vscode-editorError-foreground"]
+  ]) {
+    assert.match(html, new RegExp(`${token}: var\\(${variable}`, "u"), `${token} follows ${variable}`);
+  }
+  assert.match(html, /body\.vscode-high-contrast[\s\S]*--accent: var\(--vscode-focusBorder/u, "high contrast themes use their contrast colors");
+  // Embedded pages are documents of their own: they get the resolved colors.
+  assert.match(html, /type: "bca-theme", theme, tokens/u);
+  const viewer = readFileSync(path.join(root, "src", "graph", "viewer", "viewer.js"), "utf8");
+  assert.match(viewer, /setTheme\(event\.data\.theme, event\.data\.tokens\)/u);
+
+  const exported = renderAppHtml({ mode: "static", snapshot: {} });
+  assert.match(exported, /<html lang="en">/u, "an exported page keeps the BC Atlas design");
+});
+
 test("the embedded 3D explorer asks for the theme once its graph is unpacked", () => {
   // The explorer inflates its data asynchronously, so a theme sent on the
   // frame's load event can arrive before it listens; it asks instead.

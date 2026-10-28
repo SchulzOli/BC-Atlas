@@ -8,6 +8,10 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- VS Code: the BC Atlas panel takes its design from the editor's color theme
+  (background, text, borders, accent, selection, status colors, and fonts),
+  for any theme including high contrast; the 3D explorer and the Docs page
+  inside the panel follow too. Exported pages keep the BC Atlas design.
 - Microsoft's AL toolchain replaces BC Atlas's own analysis where it knows
   better. With the AL Language extension or the AL Development Tools
   installed (`al.compiler: auto`, the default), BC Atlas compiles a copy of the

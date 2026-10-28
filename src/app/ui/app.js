@@ -120,16 +120,42 @@
   // In VS Code the page follows the editor's color theme.
   const editorTheme = () => document.body.classList.contains("vscode-light") || document.body.classList.contains("vscode-high-contrast-light") ? "light" : "dark";
   let theme = LIVE ? editorTheme() : storedTheme ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  // The design tokens as the editor's theme resolves them (src/ui/theme.css).
+  // Embedded pages (explorer, docs) are documents of their own without the
+  // --vscode-* variables, so they get the resolved values.
+  const TOKENS = ["bg", "surface", "surface-2", "panel", "panel-solid", "border", "border-strong", "text", "muted", "accent", "accent-text",
+    "accent-soft", "hover", "input", "label", "label-shadow", "shadow", "ok", "warn", "error", "info", "font", "font-size", "mono", "link", "focus",
+    "selected", "selected-text"];
+  const themeTokens = () => {
+    if (!LIVE) return undefined;
+    const style = getComputedStyle(document.documentElement);
+    return Object.fromEntries(TOKENS.map((name) => [`--${name}`, style.getPropertyValue(`--${name}`).trim()]).filter(([, value]) => value));
+  };
   const applyTheme = () => {
     document.documentElement.dataset.theme = theme;
-    for (const frame of $$("iframe[data-theme-sync]")) frame.contentWindow?.postMessage({ type: "bca-theme", theme }, "*");
+    const tokens = themeTokens();
+    for (const frame of $$("iframe[data-theme-sync]")) frame.contentWindow?.postMessage({ type: "bca-theme", theme, tokens }, "*");
     for (const frame of $$("iframe[data-theme-document]")) {
-      try { frame.contentDocument.documentElement.dataset.theme = theme; } catch { /* another origin */ }
+      try {
+        const root = frame.contentDocument.documentElement;
+        root.dataset.theme = theme;
+        for (const [name, value] of Object.entries(tokens ?? {})) root.style.setProperty(name, value);
+      } catch { /* another origin */ }
     }
   };
   applyTheme();
   if (LIVE) {
     $("#theme-toggle").hidden = true;
+    // VS Code changes the body class for light, dark, and high contrast, and
+    // the --vscode-* variables on <html> for every theme switch.
+    let applied = JSON.stringify(themeTokens());
+    new MutationObserver(() => {
+      const tokens = JSON.stringify(themeTokens());
+      if (editorTheme() === theme && tokens === applied) return;
+      theme = editorTheme();
+      applied = tokens;
+      applyTheme();
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"], subtree: false });
     new MutationObserver(() => {
       if (editorTheme() === theme) return;
       theme = editorTheme();
@@ -889,7 +915,7 @@
     if (!frame || event.source !== frame.contentWindow) return;
     // The explorer unpacks its graph first, then asks for the theme and the selection.
     if (event.data?.type === "bca-ready") {
-      frame.contentWindow.postMessage({ type: "bca-theme", theme }, "*");
+      frame.contentWindow.postMessage({ type: "bca-theme", theme, tokens: themeTokens() }, "*");
       if (frame.dataset.select) frame.contentWindow.postMessage({ type: "bca-select", id: frame.dataset.select }, "*");
     }
     if (event.data?.type === "bca-open-object" && typeof event.data.id === "string") location.hash = `#/object/${encodeURIComponent(event.data.id)}`;

@@ -444,9 +444,12 @@
   addEventListener("resize", resize);
   resize();
 
+  // Inside VS Code the app passes the editor theme's colors as tokens.
+  let themeTokens;
+
   function applyBackground() {
     document.documentElement.dataset.theme = state.theme;
-    graph.backgroundColor(state.theme === "light" ? "#f4f6fb" : "#0b1020");
+    graph.backgroundColor(themeTokens?.["--bg"] || (state.theme === "light" ? "#f4f6fb" : "#0b1020"));
   }
 
   // ----------------------------------------------------------------- layout
@@ -1307,8 +1310,14 @@
     download(fileName("json"), URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })));
     toast("Saved visible graph as JSON");
   });
-  const setTheme = (theme) => {
+  const setTheme = (theme, tokens) => {
     state.theme = theme;
+    if (tokens && typeof tokens === "object") {
+      themeTokens = tokens;
+      for (const [name, value] of Object.entries(tokens)) {
+        if (/^--[a-z0-9-]+$/u.test(name) && typeof value === "string") document.documentElement.style.setProperty(name, value);
+      }
+    }
     remember();
     applyBackground();
     refreshStyles();
@@ -1320,7 +1329,7 @@
     for (const element of [$("#theme"), $("#title"), $("#lens")]) element.hidden = true;
     addEventListener("message", (event) => {
       if (event.source !== window.parent) return;
-      if (event.data?.type === "bca-theme" && ["light", "dark"].includes(event.data.theme)) setTheme(event.data.theme);
+      if (event.data?.type === "bca-theme" && ["light", "dark"].includes(event.data.theme)) setTheme(event.data.theme, event.data.tokens);
       if (event.data?.type === "bca-select" && levels.object.byId.has(event.data.id)) {
         if (state.level !== "object") setLevel("object");
         select(event.data.id, { fly: true });

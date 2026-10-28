@@ -26,8 +26,12 @@ status bar item, or the BC Atlas button above an AL file.
 | Object | One object: what it uses and what uses it, its wrong-way dependencies with steps to resolve them, fields, procedures, actions, and properties. **Open source** opens the file at the declaration; a procedure opens at its line. | `bca export --view object --object <selector>` |
 | Docs | The guides from your AL UI tests, when the project has documented UI tests. | `bca docs generate --export html` |
 
-The panel follows the VS Code color theme and refreshes when AL files,
-`app.json`, `.bca.json`, or the architecture baseline change.
+The panel takes its design from your VS Code color theme: background,
+text, borders, accent, selection, error and warning colors, and the editor's
+fonts, including high contrast and custom themes, the 3D explorer and the
+Docs page included. It changes with the theme and refreshes when AL files,
+`app.json`, `.bca.json`, or the architecture baseline change. An exported
+page (`bca export`) keeps the BC Atlas design with its light and dark mode.
 
 ### Change the architecture from the panel
 
