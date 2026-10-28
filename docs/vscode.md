@@ -21,7 +21,7 @@ itself has no second navigation.
 | --- | --- | --- |
 | Overview | Objects, apps, health, the architecture at a glance, the most connected objects, and next steps. | |
 | Health | Every finding, filterable by severity, linked to its object. | `bca check` |
-| Architecture | The configured architecture or a proposal: components in layers, work items with the steps to resolve them, components with Martin metrics, and objects that belong elsewhere. | `bca architecture` |
+| Architecture | The configured architecture or a proposal: components in layers, work items with the steps to resolve them, data ownership, checks, the plan to extract a component as an app, components with Martin metrics, and objects that belong elsewhere. | `bca architecture` |
 | Dependencies | The 3D dependency explorer: objects, modules, apps, and components; inside one app vs. across apps; a timeline by commit, pull request, or release. | `bca export --view explorer` |
 | Diagrams | Every diagram view with zoom and pan; **SVG** and **D2** save the file. | `bca export --view <view>` |
 | Objects | Every AL object, searchable and sortable, filtered by type, app, component, or violations. | |

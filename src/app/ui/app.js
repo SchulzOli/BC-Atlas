@@ -399,6 +399,28 @@
     render();
   }
 
+  /** The plan for extracting one component as an app, with a picker for the component. */
+  function extractionCard(data, name) {
+    const names = Object.keys(data.extractions ?? {});
+    if (!names.length) return "";
+    const plan = data.extractions[name];
+    const picker = `<label class="field"><span>Plan extracting</span><select id="extract-component"><option value="">a component as an app…</option>${names.map((option) => `<option${option === name ? " selected" : ""}>${esc(option)}</option>`).join("")}</select></label>`;
+    if (!plan) return `<section class="card"><h2>Extract a component <span class="muted">what moves, what blocks it, the app.json, and the steps</span></h2><div class="controls">${picker}</div></section>`;
+    const list = (items) => items.map(({ component, objects }) => `${esc(component)} <span class="muted">${fmt(objects)}</span>`).join(", ") || "nothing";
+    return `<section class="card"><h2>Extract ${esc(plan.component)} as an app <span class="muted">${plan.ready ? "ready" : `${plural(plan.blockers.length, "blocker")}`} · effort ${esc(plan.effort)}</span></h2>
+      <div class="controls">${picker}<span class="muted small" style="margin-left:auto">CLI: <code>bca architecture --extract "${esc(plan.component)}"</code></span></div>
+      <dl class="facts">
+        <dt>Objects</dt><dd>${plural(plan.objects.total, "object")} in ${plural(plan.objects.files, "file")}, today in ${esc(plan.sourceApp?.name ?? "?")}${plan.alreadyAnApp ? " (already its own app)" : ""}</dd>
+        <dt>Uses</dt><dd>${list(plan.uses)}</dd>
+        <dt>Used by</dt><dd>${list(plan.usedBy)}</dd>
+        ${plan.tables.length ? `<dt>Data to move</dt><dd>${plural(plan.tables.length, "table")}: ${plan.tables.slice(0, 8).map(({ object }) => esc(object)).join(", ")}${plan.tables.length > 8 ? ", …" : ""}</dd>` : ""}
+      </dl>
+      ${plan.blockers.length ? `<h3 class="small muted">Blockers</h3><ul class="list">${plan.blockers.map((blocker) => `<li>${severityPill("error")}<span class="grow">${esc(blocker.message)}${(blocker.workItems ?? []).slice(0, 5).map((item) => `<div class="small muted">[${esc(item.effort)}] ${esc(item.title)}: ${esc(item.source)} → ${esc(item.targetComponent)}${item.command ? ` · <code>${esc(item.command)}</code>` : ""}</div>`).join("")}</span></li>`).join("")}</ul>` : ""}
+      <h3 class="small muted">Steps</h3><ol>${plan.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol>
+      <details><summary>app.json</summary><pre class="code">${esc(JSON.stringify(plan.appJson, null, 2))}</pre></details>
+    </section>`;
+  }
+
   async function architecturePage(page, { params }) {
     const settings = {
       propose: params.get("propose") === "1" || undefined,
@@ -465,6 +487,8 @@
       <section class="card flush"><h2>Work items <span class="muted" id="work-scope"></span></h2><div id="work-items"></div></section>
       ${!proposal && data.checks?.length ? `<section class="card"><h2>Architecture checks <span class="muted">components, declared dependencies, and selectors</span></h2>
         <ul class="list">${data.checks.map((check) => `<li>${severityPill(check.severity)}<span class="grow">${esc(check.message)}</span><code class="muted small nowrap">${esc(check.rule)}</code></li>`).join("")}</ul></section>` : ""}
+      ${extractionCard(data, params.get("extract"))}
+      ${data.dataOwnership?.length ? `<section class="card flush"><h2>Data ownership <span class="muted">tables other components write, read, relate to, or extend</span></h2><div id="ownership"></div></section>` : ""}
       ${proposal && data.proposal.moves.length ? '<section class="card flush"><h2>Objects that belong elsewhere <span class="muted">more closely tied to another component than to their own</span></h2><div id="moves"></div></section>' : ""}
       <section class="card flush"><h2>Components <span class="muted">instability I, abstractness A, distance D after Robert C. Martin</span></h2><div id="components"></div></section>`;
 
@@ -480,7 +504,8 @@
           { key: "title", label: "What to do", render: (row) => `<b>${esc(row.title)}</b> <span class="mono muted">${esc(row.strategy)}</span>
               <details class="steps"><summary>Steps and evidence</summary><ol>${row.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol>
               ${row.alternatives?.length ? `<div class="small muted">Alternatives: ${row.alternatives.map((alternative) => esc(alternative.title)).join("; ")}</div>` : ""}
-              <ul class="small muted">${row.evidence.map((item) => `<li>${esc(item.kind)}${item.member ? ` in ${esc(item.member)}` : ""} · <span class="mono">${esc(item.file)}:${item.line}</span></li>`).join("")}</ul></details>` },
+              <ul class="small muted">${row.evidence.map((item) => `<li>${esc(item.kind)}${item.member ? ` in ${esc(item.member)}` : ""} · <span class="mono">${esc(item.file)}:${item.line}</span></li>`).join("")}</ul>
+              ${row.command ? `<div class="small">Do it: <code>${esc(row.command)}</code></div>` : ""}</details>` },
           { key: "source", label: "Object", value: (row) => row.source.label, render: (row) => `${objectLink(row.source)}<div class="type">${esc(row.source.type)}</div>` },
           { key: "from", label: "From → to", value: (row) => `${row.sourceComponent} ${row.targetComponent}`, render: (row) => `${esc(row.sourceComponent)} → ${esc(row.targetComponent)}<div class="small muted">${row.targets.slice(0, 3).map((target) => esc(target.label)).join(", ")}${row.targets.length > 3 ? ", …" : ""}</div>` },
           { key: "violations", label: "Dependencies", numeric: true, render: (row) => fmt(row.violations) }
@@ -489,6 +514,24 @@
       for (const button of $$(".component", page)) button.setAttribute("aria-pressed", String(button.dataset.component === selected));
     };
     renderScoped();
+    if ($("#ownership")) {
+      const users = (list) => list.map(({ component, objects }) => `<span title="${esc(objects.join(", "))}">${esc(component)} <span class="muted">${fmt(objects.length)}</span></span>`).join(", ") || '<span class="muted">–</span>';
+      dataTable($("#ownership"), {
+        rows: data.dataOwnership,
+        sort: { key: "writers", direction: "descending" },
+        columns: [
+          { key: "table", label: "Table", render: (row) => `<b>${esc(row.table)}</b>${row.status === "shared-writes" ? ' <span class="pill warning">written by others</span>' : ""}` },
+          { key: "component", label: "Owner" },
+          { key: "writers", label: "Written by", value: (row) => row.writers.length, render: (row) => users(row.writers) },
+          { key: "readers", label: "Read by", value: (row) => row.readers.length, render: (row) => users(row.readers) },
+          { key: "relations", label: "Related from", value: (row) => row.relations.length, render: (row) => users(row.relations) },
+          { key: "extenders", label: "Extended by", value: (row) => row.extenders.length, render: (row) => users(row.extenders) }
+        ]
+      });
+    }
+    $("#extract-component")?.addEventListener("change", (event) => {
+      go("architecture", { propose: settings.propose ? 1 : undefined, groupBy: settings.groupBy, depth: settings.depth, minObjects: settings.minObjects, extract: event.target.value || undefined });
+    });
     if ($("#moves")) {
       dataTable($("#moves"), {
         rows: data.proposal.moves,

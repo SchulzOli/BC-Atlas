@@ -19,6 +19,9 @@ import { checkForUpdate } from "./commands/update.js";
 import { writeExplorer } from "./commands/explore.js";
 import { assessArchitecture } from "./blueprint/index.js";
 import { architectureJson } from "./blueprint/report.js";
+import { planExtraction } from "./blueprint/extract.js";
+import { planObjectMove } from "./commands/refactor.js";
+import { applyRefactoring } from "./refactor/move.js";
 import { generateReport } from "./commands/report.js";
 import { resolveOutput, writeArchitecture } from "./output.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
@@ -178,7 +181,7 @@ export function createMcpServer(version = pkg.version) {
   }));
 
   server.registerTool("bc_atlas_architecture", {
-    description: "Find or check the target architecture: components, layers, allowed dependencies, every dependency that points the wrong way grouped into work items with a resolution strategy (declare-dependency, move-extension, move-subscriber, move-permissions, move-field-to-extension, move-object-down, extract-interface, raise-event, ...), clean-architecture metrics, and which components can become apps of their own. Proposes an architecture when .bca.json defines none.",
+    description: "Find or check the target architecture: components, layers, allowed dependencies, every dependency that points the wrong way grouped into work items with a resolution strategy (declare-dependency, move-extension, move-subscriber, move-permissions, move-field-to-extension, move-object-down, extract-interface, raise-event, ...) and, for moves, the bca refactor command that performs them; data ownership (which components write, read, or extend each table), checks of the architecture, clean-architecture metrics, and which components can become apps of their own. Proposes an architecture when .bca.json defines none.",
     inputSchema: z.object({
       ...projectFields,
       propose: z.boolean().optional().describe("Propose an architecture even when .bca.json defines one"),
@@ -192,6 +195,36 @@ export function createMcpServer(version = pkg.version) {
     const report = architectureJson(await assessArchitecture(input, values));
     const { violations, ...rest } = report;
     return { ...rest, workItems: report.workItems.slice(0, limit), violationCount: violations.length };
+  }));
+
+  server.registerTool("bc_atlas_extraction_plan", {
+    description: "Plan extracting one component of the architecture as an app of its own: objects and files to move, the components it uses and that use it, blockers (wrong-way dependencies, internal objects, mutual dependencies) with their work items, the app.json it needs (dependencies, idRanges, internalsVisibleTo), tables whose data must move (ObsoleteState PendingMove/Moved with MovedTo/MovedFrom), permission sets to split, and the steps in order.",
+    inputSchema: z.object({
+      ...projectFields,
+      component: z.string().min(1).describe("Component name from bc_atlas_architecture"),
+      paths: z.array(z.string()).optional()
+    }),
+    annotations: { readOnlyHint: true, idempotentHint: true }
+  }, tool(async ({ path: input, component, ...values }) => planExtraction(await assessArchitecture(input, values), component)));
+
+  server.registerTool("bc_atlas_refactor_move", {
+    description: "Move an AL object to another component: the file moves to the component's folder (cut out of a file it shares), its namespace becomes the component's, and referencing files get the using they need. Returns a diff and warnings (app dependencies, ID ranges, table data). dryRun (default) writes nothing; apply with dryRun false, then compile and run bc_atlas_check. Work items of bc_atlas_architecture name the object and component in their command.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      object: z.string().min(1).describe("Object selector: codeunit:50100, table:Sales Doc, or a name"),
+      to: z.string().optional().describe("Target component"),
+      folder: z.string().optional().describe("Target folder relative to the project root (default: the component's folder)"),
+      namespace: z.string().optional().describe("Target namespace (default: the component's namespace)"),
+      dryRun: z.boolean().default(true)
+    }),
+    annotations: { destructiveHint: false, idempotentHint: false }
+  }, tool(async ({ path: input, dryRun, ...values }) => {
+    const { assessment, plan } = await planObjectMove(input, values);
+    const applied = dryRun ? undefined : await applyRefactoring(assessment.model.root, plan);
+    const { operations, ...rest } = plan;
+    return { ...rest, operations: operations.map(({ action, from, path: file }) => ({ action, from, path: file })), applied: Boolean(applied) };
   }));
 
   server.registerTool("bc_atlas_check", {

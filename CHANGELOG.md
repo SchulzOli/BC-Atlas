@@ -16,6 +16,23 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Tools to split a monolith into apps (see the new guide
+  [Split a monolith into apps](./docs/modularization.md) and the example
+  `examples/monolith`):
+  - **Data ownership:** for every table that other components use, who
+    owns, writes, reads, relates to, and extends it; `bca check` reports
+    tables other components write (`foreign-table-write`).
+  - **Extraction plans:** `bca architecture --extract <component>` (and the
+    MCP tool `bc_atlas_extraction_plan`, and the Architecture page) lists what
+    moves, the blockers with their work items (including app cycles), the new
+    app's `app.json` with a stable ID, dependencies, and `idRanges`, the tables
+    whose data moves with `ObsoleteState = PendingMove`/`MovedTo`/`MovedFrom`,
+    and the steps in order.
+  - **`bca refactor move`:** moves an AL object to another component: its
+    file, or the object cut out of a shared file, goes to the component's
+    folder, its namespace becomes the component's, and referencing files get
+    the `using` they need. Dry run by default; also the MCP tool
+    `bc_atlas_refactor_move`. Work items that are moves carry the command.
 - VS Code: the extension and its engine are bundled with esbuild; the
   `.vsix` holds about 50 instead of 1,200 files, and CI tests the packaged
   extension.

@@ -62,7 +62,8 @@ const CHECK_TITLES = {
   "inconsistent-component-dependency": "Declared dependency against the layers",
   "declared-component-cycle": "Declared cycle",
   "component-too-large": "Component too large",
-  "unstable-dependency": "Depends on a less stable component"
+  "unstable-dependency": "Depends on a less stable component",
+  "foreign-table-write": "Table written by another component"
 };
 
 function headline(assessment) {
@@ -199,8 +200,19 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
     }
     lines.push("");
   }
+  if (result.dataOwnership?.length) {
+    const users = (list) => cell(list.map(({ component, objects }) => `${component} (${objects.length})`).join(", ")) || "-";
+    lines.push("## Data ownership", "",
+      "Tables of one component that other components use. A table that others write is the hardest dependency to cut: its writes belong behind a codeunit of the owner, or the table belongs elsewhere.", "",
+      "| Table | Owner | Written by | Read by | Related from | Extended by |", "| --- | --- | --- | --- | --- | --- |");
+    for (const table of result.dataOwnership.slice(0, limit)) {
+      lines.push(`| ${cell(table.table)}${table.status === "shared-writes" ? " ⚠" : ""} | ${cell(table.component)} | ${users(table.writers)} | ${users(table.readers)} | ${users(table.relations)} | ${users(table.extenders)} |`);
+    }
+    if (result.dataOwnership.length > limit) lines.push(`| ${result.dataOwnership.length - limit} more | | | | | |`);
+    lines.push("");
+  }
   // Cycles, stability, and unassigned objects have sections of their own.
-  const checks = (result.checks ?? []).filter(({ rule }) => !["unstable-dependency", "unassigned-objects"].includes(rule));
+  const checks = (result.checks ?? []).filter(({ rule }) => !["unstable-dependency", "unassigned-objects", "foreign-table-write"].includes(rule));
   if (checks.length) {
     lines.push("## Architecture checks", "", "| Severity | Check | Finding |", "| --- | --- | --- |");
     for (const check of checks.slice(0, limit)) lines.push(`| ${check.severity} | ${CHECK_TITLES[check.rule] ?? check.rule} (\`${check.rule}\`) | ${cell(check.message)} |`);

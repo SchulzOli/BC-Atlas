@@ -17,6 +17,7 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 ## Analyze
 
 - [Clean architecture: find, resolve, enforce](./clean-architecture.md)
+- [Split a monolith into apps](./modularization.md)
 - [Architecture health checks](./health-checks.md)
 
 ## Export

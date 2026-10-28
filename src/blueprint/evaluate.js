@@ -2,6 +2,7 @@ import { SEVERITIES } from "../capabilities.js";
 import { DEPENDENCY_KINDS } from "../graph/lenses/dependency.js";
 import { findCycles } from "../insights.js";
 import { compileSelector, componentAssigner, selectorContext } from "./components.js";
+import { dataOwnership } from "./ownership.js";
 import { suggestResolution } from "./resolutions.js";
 
 const MAX_EVIDENCE = 5;
@@ -26,7 +27,8 @@ export const CHECK_RULES = Object.freeze({
   "inconsistent-component-dependency": "warning",
   "declared-component-cycle": "warning",
   "component-too-large": "warning",
-  "unstable-dependency": "info"
+  "unstable-dependency": "info",
+  "foreign-table-write": "info"
 });
 
 const LEVELS = [...SEVERITIES, "off"];
@@ -124,6 +126,22 @@ function ruleFor(source, target, settings) {
 
 const EFFORT_RANK = { S: 0, M: 1, L: 2 };
 
+/** An object selector for the command line: codeunit:50100, or interface:"Name" for objects without an ID. */
+function selector(object) {
+  return `${object.type}:${object.objectId ?? `"${object.label}"`}`;
+}
+
+/** The bca refactor command that performs a work item's move, for the strategies that are moves. */
+function refactorCommand(item) {
+  if (["move-extension", "move-subscriber", "move-object-up"].includes(item.strategy) && item.targetComponent !== "(none)") {
+    return `bca refactor move --object ${selector(item.source)} --to "${item.targetComponent}"`;
+  }
+  if (item.strategy === "move-object-down" && item.violations === 1 && item.target) {
+    return `bca refactor move --object ${selector(item.target)} --to "${item.sourceComponent}"`;
+  }
+  return undefined;
+}
+
 /**
  * One work item per source object, target component, and strategy: "move the
  * grants of D365 READ for 892 Sales objects" instead of 892 single findings.
@@ -154,6 +172,8 @@ function groupWorkItems(violations, inputs) {
     }
     const item = items.get(key);
     item.violations++;
+    // The single target, for moves of the target object.
+    item.target = item.violations === 1 ? { type: violation.target.type, label: violation.target.label, objectId: violation.target.objectId } : undefined;
     if (item.targets.length < 20) item.targets.push({ label: violation.target.label, type: violation.target.type });
     for (const evidence of violation.evidence) if (item.evidence.length < 5) item.evidence.push(evidence);
   }
@@ -165,7 +185,11 @@ function groupWorkItems(violations, inputs) {
     const steps = suggestResolution({ ...input, target: { ...input.target, many: item.violations, type: types.size === 1 ? [...types][0] : "object" } }, input.context).steps;
     item.steps = steps;
   }
-  for (const item of items.values()) delete item.first;
+  for (const item of items.values()) {
+    delete item.first;
+    const command = refactorCommand(item);
+    if (command) item.command = command;
+  }
   return [...items.values()].sort((a, b) =>
     b.violations - a.violations || EFFORT_RANK[a.effort] - EFFORT_RANK[b.effort] || a.id.localeCompare(b.id));
 }
@@ -367,7 +391,8 @@ export function evaluateArchitecture(levels, architecture = {}) {
     };
   });
 
-  const checks = architectureChecks({ architecture, settings, components, members, selectorUse, componentEdges, cycles, stability, unassigned });
+  const ownership = dataOwnership(levels.object, componentOf);
+  const checks = architectureChecks({ settings, components, members, selectorUse, componentEdges, cycles, stability, unassigned, ownership });
 
   return {
     schema: "bc-atlas.architecture",
@@ -391,12 +416,14 @@ export function evaluateArchitecture(levels, architecture = {}) {
       }, {})).sort((a, b) => b[1] - a[1])),
       cycles: cycles.length,
       checks: checks.length,
+      sharedTables: ownership.filter(({ status }) => status === "shared-writes").length,
       extractable: summaries.filter(({ extractable }) => extractable).length
     },
     components: summaries,
     edges: [...componentEdges.values()].sort((a, b) => a.id.localeCompare(b.id)),
     cycles,
     stability,
+    dataOwnership: ownership,
     checks,
     workItems,
     violations,
@@ -411,7 +438,7 @@ const named = (list) => `${list.slice(0, 5).map(({ type, label }) => `${type} ${
  * Findings about the architecture as a whole: its configuration (selectors,
  * declared dependencies, layers) and its components (cycles, size, stability).
  */
-function architectureChecks({ settings, components, members, selectorUse, componentEdges, cycles, stability, unassigned }) {
+function architectureChecks({ settings, components, members, selectorUse, componentEdges, cycles, stability, unassigned, ownership }) {
   const checks = [];
   const check = (rule, message, details = {}) => {
     const severity = settings.severities[rule] ?? CHECK_RULES[rule];
@@ -455,6 +482,10 @@ function architectureChecks({ settings, components, members, selectorUse, compon
   );
   for (const cycle of declared) {
     check("declared-component-cycle", `The declared dependencies form a cycle: ${cycle.join(" -> ")} -> ${cycle[0]}; these components cannot become separate apps`, { components: cycle });
+  }
+  for (const table of ownership.filter(({ status }) => status === "shared-writes")) {
+    const writers = table.writers.map(({ component, objects }) => `${component} (${objects.length} object${objects.length === 1 ? "" : "s"})`).join(", ");
+    check("foreign-table-write", `${table.table} of ${table.component} is written by ${writers}; let ${table.component} own the writes behind a codeunit, or move the table`, { component: table.component, table: table.table, file: table.file, line: table.line });
   }
   for (const item of stability) {
     check("unstable-dependency", `Component ${item.source} (instability ${item.sourceInstability.toFixed(2)}) depends on ${item.target}, which is less stable (instability ${item.targetInstability.toFixed(2)})`, { component: item.source });

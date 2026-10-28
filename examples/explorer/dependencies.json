@@ -216,7 +216,8 @@
         "declare-dependency": 1
       },
       "cycles": 0,
-      "checks": 0,
+      "checks": 2,
+      "sharedTables": 2,
       "extractable": 2
     },
     "workItems": [

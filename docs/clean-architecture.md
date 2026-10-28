@@ -230,9 +230,14 @@ checks are not baselined; configure their severity in `severities`.
 | `declared-component-cycle` | warning | `dependsOn` entries that form a cycle; such components cannot become separate apps. |
 | `component-too-large` | warning | A component with more objects than `maxObjects`. |
 | `unstable-dependency` | info | A component that depends on a less stable one (stable dependencies principle, see [Metrics](#metrics)). |
+| `foreign-table-write` | info | A table that other components write; see [data ownership](./modularization.md). Points at the table. |
 
 Checks of the configuration point at the component in `.bca.json`, so editors
 and code scanning show them there.
+
+To take a component out as an app of its own, plan the extraction and perform
+the moves with `bca architecture --extract` and `bca refactor move`; see
+[Split a monolith into apps](./modularization.md).
 
 ### Metrics
 

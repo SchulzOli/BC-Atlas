@@ -44,7 +44,8 @@ export async function dependencyLevels(context, { model } = {}) {
  */
 export async function assessArchitecture(input, values = {}, { model } = {}) {
   const context = await architectureContext(input, values);
-  const levels = await dependencyLevels(context, { model });
+  const analyzed = model ?? await analyzeProject(context.projectRoot, context.options, { fileFilter: context.fileFilter });
+  const levels = await dependencyLevels(context, { model: analyzed });
   const configured = context.options.architecture;
   let proposal;
   let architecture = configured;
@@ -61,6 +62,7 @@ export async function assessArchitecture(input, values = {}, { model } = {}) {
   const baseline = proposal ? undefined : await readBaseline(context.baselineFile);
   return {
     context,
+    model: analyzed,
     levels,
     architecture,
     proposal,
@@ -87,6 +89,8 @@ function locateChecks(checks, context) {
   const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   const architectureLine = lineOf(/"architecture"\s*:/u);
   for (const check of checks) {
+    // Checks about code (a table others write) already point at the source.
+    if (check.file) continue;
     const component = check.component ?? check.components?.[0];
     check.file = relative.startsWith("..") ? file : relative;
     check.line = (component && lineOf(new RegExp(`"name"\\s*:\\s*"${escape(component)}"`, "u"))) ?? architectureLine;
