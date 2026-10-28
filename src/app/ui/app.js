@@ -278,12 +278,16 @@
     markNav();
   }
 
+  let shownPage;
   function markNav() {
     const page = route().page === "object" ? "objects" : route().page;
     for (const link of $$("#nav a")) {
       if (link.dataset.page === page) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
     }
+    // In VS Code the side bar of the extension is the navigation; it marks this page.
+    if (LIVE && page !== shownPage) vscode.postMessage({ type: "page", page });
+    shownPage = page;
   }
 
   function route() {

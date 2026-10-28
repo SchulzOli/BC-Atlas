@@ -83,7 +83,9 @@ outgoing dependencies, and parser diagnostics.
 | Objects | Every AL object, searchable, with a page per object. |
 | Docs | User guides from your AL UI tests, when the project has them. |
 
-The panel takes its colors, accents, and fonts from your color theme,
+The pages are listed in the BC Atlas side bar, which marks the one the panel
+shows; the panel itself shows only the page. It takes its colors, accents, and
+fonts from your color theme,
 including high contrast and custom themes, and updates when AL files,
 `app.json`, `.bca.json`, or the baseline change.
 

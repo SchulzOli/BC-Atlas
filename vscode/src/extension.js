@@ -31,6 +31,7 @@ let panel;
 let diagnostics;
 let status;
 let tree;
+let treeView;
 let lenses;
 let refreshTimer;
 
@@ -103,12 +104,14 @@ function startEngine() {
 async function refresh({ reanalyze = true } = {}) {
   if (!engine) return;
   updateStatus(undefined);
+  treeView.message = "Analyzing…";
   try {
     if (reanalyze) await engine.request("refresh");
     overview = await engine.request("overview");
     objects = await engine.request("objects");
     updateStatus(overview);
     if (overview.summary?.compiler?.tool) log(`AL compiler: ${overview.summary.compiler.tool}`);
+    treeView.message = undefined;
     tree.refresh();
     lenses.fire();
     if (config().get("problems")) await updateProblems();
@@ -117,6 +120,7 @@ async function refresh({ reanalyze = true } = {}) {
   } catch (error) {
     status.text = "$(error) BC Atlas";
     status.tooltip = error.message;
+    treeView.message = "Analysis failed; see the BC Atlas output.";
     log(`Analysis failed: ${error.message}`);
   }
 }
@@ -209,6 +213,10 @@ class AtlasPanel {
   }
 
   async receive(message) {
+    if (message?.type === "page" && typeof message.page === "string") {
+      this.page = message.page;
+      tree.select(message.page);
+    }
     if (message?.type !== "request") return;
     const { id, method, params } = message;
     try {
@@ -239,10 +247,13 @@ class AtlasPanel {
 
 // ----------------------------------------------------------- editor helpers
 
+// The navigation of the BC Atlas panel: the panel itself shows only the page.
 class PagesProvider {
   constructor() {
     this.changed = new vscode.EventEmitter();
     this.onDidChangeTreeData = this.changed.event;
+    // Items keep their identity across refreshes, so the shown page stays selected.
+    this.items = new Map();
   }
 
   refresh() {
@@ -253,6 +264,10 @@ class PagesProvider {
     return item;
   }
 
+  getParent() {
+    return undefined;
+  }
+
   getChildren() {
     if (!engine) {
       const item = new vscode.TreeItem("No AL project found", vscode.TreeItemCollapsibleState.None);
@@ -260,12 +275,20 @@ class PagesProvider {
       return [item];
     }
     return logic.pages(overview).map((page) => {
-      const item = new vscode.TreeItem(page.label, vscode.TreeItemCollapsibleState.None);
+      const item = this.items.get(page.id) ?? new vscode.TreeItem(page.label, vscode.TreeItemCollapsibleState.None);
+      item.id = page.id;
       item.description = page.description;
       item.iconPath = new vscode.ThemeIcon(page.icon);
       item.command = { command: "bcAtlas.open", title: "Open", arguments: [logic.pageHash(page.id)] };
+      this.items.set(page.id, item);
       return item;
     });
+  }
+
+  /** Marks the page the panel shows. */
+  select(page) {
+    const item = this.items.get(page);
+    if (item && treeView?.visible) treeView.reveal(item, { select: true, focus: false }).then(undefined, () => {});
   }
 }
 
@@ -378,6 +401,10 @@ async function activate(context) {
   status = vscode.window.createStatusBarItem("bcAtlas.status", vscode.StatusBarAlignment.Left, 50);
   status.name = "BC Atlas";
   tree = new PagesProvider();
+  treeView = vscode.window.createTreeView("bcAtlas.pages", { treeDataProvider: tree });
+  treeView.onDidChangeVisibility(({ visible }) => {
+    if (visible && panel?.page) tree.select(panel.page);
+  });
   const lensChanged = new vscode.EventEmitter();
   lenses = lensChanged;
 
@@ -427,7 +454,7 @@ async function activate(context) {
     diagnostics,
     status,
     lensChanged,
-    vscode.window.registerTreeDataProvider("bcAtlas.pages", tree),
+    treeView,
     vscode.languages.registerCodeLensProvider([{ language: "al" }, { pattern: "**/*.al" }], {
       onDidChangeCodeLenses: lensChanged.event,
       provideCodeLenses(document) {

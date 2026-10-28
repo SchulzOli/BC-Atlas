@@ -13,7 +13,9 @@ VS Code tasks also recommends it in `.vscode/extensions.json`.
 ## The BC Atlas panel
 
 Open it with **BC Atlas: Open**, the BC Atlas icon in the activity bar, the
-status bar item, or the BC Atlas button above an AL file.
+status bar item, or the BC Atlas button above an AL file. The pages are listed
+in the BC Atlas side bar, which marks the page the panel shows; the panel
+itself has no second navigation.
 
 | Page | Shows | Same as |
 | --- | --- | --- |
@@ -61,8 +63,9 @@ See [Clean architecture](./clean-architecture.md) for the rules behind it.
 - **Context menu in AL files**: **Show This Object**, **Show This Object in
   3D**, **Diagram of This Object**.
 - **Status bar**: health at a glance; click it for the overview.
-- **Side bar** (BC Atlas icon): the pages with their numbers, and buttons to
-  analyze again, run the health check, export, and more.
+- **Side bar** (BC Atlas icon): the pages of the panel with their numbers,
+  the page it shows marked, and buttons to analyze again, run the health
+  check, export, and more.
 
 ## Commands
 

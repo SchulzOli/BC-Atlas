@@ -12,6 +12,8 @@ follows [Semantic Versioning](https://semver.org/).
   (background, text, borders, accent, selection, status colors, and fonts),
   for any theme including high contrast; the 3D explorer and the Docs page
   inside the panel follow too. Exported pages keep the BC Atlas design.
+- VS Code: the BC Atlas side bar is the panel's navigation and marks the page
+  it shows; the panel no longer repeats the pages in a navigation of its own.
 - Microsoft's AL toolchain replaces BC Atlas's own analysis where it knows
   better. With the AL Language extension or the AL Development Tools
   installed (`al.compiler: auto`, the default), BC Atlas compiles a copy of the

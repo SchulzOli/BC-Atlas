@@ -130,6 +130,13 @@ test("in VS Code the page inherits the editor's color theme", () => {
   assert.match(exported, /<html lang="en">/u, "an exported page keeps the BC Atlas design");
 });
 
+test("in VS Code the extension's side bar is the navigation, not a second one in the panel", () => {
+  const html = renderAppHtml({ mode: "vscode", csp: "default-src 'none'" });
+  assert.match(html, /:root\[data-host="vscode"\] #sidebar \{ display: none; \}/u);
+  // The panel tells the extension which page it shows, so its side bar marks it.
+  assert.match(html, /vscode\.postMessage\(\{ type: "page", page \}\)/u);
+});
+
 test("the embedded 3D explorer asks for the theme once its graph is unpacked", () => {
   // The explorer inflates its data asynchronously, so a theme sent on the
   // frame's load event can arrive before it listens; it asks instead.

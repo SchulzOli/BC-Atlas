@@ -5,6 +5,8 @@
 - The panel inherits your color theme: colors, accents, selection, and
   fonts, for any theme including high contrast; the 3D explorer and the Docs
   page follow too.
+- The BC Atlas side bar is the panel's navigation and marks the page the
+  panel shows; the panel no longer repeats the pages next to it.
 - Works with Microsoft's AL Language extension: its AL compiler resolves every
   call and reports compiler and code-analyzer findings on the Health page, in
   the background after each change. BC Atlas reads the editor's `al.*`
