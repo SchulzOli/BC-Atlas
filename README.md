@@ -21,24 +21,25 @@ Parser and renderer are WebAssembly: Node.js is the only requirement.
 ```sh
 npm install --global bc-atlas
 cd path/to/al-project
-bca .                       # open the app in your browser; it updates while you code
 bca setup                   # .bca.json, Husky hooks, VS Code tasks, pipeline, schedule (or: bca setup agent)
 bca check                   # architecture gate for CI
 bca export --view report    # docs/atlas/README.md: overview, diagrams, health
 bca update                  # new version? see what changed and update everything in one step
 ```
 
-![The BC Atlas app: overview of the multi-app example with health, architecture, and the most connected objects](./docs/generated/images/app-overview.png)
+In VS Code, install the **BC Atlas** extension and open an AL project:
+
+![BC Atlas in VS Code: an object page in the BC Atlas panel next to its AL source with CodeLens and a Problems entry](./docs/generated/images/vscode.png)
 
 ## Features at a glance
 
 | Area | Command | What you get |
 | --- | --- | --- |
-| **Get started** | `bca app` | The BC Atlas app in your browser, for one project: overview, health, architecture, 3D dependencies, diagrams, objects, and docs, updated on every AL change. `bca <app-root>` opens it. [Guide](./docs/app.md) |
-| | `bca setup` | Guided setup in the terminal or through your AI agent (Claude Code, Copilot, Cursor): a starter `.bca.json`, features, Husky or Git hooks, GitHub Actions or Azure Pipelines, cron schedule, and sync. |
+| **In VS Code** | BC Atlas extension | Everything below in the editor: a panel with overview, health, architecture, 3D dependencies, diagrams, objects, and docs; findings in the Problems panel; CodeLens above AL objects; the MCP server for agents. [Guide](./docs/vscode.md) |
+| **Get started** | `bca setup` | Guided setup in the terminal or through your AI agent (Claude Code, Copilot, Cursor): a starter `.bca.json`, features, Husky or Git hooks, GitHub Actions or Azure Pipelines, cron schedule, and sync. |
 | **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, architecture violations, hot spots, diagnostics - with a CI exit code. |
 | | `bca architecture` | Find a target architecture (components, layers), list every dependency that blocks it with how to resolve it, and enforce it with a shrinking baseline. [Guide](./docs/clean-architecture.md) |
-| **Export** | `bca export` | Everything the app shows, as files: the app as one offline HTML file (default), the Markdown report ([example](./examples/report/README.md)), the 3D explorer, one Markdown page per object, any of ten diagram views as D2, SVG, PNG, PDF, or JSON, with `--watch`. |
+| **Export** | `bca export` | Everything the extension shows, as files: the BC Atlas pages as one offline HTML file to share (default), the Markdown report ([example](./examples/report/README.md)), the 3D explorer, one Markdown page per object, any of ten diagram views as D2, SVG, PNG, PDF, or JSON, with `--watch`. |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations, a flow diagram per scenario, and BPMN 2.0 processes per use case. [Example](./examples/docs/index.md) |
 | **Integrate** | `bca run` | One entry point for Git hooks, schedules, and pipelines; verifies, stages, or publishes generated files. Also available as a [GitHub Action](./docs/automation-and-ci.md#github-actions). |
 | | `bca update` | "BC Atlas 0.8.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
@@ -62,7 +63,7 @@ options and examples.
 | `ui` | How do pages, actions, and source tables connect? | `bca export --view ui --focus "Sales Order" -o ui.svg` |
 | `workflow` | What happens after an action or entry point? | `bca export --view workflow --entry action:Release -o flow.svg` |
 
-In the app, the Diagrams page renders every view with zoom and pan.
+In VS Code, the Diagrams page of the BC Atlas panel renders every view with zoom and pan.
 
 ### Clean architecture
 
@@ -73,7 +74,7 @@ move an extension or subscriber, move a field into a table extension, invert
 it with an interface), and shows which components can become apps of their
 own. Save it to `.bca.json`, accept today's violations in a baseline, and
 `bca check` keeps the architecture from eroding: new violations fail CI,
-fixed ones shrink the baseline. In the app, the Architecture page shows the
+fixed ones shrink the baseline. In VS Code, the Architecture page shows the
 layers and work items and adopts a proposal with one click.
 
 ```sh
@@ -84,7 +85,7 @@ bca check ./app
 
 ### Interactive dependency explorer
 
-The app's Dependencies page, also written by `bca export --view explorer` as
+The Dependencies page in VS Code, also written by `bca export --view explorer` as
 one offline HTML file, shows a 3D graph of every AL object and app. Dependencies inside one app stay gray; dependencies across apps are
 checked against `app.json` and colored as declared, implicit (Microsoft),
 undeclared, or unresolved. Filter by app, class, type, or relation kind,
@@ -165,7 +166,7 @@ optionally as Dependabot pull requests. See [Guided setup](./docs/setup.md).
 Read the docs at **[schulzoli.github.io/BC-Atlas](https://schulzoli.github.io/BC-Atlas/)**, with
 search, or browse them here, starting with the [table of contents](./docs/_TOC_.md):
 
-- [Getting started](./docs/getting-started.md), [the BC Atlas app](./docs/app.md), and [guided setup](./docs/setup.md), including [staying up to date](./docs/setup.md#staying-up-to-date)
+- [Getting started](./docs/getting-started.md), [BC Atlas for VS Code](./docs/vscode.md), and [guided setup](./docs/setup.md), including [staying up to date](./docs/setup.md#staying-up-to-date)
 - [Automation: hooks, schedules, and pipelines](./docs/automation-and-ci.md)
 - [Architecture reports](./docs/reports.md) and [health checks](./docs/health-checks.md)
 - [Architecture diagrams and views](./docs/architecture-diagrams.md)
@@ -198,13 +199,13 @@ and update-check tools. `bca setup agent --agent claude|copilot|cursor` adds a
   -> resolved model with evidence         (resolver, call analysis, semantics)
   -> view projection and insights         (views, workflow, health)
   -> D2 / SVG / JSON / Markdown / HTML    (renderers)
-  -> the app: one workspace, served live by bca app or exported as one file
+  -> the pages: one workspace, in VS Code (vscode/) or exported as one file
 ```
 
 Parsing, resolution, projection, and rendering are separate stages, so new
-views and outputs do not touch the parser. The app, `bca check`,
+views and outputs do not touch the parser. The VS Code extension, `bca check`,
 `bca architecture`, and `bca export` read the same analysis, so they always
-agree; `src/ui/theme.css` gives the app, the explorer, and the HTML
+agree; `src/ui/theme.css` gives the pages, the explorer, and the HTML
 documentation one look. Every command is defined once in
 `src/capabilities.js`; help, argument validation, the JSON contract, and the
 generated reference derive from it.
@@ -257,6 +258,13 @@ with the version's `CHANGELOG.md` section. npm authenticates through
 trusted publisher on npmjs.com is this repository's `publish-npm.yml`
 workflow, so no npm token is stored in GitHub.
 
+
+The VS Code extension in `vscode/` is published by the `Publish VS Code
+extension` workflow: set `version` in `vscode/package.json`, then run the
+workflow with that version. It tests and packages the extension with the
+current engine and publishes it to the Visual Studio Marketplace (secret
+`VSCE_PAT` of the publisher `schulzoli`) and, with the secret `OVSX_PAT`, to
+Open VSX. Every CI run uploads the `.vsix` as the `bc-atlas-vsix` artifact.
 ## Contributing and support
 
 Contributions are welcome - see [CONTRIBUTING.md](./CONTRIBUTING.md) and the

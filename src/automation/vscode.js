@@ -5,6 +5,8 @@
 import { GENERATED_MARKER } from "./pipelines.js";
 
 export const TASK_PREFIX = "BC Atlas: ";
+// The VS Code extension (vscode/package.json: publisher.name).
+export const EXTENSION_ID = "schulzoli.bc-atlas";
 
 /** Removes // and /* *\/ comments and trailing commas outside strings (JSONC). */
 export function parseJsonc(text) {
@@ -90,18 +92,16 @@ export function vscodeTasks({ appPath, command, features, triggers }) {
   for (const hook of ["pre-commit", "pre-push"]) {
     if (triggers[hook]) tasks.push(task(`Run ${hook} hook`, ["run", appPath, "--trigger", hook]));
   }
-  tasks.push(
-    task("Open the app", ["app", appPath], {
-      isBackground: true,
-      problemMatcher: {
-        owner: "bc-atlas",
-        pattern: { regexp: "^bca( app)?: (.*)$", message: 2 },
-        background: { activeBegins: "^Analyzing ", activeEnds: "^BC Atlas is running at " }
-      }
-    }),
-    task("Set up automation", ["setup", appPath], { presentation: { focus: true, panel: "dedicated" } })
-  );
+  tasks.push(task("Set up automation", ["setup", appPath], { presentation: { focus: true, panel: "dedicated" } }));
   return tasks;
+}
+
+/** Recommends the BC Atlas extension in .vscode/extensions.json, keeping other entries. */
+export function mergeRecommendations(existingText) {
+  const existing = existingText ? parseJsonc(existingText) : {};
+  const recommendations = existing.recommendations ?? [];
+  if (recommendations.some((id) => String(id).toLowerCase() === EXTENSION_ID)) return { unchanged: true };
+  return { content: `${JSON.stringify({ ...existing, recommendations: [...recommendations, EXTENSION_ID] }, null, 2)}\n` };
 }
 
 /** Replaces earlier BC Atlas tasks and keeps every other task and setting. */

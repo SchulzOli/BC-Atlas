@@ -1,14 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { fork, spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
-import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 
-import { startAppServer } from "../src/app/server.js";
+import { renderAppHtml } from "../src/app/page.js";
+import { createService } from "../src/app/service.js";
 import { Workspace } from "../src/app/workspace.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -22,108 +22,92 @@ function copyWorkspace({ architecture = true } = {}) {
   return directory;
 }
 
-// fetch() cannot send a foreign Host header, so requests go through http.
-function request(url, { method = "GET", headers = {}, body } = {}) {
-  return new Promise((resolve, reject) => {
-    const sent = http.request(url, { method, headers }, (response) => {
-      const chunks = [];
-      response.on("data", (chunk) => chunks.push(chunk));
-      response.on("end", () => {
-        const text = Buffer.concat(chunks).toString("utf8");
-        resolve({ status: response.statusCode, type: response.headers["content-type"], text, json: () => JSON.parse(text) });
-      });
-    });
-    sent.on("error", reject);
-    if (body) sent.write(body);
-    sent.end();
-  });
-}
+test("the service answers every page from one analysis", async () => {
+  const service = createService(new Workspace(workspace));
+  const overview = await service.call("overview");
+  assert.equal(overview.title, "multi-app");
+  assert.equal(overview.projectRoot, workspace);
+  assert.equal(overview.summary.objects, 12);
+  assert.equal(overview.architecture.mode, "configured");
+  assert.equal(overview.architecture.violations, 1);
+  assert.equal(overview.health.passed, false);
 
-test("the app serves every page's data, the explorer, and diagrams from one analysis", async () => {
-  const app = await startAppServer(new Workspace(workspace), { port: 0, watch: false });
-  try {
-    const page = await request(app.url);
-    assert.equal(page.status, 200);
-    assert.match(page.type, /text\/html/u);
-    assert.match(page.text, /window\.BCA_APP = \{"mode":"live","token":"[0-9a-f]{32}"/u);
-    assert.match(page.text, /--accent:/u, "the shared theme is inlined");
+  const health = await service.call("health");
+  const violation = health.findings.find(({ rule }) => rule === "architecture-violation");
+  assert.ok(violation.object, "findings link to the object at their location");
 
-    const overview = (await request(`${app.url}api/overview`)).json();
-    assert.equal(overview.title, "multi-app");
-    assert.equal(overview.summary.objects, 12);
-    assert.equal(overview.architecture.mode, "configured");
-    assert.equal(overview.architecture.violations, 1);
-    assert.equal(overview.health.passed, false);
+  const objects = await service.call("objects");
+  assert.equal(objects.length, 12);
+  const sync = objects.find(({ label }) => label === "CON Item Sync");
+  assert.equal(sync.component, "Integration");
+  assert.equal(sync.violations, 1);
+  assert.equal(violation.object, sync.id);
 
-    const health = (await request(`${app.url}api/health`)).json();
-    const violation = health.findings.find(({ rule }) => rule === "architecture-violation");
-    assert.ok(violation.object, "findings link to the object at their location");
+  const detail = await service.call("object", { id: sync.id });
+  assert.deepEqual(detail.uses.map(({ label }) => label), ["CON Item"]);
+  assert.equal(detail.violations[0].resolution.strategy, "declare-dependency");
+  assert.match(detail.source.file, /ItemSync\.al$/u);
+  assert.ok(detail.members.procedures.length > 0);
+  await assert.rejects(service.call("object", { id: "nope" }), /object not found/u);
 
-    const objects = (await request(`${app.url}api/objects`)).json();
-    assert.equal(objects.length, 12);
-    const sync = objects.find(({ label }) => label === "CON Item Sync");
-    assert.equal(sync.component, "Integration");
-    assert.equal(sync.violations, 1);
-    assert.equal(violation.object, sync.id);
+  const configured = await service.call("architecture");
+  assert.equal(configured.mode, "configured");
+  assert.equal(configured.violationCount, 1);
+  assert.equal(configured.violations, undefined, "the page gets work items, not every violation");
+  const proposal = await service.call("architecture", { propose: 1, groupBy: "app" });
+  assert.equal(proposal.mode, "proposal");
+  assert.equal(proposal.proposal.groupBy, "app");
+  await assert.rejects(service.call("architecture", { groupBy: "nope" }), /groupBy must be one of/u);
 
-    const detail = (await request(`${app.url}api/object?id=${encodeURIComponent(sync.id)}`)).json();
-    assert.deepEqual(detail.uses.map(({ label }) => label), ["CON Item"]);
-    assert.equal(detail.violations[0].resolution.strategy, "declare-dependency");
-    assert.match(detail.source.editor, /^vscode:\/\/file\/.*ItemSync\.al:\d+$/u);
-    assert.ok(detail.members.procedures.length > 0);
-    assert.equal((await request(`${app.url}api/object?id=nope`)).status, 404);
-
-    const configured = (await request(`${app.url}api/architecture`)).json();
-    assert.equal(configured.mode, "configured");
-    assert.equal(configured.violationCount, 1);
-    assert.equal(configured.violations, undefined, "the page gets work items, not every violation");
-    const proposal = (await request(`${app.url}api/architecture?propose=1&groupBy=app`)).json();
-    assert.equal(proposal.mode, "proposal");
-    assert.equal(proposal.proposal.groupBy, "app");
-    assert.equal((await request(`${app.url}api/architecture?groupBy=nope`)).status, 400);
-
-    const diagram = (await request(`${app.url}api/diagram?view=module`)).json();
-    assert.match(diagram.svg, /<svg\b/u);
-    assert.ok(diagram.nodes > 0);
-    const missing = await request(`${app.url}api/diagram?view=object`);
-    assert.equal(missing.status, 400);
-    assert.match(missing.json().error, /--object is required/u);
-
-    const explorer = await request(`${app.url}explorer`);
-    assert.equal(explorer.status, 200);
-    assert.match(explorer.text, /window\.BCA_GRAPH/u);
-    assert.equal((await request(`${app.url}docs`)).status, 404, "multi-app has no UI tests");
-  } finally {
-    await app.close();
-  }
+  const diagram = await service.call("diagram", { view: "module" });
+  assert.match(diagram.svg, /<svg\b/u);
+  await assert.rejects(service.call("diagram", { view: "object" }), /--object is required/u);
+  assert.match(await service.call("explorer"), /window\.BCA_GRAPH/u);
+  await assert.rejects(service.call("explorer", { history: "nope" }), /history must be one of/u);
+  await assert.rejects(service.call("docsHtml"), /no UI-test documentation/u, "multi-app has no UI tests");
+  await assert.rejects(service.call("deleteEverything"), /unknown method/u);
 });
 
-test("only the app's own page can change files, and only on localhost", async () => {
+test("adopting an architecture writes .bca.json and the baseline", async () => {
   const directory = copyWorkspace({ architecture: false });
-  const app = await startAppServer(new Workspace(directory), { port: 0, watch: false });
   try {
-    const foreign = await request(`${app.url}api/overview`, { headers: { host: "attacker.example:80" } });
-    assert.equal(foreign.status, 403);
-
-    const body = JSON.stringify({ groupBy: "app" });
-    const anonymous = await request(`${app.url}api/architecture/adopt`, { method: "POST", body, headers: { "content-type": "application/json" } });
-    assert.equal(anonymous.status, 403);
-    assert.equal(existsSync(path.join(directory, ".bca.json")), false);
-
-    assert.equal((await request(`${app.url}api/overview`)).json().architecture.mode, "proposal");
-    const adopted = await request(`${app.url}api/architecture/adopt`, {
-      method: "POST", body, headers: { "content-type": "application/json", "x-bca-token": app.token }
-    });
-    assert.equal(adopted.status, 200, adopted.text);
+    const service = createService(new Workspace(directory));
+    assert.equal((await service.call("overview")).architecture.mode, "proposal");
+    await service.call("adoptArchitecture", { groupBy: "app" });
     const saved = JSON.parse(readFileSync(path.join(directory, ".bca.json"), "utf8")).architecture;
     assert.deepEqual(saved.components.map(({ name }) => name), ["Contoso Core", "Contoso Sales", "Contoso Integration"]);
     assert.ok(existsSync(path.join(directory, ".bca-architecture-baseline.json")));
     // The next request analyzes again and sees the configured architecture.
-    assert.equal((await request(`${app.url}api/overview`)).json().architecture.mode, "configured");
+    assert.equal((await service.call("overview")).architecture.mode, "configured");
   } finally {
-    await app.close();
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("the worker process answers requests over IPC, for editors", async () => {
+  const child = fork(path.join(root, "src", "app", "worker.js"), [workspace, "{}"], { stdio: ["ignore", "ignore", "inherit", "ipc"] });
+  const replies = new Map();
+  const ready = new Promise((resolve) => child.once("message", resolve));
+  child.on("message", (message) => replies.get(message.id)?.(message));
+  const request = (id, method, params) => new Promise((resolve) => {
+    replies.set(id, resolve);
+    child.send({ id, method, params });
+  });
+  try {
+    assert.ok((await ready).methods.includes("overview"));
+    assert.equal((await request(1, "overview")).result.summary.objects, 12);
+    assert.match((await request(2, "object", { id: "nope" })).error, /object not found/u);
+  } finally {
+    child.disconnect();
+  }
+});
+
+test("the VS Code page talks to the extension and carries its Content-Security-Policy", () => {
+  const html = renderAppHtml({ mode: "vscode", csp: "default-src 'none'" });
+  assert.match(html, /window\.BCA_APP = \{"mode":"vscode"/u);
+  assert.match(html, /<meta http-equiv="Content-Security-Policy" content="default-src 'none'">/u);
+  assert.match(html, /acquireVsCodeApi\(\)/u);
+  assert.throws(() => renderAppHtml({ mode: "live" }), /unknown page mode/u);
 });
 
 test("bca export writes the app as one offline file with every page's data", () => {

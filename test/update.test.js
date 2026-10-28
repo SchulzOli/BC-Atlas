@@ -35,7 +35,7 @@ test("never shows the update notice in CI, hooks, pipelines, or machine output",
   assert.equal(updateCheckEnabled({ ...tty, command: "check", env: { BCA_NO_UPDATE_CHECK: "1" } }), false);
   assert.equal(updateCheckEnabled({ ...tty, command: "check", env: { NO_UPDATE_NOTIFIER: "1" } }), false);
   assert.equal(updateCheckEnabled({ ...tty, command: "check", values: { format: "json" } }), false);
-  for (const command of ["run", "mcp", "update", "app"]) {
+  for (const command of ["run", "mcp", "update"]) {
     assert.equal(updateCheckEnabled({ ...tty, command }), false, command);
   }
   assert.equal(updateCheckEnabled({ ...tty, command: "export", values: { watch: true } }), false);

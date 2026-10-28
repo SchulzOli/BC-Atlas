@@ -1,0 +1,128 @@
+# BC Atlas for VS Code
+
+The BC Atlas extension brings everything BC Atlas does into VS Code, where
+AL developers already work. Open a folder with an `app.json` and BC Atlas
+analyzes it; nothing else needs to be installed. The extension contains the
+BC Atlas engine and runs it on VS Code's own Node.js runtime, in a background
+process, so the editor stays responsive while large apps are analyzed.
+
+Install **BC Atlas** (`schulzoli.bc-atlas`) from the Extensions view, or
+from a `.vsix` file with **Extensions: Install from VSIX…**. `bca setup` with
+VS Code tasks also recommends it in `.vscode/extensions.json`.
+
+## The BC Atlas panel
+
+Open it with **BC Atlas: Open**, the BC Atlas icon in the activity bar, the
+status bar item, or the BC Atlas button above an AL file.
+
+| Page | Shows | Same as |
+| --- | --- | --- |
+| Overview | Objects, apps, health, the architecture at a glance, the most connected objects, and next steps. | |
+| Health | Every finding, filterable by severity, linked to its object. | `bca check` |
+| Architecture | The configured architecture or a proposal: components in layers, work items with the steps to resolve them, components with Martin metrics, and objects that belong elsewhere. | `bca architecture` |
+| Dependencies | The 3D dependency explorer: objects, modules, apps, and components; inside one app vs. across apps; a timeline by commit, pull request, or release. | `bca export --view explorer` |
+| Diagrams | Every diagram view with zoom and pan; **SVG** and **D2** save the file. | `bca export --view <view>` |
+| Objects | Every AL object, searchable and sortable, filtered by type, app, component, or violations. | |
+| Object | One object: what it uses and what uses it, its wrong-way dependencies with steps to resolve them, fields, procedures, actions, and properties. **Open source** opens the file at the declaration; a procedure opens at its line. | `bca export --view object --object <selector>` |
+| Docs | The guides from your AL UI tests, when the project has documented UI tests. | `bca docs generate --export html` |
+
+The panel follows the VS Code color theme and refreshes when AL files,
+`app.json`, `.bca.json`, or the architecture baseline change.
+
+### Change the architecture from the panel
+
+On the Architecture page:
+
+- **Adopt this architecture** saves the proposal (components, layers, allowed
+  dependencies) to `.bca.json` and accepts today's wrong-way dependencies in
+  `.bca-architecture-baseline.json`, like
+  `bca architecture --propose --write --update-baseline`.
+- **Propose again** with a different grouping (`auto`, `module`, `app`,
+  `namespace`, `folder`), namespace depth, or minimum component size shows a
+  new proposal; nothing is written until you adopt it.
+- **Accept current violations** updates the baseline, like
+  `bca architecture --update-baseline`. Afterwards `bca check` fails only on
+  new violations.
+
+See [Clean architecture](./clean-architecture.md) for the rules behind it.
+
+## In the editor
+
+- **Problems panel**: every health and architecture finding with a location,
+  at its file and line.
+- **CodeLens** above each object declaration: how often it is used, what it
+  uses, its component, and its dependencies against the architecture. Click
+  it to open the object's page.
+- **Context menu in AL files**: **Show This Object**, **Show This Object in
+  3D**, **Diagram of This Object**.
+- **Status bar**: health at a glance; click it for the overview.
+- **Side bar** (BC Atlas icon): the pages with their numbers, and buttons to
+  analyze again, run the health check, export, and more.
+
+## Commands
+
+| Command | Does |
+| --- | --- |
+| BC Atlas: Open, Open Page… | Shows the panel. |
+| BC Atlas: Run Health Check | Analyzes again and fills the Problems panel. |
+| BC Atlas: Propose an Architecture | Opens a fresh proposal. |
+| BC Atlas: Accept Current Violations in the Baseline | Like `bca architecture --update-baseline`. |
+| BC Atlas: Export… | Writes the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or a diagram (`bca export`). |
+| BC Atlas: Generate Documentation from UI Tests… | Markdown, HTML, DITA, Azure DevOps CSV, or BPMN (`bca docs generate`). |
+| BC Atlas: Set Up Automation | `.bca.json`, Git hooks, pipeline, and schedule, in a terminal (`bca setup`). |
+| BC Atlas: Run Tasks of a Trigger… | What a hook, the pipeline, or the schedule runs (`bca run`). |
+| BC Atlas: Select Project… | The app, or a folder above several apps, to analyze. |
+| BC Atlas: Analyze Again, Show Output | |
+
+## AI agents
+
+The extension registers the BC Atlas MCP server with VS Code, so agents in
+the editor (for example GitHub Copilot in agent mode) can use the BC Atlas
+tools: check the health and the architecture, propose one, write reports and
+diagrams, and work with the UI-test documentation. See
+[Agent integration](./agent-integration.md).
+
+## Settings
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `bcAtlas.project` | empty | Folder to analyze, relative to the workspace. Empty: the first app, or the workspace folder when it holds several apps. |
+| `bcAtlas.paths` | `[]` | Only analyze these folders or globs, like `--paths`. Speeds up large repositories such as BCApps. |
+| `bcAtlas.problems` | `true` | Findings in the Problems panel. |
+| `bcAtlas.codeLens` | `true` | CodeLens above AL objects. |
+| `bcAtlas.nodePath` | empty | Node.js 22 or later for the engine. Empty uses the runtime built into VS Code (1.101 or later). |
+
+## Share it without VS Code
+
+```sh
+bca export ./app -o atlas.html
+```
+
+writes the same pages as one self-contained HTML file that works offline:
+publish it from CI, attach it to a pull request, or send it to people who do
+not use VS Code. The file contains the diagrams of the report views with their
+default settings, the explorer, every object page, and the docs. It cannot
+change files. Add `--history` (or `--history-by prs` or
+`--history-by releases`) to include the Git timeline in the explorer.
+
+## Large projects
+
+The first analysis of the Base Application with the System Application and
+Business Foundation (about 9,500 objects) takes about two minutes; afterwards
+every page opens in under a second. The first rendering of a large diagram
+view can take 20 seconds; it is cached until the source changes. Views with
+more than 1,500 nodes are not drawn: filter them by namespace or pick a
+focused view. Use `bcAtlas.paths` to analyze only some folders of a large
+repository.
+
+## Build the extension from source
+
+```sh
+cd vscode
+npm ci
+npm test
+npm run package      # bc-atlas-<version>.vsix with the engine inside
+```
+
+`npm run package` packs the BC Atlas engine with `npm pack`, adds it to the
+extension, and leaves out what the engine never loads.

@@ -15,7 +15,7 @@ become an app of its own only when nothing it uses points outward or sideways.
 bca architecture ./app --propose --format markdown -o architecture.md   # 1. find
 bca architecture ./app --propose --write --update-baseline               # 2. adopt
 bca check ./app                                                          # 3. enforce
-bca app ./app                                                            # 4. watch
+bca export ./app -o architecture.html                                    # 4. share
 ```
 
 ## 1. Find a suitable architecture
@@ -177,7 +177,7 @@ architecture cannot erode silently. Commit `.bca.json` and the baseline.
 
 ## 5. See it
 
-The app (`bca app`) has an Architecture page with the layers, the work items,
+In VS Code, the BC Atlas panel has an Architecture page with the layers, the work items,
 and the components, and buttons to adopt a proposal and to accept today's
 violations. Its Dependencies page, the 3D explorer (also
 `bca export --view explorer`), shows the architecture as soon as `.bca.json`

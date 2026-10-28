@@ -1,6 +1,6 @@
 # BC Atlas documentation
 
-BC Atlas is one app (`bca app`) and a small CLI organized into four feature
+BC Atlas is a VS Code extension and a small CLI organized into four feature
 areas: get started, analyze, export, and integrate. This table of contents
 follows the same structure. The generated CLI capability reference comes
 directly from the source code.
@@ -10,7 +10,7 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 ## Start here
 
 - [Getting started](./getting-started.md)
-- [The BC Atlas app](./app.md)
+- [BC Atlas for VS Code](./vscode.md)
 - [Guided setup (wizard or AI agent)](./setup.md)
 - [Configuration](./configuration.md)
 

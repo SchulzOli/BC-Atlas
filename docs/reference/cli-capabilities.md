@@ -9,11 +9,10 @@ Run `npm run docs` after a capability changes.
 
 ### Get started
 
-Open the app for a project, or set up automation for it.
+Set up a project; in VS Code, the BC Atlas extension shows everything in the editor.
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
-| `app` | `bca app [app-root]` | Open BC Atlas in the browser: overview, health, architecture, 3D dependencies, diagrams, objects, and docs for one project, updated when AL files change. |
 | `setup` | `bca setup [app-root]` | Set up BC Atlas for a project step by step: .bca.json, features, Git hooks, pipelines, schedules, and sync. |
 | `setup.plan` | `bca setup plan [app-root]` | Detect the project and list setup questions with recommended answers. |
 | `setup.apply` | `bca setup apply [app-root]` | Write .bca.json, Git hooks, and a pipeline from setup answers. |
@@ -34,7 +33,7 @@ Write what the app shows as files, and user guides from AL UI tests.
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
-| `export` | `bca export [app-root]` | Write what the app shows as files: the app as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view. |
+| `export` | `bca export [app-root]` | Write files: the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view. |
 | `docs.list` | `bca docs list <test-root>` | List documented UI-test scenarios. |
 | `docs.show` | `bca docs show <test-root>` | Show one scenario, its prerequisites, and its diagnostics. |
 | `docs.validate` | `bca docs validate <test-root>` | Validate IDs, tags, links, and prerequisite cycles. |
@@ -58,7 +57,7 @@ Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents.
 
 | `--view` | Writes |
 | --- | --- |
-| `app` | The app as one offline HTML file: every page, the diagrams, the 3D explorer, and the docs |
+| `app` | The BC Atlas pages as one offline HTML file to share: every page, the diagrams, the 3D explorer, and the docs |
 | `report` | Markdown report (README.md) with health, diagrams, and an optional object catalog |
 | `explorer` | Interactive 3D dependency explorer (HTML), replayable over Git history, or its graph as JSON |
 | `catalog` | One linked Markdown page per AL object |

@@ -81,7 +81,7 @@ Skip hooks once with `git commit --no-verify` or `git push --no-verify`.
 - a health check whose findings appear in the Problems panel;
 - report and documentation builds;
 - dry runs of the pre-commit and pre-push hooks;
-- the BC Atlas app, updated on every AL change (background `bca app`);
+- a recommendation of the BC Atlas extension in `.vscode/extensions.json`;
 - the setup wizard.
 
 See [Guided setup](./setup.md#local-development).

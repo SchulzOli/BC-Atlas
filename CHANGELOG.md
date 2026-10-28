@@ -8,28 +8,31 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- `bca app`: BC Atlas as an app in your browser. One look and feel for
-  everything the tool does: an overview, health findings, the architecture
-  (layers, work items, components; adopt a proposal or accept violations with
-  one click), the 3D dependency explorer, diagrams for every view with zoom
-  and pan, a searchable object list with one page per object (dependencies,
-  members, violations, source links), and the UI-test documentation. It
-  re-analyzes when AL files change and open pages refresh. `bca <app-root>`
-  opens it. The server listens on localhost only; changes need the page's
-  token.
+- BC Atlas for VS Code (`vscode/`, `schulzoli.bc-atlas`): everything BC Atlas
+  does, in the editor, with the engine inside. A panel with one look and feel
+  for all of it: an overview, health findings, the architecture (layers, work
+  items, components; adopt a proposal or accept violations with one click),
+  the 3D dependency explorer, diagrams for every view with zoom and pan, a
+  searchable object list with one page per object (dependencies, members,
+  violations; open the source at its line), and the UI-test documentation.
+  Findings in the Problems panel, CodeLens above AL objects, a status bar
+  item, a side bar, commands for export, documentation, setup, and tasks,
+  and the BC Atlas MCP server for agents in VS Code. The engine analyzes in
+  a background process and the panel refreshes when AL files change.
+  `bca setup --editor vscode` recommends the extension.
 - `bca export`: one command for every file output. `--view app` (default)
-  writes the app as one offline HTML file to share or publish from CI;
+  writes the BC Atlas pages as one offline HTML file to share or publish from CI;
   `report`, `explorer`, `catalog`, and the ten diagram views write what the
   former commands wrote; `--watch` writes again on every change.
 - The Git timeline can step by merged pull request (`--history-by prs`:
   GitHub, Azure DevOps, GitLab, and squash merges, with the number of commits
   each brought) or by release tag (`--history-by releases`, plus unreleased
-  commits); `--last n` keeps the most recent steps. The app's Dependencies
-  page has the same choice.
+  commits); `--last n` keeps the most recent steps. The Dependencies page in
+  VS Code has the same choice.
 - Explorer: a Spacing slider (50 % to 500 %) gives crowded graphs room:
   longer links, longest between large nodes, stronger repulsion, and more
   distance between clusters and floors.
-- One design system (`src/ui/theme.css`) for the app, the explorer, and the
+- One design system (`src/ui/theme.css`) for the VS Code panel, the explorer, and the
   HTML documentation, with light and dark themes.
 
 - `bca architecture`: clean architecture for AL apps. Define components
@@ -51,8 +54,8 @@ follows [Semantic Versioning](https://semver.org/).
   items, violations per commit on the timeline, and architecture layers as a
   layout. The MCP server offers `bc_atlas_architecture`.
 
-- Dependency explorer (`bca export --view explorer`, and the app's
-  Dependencies page): an interactive 3D dependency explorer in one
+- Dependency explorer (`bca export --view explorer`, and the Dependencies
+  page in VS Code): an interactive 3D dependency explorer in one
   self-contained, offline HTML file. Dependencies inside one app are kept apart from
   dependencies across apps, which are checked against `app.json`: `declared`,
   `implicit` (Microsoft apps), `undeclared`, and `unresolved`. Switch between
@@ -90,12 +93,13 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Fewer commands: 9 instead of 15. `bca report`, `bca graph`, `bca watch`,
+- Fewer commands: 8 instead of 15. `bca report`, `bca graph`, `bca watch`,
   `bca inspect`, and `bca codegraph` are now `bca export --view report`,
   `--view <view>`, `--watch`, `--format json`, and `--view catalog`; `-o`
   replaces `--output-dir`. `bca init` is part of `bca setup`, and
-  `bca capabilities` is `bca help --format json`. `bca <app-root>` opens the
-  app instead of writing a diagram. See the table in the CLI reference.
+  `bca capabilities` is `bca help --format json`. `bca <app-root>` is no
+  longer a shortcut; the interactive views are in the VS Code extension. See
+  the table in the CLI reference.
 - The journey diagram shows each scenario with its permission set and number
   of steps. `[NEXT]` and `[REQUIRES]` between the same scenarios are one
   arrow in flow direction; `[ALTERNATIVE]` and `[RELATED]` are dashed lines.

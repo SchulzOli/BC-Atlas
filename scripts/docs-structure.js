@@ -4,7 +4,7 @@
 export const SECTIONS = [
   ["Start here", [
     ["Getting started", "getting-started.md"],
-    ["The BC Atlas app", "app.md"],
+    ["BC Atlas for VS Code", "vscode.md"],
     ["Guided setup (wizard or AI agent)", "setup.md"],
     ["Configuration", "configuration.md"]
   ]],

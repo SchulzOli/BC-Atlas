@@ -5,7 +5,6 @@ import { createCapabilities, findCommand } from "./capabilities.js";
 import { parseCommandArgs } from "./cli/args.js";
 import { describeError, UsageError } from "./cli/errors.js";
 import { commandHelp, docsOverviewHelp, overviewHelp } from "./cli/help.js";
-import { appCommand } from "./commands/app.js";
 import { checkCommand } from "./commands/check.js";
 import { architectureCommand } from "./commands/blueprint.js";
 import { exportCommand } from "./commands/export.js";
@@ -24,7 +23,6 @@ async function mcpCommand() {
 }
 
 const HANDLERS = {
-  app: appCommand,
   setup: setupCommand,
   "setup.plan": setupPlanCommand,
   "setup.apply": setupApplyCommand,
@@ -61,12 +59,10 @@ function resolveCommand(args) {
   }
   if (first === "setup" && findCommand(capabilities, `setup.${second}`)) return { id: `setup.${second}`, args: rest };
   if (TOP_LEVEL.has(first)) return { id: first, args: args.slice(1) };
-  // `bca <path>` opens the app for that path.
-  if (first && !first.startsWith("-") && existsSync(first)) return { id: "app", args };
-  if (first && !first.startsWith("-")) {
-    throw new UsageError(`unknown command or path "${first}".${suggestion(first)}`);
+  if (first && !first.startsWith("-") && existsSync(first)) {
+    throw new UsageError(`"${first}" is a path, not a command; try "bca check ${first}" or "bca export ${first}", or open it in VS Code with the BC Atlas extension`);
   }
-  return { id: "app", args };
+  throw new UsageError(first?.startsWith("-") ? `"${first}" needs a command first` : `unknown command "${first}".${suggestion(first)}`);
 }
 
 async function main(args) {
