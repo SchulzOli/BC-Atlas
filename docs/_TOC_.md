@@ -29,6 +29,7 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 
 ## Integrate
 
+- [AL toolchain: compiler, analyzers, AL settings](./al-toolchain.md)
 - [Automation: hooks, schedules, and pipelines](./automation-and-ci.md)
 - [Agent integration and MCP](./agent-integration.md)
 - [MCP JSON example](./examples/mcp.json)

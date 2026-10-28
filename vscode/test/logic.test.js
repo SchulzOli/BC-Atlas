@@ -27,6 +27,19 @@ test("turns health findings into Problems-panel entries at their file and line",
   assert.deepEqual(problems, [{
     file: path.join(root, "src", "Sales.al"), line: 41, severity: "error", message: "Sales-Post (Sales) depends on Core", code: "architecture-violation", object: "b"
   }]);
+
+  const compiler = {
+    findings: [{
+      severity: "warning", rule: "AA0137", message: "AA0137: Variable 'X' is unused.", file: "src/Sales.al", line: 5, column: 9, endLine: 5, endColumn: 10,
+      helpLink: "https://learn.microsoft.com/codecop-aa0137", origin: "al"
+    }]
+  };
+  assert.deepEqual(logic.findingsToProblems(compiler, root), [{
+    file: path.join(root, "src", "Sales.al"), line: 4, column: 8, endLine: 4, endColumn: 9, severity: "warning",
+    message: "AA0137: Variable 'X' is unused.", code: "AA0137", helpLink: "https://learn.microsoft.com/codecop-aa0137"
+  }], "compiler findings keep their exact range and help link");
+  assert.deepEqual(logic.findingsToProblems(compiler, root, { skipCompiler: true }), [],
+    "the AL Language extension reports compiler findings itself");
 });
 
 test("finds the object at the cursor and puts a CodeLens above each object", () => {

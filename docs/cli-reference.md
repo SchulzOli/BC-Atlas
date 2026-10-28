@@ -193,6 +193,7 @@ bca architecture ./app --format json
 | `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `export`. |
 | `--project-root` | path | Analyze a wider workspace. |
 | `--config` | path | Configuration file. |
+| `--compiler` | mode | `auto`, `off`, or a path; see [AL toolchain](./al-toolchain.md). Default: `auto`. |
 
 ### `check`
 
@@ -202,16 +203,29 @@ bca check [app-root] [options]
 
 Analyzes the project view and evaluates health rules: diagnostics, forbidden
 dependencies, dependency cycles, fan-in/fan-out hot spots, orphan objects, and
-unresolved references. Exits with `1` when a finding reaches `--fail-on`. See
-[Architecture health checks](./health-checks.md).
+unresolved references. With Microsoft's AL toolchain installed, the AL compiler
+and code analyzers (CodeCop, UICop, AppSourceCop, PerTenantExtensionCop) add
+their findings. Exits with `1` when a finding reaches `--fail-on`. See
+[Architecture health checks](./health-checks.md) and
+[AL toolchain](./al-toolchain.md).
+
+```text
+bca check ./app
+bca check ./app --analyzers CodeCop,UICop --fail-on warning
+bca check ./app --format sarif -o bca.sarif
+bca check ./app --compiler off --compiler-log .output/errorlogs
+```
 
 | Option | Value | Description |
 | --- | --- | --- |
 | `--fail-on` | level | `error`, `warning`, `info`, or `never`. Default: `error`. |
-| `-f`, `--format` | format | `text`, `json`, or `markdown`. Default: `text`. |
+| `-f`, `--format` | format | `text`, `json`, `markdown`, or `sarif` (SARIF 2.1.0 for GitHub code scanning and Azure DevOps). Default: `text`. |
 | `-o`, `--output` | path | Write the report to a file; the result line goes to stderr. |
 | `--max-fan-in` | integer | Warn when more distinct objects depend on one object. Default: `25`. |
 | `--max-fan-out` | integer | Warn when one object depends on more distinct objects. Default: `25`. |
+| `--analyzers` | list | Code analyzers for the AL compile: `CodeCop`, `UICop`, `AppSourceCop`, `PerTenantExtensionCop`, or DLL paths. Default: `al.codeAnalyzers` when `al.enableCodeAnalysis` is on. |
+| `--compiler` | mode | `auto` (the AL Language extension's compiler or the AL Development Tools when installed), `off`, or a path to `alc`, `al`, or an AL extension folder. Default: `auto`. |
+| `--compiler-log` | path | Import diagnostics from an AL compiler error log file or folder (`alc /errorlog`, `al workspace compile --errorlogdirectory`, AL-Go, BcContainerHelper). |
 | `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `export`. |
 | `--project-root` | path | Analyze a wider workspace. |
 | `--config` | path | Configuration file. |
@@ -367,6 +381,8 @@ dispatch and collapsed paths are labelled `inferred`.
 | `--project-root` | path | Analyze this app or multi-app workspace; the positional path becomes the focus. |
 | `--config` | path | Configuration file. Default: `<app-root>/.bca.json` when present. |
 | `--strict` | flag | Fail when analysis produces warning or error diagnostics. |
+| `--compiler` | mode | `auto`, `off`, or a path: the AL compiler resolves calls for the call and workflow views and the explorer. See [AL toolchain](./al-toolchain.md). Default: `auto`. |
+| `--compiler-log` | path | Import diagnostics from an AL compiler error log file or folder. |
 
 ### `docs` commands
 
@@ -558,6 +574,7 @@ Configuration-only settings:
 | `codegraph` | `outputDir` for the `codegraph` task. |
 | `diagrams` | List of `export` diagram option objects with a `view` and an `output`, rendered by the `diagrams` task. |
 | `report` | Report defaults: `outputDir`, `views`, `format`, `codegraph`, `json`, `title`. |
+| `al` | Microsoft's AL toolchain: `compiler` (`auto`, `off`, or a path), `analyzers`, `errorLog`, `callGraph` (`false` keeps calls source-level), `workspaceFile`. See [AL toolchain](./al-toolchain.md). |
 
 ```json
 {
@@ -593,7 +610,8 @@ BC Atlas resolves the complete `projectRoot` before it applies a folder,
 namespace, or include focus. References that cross the focus become aggregated
 boundary nodes with a `boundaryCategory` of `microsoft-base-app`,
 `declared-dependency`, `same-app-outside-focus`, or `unknown`. Dependency
-symbols are loaded from `.app` files under `.alpackages`; an unreadable package
-produces a `symbol-package-error` diagnostic.
+symbols are loaded from `.app` files under `.alpackages` and in every
+`al.packageCachePath` of `.vscode/settings.json` or the `.code-workspace` file;
+an unreadable package produces a `symbol-package-error` diagnostic.
 
 See [`.bca.example.json`](../.bca.example.json) for a complete example.

@@ -75,8 +75,26 @@ extension in VS Code) and rerun the command.
 ## Calls are missing
 
 The call view hides unresolved calls by default. Add
-`--include-unresolved-calls` for investigation. Dynamic calls can remain
-unresolved when AL source does not identify a target.
+`--include-unresolved-calls` for investigation. Without the AL compiler,
+dynamic calls can remain unresolved when AL source does not identify a target;
+install the AL Development Tools or the AL Language extension so the compiler
+resolves them ([AL toolchain](./al-toolchain.md)).
+
+## The AL compiler is not used
+
+`bca check` prints an `AL compiler` line when it ran. If it does not:
+
+- install the AL Development Tools (`dotnet tool install --global
+  Microsoft.Dynamics.BusinessCentral.Development.Tools`) or the AL Language
+  extension for VS Code, or point `--compiler` at `alc`, `al`, or the
+  extension folder;
+- check that `al.compiler` in `.bca.json`, `BCA_AL_COMPILER`, or
+  `bcAtlas.alCompiler` is not `off`;
+- on Linux and macOS, install the .NET 8 runtime or later.
+
+Many `AL0185 ... is missing` errors mean the Microsoft symbols are not in a
+package cache: run **AL: Download Symbols**, or set `al.packageCachePath` to
+the folder that has them.
 
 ## `check` fails
 

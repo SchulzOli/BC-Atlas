@@ -8,6 +8,38 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Microsoft's AL toolchain replaces BC Atlas's own analysis where it knows
+  better. With the AL Language extension or the AL Development Tools
+  installed (`al.compiler: auto`, the default), BC Atlas compiles a copy of the
+  workspace in dependency order and:
+  - resolves calls with the compiler's call graph (`al graph`): overloads,
+    variables, interfaces, and built-in methods, which no longer show up as
+    unresolved calls;
+  - reports compiler errors and warnings and CodeCop, UICop, AppSourceCop, and
+    PerTenantExtensionCop findings in `bca check`, with exact ranges and help
+    links; compiler syntax errors replace tree-sitter parse errors.
+
+  Results are cached by file content; nothing is written into the repository.
+  `--compiler auto|off|<path>`, `BCA_AL_COMPILER`, and the `al` section of
+  `.bca.json` choose the compiler; `--analyzers CodeCop,UICop` picks analyzers.
+- `bca check --compiler-log <file|folder>` imports AL compiler error logs from
+  any build (alc `/errorlog`, `al workspace compile --errorlogdirectory`,
+  AL-Go, BcContainerHelper) without a compiler on the machine.
+- `bca check --format sarif`: SARIF 2.1.0 with BC Atlas and AL findings for
+  GitHub code scanning and Azure DevOps.
+- AL settings like the AL Language extension reads them: `al.packageCachePath`
+  (string or list) for symbols, `al.codeAnalyzers` with
+  `al.enableCodeAnalysis`, `al.ruleSetPath`, and `al.assemblyProbingPaths`
+  from `.vscode/settings.json` and `.code-workspace` files, whose `folders`
+  also define the projects. The same symbol package in several caches loads
+  once.
+- VS Code: the extension uses the AL Language extension's compiler and the
+  editor's `al.*` settings, compiles in the background after each change, and
+  analyzes again after **AL: Download Symbols**, a new `.app`, or changed AL
+  settings. Settings `bcAtlas.alCompiler` and `bcAtlas.alAnalyzers`. Compiler
+  findings in the Problems panel are left to the AL Language extension.
+- Generated GitHub Actions workflows and Azure Pipelines, and the BC Atlas
+  GitHub Action (`al-compiler` input), install the AL Development Tools.
 - BC Atlas for VS Code (`vscode/`, `SchulzOli.bc-atlas`): everything BC Atlas
   does, in the editor, with the engine inside. A panel with one look and feel
   for all of it: an overview, health findings, the architecture (layers, work
@@ -115,6 +147,8 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The warehouse example declares `using BCA.Example.UI;` for the page its
+  permission set grants; the AL compiler reported it as missing.
 - The 3D explorer inside the panel follows a dark theme: it now asks for the
   theme once its graph is unpacked, instead of missing the message sent while
   it was still loading.

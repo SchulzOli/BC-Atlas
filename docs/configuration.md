@@ -109,6 +109,31 @@ check; use `--fail-on warning` (or `--strict`) to fail on warnings too.
 See [Architecture health checks](./health-checks.md) and
 [Architecture reports](./reports.md).
 
+## Use the AL compiler
+
+```json
+{
+  "al": {
+    "compiler": "auto",
+    "analyzers": ["CodeCop", "UICop"],
+    "errorLog": ".output/errorlogs",
+    "callGraph": true
+  }
+}
+```
+
+| Property | Description |
+| --- | --- |
+| `compiler` | `auto` (default): the AL Language extension's compiler or the AL Development Tools when installed; `off`; or a path to `alc`, `al`, or the extension folder. |
+| `analyzers` | Code analyzers for the compile. Default: `al.codeAnalyzers` from the AL settings when `al.enableCodeAnalysis` is on. |
+| `errorLog` | Import an AL compiler error log file or folder from another build. |
+| `callGraph` | `false` keeps calls at the source-level analysis while compiler diagnostics still apply. |
+| `workspaceFile` | The `.code-workspace` file whose folders and settings apply, when the root has several. |
+
+Symbols, rule set, and analyzers otherwise come from the AL settings in
+`.vscode/settings.json` and the `.code-workspace` file. See
+[AL toolchain](./al-toolchain.md).
+
 ## Automate it
 
 `bca setup` adds an `automation` section that says which features run on Git

@@ -98,11 +98,19 @@ export function assessHealth(model, settings = {}) {
   const internal = new Set(objects.map(({ key }) => key));
   const findings = [];
 
-  for (const diagnostic of model.diagnostics.filter(({ severity }) => severity !== "info")) {
-    findings.push(finding(diagnostic.severity === "error" ? "error" : "warning", diagnostic.code, diagnostic.message, {
-      file: diagnostic.file,
-      line: diagnostic.line
-    }));
+  // BC Atlas's own info diagnostics are noise; the AL compiler's are findings.
+  for (const diagnostic of model.diagnostics.filter(({ severity, origin }) => severity !== "info" || origin === "al")) {
+    const al = diagnostic.origin === "al";
+    findings.push(finding(al ? diagnostic.severity : diagnostic.severity === "error" ? "error" : "warning", diagnostic.code,
+      al ? `${diagnostic.code}: ${diagnostic.message}` : diagnostic.message, Object.fromEntries(Object.entries({
+        file: diagnostic.file,
+        line: diagnostic.line,
+        column: diagnostic.column,
+        endLine: diagnostic.endLine,
+        endColumn: diagnostic.endColumn,
+        helpLink: diagnostic.helpLink,
+        origin: diagnostic.origin
+      }).filter(([, value]) => value !== undefined))));
   }
 
   if (cycleSeverity !== "off") {
@@ -178,7 +186,8 @@ export function assessHealth(model, settings = {}) {
       unresolved: unresolved.length,
       cycles: model.insights?.cycles?.length ?? 0,
       objectsByType: countBy(objects, ({ type }) => type),
-      relationshipsByKind: countBy(model.edges, ({ kind }) => kind)
+      relationshipsByKind: countBy(model.edges, ({ kind }) => kind),
+      ...(model.al ? { compiler: compilerSummary(model.al) } : {})
     },
     counts,
     hubs,
@@ -192,6 +201,32 @@ function list(counts) {
 
 function appLine(summary) {
   return summary.apps.map(({ name, version }) => version ? `${name} ${version}` : name).join(", ") || "AL project";
+}
+
+function compilerSummary(al) {
+  return Object.fromEntries(Object.entries({
+    tool: al.description,
+    projects: al.projects?.length,
+    failedProjects: al.projects?.filter(({ succeeded }) => !succeeded).map(({ name }) => name),
+    diagnostics: al.diagnostics,
+    imported: al.imported || undefined,
+    resolvedCalls: al.calls?.resolved,
+    builtinCalls: al.calls?.builtin
+  }).filter(([, value]) => value !== undefined));
+}
+
+/** One line on what the AL toolchain contributed, for text and Markdown reports. */
+export function compilerLine(compiler) {
+  if (!compiler) return undefined;
+  const parts = [];
+  if (compiler.tool) {
+    const failed = compiler.failedProjects?.length ? `, ${compiler.failedProjects.length} with errors` : "";
+    parts.push(`${compiler.tool}: ${compiler.projects} project(s) compiled${failed}`);
+  }
+  if (compiler.resolvedCalls !== undefined) parts.push(`${compiler.resolvedCalls} call(s) resolved by the compiler`);
+  if (compiler.imported) parts.push("diagnostics imported from an error log");
+  parts.push(`${compiler.diagnostics} compiler diagnostic(s)`);
+  return parts.join("; ");
 }
 
 export function healthResultLine(report) {
@@ -210,6 +245,7 @@ export function formatHealthText(report, { limit = 50 } = {}) {
     `  Relationships  ${summary.relationships} (${list(summary.relationshipsByKind)})`,
     `  Unresolved     ${summary.unresolved}`,
     `  Cycles         ${summary.cycles}`,
+    ...(summary.compiler ? [`  AL compiler    ${compilerLine(summary.compiler)}`] : []),
     ""
   ];
   if (report.hubs.length) {
@@ -251,6 +287,7 @@ export function formatHealthMarkdown(report, { heading = "## Architecture health
     `| Relationships | ${summary.relationships} |`,
     `| Unresolved references | ${summary.unresolved} |`,
     `| Dependency cycles | ${summary.cycles} |`,
+    ...(summary.compiler ? [`| AL compiler | ${escapeCell(compilerLine(summary.compiler))} |`] : []),
     ""
   ];
   if (Object.keys(summary.objectsByType).length) {

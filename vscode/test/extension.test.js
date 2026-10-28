@@ -119,6 +119,7 @@ function fakeVscode() {
       executeCommand: async () => {}
     },
     env: { openExternal: async () => true },
+    extensions: { getExtension: () => undefined },
     lm: {
       registerMcpServerDefinitionProvider: (id, provider) => {
         registered.mcp.push({ id, provider });

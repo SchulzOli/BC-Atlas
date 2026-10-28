@@ -425,6 +425,8 @@ function callView(model, options = {}) {
       if (!from) continue;
       for (const call of procedure.calls ?? []) {
         const resolved = callResolver.resolveCall(owner, call);
+        // Built-in methods (Rec.FindFirst, Message) are platform calls, not dependencies.
+        if (resolved.builtin) continue;
         const to = resolved.target;
         edges.push({
           id: `c${edges.length}`,
@@ -436,6 +438,7 @@ function callView(model, options = {}) {
           },
           kind: "calls",
           confidence: resolved.confidence,
+          resolvedBy: resolved.resolvedBy,
           location: call.location
         });
       }

@@ -134,8 +134,28 @@ You can also use BC Atlas as an action in your own workflows:
 | `tasks` | | Comma-separated tasks instead of the trigger's tasks |
 | `sync` | | Override the sync mode |
 | `node-version` | `24` | Node.js version |
+| `al-compiler` | `true` | Install the AL Development Tools so the AL compiler resolves calls and runs the code analyzers |
 
 Outputs: `outputs` (generated paths) and `passed` (`true` or `false`).
+
+Generated workflows and pipelines install the AL Development Tools too, so CI
+resolves calls and reports compiler and analyzer findings like a developer
+machine; `"al": { "compiler": "off" }` in `.bca.json` leaves that step out.
+See [AL toolchain](./al-toolchain.md).
+
+## Code scanning
+
+```yaml
+- run: npx --yes bc-atlas check app --format sarif -o bca.sarif --fail-on never
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: bca.sarif
+```
+
+The SARIF file holds BC Atlas findings and AL compiler and analyzer findings
+with their rules and help links. A pipeline that already builds the app
+(AL-Go, BcContainerHelper) can pass its error logs with `--compiler-log`
+instead of compiling again.
 
 ## Azure Pipelines
 

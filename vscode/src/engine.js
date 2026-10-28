@@ -33,13 +33,15 @@ class Engine {
   /**
    * @param project folder to analyze
    * @param options { paths, projectRoot, config } for the workspace
-   * @param settings { nodePath, log }
+   * @param settings { nodePath, log, onEvent } onEvent receives messages the
+   *   worker sends on its own, such as { event: "changed" } after the AL compiler
    */
-  constructor(project, options, { nodePath, log = () => {} } = {}) {
+  constructor(project, options, { nodePath, log = () => {}, onEvent = () => {} } = {}) {
     this.project = project;
     this.options = options;
     this.nodePath = nodePath;
     this.log = log;
+    this.onEvent = onEvent;
     this.pending = new Map();
     this.nextId = 0;
     this.child = undefined;
@@ -63,6 +65,10 @@ class Engine {
       child.once("message", (message) => (message?.ready ? resolve() : reject(new Error("the BC Atlas engine did not start"))));
     });
     child.on("message", (message) => {
+      if (message?.event) {
+        this.onEvent(message);
+        return;
+      }
       const waiting = this.pending.get(message?.id);
       if (!waiting) return;
       this.pending.delete(message.id);

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { alOptions, applyAlResults, loadAlResults } from "./al/index.js";
 import { analyze } from "./analyzer.js";
 import { loadConfig } from "./config.js";
 import { addInsights } from "./insights.js";
@@ -26,9 +27,22 @@ export function mergeArchitectureOptions(config, values) {
   };
 }
 
-async function resolvedProject(projectRoot, cache) {
-  if (!cache) return resolveModel(await analyze(projectRoot));
-  if (!cache.has(projectRoot)) cache.set(projectRoot, resolveModel(await analyze(projectRoot)));
+/**
+ * Parses a project and, when the AL toolchain is configured, lets the AL
+ * compiler resolve calls and report diagnostics (src/al/index.js).
+ * @param options merged .bca.json and CLI values
+ * @param context { fileFilter, onProgress }
+ */
+export async function analyzeProject(projectRoot, options = {}, { fileFilter, onProgress, onAlUpdate } = {}) {
+  const al = alOptions(options);
+  const model = await analyze(projectRoot, { fileFilter, al: { workspaceFile: al.workspaceFile, settings: al.settings } });
+  await applyAlResults(model, await loadAlResults(projectRoot, options, { onProgress, onUpdate: onAlUpdate }));
+  return resolveModel(model);
+}
+
+async function resolvedProject(projectRoot, cache, options, context) {
+  if (!cache) return analyzeProject(projectRoot, options, context);
+  if (!cache.has(projectRoot)) cache.set(projectRoot, await analyzeProject(projectRoot, options, context));
   return structuredClone(cache.get(projectRoot));
 }
 
@@ -36,7 +50,7 @@ async function resolvedProject(projectRoot, cache) {
  * Analyzes AL source and projects the requested view. Pass a shared `cache`
  * Map to reuse one parse when several views of the same project are needed.
  */
-export async function createArchitectureModel(input, values = {}, { cache } = {}) {
+export async function createArchitectureModel(input, values = {}, { cache, onProgress, onAlUpdate } = {}) {
   const config = await loadConfig(values.projectRoot ?? values["project-root"] ?? input, values.config);
   const options = mergeArchitectureOptions(config.values, values);
   const projectRoot = path.resolve(options.projectRoot ?? options["project-root"] ?? input);
@@ -75,7 +89,7 @@ export async function createArchitectureModel(input, values = {}, { cache } = {}
   );
   if (invalidMembers.length) throw new Error(`unsupported member categories: ${invalidMembers.join(", ")}`);
 
-  let model = await resolvedProject(projectRoot, cache);
+  let model = await resolvedProject(projectRoot, cache, options, { onProgress, onAlUpdate });
   model.projectRoot = projectRoot;
   model.selectedPath = selectedPath;
   model = filterModel(model, options);

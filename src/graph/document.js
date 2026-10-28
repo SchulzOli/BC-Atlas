@@ -1,10 +1,10 @@
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { analyze } from "../analyzer.js";
-import { mergeArchitectureOptions, positiveInteger } from "../architecture.js";
+import { analyzeProject, mergeArchitectureOptions, positiveInteger } from "../architecture.js";
 import { loadConfig } from "../config.js";
 import { resolveModel } from "../resolver.js";
-import { loadSymbolPackages } from "../symbols.js";
+import { loadProjectSymbols } from "../symbols.js";
 import { objectFilter, pathMatcher } from "../views.js";
 import { findLens } from "./lenses/index.js";
 import { addMetrics } from "./metrics.js";
@@ -49,8 +49,13 @@ export async function createGraphDocument(input, values = {}, { onFrame } = {}) 
   const paths = [options.paths ?? []].flat().filter(Boolean);
   const fileFilter = paths.length ? pathMatcher(paths) : undefined;
   const parseCache = new Map();
-  const symbols = await loadSymbolPackages(projectRoot);
-  const graph = async (root) => lens.build(resolveModel(await analyze(root, { parseCache, symbols, fileFilter })), { filter });
+  const symbols = await loadProjectSymbols(projectRoot);
+  // A snapshot goes through the AL compiler when it is available. A timeline
+  // stays source-level throughout so frames compare like with like.
+  const compiled = !(options.history || options.historyBy);
+  const graph = async (root) => lens.build(compiled && root === projectRoot
+    ? await analyzeProject(projectRoot, options, { fileFilter })
+    : resolveModel(await analyze(root, { parseCache, symbols, fileFilter })), { filter });
 
   // The target architecture: from .bca.json, or proposed from the current
   // source. Every frame is checked against the same one.

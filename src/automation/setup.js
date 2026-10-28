@@ -507,7 +507,9 @@ export async function applySetup(input, rawAnswers = {}, { dryRun = false, force
       const trigger = config.automation.triggers[name];
       if (trigger) triggers[name] = { ...trigger, outputs: outputsFor(trigger.tasks, config, appPath) };
     }
-    const content = (answers.ci === "github" ? githubWorkflow : azurePipeline)({ appPath, version, triggers, local });
+    // CI uses the AL compiler like the developer's machine, unless .bca.json turns it off.
+    const alTools = (config.al?.compiler ?? "auto") !== "off";
+    const content = (answers.ci === "github" ? githubWorkflow : azurePipeline)({ appPath, version, triggers, local, alTools });
     files.push(await plannedWrite(path.join(gitRoot, PIPELINE_FILES[answers.ci]), content, { ...options, generatedOnly: true }));
     if (answers.ci === "azure-devops") nextSteps.push(`Azure DevOps: create a pipeline from ${PIPELINE_FILES["azure-devops"]}`);
     if (answers.scheduleSync === "commit" && answers.schedule !== "none") {

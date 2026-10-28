@@ -21,6 +21,9 @@ inputs:
   node-version:
     description: Node.js version used to run BC Atlas.
     default: "24"
+  al-compiler:
+    description: Install Microsoft's AL Development Tools so the AL compiler resolves calls and reports compiler and analyzer findings (true or false).
+    default: "true"
 
 outputs:
   outputs:
@@ -39,6 +42,12 @@ runs:
     - name: Install BC Atlas
       shell: bash
       run: npm ci --omit=dev --no-audit --no-fund --prefix "$GITHUB_ACTION_PATH"
+    - name: Install the AL compiler (AL Development Tools)
+      if: inputs.al-compiler == 'true'
+      shell: bash
+      run: |
+        dotnet tool install --global Microsoft.Dynamics.BusinessCentral.Development.Tools || dotnet tool update --global Microsoft.Dynamics.BusinessCentral.Development.Tools
+        echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
     - name: Run BC Atlas
       id: run
       shell: bash

@@ -81,6 +81,7 @@ Pages, source tables, parts, actions, and navigation.
 | Relationships | 26 |
 | Unresolved references | 0 |
 | Dependency cycles | 0 |
+| AL compiler | AL Development Tools (.NET tool) 18.1.43.24897: 1 project(s) compiled; 6 call(s) resolved by the compiler; 0 compiler diagnostic(s) |
 
 | Object type | Count |
 | --- | --- |

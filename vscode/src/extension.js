@@ -18,6 +18,9 @@ const SEVERITY = {
 };
 const LOCAL_METHODS = new Set(["openFile", "saveFile"]);
 const WATCHED = "**/{*.al,app.json,.bca.json,.bca-architecture-baseline.json}";
+// Symbol packages (AL: Download Symbols) and built apps change what resolves.
+const PACKAGES = "**/*.app";
+const AL_EXTENSION = "ms-dynamics-smb.al";
 
 let output;
 let engine;
@@ -52,13 +55,45 @@ async function findProject(context) {
   return manifests.length ? folders[0].uri.fsPath : undefined;
 }
 
+/**
+ * How the engine uses Microsoft's AL toolchain: the AL Language extension's
+ * compiler and the effective `al.*` settings (user, workspace, and folder),
+ * so BC Atlas sees the same symbols, analyzers, and rule set as the editor.
+ */
+function alOptions() {
+  const compiler = config().get("alCompiler") || "auto";
+  if (compiler === "off") return { compiler };
+  const al = vscode.workspace.getConfiguration("al", vscode.Uri.file(project));
+  const alSettings = {};
+  for (const key of ["packageCachePath", "codeAnalyzers", "enableCodeAnalysis", "ruleSetPath", "assemblyProbingPaths"]) {
+    const value = al.get(key);
+    if (value !== undefined && value !== null && value !== "") alSettings[key] = value;
+  }
+  const analyzers = config().get("alAnalyzers") ?? [];
+  return {
+    compiler,
+    alExtensionPath: vscode.extensions.getExtension(AL_EXTENSION)?.extensionPath,
+    alSettings,
+    ...(analyzers.length ? { analyzers } : {})
+  };
+}
+
 function startEngine() {
   engine?.stop();
   overview = undefined;
   objects = [];
   if (!project) return;
   const paths = config().get("paths") ?? [];
-  engine = new Engine(project, paths.length ? { paths } : {}, { nodePath: config().get("nodePath") || undefined, log });
+  engine = new Engine(project, { ...(paths.length ? { paths } : {}), ...alOptions() }, {
+    nodePath: config().get("nodePath") || undefined,
+    log,
+    // The AL compiler finished in the background with new results.
+    onEvent: (event) => {
+      if (event.event !== "changed") return;
+      log("The AL compiler finished; updating BC Atlas.");
+      refresh({ reanalyze: false });
+    }
+  });
   log(`Analyzing ${project}`);
   refresh({ reanalyze: false });
 }
@@ -73,6 +108,7 @@ async function refresh({ reanalyze = true } = {}) {
     overview = await engine.request("overview");
     objects = await engine.request("objects");
     updateStatus(overview);
+    if (overview.summary?.compiler?.tool) log(`AL compiler: ${overview.summary.compiler.tool}`);
     tree.refresh();
     lenses.fire();
     if (config().get("problems")) await updateProblems();
@@ -93,11 +129,15 @@ function scheduleRefresh() {
 async function updateProblems() {
   const health = await engine.request("health");
   const byFile = new Map();
-  for (const problem of logic.findingsToProblems(health, overview.projectRoot)) {
-    const range = new vscode.Range(problem.line, 0, problem.line, Number.MAX_SAFE_INTEGER);
+  // The AL Language extension shows compiler and analyzer findings itself.
+  const skipCompiler = Boolean(vscode.extensions.getExtension(AL_EXTENSION));
+  for (const problem of logic.findingsToProblems(health, overview.projectRoot, { skipCompiler })) {
+    const range = problem.column === undefined
+      ? new vscode.Range(problem.line, 0, problem.line, Number.MAX_SAFE_INTEGER)
+      : new vscode.Range(problem.line, problem.column, problem.endLine ?? problem.line, problem.endColumn ?? Number.MAX_SAFE_INTEGER);
     const diagnostic = new vscode.Diagnostic(range, problem.message, SEVERITY[problem.severity] ?? vscode.DiagnosticSeverity.Information);
     diagnostic.source = "BC Atlas";
-    diagnostic.code = problem.code;
+    diagnostic.code = problem.helpLink ? { value: problem.code, target: vscode.Uri.parse(problem.helpLink) } : problem.code;
     const list = byFile.get(problem.file) ?? [];
     list.push(diagnostic);
     byFile.set(problem.file, list);
@@ -403,7 +443,9 @@ async function activate(context) {
       }
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (["bcAtlas.project", "bcAtlas.paths", "bcAtlas.nodePath"].some((key) => event.affectsConfiguration(key))) {
+      const restart = ["bcAtlas.project", "bcAtlas.paths", "bcAtlas.nodePath", "bcAtlas.alCompiler", "bcAtlas.alAnalyzers",
+        "al.packageCachePath", "al.codeAnalyzers", "al.enableCodeAnalysis", "al.ruleSetPath", "al.assemblyProbingPaths"];
+      if (restart.some((key) => event.affectsConfiguration(key))) {
         findProject(context).then((found) => {
           project = found;
           startEngine();
@@ -416,11 +458,23 @@ async function activate(context) {
     { dispose: () => engine?.stop() }
   );
 
-  const watcher = vscode.workspace.createFileSystemWatcher(WATCHED);
-  watcher.onDidChange(scheduleRefresh);
-  watcher.onDidCreate(scheduleRefresh);
-  watcher.onDidDelete(scheduleRefresh);
-  context.subscriptions.push(watcher);
+  for (const pattern of [WATCHED, PACKAGES]) {
+    const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+    watcher.onDidChange(scheduleRefresh);
+    watcher.onDidCreate(scheduleRefresh);
+    watcher.onDidDelete(scheduleRefresh);
+    context.subscriptions.push(watcher);
+  }
+  // A new AL Language extension version brings a new compiler.
+  if (vscode.extensions.onDidChange) {
+    let alVersion = vscode.extensions.getExtension(AL_EXTENSION)?.packageJSON?.version;
+    context.subscriptions.push(vscode.extensions.onDidChange(() => {
+      const version = vscode.extensions.getExtension(AL_EXTENSION)?.packageJSON?.version;
+      if (version === alVersion) return;
+      alVersion = version;
+      if (project) startEngine();
+    }));
+  }
 
   // The BC Atlas MCP server, offered to agents in the editor (GitHub Copilot and others).
   if (vscode.lm?.registerMcpServerDefinitionProvider && vscode.McpStdioServerDefinition) {

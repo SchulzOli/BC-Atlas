@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { packageCacheFolders, readAlWorkspace } from "./al/settings.js";
 import { unzipSync } from "fflate";
 import { includedPermissionSets } from "./permission-semantics.js";
 
@@ -99,11 +100,30 @@ async function findPackages(root) {
   return packages.sort();
 }
 
-export async function loadSymbolPackages(root) {
+async function packagesIn(folder) {
+  try {
+    const entries = await fs.readdir(folder, { withFileTypes: true });
+    return entries
+      .filter((item) => item.isFile() && path.extname(item.name).toLowerCase() === ".app")
+      .map((item) => path.join(folder, item.name));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Reads SymbolReference.json from every .app in the `.alpackages` folders
+ * below `root` and in `folders` (the package cache paths from
+ * `al.packageCachePath`). The same app version in several caches loads once.
+ */
+export async function loadSymbolPackages(root, { folders = [] } = {}) {
   const packages = [];
   const objects = [];
   const diagnostics = [];
-  for (const packageFile of await findPackages(root)) {
+  const files = new Set(await findPackages(root));
+  for (const folder of folders) for (const file of await packagesIn(folder)) files.add(file);
+  const loaded = new Set();
+  for (const packageFile of [...files].sort()) {
     const reportedPath = path.relative(root, packageFile).replaceAll("\\", "/");
     try {
       const bytes = new Uint8Array(await fs.readFile(packageFile));
@@ -118,6 +138,9 @@ export async function loadSymbolPackages(root) {
       if (!symbolEntry) throw new Error("SymbolReference.json not found");
       const symbols = JSON.parse(new TextDecoder().decode(symbolEntry[1]));
       const app = appFor(symbols, reportedPath);
+      const identity = `${app.id ?? app.name}@${app.version ?? ""}`.toLowerCase();
+      if (loaded.has(identity)) continue;
+      loaded.add(identity);
       packages.push(app);
       objects.push(...objectsFor(symbols, app, reportedPath));
     } catch (error) {
@@ -130,6 +153,11 @@ export async function loadSymbolPackages(root) {
     }
   }
   return { packages, objects, diagnostics };
+}
+
+/** Symbols for a project: `.alpackages` below it plus the configured package caches. */
+export async function loadProjectSymbols(root, al) {
+  return loadSymbolPackages(root, { folders: await packageCacheFolders(await readAlWorkspace(root, al)) });
 }
 
 export const testing = { objectsFor };

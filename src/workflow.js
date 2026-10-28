@@ -119,6 +119,7 @@ function addCallEdges({
     }
     if (!edgeTypes.has("calls")) continue;
     const resolved = callResolver.resolveCall(owner, call);
+    if (resolved.builtin) continue;
     const to = resolved.target;
     edges.push({
       id: `workflow${edges.length}`,
@@ -131,6 +132,7 @@ function addCallEdges({
       kind: "calls",
       label: `calls #${index + 1}`,
       confidence: resolved.confidence,
+      resolvedBy: resolved.resolvedBy,
       sequence: "definite",
       order: index + 1,
       location: call.location
