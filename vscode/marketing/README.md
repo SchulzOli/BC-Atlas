@@ -100,24 +100,32 @@ theme, the secondary side bar closed, the window at 1440 × 900, run
       app (*App registrations → New registration*, for example
       `bc-atlas-marketplace`). It needs no Azure subscription. An existing
       app registration for another extension works too; just add the
-      credential from the next step.
+      credential from the next step. If the app signs in but the
+      Marketplace never accepts it, use a user-assigned managed identity
+      instead (it needs an Azure subscription, but costs nothing); the
+      steps are the same.
    2. On the app, add a federated credential (*Certificates & secrets →
-      Federated credentials → GitHub Actions*): organization `SchulzOli`,
-      repository `BC-Atlas`, entity *Environment*, environment
-      `marketplace`.
-   3. Add the app to the publisher `schulzoli` as a member with the
-      *Contributor* role (*Manage publishers → Members*), as described under
-      Microsoft Entra ID in the
-      [VS Code publishing guide](https://code.visualstudio.com/api/working-with-extensions/publishing-extension).
-   4. In the repository, add the secrets `AZURE_CLIENT_ID` (the app's
+      Federated credentials → Other issuer*): issuer
+      `https://token.actions.githubusercontent.com`, audience
+      `api://AzureADTokenExchange`, and the subject GitHub presents for this
+      repository, which carries the owner and repository IDs:
+      `repo:SchulzOli@153920877/BC-Atlas@1316205066:environment:marketplace`.
+      The *GitHub Actions* template builds a subject from the names only,
+      which fails with `AADSTS700213`.
+   3. In the repository, add the secrets `AZURE_CLIENT_ID` (the app's
       application ID) and `AZURE_TENANT_ID` (the directory ID), as repository
       secrets or secrets of the `marketplace` environment.
+   4. Run the *Publish VS Code extension* workflow once. The step *Show the
+      identity the Marketplace sees* prints the identity's Azure DevOps
+      profile ID; the Marketplace knows identities by this ID, not by their
+      Entra IDs. Add that ID to the publisher `schulzoli` as a member with
+      the *Contributor* role (*Manage publishers → Members*).
 
-   The workflow's *Check access to the publisher* step
-   (`vsce verify-pat --azure-credential schulzoli`) fails before anything is
-   published if one of these is missing. For Open VSX (VSCodium, Cursor,
-   Windsurf, Gitpod), also add the token `OVSX_PAT`; Open VSX is not
-   affected by the Azure DevOps change.
+   Until the last step is done, the step *Check access to the publisher*
+   (`vsce verify-pat --azure-credential schulzoli`) fails with
+   `InvalidAccessException` before anything is published. For Open VSX
+   (VSCodium, Cursor, Windsurf, Gitpod), also add the token `OVSX_PAT`; Open
+   VSX is not affected by the Azure DevOps change.
 3. **Publish.** Run the *Publish VS Code extension* workflow with the version
    in `../package.json`.
 4. **GitHub.** Under *Settings → General → Social preview*, upload
