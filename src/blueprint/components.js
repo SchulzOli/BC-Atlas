@@ -11,6 +11,8 @@ import { normalizeIdentifier } from "../resolver.js";
 //   type:table                   an object type
 //   object:codeunit:Sales-Post   one object by type and name or ID
 //   *                            everything not matched before
+// Selectors joined with & must all match (module:Base Application &
+// namespace:Microsoft.Sales); their specificities add up.
 
 function globToRegExp(pattern) {
   const escaped = String(pattern)
@@ -24,7 +26,24 @@ function globToRegExp(pattern) {
 
 const isGlob = (value) => /[*?]/u.test(value);
 
-function compileSelector(selector, { apps, modules }) {
+function compileSelector(selector, context) {
+  const parts = String(selector).split("&").map((part) => part.trim()).filter(Boolean);
+  if (parts.length > 1) {
+    const matchers = parts.map((part) => compileSingle(part, context));
+    return (node) => {
+      let total = 0;
+      for (const matcher of matchers) {
+        const score = matcher(node);
+        if (!score) return 0;
+        total += score;
+      }
+      return total;
+    };
+  }
+  return compileSingle(selector, context);
+}
+
+function compileSingle(selector, { apps, modules }) {
   const text = String(selector).trim();
   if (text === "*" || text === "**") return () => 1;
   const separator = text.indexOf(":");

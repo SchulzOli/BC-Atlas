@@ -35,7 +35,7 @@ const EFFORT_RANK = { S: 0, M: 1, L: 2 };
  * One work item per source object, target component, and strategy: "move the
  * grants of D365 READ for 892 Sales objects" instead of 892 single findings.
  */
-function groupWorkItems(violations) {
+function groupWorkItems(violations, inputs) {
   const items = new Map();
   for (const violation of violations) {
     const { strategy } = violation.resolution;
@@ -53,7 +53,8 @@ function groupWorkItems(violations) {
         alternatives: violation.resolution.alternatives.map(({ strategy: alternative, title, effort }) => ({ strategy: alternative, title, effort })),
         targets: [],
         violations: 0,
-        evidence: []
+        evidence: [],
+        first: violation
       });
     }
     const item = items.get(key);
@@ -61,6 +62,15 @@ function groupWorkItems(violations) {
     if (item.targets.length < 20) item.targets.push({ label: violation.target.label, type: violation.target.type });
     for (const evidence of violation.evidence) if (item.evidence.length < 5) item.evidence.push(evidence);
   }
+  // Steps that name every target, not only the first one.
+  for (const item of items.values()) {
+    if (item.violations < 2) continue;
+    const input = inputs.get(item.first);
+    const types = new Set(item.targets.map(({ type }) => type));
+    const steps = suggestResolution({ ...input, target: { ...input.target, many: item.violations, type: types.size === 1 ? [...types][0] : "object" } }, input.context).steps;
+    item.steps = steps;
+  }
+  for (const item of items.values()) delete item.first;
   return [...items.values()].sort((a, b) =>
     b.violations - a.violations || EFFORT_RANK[a.effort] - EFFORT_RANK[b.effort] || a.id.localeCompare(b.id));
 }
@@ -159,11 +169,12 @@ export function evaluateArchitecture(levels, architecture = {}) {
       });
     }
   }
+  const inputs = new Map();
   for (const violation of violations) {
     violation.id = fingerprint(violation);
     const source = components.get(violation.sourceComponent);
     const target = components.get(violation.targetComponent);
-    violation.resolution = suggestResolution({
+    const input = {
       source: nodes.get(violation.source.id),
       target: nodes.get(violation.target.id),
       kinds: violation.kinds,
@@ -172,8 +183,11 @@ export function evaluateArchitecture(levels, architecture = {}) {
       rule: violation.rule,
       inward: source.layer !== undefined && target.layer !== undefined && target.layer < source.layer,
       // A declared dependency that itself may use the target can act as facade.
-      via: (source.dependsOn ?? []).find((name) => components.get(name)?.dependsOn?.includes(violation.targetComponent))
-    }, { usage });
+      via: (source.dependsOn ?? []).find((name) => components.get(name)?.dependsOn?.includes(violation.targetComponent)),
+      context: { usage }
+    };
+    inputs.set(violation, input);
+    violation.resolution = suggestResolution(input, input.context);
   }
   violations.sort((left, right) =>
     left.sourceComponent.localeCompare(right.sourceComponent) ||
@@ -181,7 +195,7 @@ export function evaluateArchitecture(levels, architecture = {}) {
     right.weight - left.weight ||
     left.id.localeCompare(right.id));
 
-  const workItems = groupWorkItems(violations);
+  const workItems = groupWorkItems(violations, inputs);
 
   const cycles = findCycles(
     [...components.keys()].map((key) => ({ key })),

@@ -66,11 +66,13 @@ export function formatArchitectureText(assessment, { limit = 15 } = {}) {
   }
   const items = baseline.baselined ? result.workItems.filter((item) => baseline.new.some(({ source, targetComponent }) =>
     source.id === item.source.id && targetComponent === item.targetComponent)) : result.workItems;
-  lines.push("", items.length ? `Work items${baseline.baselined ? " (new since the baseline)" : ""}, most dependencies first` : "Work items: none");
-  for (const item of items.slice(0, limit)) {
+  const structural = items.filter(({ strategy }) => strategy !== "move-permissions");
+  const grants = items.length - structural.length;
+  lines.push("", items.length ? `Work items${baseline.baselined ? " (new since the baseline)" : ""}, most dependencies first${grants ? ` (plus ${grants} permission set grant(s) to split)` : ""}` : "Work items: none");
+  for (const item of structural.slice(0, limit)) {
     lines.push(`  [${item.effort}] ${item.title}: ${objectName(item.source)} (${item.sourceComponent} -> ${item.targetComponent}), ${count(item.violations, "dependency", "dependencies")}`);
   }
-  if (items.length > limit) lines.push(`  ... ${items.length - limit} more; use --format markdown or json for all of them`);
+  if (structural.length > limit) lines.push(`  ... ${structural.length - limit} more; use --format markdown or json for all of them`);
   return `${lines.join("\n")}\n`;
 }
 
@@ -117,8 +119,11 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
     for (const [strategy, total] of Object.entries(result.summary.byStrategy)) lines.push(`| \`${strategy}\` | ${total} |`);
     lines.push("");
   }
-  if (!items.length) lines.push("None.", "");
-  items.slice(0, limit).forEach((item, index) => {
+  // Permission grants are mechanical; list them apart from structural work.
+  const permissions = items.filter(({ strategy }) => strategy === "move-permissions");
+  const structural = items.filter(({ strategy }) => strategy !== "move-permissions");
+  if (!structural.length) lines.push(permissions.length ? "Only permission grants, see below." : "None.", "");
+  structural.slice(0, limit).forEach((item, index) => {
     lines.push(`### ${index + 1}. ${cell(objectName(item.source))}: ${item.sourceComponent} → ${item.targetComponent}`, "");
     lines.push(`**${item.title}** (\`${item.strategy}\`, effort ${EFFORT[item.effort]}, resolves ${count(item.violations, "dependency", "dependencies")})`, "");
     for (const step of item.steps) lines.push(`- ${step}`);
@@ -129,7 +134,18 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
     if (places.length) lines.push(`- Where: ${places.map((place) => `\`${place}\``).join(", ")}`);
     lines.push("");
   });
-  if (items.length > limit) lines.push(`${items.length - limit} more work item(s); use --format json for all of them.`, "");
+  if (structural.length > limit) lines.push(`${structural.length - limit} more work item(s); use --format json for all of them.`, "");
+  if (permissions.length) {
+    const total = permissions.reduce((sum, item) => sum + item.violations, 0);
+    lines.push("## Permission sets to split", "",
+      `${count(permissions.length, "permission set grant")} (${count(total, "object")}) give access to objects of outer components. When a component becomes an app, it brings these grants in a permission set or permission set extension of its own.`, "",
+      "| Permission set | In | Grants objects of | Objects |", "| --- | --- | --- | ---: |");
+    for (const item of permissions.slice(0, 60)) {
+      lines.push(`| ${cell(objectName(item.source))} | ${cell(item.sourceComponent)} | ${cell(item.targetComponent)} | ${item.violations} |`);
+    }
+    if (permissions.length > 60) lines.push(`| ${permissions.length - 60} more | | | |`);
+    lines.push("");
+  }
 
   if (proposal?.moves.length) {
     lines.push("## Objects that belong elsewhere", "", "Moving these objects removes cross-component dependencies without other changes.", "",

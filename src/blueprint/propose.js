@@ -5,7 +5,7 @@
 // dependencies that still point the wrong way are what has to be resolved
 // before the components can become apps of their own.
 
-const GROUPINGS = ["namespace", "folder", "module", "app"];
+const GROUPINGS = ["auto", "namespace", "folder", "module", "app"];
 
 // Namespaces split until no candidate holds more than this share of objects.
 const MAX_SHARE = 0.15;
@@ -78,6 +78,30 @@ function grouping(nodes, levels, { groupBy, depth }) {
     inner = (node) => {
       const label = modules.get(node.module)?.label ?? apps.get(node.app)?.label ?? "(no app)";
       return { key: `module:${label}`, label, selector: `module:${label}` };
+    };
+  } else if (groupBy === "auto") {
+    // Modules (or apps) first; a group that is still too large is split by
+    // namespace, so a monolith such as the Base Application's root module
+    // becomes components too.
+    const coarse = modules.size
+      ? (node) => {
+          const label = modules.get(node.module)?.label ?? apps.get(node.app)?.label ?? "(no app)";
+          return { key: `module:${label}`, label, selector: `module:${label}` };
+        }
+      : byApp;
+    const selected = nodes.filter(({ outsideSelection }) => !outsideSelection);
+    const sizes = new Map();
+    for (const node of selected) sizes.set(coarse(node).key, (sizes.get(coarse(node).key) ?? 0) + 1);
+    const limit = Math.max(MIN_SPLIT_OBJECTS, Math.ceil(selected.length * MAX_SHARE));
+    const large = new Set([...sizes].filter(([, size]) => size > limit).map(([key]) => key));
+    const fine = namespaceGroups(selected.filter((node) => large.has(coarse(node).key)), depth);
+    inner = (node) => {
+      const group = coarse(node);
+      if (!large.has(group.key)) return group;
+      // Restrict the namespace to its module, so namespaces shared with other
+      // apps (Microsoft.Foundation) do not pull their objects in.
+      const part = fine(node);
+      return { ...part, key: `${group.key}|${part.key}`, selector: part.selector === "*" ? group.selector : `${group.selector} & ${part.selector}` };
     };
   } else if (groupBy === "app") {
     inner = byApp;
@@ -159,7 +183,7 @@ function uniqueNames(groups) {
  */
 export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1 } = {}) {
   const nodes = levels.object.nodes.filter(({ origin }) => origin === "workspace");
-  const mode = groupBy ?? (levels.module?.nodes?.some(({ origin }) => origin === "module") ? "module" : "namespace");
+  const mode = groupBy ?? "auto";
   if (!GROUPINGS.includes(mode)) throw new Error(`--group-by must be one of: ${GROUPINGS.join(", ")}`);
   const groupOf = grouping(nodes, levels, { groupBy: mode, depth: depth === undefined ? undefined : Number(depth) });
 
@@ -167,9 +191,19 @@ export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1 } =
   const nodeGroup = new Map();
   for (const node of nodes) {
     const group = groupOf(node);
-    if (!groups.has(group.key)) groups.set(group.key, { ...group, objects: 0 });
+    if (!groups.has(group.key)) groups.set(group.key, { ...group, objects: 0, apps: new Set() });
     groups.get(group.key).objects++;
+    groups.get(group.key).apps.add(node.app);
     nodeGroup.set(node.id, group.key);
+  }
+  // With context apps outside the analyzed path, a namespace group of one app
+  // is restricted to that app so shared namespaces do not overlap.
+  if (mode === "namespace" && nodes.some(({ outsideSelection }) => outsideSelection)) {
+    const appLabels = new Map((levels.app?.nodes ?? []).map((node) => [node.id, node.label]));
+    for (const group of groups.values()) {
+      if (group.fixed || group.apps.size !== 1 || !group.selector.startsWith("namespace:")) continue;
+      group.selector = `app:${appLabels.get([...group.apps][0])} & ${group.selector}`;
+    }
   }
   // Tiny groups join the group they depend on most.
   // Permission sets grant access to everything; they follow the components

@@ -23,11 +23,12 @@ bca explore ./app --history -o architecture.html                         # 4. wa
 Without an `architecture` section in `.bca.json`, `bca architecture` proposes
 one from today's dependencies:
 
-1. **Group** the objects into candidate components: by module when the app has
-   nested `app.json` files, otherwise by namespace (`--group-by namespace`,
-   `folder`, `module`, or `app`). Namespace groups start one segment below the
-   common prefix and split further until no component holds more than 15% of
-   the objects (or use `--depth`).
+1. **Group** the objects into candidate components. By default (`auto`) every
+   module (nested `app.json`) or app is a component, and any that holds more
+   than 15% of the objects is split by namespace: one segment below the common
+   prefix, and deeper until no part is that large. `--group-by namespace`,
+   `folder`, `module`, or `app` chooses one grouping; `--depth` fixes the
+   number of namespace or folder segments.
 2. **Order** the components so that as few object dependencies as possible
    point against the order (a weighted feedback arc set). Permission sets are
    left out of this step: they grant access to everything and follow the
@@ -164,14 +165,25 @@ with `--propose`:
 
 ## Example: the Base Application
 
-On the W1 Base Application in [BCApps](https://github.com/microsoft/BCApps)
-(about 8,300 objects), `bca architecture --propose` groups the namespaces into
-about 60 components, from the core (Foundation, Security, Utilities) up to
-Sales, Purchases, and Service. Five components could be extracted right away;
-for the rest, it lists the work items that block a split, led by permission
-sets that grant objects across the whole app.
+On the W1 Base Application in [BCApps](https://github.com/microsoft/BCApps),
+analyzed together with its declared dependencies (System Application and
+Business Foundation, about 8,300 objects), the proposal keeps every module
+(Job Queue, Power BI, User Task, ...) as a component and splits the root
+module by namespace: 72 components in 29 layers, from System Application and
+Foundation at the core up to Sales, Purchases, and Service.
+
+- 37 components could become apps right away, mostly modules that already
+  follow their manifests.
+- 19,485 dependencies point the wrong way, grouped into 4,924 work items;
+  11,576 of them are permission grants (D365 READ, D365 AUTOMATION, ...) that
+  each future app would bring along in a permission set of its own.
+- The largest structural work items are objects in the wrong place, such as
+  `Mfg. Experience Tier` and `Service Experience Tier`: they live in the
+  `System` namespace but subscribe to 49 Manufacturing and 44 Service tables,
+  so they move to those components.
 
 ```sh
-bca architecture ./BCApps/src --paths "Layers/W1/BaseApp" \
+bca architecture ./BCApps/src/Layers/W1/BaseApp --project-root ./BCApps/src \
+  --paths "Layers/W1/BaseApp" --paths "System Application/App" --paths "Business Foundation/App" \
   --propose --format markdown -o base-application-architecture.md
 ```

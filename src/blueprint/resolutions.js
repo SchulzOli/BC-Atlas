@@ -24,6 +24,8 @@ export const STRATEGIES = Object.freeze({
 const EXTENSION_TYPES = new Set(["tableextension", "pageextension", "reportextension", "enumextension", "permissionsetextension", "pagecustomization"]);
 
 function name(node) {
+  // A work item can cover many targets of one source object.
+  if (node.many > 1) return `the ${node.many} ${node.type === "table" ? "tables" : "objects"}`;
   return `${node.type} ${node.objectId ? `${node.objectId} ` : ""}"${node.label}"`;
 }
 

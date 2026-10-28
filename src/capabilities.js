@@ -150,7 +150,7 @@ const exploreOptions = {
   }),
   lens: string("Relationship family to explore.", { group: SELECTION, enum: ["dependency"], default: "dependency" }),
   propose: flag("Show a proposed target architecture (components, layers) when .bca.json defines none.", { group: SELECTION }),
-  groupBy: string("How a proposed architecture groups objects into components.", { group: SELECTION, enum: ["namespace", "folder", "module", "app"] }),
+  groupBy: string("How a proposed architecture groups objects into components.", { group: SELECTION, enum: ["auto", "namespace", "folder", "module", "app"], default: "auto" }),
   history: flag("Replay Git history: one frame per commit that changed AL files or app.json.", { group: "Timeline" }),
   maxCommits: string("Most frames to replay; older commits are sampled evenly.", { group: "Timeline", value: "n", default: "60" }),
   since: string("Only replay commits after this date (anything git log --since accepts).", { group: "Timeline", value: "date" }),
@@ -169,9 +169,10 @@ const blueprintOptions = {
   format: string("Report format.", { group: OUTPUT, short: "f", enum: ["text", "markdown", "json"], default: "text" }),
   output: string("Write the report to a file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
   propose: flag("Propose an architecture from today's dependencies, even when .bca.json defines one.", { group: "Proposal" }),
-  groupBy: string("How the proposal groups objects into components.", {
+  groupBy: string("How the proposal groups objects into components; auto: modules or apps, too large ones split by namespace.", {
     group: "Proposal",
-    enum: ["namespace", "folder", "module", "app"]
+    enum: ["auto", "namespace", "folder", "module", "app"],
+    default: "auto"
   }),
   depth: string("Namespace or folder segments per component; default: split until no component is too large.", { group: "Proposal", value: "n" }),
   minObjects: string("Merge smaller groups into the component they depend on most.", { group: "Proposal", value: "n", default: "1" }),

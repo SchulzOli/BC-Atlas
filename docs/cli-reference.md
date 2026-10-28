@@ -340,7 +340,7 @@ bca explore ./app --format json -o dependencies.json
 | `-f`, `--format` | format | `html` (explorer) or `json` (graph document). Inferred from the extension. |
 | `--lens` | lens | Relationship family. Default and currently only value: `dependency`. |
 | `--propose` | flag | Show a proposed target architecture (components, layers) when `.bca.json` defines none. With an `architecture` section, the explorer always shows it. |
-| `--group-by` | mode | How a proposed architecture groups objects: `namespace`, `folder`, `module`, or `app`. |
+| `--group-by` | mode | How a proposed architecture groups objects: `auto` (default), `namespace`, `folder`, `module`, or `app`. |
 | `--history` | flag | Replay Git history, one frame per commit that changed AL files or `app.json`. |
 | `--max-commits` | integer | Most frames to replay; older commits are sampled evenly. Default: `60`. |
 | `--since` | date | Only replay commits after this date (`git log --since` syntax). |
@@ -376,7 +376,7 @@ bca architecture ./app --format json
 | `-f`, `--format` | format | `text`, `markdown`, or `json`. Default: `text`. |
 | `-o`, `--output` | path | Write the report to a file instead of stdout. |
 | `--propose` | flag | Propose an architecture even when `.bca.json` defines one. |
-| `--group-by` | mode | `namespace`, `folder`, `module`, or `app`. Default: modules when the app has nested `app.json` files, otherwise namespaces. |
+| `--group-by` | mode | `auto`, `namespace`, `folder`, `module`, or `app`. Default `auto`: modules (or apps), and any that is still too large split by namespace. |
 | `--depth` | integer | Namespace or folder segments per component. Default: split until no component holds more than 15% of the objects. |
 | `--min-objects` | integer | Merge smaller groups into the component they depend on most. Default: `1`. |
 | `--write` | flag | Save the architecture to the `architecture` section of `.bca.json`. |
