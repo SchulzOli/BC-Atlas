@@ -40,9 +40,29 @@ function finding(severity, rule, message, details = {}) {
   return { severity, rule, message, ...details };
 }
 
+// Wrong-way dependencies share one finding rule; the violation names the exact rule.
+const DIRECTION_RULES = new Set(["undeclared-component-dependency", "outward-dependency", "same-layer-dependency", "layer-skip-dependency"]);
+
+function violationMessage({ violation, count, targets }) {
+  const { source, sourceComponent, targetComponent, resolution } = violation;
+  const what = `${source.type} ${source.label} (${sourceComponent})`;
+  const fix = `${resolution.title.toLowerCase()} (${resolution.strategy})`;
+  if (violation.rule === "dependency-rule") {
+    return `${what} breaks rule "${violation.policy}": ${violation.message ?? `depends on ${targets}`}${violation.message ? ` (${targets})` : ""}`;
+  }
+  if (violation.rule === "internal-access") {
+    return `${what} uses ${count} internal object(s) of ${targetComponent} (${targets}); ${fix}`;
+  }
+  if (violation.rule === "layer-skip-dependency") {
+    return `${what} skips a layer: it depends on ${count} object(s) in ${targetComponent}; ${fix}`;
+  }
+  return `${what} depends on ${count} object(s) in ${targetComponent}; ${fix}`;
+}
+
 /**
  * Findings for the target architecture: one per work item that is not in the
- * baseline, plus progress notes for accepted and fixed violations.
+ * baseline, progress notes for accepted and fixed violations, and the checks
+ * of the architecture as a whole (cycles, configuration, size, stability).
  */
 function architectureFindings({ result, baseline, architecture }) {
   const severity = architecture.severity ?? "error";
@@ -51,16 +71,24 @@ function architectureFindings({ result, baseline, architecture }) {
   const fresh = new Set(baseline.new.map(({ id }) => id));
   const items = new Map();
   for (const violation of result.violations.filter(({ id }) => fresh.has(id))) {
-    const key = `${violation.source.id}|${violation.targetComponent}`;
-    const item = items.get(key) ?? { violation, count: 0 };
+    const key = `${violation.source.id}|${violation.targetComponent}|${violation.rule}|${violation.policy ?? ""}`;
+    const item = items.get(key) ?? { violation, count: 0, names: [] };
     item.count++;
+    if (item.names.length < 3) item.names.push(`${violation.target.type} ${violation.target.label}`);
     items.set(key, item);
   }
-  for (const { violation, count } of items.values()) {
-    const { source, sourceComponent, targetComponent, resolution } = violation;
-    findings.push(finding(severity, "architecture-violation",
-      `${source.type} ${source.label} (${sourceComponent}) depends on ${count} object(s) in ${targetComponent}; ${resolution.title.toLowerCase()} (${resolution.strategy})`,
-      { file: violation.evidence[0]?.file ?? source.file, line: violation.evidence[0]?.line ?? source.line, strategy: resolution.strategy }));
+  for (const { violation, count, names } of items.values()) {
+    const targets = `${names.join(", ")}${count > names.length ? `, +${count - names.length} more` : ""}`;
+    const rule = DIRECTION_RULES.has(violation.rule) ? "architecture-violation" : violation.rule;
+    findings.push(finding(violation.severity ?? severity, rule, violationMessage({ violation, count, targets }), {
+      file: violation.evidence[0]?.file ?? violation.source.file,
+      line: violation.evidence[0]?.line ?? violation.source.line,
+      strategy: violation.resolution.strategy,
+      violation: violation.rule,
+      ...(violation.policy ? { policy: violation.policy } : {}),
+      component: violation.sourceComponent,
+      targetComponent: violation.targetComponent
+    }));
   }
   if (baseline.known.length) {
     findings.push(finding("info", "architecture-baseline", `${baseline.known.length} accepted architecture violation(s) remain in the baseline`));
@@ -69,12 +97,8 @@ function architectureFindings({ result, baseline, architecture }) {
     findings.push(finding("info", "architecture-progress",
       `${baseline.fixed.length} accepted architecture violation(s) are fixed; run "bca architecture --update-baseline" to lock in the progress`));
   }
-  for (const cycle of result.cycles) {
-    findings.push(finding("warning", "component-cycle", `Components depend on each other in a cycle: ${cycle.join(" -> ")} -> ${cycle[0]}`));
-  }
-  if (result.unassigned.length) {
-    findings.push(finding(architecture.unassigned ?? "info", "unassigned-objects",
-      `${result.unassigned.length} object(s) belong to no architecture component: ${result.unassigned.slice(0, 5).map(({ type, label }) => `${type} ${label}`).join(", ")}${result.unassigned.length > 5 ? ", ..." : ""}`));
+  for (const { rule, severity: level, message, component, file, line } of result.checks ?? []) {
+    findings.push(finding(level, rule, message, Object.fromEntries(Object.entries({ component, file, line }).filter(([, value]) => value !== undefined))));
   }
   return findings;
 }

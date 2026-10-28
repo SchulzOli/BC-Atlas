@@ -148,8 +148,141 @@ test("the most specific selector assigns an object", () => {
   assert.equal(assign({ namespace: "Contoso.Sales.Setup", type: "table", label: "Sales Setup" }), "Sales");
   assert.equal(assign({ namespace: "Contoso.Sales.Document", type: "codeunit", label: "Sales-Post" }), "Posting");
   assert.equal(assign({ namespace: "Other", type: "page", label: "Other" }), "Everything");
-  assert.throws(() => componentMatcher([{ name: "A", match: ["layer:1"] }], levels), /Unsupported component selector kind/u);
+  assert.throws(() => componentMatcher([{ name: "A", match: ["layer:1"] }], levels), /work in architecture rules/u);
   assert.throws(() => componentMatcher([{ name: "A", match: ["*"], dependsOn: ["B"] }], levels), /unknown component "B"/u);
+});
+
+// The multi-app example with "CON Pricing Mgt." (used by Sales) marked Access = Internal.
+function workspaceWithInternalPricing(architecture) {
+  const directory = copyWorkspace(architecture);
+  const file = path.join(directory, "core", "Pricing.al");
+  writeFileSync(file, readFileSync(file, "utf8").replace('codeunit 50011 "CON Pricing Mgt."\n{', 'codeunit 50011 "CON Pricing Mgt."\n{\n    Access = Internal;\n'));
+  return directory;
+}
+
+test("rules for layers, public objects, and dependencies", async () => {
+  const directory = workspaceWithInternalPricing({
+    components: [
+      { name: "Core", layer: 0, match: ["app:Contoso Core"] },
+      { name: "Sales", layer: 1, match: ["app:Contoso Sales"] },
+      { name: "Integration", layer: 2, match: ["app:Contoso Integration"] }
+    ],
+    strictLayers: true,
+    rules: [
+      { name: "no-table-access", from: "component:Integration", to: "type:table", kinds: ["reads", "writes"], across: true, resolution: "Call a codeunit of the owning component." },
+      { name: "core-uses-nothing-outside", from: "layer:0", to: "*", except: ["layer:0"] }
+    ]
+  });
+  try {
+    const { result } = await assessArchitecture(directory);
+    const rules = (rule) => result.violations.filter((violation) => violation.rule === rule);
+
+    // Access = Internal: Sales may use Core, but not its internal codeunit.
+    const [internal] = rules("internal-access");
+    assert.equal(`${internal.source.label} -> ${internal.target.label}`, "CON Quote Mgt. -> CON Pricing Mgt.");
+    assert.equal(internal.resolution.strategy, "use-public-api");
+    assert.match(internal.resolution.steps[1], /set Access = Public/u);
+    assert.match(internal.id, /^internal:Sales->Core\|/u);
+
+    // Strict layers: Integration (2) may use Sales (1) but not Core (0).
+    const [skip] = rules("layer-skip-dependency");
+    assert.equal(`${skip.sourceComponent} -> ${skip.targetComponent}`, "Integration -> Core");
+    assert.equal(skip.resolution.strategy, "go-through-layer");
+    assert.match(skip.resolution.steps[0], /through Sales/u);
+
+    // A rule of .bca.json with kinds and across; Core uses nothing outside its layer.
+    const policy = rules("dependency-rule");
+    assert.deepEqual([...new Set(policy.map((violation) => violation.policy))], ["no-table-access"]);
+    assert.deepEqual(policy.map(({ target }) => target.label).sort(), ["CON Item", "CON Sales Quote"]);
+    assert.equal(policy[0].resolution.strategy, "follow-rule");
+    assert.equal(policy[0].resolution.steps[0], "Call a codeunit of the owning component.");
+    assert.match(policy[0].id, /^rule:no-table-access\|/u);
+    assert.deepEqual(result.summary.byRule, { "dependency-rule": 2, "internal-access": 1, "layer-skip-dependency": 1 });
+
+    // Rules of .bca.json do not decide whether a component can become an app.
+    const components = new Map(result.components.map((component) => [component.name, component]));
+    assert.equal(components.get("Sales").extractable, false, "uses an internal object of Core");
+    assert.equal(components.get("Core").extractable, true);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("exposes limits what other components may use; severities turn rules off", async () => {
+  const levels = (await assessArchitecture(workspace)).levels;
+  const evaluate = (extra, core = {}) => evaluateArchitecture(levels, {
+    components: [
+      { name: "Core", layer: 0, match: ["app:Contoso Core"], ...core },
+      { name: "Sales", layer: 1, match: ["app:Contoso Sales"] },
+      { name: "Integration", layer: 2, match: ["app:Contoso Integration"] }
+    ],
+    ...extra
+  });
+  const exposed = evaluate({}, { exposes: ["type:interface", "object:codeunit:CON Pricing Mgt."] });
+  const internal = exposed.violations.filter(({ rule }) => rule === "internal-access").map(({ source, target }) => `${source.label} -> ${target.label}`).sort();
+  assert.deepEqual(internal, ["CON Item Sync -> CON Item", "CON Sales Quote -> CON Item"], "Core does not expose its table CON Item");
+  assert.match(exposed.violations.find(({ rule }) => rule === "internal-access").resolution.steps[1], /add it to exposes of Core/u);
+
+  const off = evaluate({ severities: { "internal-access": "off" } }, { exposes: ["type:interface"] });
+  assert.equal(off.violations.length, 0);
+  assert.throws(() => evaluate({ severities: { "no-such-rule": "error" } }), /unknown rule "no-such-rule"/u);
+  assert.throws(() => evaluate({ severities: { "empty-component": "loud" } }), /must be one of: error, warning, info, off/u);
+  assert.throws(() => evaluate({ rules: [{ from: "*" }] }), /needs "from" and "to"/u);
+  assert.throws(() => evaluate({ rules: [{ from: "*", to: "*", kinds: ["eats"] }] }), /unknown relation kind\(s\) eats/u);
+});
+
+test("checks the architecture configuration itself", async () => {
+  const levels = (await assessArchitecture(workspace)).levels;
+  const result = evaluateArchitecture(levels, {
+    components: [
+      { name: "Core", layer: 0, match: ["app:Contoso Core", "namespace:Contoso.Legacy"], dependsOn: ["Integration"] },
+      { name: "Sales", layer: 1, match: ["app:Contoso Sales"], dependsOn: ["Core"], maxObjects: 2 },
+      { name: "Integration", layer: 2, match: ["app:Contoso Integration"], dependsOn: ["Sales", "Core", "Reporting"] },
+      { name: "Reporting", layer: 2, match: ["namespace:Contoso.Reporting"] }
+    ],
+    severities: { "unstable-dependency": "off" }
+  });
+  const checks = Object.fromEntries(Object.entries(Object.groupBy(result.checks, ({ rule }) => rule)).map(([rule, list]) => [rule, list.map(({ message }) => message)]));
+  assert.deepEqual(checks["empty-component"], ["Component Reporting has no objects; no object matches namespace:Contoso.Reporting"]);
+  assert.match(checks["unused-selector"][0], /Selector "namespace:Contoso.Legacy" of component Core assigns no object/u);
+  assert.match(checks["unused-component-dependency"][0], /Core declares a dependency on Integration but uses none of its objects/u);
+  assert.match(checks["inconsistent-component-dependency"][0], /Core \(layer 0\) declares a dependency on Integration \(layer 2\)/u);
+  assert.match(checks["declared-component-cycle"][0], /The declared dependencies form a cycle: Core -> Integration -> Sales -> Core/u);
+  assert.deepEqual(checks["component-too-large"], ["Component Sales has 4 objects (limit 2); split it into smaller components"]);
+  assert.equal(checks["unstable-dependency"], undefined, "turned off");
+  assert.equal(result.checks.find(({ rule }) => rule === "empty-component").severity, "warning");
+  assert.equal(result.summary.checks, result.checks.length);
+});
+
+test("bca check reports architecture rules with their own rule IDs and points configuration checks at .bca.json", () => {
+  const directory = workspaceWithInternalPricing({
+    components: [
+      { name: "Core", layer: 0, match: ["app:Contoso Core"] },
+      { name: "Sales", layer: 1, match: ["app:Contoso Sales"], dependsOn: ["Core"] },
+      { name: "Integration", layer: 2, match: ["app:Contoso Integration"], dependsOn: ["Sales", "Core"] },
+      { name: "Reporting", layer: 2, match: ["namespace:Contoso.Reporting"] }
+    ],
+    rules: [{ name: "no-table-writes", from: "component:Integration", to: "type:table", kinds: ["writes"], severity: "warning", message: "Only the owning component writes its tables" }]
+  });
+  try {
+    const run = spawnSync(process.execPath, [cli, "check", directory, "--format", "json"], { encoding: "utf8" });
+    assert.equal(run.status, 1, run.stderr);
+    const findings = JSON.parse(run.stdout).findings;
+    const internal = findings.find(({ rule }) => rule === "internal-access");
+    assert.equal(internal.severity, "error");
+    assert.match(internal.message, /codeunit CON Quote Mgt\. \(Sales\) uses 1 internal object\(s\) of Core \(codeunit CON Pricing Mgt\.\)/u);
+    assert.equal(internal.file, "sales/Quotes.al");
+    const policy = findings.find(({ rule }) => rule === "dependency-rule");
+    assert.equal(policy.severity, "warning");
+    assert.equal(policy.policy, "no-table-writes");
+    assert.match(policy.message, /breaks rule "no-table-writes": Only the owning component writes its tables/u);
+    const empty = findings.find(({ rule }) => rule === "empty-component");
+    assert.equal(empty.file, ".bca.json");
+    const config = readFileSync(path.join(directory, ".bca.json"), "utf8").split("\n");
+    assert.match(config[empty.line - 1], /"name": "Reporting"/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("the baseline accepts today's violations and only lets them shrink", () => {
@@ -168,7 +301,7 @@ test("bca architecture and bca check enforce the architecture with a baseline", 
   try {
     const failing = run("architecture", directory);
     assert.equal(failing.status, 1, failing.stderr);
-    assert.match(failing.stdout, /1 of them point the wrong way/u);
+    assert.match(failing.stdout, /1 of them points the wrong way/u);
     assert.match(failing.stdout, /\[S\] Declare the dependency; it points inward: codeunit 50201 CON Item Sync \(Integration -> Core\)/u);
 
     const check = run("check", directory);

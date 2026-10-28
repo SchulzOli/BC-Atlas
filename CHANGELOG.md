@@ -6,8 +6,35 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Changed
+
+- `internal-access` is on by default: a configured architecture can report
+  new violations where a component uses an `Access = Internal` object of
+  another one. Accept them with `bca architecture --update-baseline`, or set
+  `"severities": { "internal-access": "off" }` when components are layers of
+  one app that never split.
+
 ### Added
 
+- More architecture rules in `bca check`, `bca architecture`, and the
+  Architecture page:
+  - **Public objects:** a component may use only public objects of another
+    one: `internal-access` for objects with `Access = Internal` (no other app
+    can see them) or outside the component's new `exposes` selectors.
+  - **Strict layers:** `strictLayers` lets a component use only the layer
+    directly below it (`layer-skip-dependency`).
+  - **Rules of your own:** `architecture.rules` forbids dependencies by
+    selectors, now also `component:` and `layer:`, with relation `kinds`
+    (e.g. only `writes`), `except`, `across`, and a message and resolution
+    (`dependency-rule`). Its violations are baselined like the others.
+  - **Checks of the architecture:** empty components, unused selectors, unused
+    or layer-contradicting `dependsOn` entries, declared cycles, components
+    above `maxObjects`, and dependencies on less stable components. Checks of
+    the configuration point at the component in `.bca.json`.
+  - **Severities:** `architecture.severities` sets the severity of each rule
+    or turns it off.
+  - New strategies `use-public-api`, `go-through-layer`, and `follow-rule`;
+    the report counts violations by rule.
 - VS Code: the BC Atlas panel takes its design from the editor's color theme
   (background, text, borders, accent, selection, status colors, and fonts),
   for any theme including high contrast; the 3D explorer and the Docs page

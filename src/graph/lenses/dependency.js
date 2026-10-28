@@ -71,6 +71,11 @@ function isMicrosoft(app) {
   return /microsoft/iu.test(app?.publisher ?? "");
 }
 
+function isInternal(object) {
+  const access = object.properties?.find(({ name }) => /^access$/iu.test(name ?? ""))?.value;
+  return /^internal$/iu.test(String(access ?? "").trim());
+}
+
 function objectNode(object, inSelection) {
   return {
     id: object.key,
@@ -83,6 +88,8 @@ function objectNode(object, inSelection) {
     file: object.externalSymbol ? undefined : toPosix(object.file),
     line: object.externalSymbol ? undefined : object.location?.line,
     origin: object.externalSymbol ? "symbol" : "workspace",
+    // Access = Internal: only usable inside its app, so not across future apps.
+    ...(isInternal(object) ? { access: "internal" } : {}),
     ...(inSelection ? {} : { outsideSelection: true })
   };
 }

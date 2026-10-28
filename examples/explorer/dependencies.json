@@ -209,10 +209,14 @@
       "dependencies": 5,
       "violations": 1,
       "workItems": 1,
+      "byRule": {
+        "undeclared-component-dependency": 1
+      },
       "byStrategy": {
         "declare-dependency": 1
       },
       "cycles": 0,
+      "checks": 0,
       "extractable": 2
     },
     "workItems": [

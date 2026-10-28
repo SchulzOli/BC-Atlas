@@ -1,5 +1,5 @@
 import path from "node:path";
-import { statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { analyzeProject, mergeArchitectureOptions } from "../architecture.js";
 import { loadConfig } from "../config.js";
 import { objectFilter, pathMatcher } from "../views.js";
@@ -57,6 +57,7 @@ export async function assessArchitecture(input, values = {}, { model } = {}) {
     architecture = proposal.architecture;
   }
   const result = evaluateArchitecture(levels, architecture);
+  if (!proposal) locateChecks(result.checks, context);
   const baseline = proposal ? undefined : await readBaseline(context.baselineFile);
   return {
     context,
@@ -66,4 +67,28 @@ export async function assessArchitecture(input, values = {}, { model } = {}) {
     result,
     baseline: compareWithBaseline(result.violations, baseline)
   };
+}
+
+/** Points the checks of the configuration at their component in .bca.json. */
+function locateChecks(checks, context) {
+  const file = context.config.path;
+  if (!file || !checks.length) return;
+  let lines;
+  try {
+    lines = readFileSync(file, "utf8").split(/\r?\n/u);
+  } catch {
+    return;
+  }
+  const relative = path.relative(context.projectRoot, file).replaceAll("\\", "/");
+  const lineOf = (pattern) => {
+    const index = lines.findIndex((line) => pattern.test(line));
+    return index < 0 ? undefined : index + 1;
+  };
+  const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const architectureLine = lineOf(/"architecture"\s*:/u);
+  for (const check of checks) {
+    const component = check.component ?? check.components?.[0];
+    check.file = relative.startsWith("..") ? file : relative;
+    check.line = (component && lineOf(new RegExp(`"name"\\s*:\\s*"${escape(component)}"`, "u"))) ?? architectureLine;
+  }
 }

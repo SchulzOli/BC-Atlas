@@ -77,8 +77,19 @@ selectors as you like:
 | `match` | Selectors that assign objects to the component. The most specific matching selector wins. |
 | `layer` | 0 is the core. Without `dependsOn`, a component may use components in lower layers. |
 | `dependsOn` | The components this one may use directly. When set, it replaces the layer rule. |
+| `exposes` | Selectors for the objects other components may use, its public surface. Without it, every object that is not `Access = Internal` is public. |
+| `maxObjects` | Most objects the component may hold before `bca check` reports it as too large. |
+
+For the whole architecture:
+
+| Setting | Meaning |
+| --- | --- |
 | `allowSameLayer` | Allow dependencies between different components of the same layer. Default: `false`, because siblings that use each other cannot become separate apps. |
+| `strictLayers` | A component without `dependsOn` may use only the layer directly below it, not deeper ones. Default: `false`. |
+| `maxObjects` | Most objects per component (a component's own `maxObjects` wins). |
+| `rules` | Dependency rules of your own, see [Rules of your own](#rules-of-your-own). |
 | `severity` | Severity of a violation in `bca check`: `error` (default), `warning`, or `info`. |
+| `severities` | Severity per rule, `off` turns a rule off: `{ "internal-access": "warning", "unstable-dependency": "off" }`. Accepts the violation rules (`outward-dependency`, `internal-access`, ...) and the [checks of the architecture](#checks-of-the-architecture). |
 | `unassigned` | Severity for objects that match no component. Default: `info`. |
 | `baseline` | Baseline file. Default: `.bca-architecture-baseline.json`. |
 
@@ -93,6 +104,10 @@ Selectors:
 | `type:table,tableextension` | Object types. |
 | `object:codeunit:Sales-Post` | One object by type and name or ID. |
 | `*` | Everything no other selector matches. |
+| `component:Sales` | The objects of a component. Only in `exposes` and `rules`. |
+| `layer:0,1` | The objects of the components in these layers. Only in `exposes` and `rules`. |
+
+Selectors joined with `&` must all match: `namespace:Contoso.Sales & type:table`.
 
 ## 3. Resolve what stands in the way
 
@@ -114,10 +129,23 @@ first rule that applies decides:
 | 2 | A or B has no `layer` | Allowed (no rule applies). |
 | 3 | B's layer is higher than A's | `outward-dependency`: an inner component uses an outer one. |
 | 4 | Same layer and `allowSameLayer` is `false` | `same-layer-dependency`: siblings that use each other cannot become separate apps. |
-| 5 | B's layer is lower | Allowed. |
+| 5 | `strictLayers` and B lies more than one layer below A | `layer-skip-dependency`: A must go through the layer in between. |
+| 6 | B's layer is lower | Allowed. |
 
 A proposal sets `dependsOn` on every component, so its violations always come
 from rule 1.
+
+**Public objects.** A dependency the rules allow must still use a public object
+of B; otherwise it is an `internal-access` violation. An object is public
+unless it has `Access = Internal` (which no other app can see, so the
+dependency would break the moment B becomes an app of its own), or B lists
+`exposes` and the object matches none of them. The AL compiler reports the
+same case between apps that already exist as `AL0161`.
+
+**Rules of your own** (`rules`, below) report `dependency-rule` violations.
+
+Each rule's severity comes from `severities`, then `severity`; `off` turns it
+off. Turned-off rules report nothing and do not count against a component.
 
 Violations are grouped into **work items**: one per source object, target
 component, and strategy. Each one says what to do in AL terms:
@@ -134,12 +162,77 @@ component, and strategy. Each one says what to do in AL terms:
 | `move-field-to-extension` | A table has a `TableRelation` to a table of an outer component. | Move the field into a table extension in that component. | M |
 | `move-object-down` | Code uses a table only lower components need. | Move the table further in. | M |
 | `extract-interface` | Code calls a codeunit or uses a table of an outer component. | Define an interface in the inner component and implement it outside (enum implementation); or publish an integration event (`raise-event`). | L |
+| `use-public-api` | An object uses an internal object of another component (`internal-access`). | Use a public codeunit, interface, or event of that component; or set `Access = Public` (or add the object to `exposes`) if it is meant to be used. | S |
+| `go-through-layer` | A component skips a layer (`layer-skip-dependency`). | Reach the object through the component in between, or declare the dependency in `dependsOn`. | M |
+| `follow-rule` | A rule of your own forbids the dependency. | What the rule's `resolution` (or `message`) says. | M |
 | `move-object-up` | Anything else. | Move the source object out, or the target in. | M |
 
 The report sorts work items by the number of dependencies they resolve.
 `--format json` (and the MCP tool `bc_atlas_architecture`) returns the same
 work items with stable strategy IDs, so an AI agent can pick one, apply it,
 and run the check again.
+
+### Rules of your own
+
+`rules` adds dependency rules that the layers cannot express, such as "only
+the owning component writes its tables" or "the core has no pages". A rule
+forbids every dependency from an object that matches `from` to an object that
+matches `to`:
+
+```json
+{
+  "architecture": {
+    "rules": [
+      {
+        "name": "owner-writes-its-tables",
+        "from": "*",
+        "to": "type:table",
+        "kinds": ["writes"],
+        "across": true,
+        "message": "Only the component that owns a table writes to it",
+        "resolution": "Call a codeunit of the owning component that writes the record."
+      },
+      { "name": "core-has-no-ui", "from": "layer:0", "to": "type:page,report" },
+      { "name": "integration-uses-only-sales", "from": "component:Integration", "to": "*", "except": ["component:Sales", "component:Integration"] }
+    ]
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `name` | The rule's ID in findings and in the baseline. Default: `from -> to`. |
+| `from`, `to` | Selectors (one or a list), including `component:` and `layer:`. |
+| `except` | Targets the rule allows anyway. `"to": "*"` with `except` turns a rule into an allow list. |
+| `kinds` | Only these relation kinds count, e.g. `["writes"]`, `["calls", "runs"]`. Default: all. |
+| `across` | Only dependencies between two different components count. Default: `false`, so rules also apply inside a component. |
+| `severity` | `error`, `warning`, `info`, or `off`. Default: `severity` of the architecture. |
+| `message`, `resolution` | What the finding says and how to resolve it. |
+
+Rules apply to dependencies on objects of the analyzed apps and their symbol
+packages, not to platform objects or unresolved references. Their violations
+take part in the baseline like every other violation, but they do not decide
+whether a component can become an app.
+
+### Checks of the architecture
+
+Besides the dependencies, `bca check` checks the architecture as a whole. These
+checks are not baselined; configure their severity in `severities`.
+
+| Rule | Default | Reports |
+| --- | --- | --- |
+| `component-cycle` | warning | Components that depend on each other in a cycle. |
+| `unassigned-objects` | info | Objects that match no component (or the `unassigned` setting). |
+| `empty-component` | warning | A component no object matches, often a typo in a selector. |
+| `unused-selector` | info | A selector that assigns no object, because nothing matches or a more specific selector of another component wins. |
+| `unused-component-dependency` | info | A `dependsOn` entry the component does not use. |
+| `inconsistent-component-dependency` | warning | A `dependsOn` entry that points to a higher layer, or to the same layer without `allowSameLayer`. |
+| `declared-component-cycle` | warning | `dependsOn` entries that form a cycle; such components cannot become separate apps. |
+| `component-too-large` | warning | A component with more objects than `maxObjects`. |
+| `unstable-dependency` | info | A component that depends on a less stable one (stable dependencies principle, see [Metrics](#metrics)). |
+
+Checks of the configuration point at the component in `.bca.json`, so editors
+and code scanning show them there.
 
 ### Metrics
 
@@ -153,7 +246,8 @@ Per component, after Robert C. Martin:
 
 A component that depends on a less stable one (instability higher by more
 than 0.1) breaks the stable dependencies principle; the Markdown report lists
-those pairs. This is information only and never fails a check.
+those pairs, and `bca check` reports them as `unstable-dependency` (info by
+default).
 
 ## 4. Enforce it over time
 
@@ -170,7 +264,8 @@ team accepts for now. `bca check` then:
 - reports how many accepted violations remain;
 - reports accepted violations that are gone, so you can run
   `--update-baseline` again and the baseline only shrinks;
-- warns about component cycles and objects without a component.
+- reports the [checks of the architecture](#checks-of-the-architecture):
+  cycles, objects without a component, and mistakes in the configuration.
 
 Add `bca check` to your pipeline (`bca setup` configures it) and the
 architecture cannot erode silently. Commit `.bca.json` and the baseline.

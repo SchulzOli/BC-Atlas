@@ -434,7 +434,7 @@
       ${controls}
       <div class="stats">
         ${stat({ label: "Components", value: fmt(summary.components), sub: `${plural(layers.filter((layer) => layer !== undefined).length, "layer")}, ${plural(summary.assigned, "object")}` })}
-        ${stat({ label: "Wrong-way dependencies", value: fmt(summary.violations), tone: summary.violations ? (!proposal && data.baseline.new.length ? "bad" : "warn") : "good", sub: `of ${plural(summary.dependencies, "dependency", "dependencies")} across components` })}
+        ${stat({ label: "Violations", value: fmt(summary.violations), tone: summary.violations ? (!proposal && data.baseline.new.length ? "bad" : "warn") : "good", sub: `of ${plural(summary.dependencies, "dependency", "dependencies")} across components` })}
         ${stat({ label: "Work items", value: fmt(summary.workItems), sub: Object.entries(summary.byStrategy).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([strategy, count]) => `${fmt(count)} ${esc(strategy)}`).join(", ") || "nothing to resolve" })}
         ${stat({ label: "Can become apps today", value: fmt(summary.extractable), tone: summary.extractable === summary.components ? "good" : undefined, sub: `of ${plural(summary.components, "component")}` })}
         ${proposal ? stat({ label: "Objects that belong elsewhere", value: fmt(data.proposal.moves.length), sub: "move them to shrink the work" }) : stat({ label: "Baseline", value: fmt(data.baseline.new.length), tone: data.baseline.new.length ? "bad" : "good", sub: baseline })}
@@ -455,7 +455,7 @@
           ${proposal ? `<p class="muted">Each module or app is a component; one that holds more than 15% of the objects (at least 40) is split by namespace. Components are ordered so that as few dependencies as possible point the wrong way, and each one sits one layer above the deepest component it uses.</p>
             ${data.proposal.feedback.length ? `<h3 class="small muted">Dependencies against the order</h3><ul class="list">${data.proposal.feedback.slice(0, 8).map((edge) => `<li><span class="grow">${esc(edge.source)} → ${esc(edge.target)}</span><span class="muted small nowrap">${plural(edge.objectEdges, "object link")}</span></li>`).join("")}</ul>` : ""}`
             : `<dl class="facts">
-                <dt>Rules</dt><dd>dependsOn first; otherwise only to lower layers${data.settings.allowSameLayer ? " or the same layer" : ""}</dd>
+                <dt>Rules</dt><dd>dependsOn first; otherwise only to ${data.settings.strictLayers ? "the layer directly below" : "lower layers"}${data.settings.allowSameLayer ? " or the same layer" : ""}; only public objects of other components${data.architecture.rules?.length ? `; ${plural(data.architecture.rules.length, "rule")} of .bca.json` : ""}</dd>
                 <dt>Baseline</dt><dd>${baseline}</dd>
                 <dt>Cycles</dt><dd>${data.cycles.length ? data.cycles.map((cycle) => esc(cycle.join(" → "))).join("<br>") : "none"}</dd>
                 <dt>Unassigned</dt><dd>${data.unassigned.length ? plural(summary.unassigned, "object") : "none"}</dd>
@@ -463,6 +463,8 @@
         </section>
       </div>
       <section class="card flush"><h2>Work items <span class="muted" id="work-scope"></span></h2><div id="work-items"></div></section>
+      ${!proposal && data.checks?.length ? `<section class="card"><h2>Architecture checks <span class="muted">components, declared dependencies, and selectors</span></h2>
+        <ul class="list">${data.checks.map((check) => `<li>${severityPill(check.severity)}<span class="grow">${esc(check.message)}</span><code class="muted small nowrap">${esc(check.rule)}</code></li>`).join("")}</ul></section>` : ""}
       ${proposal && data.proposal.moves.length ? '<section class="card flush"><h2>Objects that belong elsewhere <span class="muted">more closely tied to another component than to their own</span></h2><div id="moves"></div></section>' : ""}
       <section class="card flush"><h2>Components <span class="muted">instability I, abstractness A, distance D after Robert C. Martin</span></h2><div id="components"></div></section>`;
 

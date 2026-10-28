@@ -12,7 +12,10 @@ import { normalizeIdentifier } from "../resolver.js";
 //   object:codeunit:Sales-Post   one object by type and name or ID
 //   *                            everything not matched before
 // Selectors joined with & must all match (module:Base Application &
-// namespace:Microsoft.Sales); their specificities add up.
+// namespace:Microsoft.Sales); their specificities add up. Architecture rules
+// also select by the result of the assignment:
+//   component:Sales              the objects of a component
+//   layer:0,1                    the objects of components in these layers
 
 function globToRegExp(pattern) {
   const escaped = String(pattern)
@@ -26,7 +29,7 @@ function globToRegExp(pattern) {
 
 const isGlob = (value) => /[*?]/u.test(value);
 
-function compileSelector(selector, context) {
+export function compileSelector(selector, context) {
   const parts = String(selector).split("&").map((part) => part.trim()).filter(Boolean);
   if (parts.length > 1) {
     const matchers = parts.map((part) => compileSingle(part, context));
@@ -43,7 +46,7 @@ function compileSelector(selector, context) {
   return compileSingle(selector, context);
 }
 
-function compileSingle(selector, { apps, modules }) {
+function compileSingle(selector, { apps, modules, componentOf, layerOf }) {
   const text = String(selector).trim();
   if (text === "*" || text === "**") return () => 1;
   const separator = text.indexOf(":");
@@ -88,6 +91,13 @@ function compileSingle(selector, { apps, modules }) {
       return [module?.label, module?.appId].filter(Boolean).some((candidate) => normalizeIdentifier(candidate) === wanted) && 60;
     };
   }
+  if (kind === "component" || kind === "layer") {
+    if (!componentOf) throw new Error(`"${text}": ${kind}: selectors work in architecture rules, not in component selectors`);
+    if (kind === "component") return (node) => normalizeIdentifier(componentOf(node)) === wanted && 200;
+    const layers = new Set(value.split(",").map((layer) => Number(layer.trim())));
+    if ([...layers].some((layer) => !Number.isInteger(layer))) throw new Error(`"${text}": layer: takes layer numbers, e.g. layer:0,1`);
+    return (node) => layers.has(layerOf(node)) && 200;
+  }
   if (kind === "type") {
     const types = new Set(wanted.split(",").map((type) => type.trim()));
     return (node) => types.has(node.type) && 10;
@@ -98,7 +108,15 @@ function compileSingle(selector, { apps, modules }) {
     return (node) => (!type || node.type === type.toLowerCase()) &&
       [node.label, node.objectId].filter(Boolean).some((candidate) => normalizeIdentifier(candidate) === name) && 1000;
   }
-  throw new Error(`Unsupported component selector kind "${kind}"; use namespace, folder, app, module, type, or object`);
+  throw new Error(`Unsupported selector kind "${kind}"; use namespace, folder, app, module, type, or object${componentOf ? ", component, or layer" : ""}`);
+}
+
+/** Apps and modules by id, for selectors that name them. */
+export function selectorContext(levels) {
+  return {
+    apps: new Map((levels.app?.nodes ?? []).map((node) => [node.id, node])),
+    modules: new Map((levels.module?.nodes ?? []).map((node) => [node.id, node]))
+  };
 }
 
 /**
@@ -106,19 +124,33 @@ function compileSingle(selector, { apps, modules }) {
  * function that names the component of an object node (or undefined).
  */
 export function componentMatcher(components, levels) {
+  const assign = componentAssigner(components, levels);
+  return (node) => assign(node)?.component;
+}
+
+/**
+ * Like componentMatcher, but also tells which selector decided:
+ * `(node) => ({ component, selector })` (or undefined).
+ */
+export function componentAssigner(components, levels) {
   if (!Array.isArray(components) || !components.length) {
     throw new Error("architecture.components must list at least one component");
   }
   const names = new Set();
-  const apps = new Map((levels.app?.nodes ?? []).map((node) => [node.id, node]));
-  const modules = new Map((levels.module?.nodes ?? []).map((node) => [node.id, node]));
+  const context = selectorContext(levels);
   const compiled = components.map((component) => {
     if (!component?.name) throw new Error("every architecture component needs a name");
     if (names.has(component.name)) throw new Error(`duplicate architecture component "${component.name}"`);
     names.add(component.name);
     const selectors = [component.match ?? []].flat();
     if (!selectors.length) throw new Error(`architecture component "${component.name}" has no match selectors`);
-    return { name: component.name, matchers: selectors.map((selector) => compileSelector(selector, { apps, modules })) };
+    if (component.maxObjects !== undefined && !(Number.isInteger(component.maxObjects) && component.maxObjects > 0)) {
+      throw new Error(`architecture component "${component.name}": maxObjects must be a positive integer`);
+    }
+    if (component.exposes !== undefined && ![component.exposes].flat().length) {
+      throw new Error(`architecture component "${component.name}": exposes needs at least one selector`);
+    }
+    return { name: component.name, selectors, matchers: selectors.map((selector) => compileSelector(selector, context)) };
   });
   for (const component of components) {
     for (const target of component.dependsOn ?? []) {
@@ -130,14 +162,14 @@ export function componentMatcher(components, levels) {
   return (node) => {
     let best;
     let bestScore = 0;
-    for (const { name, matchers } of compiled) {
-      for (const matcher of matchers) {
+    for (const { name, selectors, matchers } of compiled) {
+      matchers.forEach((matcher, index) => {
         const score = matcher(node) || 0;
         if (score > bestScore) {
-          best = name;
+          best = { component: name, selector: selectors[index] };
           bestScore = score;
         }
-      }
+      });
     }
     return best;
   };
