@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -106,7 +106,9 @@ test("loads symbols from configured package caches and each app version once", a
 });
 
 test("finds the AL compiler in the AL Language extension, old and new layouts, and the .NET tool", async () => {
-  const home = temp("home");
+  // The real path: Windows temp folders can use 8.3 names (RUNNER~1) that
+  // resolving the `al` executable expands.
+  const home = realpathSync.native(temp("home"));
   try {
     const extensions = path.join(home, ".vscode", "extensions");
     const old = path.join(extensions, "ms-dynamics-smb.al-14.2.1180208");
