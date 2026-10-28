@@ -488,6 +488,9 @@
       ${!proposal && data.checks?.length ? `<section class="card"><h2>Architecture checks <span class="muted">components, declared dependencies, and selectors</span></h2>
         <ul class="list">${data.checks.map((check) => `<li>${severityPill(check.severity)}<span class="grow">${esc(check.message)}</span><code class="muted small nowrap">${esc(check.rule)}</code></li>`).join("")}</ul></section>` : ""}
       ${extractionCard(data, params.get("extract"))}
+      ${data.surface?.some(({ api, candidates }) => api.length || candidates.length) ? `<section class="card flush"><h2>Public surface <span class="muted">what other components use of each component, and what could be Access = Internal</span></h2>
+        ${data.surfaceChanges?.length ? `<ul class="list">${data.surfaceChanges.map((change) => `<li>${severityPill("warning")}<span class="grow">${esc(change.message)}</span></li>`).join("")}</ul>` : ""}
+        <div id="surface"></div></section>` : ""}
       ${data.dataOwnership?.length ? `<section class="card flush"><h2>Data ownership <span class="muted">tables other components write, read, relate to, or extend</span></h2><div id="ownership"></div></section>` : ""}
       ${proposal && data.proposal.moves.length ? '<section class="card flush"><h2>Objects that belong elsewhere <span class="muted">more closely tied to another component than to their own</span></h2><div id="moves"></div></section>' : ""}
       <section class="card flush"><h2>Components <span class="muted">instability I, abstractness A, distance D after Robert C. Martin</span></h2><div id="components"></div></section>`;
@@ -526,6 +529,18 @@
           { key: "readers", label: "Read by", value: (row) => row.readers.length, render: (row) => users(row.readers) },
           { key: "relations", label: "Related from", value: (row) => row.relations.length, render: (row) => users(row.relations) },
           { key: "extenders", label: "Extended by", value: (row) => row.extenders.length, render: (row) => users(row.extenders) }
+        ]
+      });
+    }
+    if ($("#surface")) {
+      dataTable($("#surface"), {
+        rows: data.surface.filter(({ api, candidates }) => api.length || candidates.length),
+        sort: { key: "api", direction: "descending" },
+        columns: [
+          { key: "component", label: "Component", render: (row) => `<b>${esc(row.component)}</b>` },
+          { key: "api", label: "Used by others", numeric: true, value: (row) => row.api.length, render: (row) => `${fmt(row.api.length)} <span class="muted">of ${fmt(row.objects)}</span>` },
+          { key: "objects", label: "Objects others use", value: (row) => row.api.length, render: (row) => `<details class="steps"><summary>${row.api.slice(0, 3).map(({ name }) => esc(name)).join(", ")}${row.api.length > 3 ? ", …" : ""}</summary><ul class="small">${row.api.map((item) => `<li>${esc(item.object)}${item.internal ? ' <span class="pill error">internal</span>' : ""} <span class="muted">← ${item.usedBy.map(({ component, objects }) => `${esc(component)} ${fmt(objects)}`).join(", ")} · ${esc(item.kinds.join(", "))}</span></li>`).join("")}</ul></details>` },
+          { key: "candidates", label: "Could be internal", value: (row) => row.candidates.length, render: (row) => row.candidates.length ? `<span title="${esc(row.candidates.map(({ object }) => object).join(", "))}">${fmt(row.candidates.length)}</span> <code class="small">bca refactor surface --component "${esc(row.component)}"</code>` : '<span class="muted">–</span>' }
         ]
       });
     }

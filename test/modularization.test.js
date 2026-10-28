@@ -164,3 +164,51 @@ test("lineDiff shows changed lines with context", () => {
   assert.equal(lineDiff("a.al", "a.al", "same", "same"), "");
   assert.equal(lineDiff("new.al", "new.al", "", "x\n"), "--- /dev/null\n+++ b/new.al\n@@ -0,0 +1,2 @@\n+x\n+\n");
 });
+
+test("the public surface lists what other components use and what could be internal", async () => {
+  const { result } = await assessArchitecture(monolith);
+  const core = result.surface.find(({ component }) => component === "Core");
+  assert.deepEqual(core.api.map(({ object }) => object), ["codeunit 50000 CON Item Mgt.", "table 50000 CON Item", "table 50001 CON Item Category"]);
+  assert.deepEqual(core.api[0].usedBy, [{ component: "Permissions", objects: 1 }, { component: "Sales", objects: 1 }]);
+  assert.equal(core.api[0].internal, true);
+  assert.deepEqual(core.candidates.map(({ object }) => object), ["codeunit 50001 CON Warehouse Hooks"]);
+  const sales = result.surface.find(({ component }) => component === "Sales");
+  assert.deepEqual(sales.candidates, [], "Sales-Post publishes an event; the enum is extensible");
+  assert.deepEqual(sales.extensionPoints.map(({ reason }) => reason), ["extensible enum"]);
+  assert.match(result.checks.find(({ rule }) => rule === "could-be-internal").message, /1 object\(s\) of Core .* could be Access = Internal: codeunit 50001 CON Warehouse Hooks/u);
+});
+
+test("bca refactor surface sets Access = Internal and writes exposes; the surface snapshot catches breaking changes", async () => {
+  const directory = copyMonolith();
+  const run = (...args) => spawnSync(process.execPath, [cli, ...args], { encoding: "utf8" });
+  try {
+    const preview = run("refactor", "surface", directory, "--component", "Core");
+    assert.equal(preview.status, 0, preview.stderr);
+    assert.match(preview.stdout, /\+ {4}Access = Internal;/u);
+    assert.match(preview.stdout, /"exposes": \["object:codeunit:CON Item Mgt\.", "object:table:CON Item", "object:table:CON Item Category"\]/u);
+    assert.equal(run("refactor", "surface", directory, "--component", "Core", "--apply").status, 0);
+    const hooks = readFileSync(path.join(directory, "src/Core/WarehouseHooks.Codeunit.al"), "utf8");
+    assert.match(hooks, /codeunit 50001 "CON Warehouse Hooks"\n\{\n {4}Access = Internal;\n\n {4}\[EventSubscriber/u);
+    const config = JSON.parse(readFileSync(path.join(directory, ".bca.json"), "utf8"));
+    assert.equal(config.architecture.components[0].exposes.length, 3);
+    assert.equal(config.architecture.components[1].exposes, undefined, "only Core");
+
+    // Record the surface, then break it.
+    assert.equal(run("architecture", directory, "--update-surface").status, 0);
+    const snapshot = JSON.parse(readFileSync(path.join(directory, ".bca-surface.json"), "utf8"));
+    assert.deepEqual(snapshot.components.Sales["codeunit:50100"].procedures, ['Post(var Record "CON Sales Order")']);
+    assert.equal(snapshot.components.Core["codeunit:50000"].access, "internal");
+    const post = path.join(directory, "src/Sales/SalesPost.Codeunit.al");
+    writeFileSync(post, readFileSync(post, "utf8").replace('procedure Post(var SalesOrder: Record "CON Sales Order")', 'procedure Post(var SalesOrder: Record "CON Sales Order"; Preview: Boolean)'));
+    const item = path.join(directory, "src/Core/Item.Table.al");
+    writeFileSync(item, readFileSync(item, "utf8").replace('        field(5; "Last Sold"; Date) { }\n', ""));
+    const findings = JSON.parse(run("check", directory, "--format", "json", "--fail-on", "never").stdout).findings
+      .filter(({ rule }) => rule === "public-surface-change").map(({ message }) => message).sort();
+    assert.deepEqual(findings, [
+      'codeunit 50100 CON Sales-Post of Sales: procedure Post(var Record "CON Sales Order") was changed to Post(var Record "CON Sales Order"; Boolean)',
+      "table 50000 CON Item of Core: field 5 Last Sold: Date was removed"
+    ], "CON Item Mgt. was internal already; that is no change");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

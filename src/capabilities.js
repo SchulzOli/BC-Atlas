@@ -200,6 +200,7 @@ const blueprintOptions = {
   extract: string("Plan extracting this component as an app of its own: blockers, dependencies, app.json, table moves, and steps.", { group: "Extraction", value: "component" }),
   write: flag("Save the architecture to .bca.json (architecture section).", { group: "Enforcement" }),
   updateBaseline: flag("Accept today's violations in the baseline file; only new ones fail afterwards.", { group: "Enforcement" }),
+  updateSurface: flag("Record each component's public surface (what other components use) in .bca-surface.json; bca check then reports changes that break its users.", { group: "Enforcement" }),
   paths: pathsOption,
   ...filterOptions,
   projectRoot: projectOptions.projectRoot,
@@ -385,6 +386,32 @@ export function createCapabilities(version) {
         examples: [
           "bca refactor move ./app --object codeunit:50100 --to Sales",
           "bca refactor move ./app --object tableextension:50001 --to Sales --apply"
+        ]
+      }),
+      command({
+        id: "refactor.surface",
+        area: "analyze",
+        argv: ["bca", "refactor", "surface", "[app-root]"],
+        purpose: "Lock the public surface of components: objects no other component uses get Access = Internal, and .bca.json lists what others use in exposes.",
+        options: {
+          component: string("Only this component (default: every component).", { value: "component" }),
+          internal: string("Set Access = Internal on codeunits, queries, and enums no other component uses.", { enum: ["true", "false"], default: "true" }),
+          exposes: string("Write the de facto API of each component to exposes in .bca.json.", { enum: ["true", "false"], default: "true" }),
+          apply: flag("Write the changes; without it, only show the diff."),
+          format: string("Output mode.", { group: OUTPUT, enum: ["text", "json"], default: "text" }),
+          paths: pathsOption,
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "json", when: "--format json", schema: "Refactoring" },
+        rules: [
+          "Needs a configured architecture (.bca.json).",
+          "Tables, interfaces, extensible enums, and codeunits that publish events stay public: other apps extend, implement, or subscribe to them.",
+          "Without --apply nothing is written."
+        ],
+        examples: [
+          "bca refactor surface ./app --component Core",
+          "bca refactor surface ./app --apply"
         ]
       }),
       command({

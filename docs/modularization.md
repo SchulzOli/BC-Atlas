@@ -9,6 +9,8 @@ compiler and `bca check` verify every step.
 bca architecture ./app --propose --write --update-baseline   # 1. components and layers
 bca architecture ./app --format markdown -o architecture.md  # 2. where to cut: work items, data ownership
 bca architecture ./app --extract Warehouse                   # 3. plan one extraction
+bca refactor surface ./app --component Core --apply         #    lock what others may use
+bca architecture ./app --update-surface                      #    and record it
 bca refactor move ./app --object codeunit:50001 --to Warehouse --apply   # 4. do the moves
 bca check ./app                                              # 5. verify (with the AL compiler)
 ```
@@ -86,6 +88,49 @@ and the new one would depend on each other.
 
 The Architecture page (VS Code or `bca export`) shows the same plan: choose
 a component under **Extract a component**.
+
+## Lock the public surface
+
+Before a component becomes an app, decide what other apps may use of it. Its
+**public surface** is what other components use today (its de facto API):
+`bca architecture` shows it per component (JSON `surface`, the Markdown
+report, the **Public surface** card on the Architecture page), with who uses
+each object and how.
+
+```sh
+bca refactor surface ./app --component Core          # preview
+bca refactor surface ./app --component Core --apply  # Access = Internal + exposes
+```
+
+- Codeunits without events, queries, and enums that are not extensible, which
+  no other component uses, get `Access = Internal`: no other app can see them
+  once the component is an app. `bca check` lists them as `could-be-internal`
+  (info). Tables, interfaces, extensible enums, and codeunits that publish
+  events stay public, because other apps extend, implement, or subscribe to
+  them.
+- The objects other components use go into `exposes` of the component in
+  `.bca.json`, so any new use of another object is an `internal-access`
+  violation.
+
+Then record the surface, like a baseline:
+
+```sh
+bca architecture ./app --update-surface   # writes .bca-surface.json; commit it
+```
+
+`bca check` compares the code with `.bca-surface.json` and reports changes
+that break the components that use the surface, the way AppSourceCop guards
+an app's API (`public-surface-change`, warning):
+
+```text
+WARN   codeunit 50100 CON Sales-Post of Sales: procedure Post(var Record "CON Sales Order") was changed to Post(var Record "CON Sales Order"; Boolean)
+WARN   table 50000 CON Item of Core: field 5 Last Sold: Date was removed
+```
+
+It compares public procedures (parameter types and return type), events,
+table fields (number, name, type), and enum values, and reports objects that
+were removed or became `Access = Internal`. Additions never break anyone. Run
+`--update-surface` again when a change is intended.
 
 ## 4. Do the moves
 

@@ -7,7 +7,7 @@ import { describeError, UsageError } from "./cli/errors.js";
 import { commandHelp, docsOverviewHelp, overviewHelp } from "./cli/help.js";
 import { checkCommand } from "./commands/check.js";
 import { architectureCommand } from "./commands/blueprint.js";
-import { refactorMoveCommand } from "./commands/refactor.js";
+import { refactorMoveCommand, refactorSurfaceCommand } from "./commands/refactor.js";
 import { exportCommand } from "./commands/export.js";
 import { runCommand } from "./commands/run.js";
 import { updateCommand } from "./commands/update.js";
@@ -31,6 +31,7 @@ const HANDLERS = {
   check: checkCommand,
   architecture: architectureCommand,
   "refactor.move": refactorMoveCommand,
+  "refactor.surface": refactorSurfaceCommand,
   export: exportCommand,
   run: runCommand,
   update: updateCommand,
@@ -63,7 +64,7 @@ function resolveCommand(args) {
   if (first === "refactor") {
     if (findCommand(capabilities, `refactor.${second}`)) return { id: `refactor.${second}`, args: rest };
     if (["-h", "--help", "help"].includes(second)) return { id: "refactor.move", args: ["--help"] };
-    throw new UsageError(`unknown refactoring "${second ?? ""}"; use "bca refactor move [app-root] --object <selector> --to <component>"`);
+    throw new UsageError(`unknown refactoring "${second ?? ""}"; use "bca refactor move" or "bca refactor surface"`);
   }
   if (TOP_LEVEL.has(first)) return { id: first, args: args.slice(1) };
   if (first && !first.startsWith("-") && existsSync(first)) {

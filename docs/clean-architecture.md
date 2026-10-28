@@ -230,6 +230,8 @@ checks are not baselined; configure their severity in `severities`.
 | `declared-component-cycle` | warning | `dependsOn` entries that form a cycle; such components cannot become separate apps. |
 | `component-too-large` | warning | A component with more objects than `maxObjects`. |
 | `unstable-dependency` | info | A component that depends on a less stable one (stable dependencies principle, see [Metrics](#metrics)). |
+| `could-be-internal` | info | Objects of a component that no other component uses and that could be `Access = Internal` (`bca refactor surface`). |
+| `public-surface-change` | warning | A change that breaks components using the public surface recorded in `.bca-surface.json` (`bca architecture --update-surface`). |
 | `foreign-table-write` | info | A table that other components write; see [data ownership](./modularization.md). Points at the table. |
 
 Checks of the configuration point at the component in `.bca.json`, so editors

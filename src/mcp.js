@@ -22,6 +22,7 @@ import { architectureJson } from "./blueprint/report.js";
 import { planExtraction } from "./blueprint/extract.js";
 import { planObjectMove } from "./commands/refactor.js";
 import { applyRefactoring } from "./refactor/move.js";
+import { planSurface } from "./refactor/surface.js";
 import { generateReport } from "./commands/report.js";
 import { resolveOutput, writeArchitecture } from "./output.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
@@ -225,6 +226,26 @@ export function createMcpServer(version = pkg.version) {
     const applied = dryRun ? undefined : await applyRefactoring(assessment.model.root, plan);
     const { operations, ...rest } = plan;
     return { ...rest, operations: operations.map(({ action, from, path: file }) => ({ action, from, path: file })), applied: Boolean(applied) };
+  }));
+
+  server.registerTool("bc_atlas_refactor_surface", {
+    description: "Lock the public surface of components: objects no other component uses (codeunits without events, queries, non-extensible enums) get Access = Internal, and .bca.json lists the objects other components use in exposes, so bc_atlas_check reports any new use of something else. bc_atlas_architecture returns each component's surface. dryRun (default) returns the diff.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      component: z.string().optional().describe("Only this component (default: all)"),
+      internal: z.boolean().default(true).describe("Set Access = Internal on objects no other component uses"),
+      exposes: z.boolean().default(true).describe("Write exposes to .bca.json"),
+      dryRun: z.boolean().default(true)
+    }),
+    annotations: { destructiveHint: false, idempotentHint: true }
+  }, tool(async ({ path: input, dryRun, component, internal, exposes, ...values }) => {
+    const assessment = await assessArchitecture(input, { ...values, compiler: "off" });
+    const plan = await planSurface(assessment, { component, internal, exposes });
+    const applied = dryRun ? undefined : await applyRefactoring(assessment.model.root, plan);
+    const { operations, ...rest } = plan;
+    return { ...rest, operations: operations.map(({ action, path: file }) => ({ action, path: file })), applied: Boolean(applied) };
   }));
 
   server.registerTool("bc_atlas_check", {

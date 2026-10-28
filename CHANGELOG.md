@@ -28,6 +28,15 @@ follows [Semantic Versioning](https://semver.org/).
     app's `app.json` with a stable ID, dependencies, and `idRanges`, the tables
     whose data moves with `ObsoleteState = PendingMove`/`MovedTo`/`MovedFrom`,
     and the steps in order.
+  - **Public surface:** per component, the objects other components use (its
+    de facto API) and the objects that could be `Access = Internal`
+    (`could-be-internal`). `bca refactor surface` (and MCP
+    `bc_atlas_refactor_surface`) sets `Access = Internal` on them and writes
+    the API to `exposes`. `bca architecture --update-surface` records the
+    surface in `.bca-surface.json`; `bca check` then reports changes that
+    break its users, like AppSourceCop for internal boundaries
+    (`public-surface-change`: removed or internal objects, changed procedure
+    signatures, removed events, fields, and enum values).
   - **`bca refactor move`:** moves an AL object to another component: its
     file, or the object cut out of a shared file, goes to the component's
     folder, its namespace becomes the component's, and referencing files get

@@ -6,6 +6,7 @@ import { assessArchitecture } from "../blueprint/index.js";
 import { writeBaseline } from "../blueprint/baseline.js";
 import { architectureJson, formatArchitectureMarkdown, formatArchitectureText } from "../blueprint/report.js";
 import { formatExtractionMarkdown, formatExtractionText, planExtraction } from "../blueprint/extract.js";
+import { writeSurface } from "../blueprint/surface.js";
 
 export function renderArchitecture(assessment, format = "text") {
   if (format === "json") return `${JSON.stringify(architectureJson(assessment), null, 2)}\n`;
@@ -48,6 +49,13 @@ export async function architectureCommand(input, values) {
   }
   if (values.write) {
     console.error(`Saved the architecture to ${displayPath(await writeArchitectureConfig(assessment))}`);
+  }
+  if (values.updateSurface) {
+    if (assessment.proposal) throw new Error("no architecture is configured yet; adopt one first (--propose --write)");
+    await writeSurface(assessment.context.surfaceFile, assessment.result.surface, assessment.model);
+    const objects = assessment.result.surface.reduce((total, { api }) => total + api.length, 0);
+    console.error(`Recorded the public surface (${objects} object(s) other components use) in ${displayPath(assessment.context.surfaceFile)}`);
+    if (!values.updateBaseline) return;
   }
   if (values.updateBaseline) {
     await writeBaseline(assessment.context.baselineFile, assessment.result.violations);

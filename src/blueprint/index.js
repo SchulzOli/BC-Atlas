@@ -5,7 +5,8 @@ import { loadConfig } from "../config.js";
 import { objectFilter, pathMatcher } from "../views.js";
 import { dependencyLens } from "../graph/lenses/dependency.js";
 import { BASELINE_FILE, compareWithBaseline, readBaseline } from "./baseline.js";
-import { evaluateArchitecture } from "./evaluate.js";
+import { addCheck, evaluateArchitecture } from "./evaluate.js";
+import { compareSurface, componentSurfaces, readSurface, SURFACE_FILE } from "./surface.js";
 import { proposeArchitecture } from "./propose.js";
 
 export { evaluateArchitecture } from "./evaluate.js";
@@ -28,7 +29,8 @@ export async function architectureContext(input, values = {}) {
     projectRoot,
     filter: objectFilter({ ...options, focusPath: focus ? focus.replaceAll("\\", "/") : undefined }),
     fileFilter: paths.length ? pathMatcher(paths) : undefined,
-    baselineFile: path.resolve(projectRoot, options.architecture?.baseline ?? options.baseline ?? BASELINE_FILE)
+    baselineFile: path.resolve(projectRoot, options.architecture?.baseline ?? options.baseline ?? BASELINE_FILE),
+    surfaceFile: path.resolve(projectRoot, options.architecture?.surface ?? SURFACE_FILE)
   };
 }
 
@@ -58,7 +60,18 @@ export async function assessArchitecture(input, values = {}, { model } = {}) {
     architecture = proposal.architecture;
   }
   const result = evaluateArchitecture(levels, architecture);
-  if (!proposal) locateChecks(result.checks, context);
+  result.surface = componentSurfaces({ levels, componentOf: result.assignment, model: analyzed, components: result.components });
+  if (!proposal) {
+    for (const surface of result.surface.filter(({ candidates }) => candidates.length)) {
+      addCheck(result, "could-be-internal", `${surface.candidates.length} object(s) of ${surface.component} are used by no other component and could be Access = Internal: ${surface.candidates.slice(0, 5).map(({ object }) => object).join(", ")}${surface.candidates.length > 5 ? ", ..." : ""} (bca refactor surface --component "${surface.component}")`, { component: surface.component });
+    }
+    const snapshot = await readSurface(context.surfaceFile);
+    result.surfaceChanges = snapshot ? compareSurface(snapshot, analyzed) : undefined;
+    for (const change of result.surfaceChanges ?? []) {
+      addCheck(result, "public-surface-change", change.message, { component: change.component, ...(change.file ? { file: change.file, line: change.line } : {}) });
+    }
+    locateChecks(result.checks, context);
+  }
   const baseline = proposal ? undefined : await readBaseline(context.baselineFile);
   return {
     context,

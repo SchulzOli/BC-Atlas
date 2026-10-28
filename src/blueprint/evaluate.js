@@ -28,8 +28,18 @@ export const CHECK_RULES = Object.freeze({
   "declared-component-cycle": "warning",
   "component-too-large": "warning",
   "unstable-dependency": "info",
-  "foreign-table-write": "info"
+  "foreign-table-write": "info",
+  "could-be-internal": "info",
+  "public-surface-change": "warning"
 });
+
+/** Adds a check to an evaluated architecture with the severity its settings give the rule. */
+export function addCheck(result, rule, message, details = {}) {
+  const severity = result.settings.severities[rule] ?? CHECK_RULES[rule];
+  if (severity === "off") return;
+  result.checks.push({ rule, severity, message, ...details });
+  result.summary.checks = result.checks.length;
+}
 
 const LEVELS = [...SEVERITIES, "off"];
 

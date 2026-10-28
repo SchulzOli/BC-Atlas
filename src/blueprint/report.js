@@ -63,7 +63,9 @@ const CHECK_TITLES = {
   "declared-component-cycle": "Declared cycle",
   "component-too-large": "Component too large",
   "unstable-dependency": "Depends on a less stable component",
-  "foreign-table-write": "Table written by another component"
+  "foreign-table-write": "Table written by another component",
+  "could-be-internal": "Could be Access = Internal",
+  "public-surface-change": "Breaking change of the public surface"
 };
 
 function headline(assessment) {
@@ -211,8 +213,23 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
     if (result.dataOwnership.length > limit) lines.push(`| ${result.dataOwnership.length - limit} more | | | | | |`);
     lines.push("");
   }
+  const surfaces = (result.surface ?? []).filter(({ api, candidates }) => api.length || candidates.length);
+  if (surfaces.length) {
+    lines.push("## Public surface", "",
+      "What other components use of each component (its de facto API), and what nobody outside uses and could be `Access = Internal` (`bca refactor surface`).", "",
+      "| Component | Used by others | Objects others use | Could be internal |", "| --- | ---: | --- | --- |");
+    for (const surface of surfaces) {
+      const used = surface.api.map(({ object, usedBy, internal }) => `${object}${internal ? " (internal)" : ""} ← ${usedBy.map(({ component }) => component).join(", ")}`);
+      lines.push(`| ${cell(surface.component)} | ${surface.api.length} of ${surface.objects} | ${cell(used.slice(0, 12).join("; "))}${used.length > 12 ? `; +${used.length - 12} more` : ""} | ${cell(surface.candidates.map(({ object }) => object).slice(0, 8).join(", ")) || "-"} |`);
+    }
+    lines.push("");
+  }
+  if (result.surfaceChanges?.length) {
+    lines.push("## Breaking changes of the public surface", "", "Since `.bca-surface.json` was recorded (`bca architecture --update-surface`):", "",
+      ...result.surfaceChanges.map(({ message }) => `- ${cell(message)}`), "");
+  }
   // Cycles, stability, and unassigned objects have sections of their own.
-  const checks = (result.checks ?? []).filter(({ rule }) => !["unstable-dependency", "unassigned-objects", "foreign-table-write"].includes(rule));
+  const checks = (result.checks ?? []).filter(({ rule }) => !["unstable-dependency", "unassigned-objects", "foreign-table-write", "could-be-internal", "public-surface-change"].includes(rule));
   if (checks.length) {
     lines.push("## Architecture checks", "", "| Severity | Check | Finding |", "| --- | --- | --- |");
     for (const check of checks.slice(0, limit)) lines.push(`| ${check.severity} | ${CHECK_TITLES[check.rule] ?? check.rule} (\`${check.rule}\`) | ${cell(check.message)} |`);

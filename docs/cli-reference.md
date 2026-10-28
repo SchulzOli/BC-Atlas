@@ -19,6 +19,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Analyze | `check` | Score architecture health and fail CI on cycles, policy violations, architecture violations, or diagnostics. |
 | Analyze | `architecture` | Find a target architecture, list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
 | Analyze | `refactor move` | Move an AL object to another component, with its file, namespace, and the usings of referencing files. |
+| Analyze | `refactor surface` | Lock the public surface of components: `Access = Internal` for what nobody outside uses, `exposes` for what others use. |
 | Export | `export` | Write files: the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, a diagram, or the resolved model as JSON. |
 | Export | `docs list` | List documented UI-test scenarios. |
 | Export | `docs show` | Show one scenario, its prerequisites, and its diagnostics. |
@@ -40,6 +41,7 @@ bca setup agent [app-root] [options]
 bca check [app-root] [options]
 bca architecture [app-root] [options]
 bca refactor move [app-root] --object <selector> --to <component> [--apply]
+bca refactor surface [app-root] [--component <component>] [--apply]
 bca export [app-root] [--view <what>] [-o <path>] [options]
 bca docs <command> <test-root> [options]
 bca docs glossary [options]
@@ -196,6 +198,7 @@ bca architecture ./app --extract Sales --format markdown -o extract-sales.md
 | `--extract` | component | Plan extracting this component as an app: blockers, dependencies, `app.json`, tables whose data moves, and steps. Never fails the command. |
 | `--write` | flag | Save the architecture to the `architecture` section of `.bca.json`. |
 | `--update-baseline` | flag | Accept today's violations in `.bca-architecture-baseline.json`; only new ones fail afterwards. |
+| `--update-surface` | flag | Record each component's public surface in `.bca-surface.json` (`architecture.surface` names another file); `bca check` then reports changes that break the components that use it. |
 | `--paths` | path or glob | Only analyze AL files in these folders. Repeatable. |
 | `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `export`. |
 | `--project-root` | path | Analyze a wider workspace. |
@@ -228,6 +231,36 @@ bca refactor move ./app --object tableextension:50001 --to Sales --apply
 | `--folder` | path | Target folder relative to the project root. Default: the component's `folder:` selector, else the folder most of its objects are in. |
 | `--namespace` | namespace | Target namespace. Default: the component's `namespace:` selector, else the namespace most of its objects use. |
 | `--apply` | flag | Write the changes. Refuses when a file changed since the analysis. |
+| `--format` | format | `text` or `json`. Default: `text`. |
+| `--paths` | path or glob | Only analyze AL files in these folders. Repeatable. |
+| `--project-root` | path | Analyze a wider workspace. |
+| `--config` | path | Configuration file. |
+
+### `refactor surface`
+
+```text
+bca refactor surface [app-root] [--component <component>] [options]
+```
+
+Locks the public surface of every component (or one): codeunits without
+events, queries, and enums that are not extensible, which no other component
+uses, get `Access = Internal`; the objects other components use go into the
+component's `exposes` in `.bca.json`, so `bca check` reports any new use of
+something else (`internal-access`). Tables, interfaces, extensible enums, and
+codeunits that publish events stay public. Without `--apply` it prints the
+diff.
+
+```text
+bca refactor surface ./app --component Core
+bca refactor surface ./app --apply
+```
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--component` | component | Only this component. Default: every component. |
+| `--internal` | `true`, `false` | Set `Access = Internal`. Default: `true`. |
+| `--exposes` | `true`, `false` | Write `exposes` to `.bca.json`. Default: `true`. |
+| `--apply` | flag | Write the changes. |
 | `--format` | format | `text` or `json`. Default: `text`. |
 | `--paths` | path or glob | Only analyze AL files in these folders. Repeatable. |
 | `--project-root` | path | Analyze a wider workspace. |
