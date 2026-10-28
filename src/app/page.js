@@ -44,6 +44,8 @@ export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
   // Function replacements keep "$" sequences literal.
   return read("index.html")
     .replace('<meta charset="utf-8">', () => `<meta charset="utf-8">${csp ? `\n<meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}">` : ""}`)
+    // In VS Code the page takes its colors and font from the editor's theme (src/ui/theme.css).
+    .replace('<html lang="en">', () => (mode === "vscode" ? '<html lang="en" data-host="vscode">' : '<html lang="en">'))
     .replace("__TITLE__", () => escapeHtml(title))
     .replace("__GENERATOR__", () => `BC Atlas ${pkg.version}`)
     .replace("/*__STYLE__*/", () => `${theme()}\n${read("app.css")}`)

@@ -1,7 +1,8 @@
 /*
  * BC Atlas design tokens, shared by the app, the 3D explorer, and the HTML
  * documentation export. Without a data-theme attribute the page follows the
- * operating system; data-theme="light" or "dark" overrides it.
+ * operating system; data-theme="light" or "dark" overrides it. In VS Code
+ * (data-host="vscode") the tokens come from the editor's color theme.
  */
 :root {
   --bg: #f4f6fb;
@@ -28,7 +29,12 @@
   --paper: #ffffff;
   --radius: 10px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-size: 14px;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --link: var(--accent);
+  --focus: var(--accent);
+  --selected: var(--accent-soft);
+  --selected-text: var(--accent);
   color-scheme: light;
 }
 
@@ -82,4 +88,56 @@
   --info: #38bdf8;
   --paper: #f8fafc;
   color-scheme: dark;
+}
+
+/*
+ * VS Code: the page inherits the editor's color theme. VS Code sets the
+ * --vscode-* variables on every webview and updates them when the theme
+ * changes, so any theme (light, dark, high contrast, or a custom one) gives
+ * the panel its own colors, font, and accents. The fallbacks keep the page
+ * readable if a theme leaves a color out.
+ */
+:root[data-host="vscode"][data-theme] {
+  --bg: var(--vscode-editor-background, #1e1e1e);
+  --surface: var(--vscode-sideBar-background, var(--vscode-editor-background, #252526));
+  --surface-2: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, #2d2d30));
+  --panel: var(--vscode-editorWidget-background, var(--vscode-editor-background, #252526));
+  --panel-solid: var(--vscode-editorWidget-background, var(--vscode-editor-background, #252526));
+  --border: var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)));
+  --border-strong: var(--vscode-contrastBorder, var(--vscode-input-border, var(--vscode-focusBorder, rgba(128, 128, 128, 0.6))));
+  --text: var(--vscode-foreground, #cccccc);
+  --muted: var(--vscode-descriptionForeground, rgba(204, 204, 204, 0.7));
+  --accent: var(--vscode-button-background, var(--vscode-focusBorder, #0e639c));
+  --accent-text: var(--vscode-button-foreground, #ffffff);
+  --accent-soft: color-mix(in srgb, var(--vscode-button-background, #0e639c) 18%, transparent);
+  --hover: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.12));
+  --input: var(--vscode-input-background, var(--vscode-editor-background, #3c3c3c));
+  --label: var(--vscode-editor-foreground, var(--vscode-foreground, #cccccc));
+  --label-shadow: 0 0 3px var(--vscode-editor-background, #000), 0 0 6px var(--vscode-editor-background, #000);
+  --shadow: 0 6px 20px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
+  --ok: var(--vscode-testing-iconPassed, var(--vscode-charts-green, #89d185));
+  --warn: var(--vscode-editorWarning-foreground, var(--vscode-charts-yellow, #cca700));
+  --error: var(--vscode-editorError-foreground, var(--vscode-errorForeground, #f48771));
+  --info: var(--vscode-editorInfo-foreground, var(--vscode-charts-blue, #3794ff));
+  --font: var(--vscode-font-family, system-ui, sans-serif);
+  --font-size: var(--vscode-font-size, 13px);
+  --mono: var(--vscode-editor-font-family, ui-monospace, monospace);
+  --link: var(--vscode-textLink-foreground, var(--accent));
+  --focus: var(--vscode-focusBorder, var(--accent));
+  --selected: var(--vscode-list-activeSelectionBackground, var(--accent-soft));
+  --selected-text: var(--vscode-list-activeSelectionForeground, var(--text));
+}
+
+/*
+ * High contrast themes draw emphasis with their contrast colors; their
+ * button color is plain black or white, so the accent follows the focus
+ * border instead.
+ */
+:root[data-host="vscode"] body.vscode-high-contrast,
+:root[data-host="vscode"] body.vscode-high-contrast-light {
+  --accent: var(--vscode-focusBorder, var(--vscode-contrastActiveBorder, #f38518));
+  --accent-text: var(--vscode-editor-background, #000000);
+  --accent-soft: transparent;
+  --selected: transparent;
+  --selected-text: var(--vscode-foreground, #ffffff);
 }

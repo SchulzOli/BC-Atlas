@@ -13,21 +13,27 @@ VS Code tasks also recommends it in `.vscode/extensions.json`.
 ## The BC Atlas panel
 
 Open it with **BC Atlas: Open**, the BC Atlas icon in the activity bar, the
-status bar item, or the BC Atlas button above an AL file.
+status bar item, or the BC Atlas button above an AL file. The pages are listed
+in the BC Atlas side bar, which marks the page the panel shows; the panel
+itself has no second navigation.
 
 | Page | Shows | Same as |
 | --- | --- | --- |
 | Overview | Objects, apps, health, the architecture at a glance, the most connected objects, and next steps. | |
 | Health | Every finding, filterable by severity, linked to its object. | `bca check` |
-| Architecture | The configured architecture or a proposal: components in layers, work items with the steps to resolve them, components with Martin metrics, and objects that belong elsewhere. | `bca architecture` |
+| Architecture | The configured architecture or a proposal: components in layers, work items with the steps to resolve them, data ownership, checks, the plan to extract a component as an app, components with Martin metrics, and objects that belong elsewhere. | `bca architecture` |
 | Dependencies | The 3D dependency explorer: objects, modules, apps, and components; inside one app vs. across apps; a timeline by commit, pull request, or release. | `bca export --view explorer` |
 | Diagrams | Every diagram view with zoom and pan; **SVG** and **D2** save the file. | `bca export --view <view>` |
 | Objects | Every AL object, searchable and sortable, filtered by type, app, component, or violations. | |
 | Object | One object: what it uses and what uses it, its wrong-way dependencies with steps to resolve them, fields, procedures, actions, and properties. **Open source** opens the file at the declaration; a procedure opens at its line. | `bca export --view object --object <selector>` |
 | Docs | The guides from your AL UI tests, when the project has documented UI tests. | `bca docs generate --export html` |
 
-The panel follows the VS Code color theme and refreshes when AL files,
-`app.json`, `.bca.json`, or the architecture baseline change.
+The panel takes its design from your VS Code color theme: background,
+text, borders, accent, selection, error and warning colors, and the editor's
+fonts, including high contrast and custom themes, the 3D explorer and the
+Docs page included. It changes with the theme and refreshes when AL files,
+`app.json`, `.bca.json`, or the architecture baseline change. An exported
+page (`bca export`) keeps the BC Atlas design with its light and dark mode.
 
 ### Change the architecture from the panel
 
@@ -57,8 +63,9 @@ See [Clean architecture](./clean-architecture.md) for the rules behind it.
 - **Context menu in AL files**: **Show This Object**, **Show This Object in
   3D**, **Diagram of This Object**.
 - **Status bar**: health at a glance; click it for the overview.
-- **Side bar** (BC Atlas icon): the pages with their numbers, and buttons to
-  analyze again, run the health check, export, and more.
+- **Side bar** (BC Atlas icon): the pages of the panel with their numbers,
+  the page it shows marked, and buttons to analyze again, run the health
+  check, export, and more.
 
 ## Commands
 
@@ -144,4 +151,14 @@ npm run package      # bc-atlas-<version>.vsix with the engine inside
 ```
 
 `npm run package` packs the BC Atlas engine with `npm pack`, adds it to the
-extension, and leaves out what the engine never loads.
+extension, and bundles both with esbuild: the extension becomes
+`dist/extension.js`, and each engine entry it starts (the analysis worker, the
+panel page, the CLI, the MCP server) becomes one file with its dependencies.
+Only D2, web-tree-sitter, and the 3D explorer's browser bundle stay packages,
+because they load their WebAssembly and worker files from next to themselves.
+The `.vsix` holds about 50 files.
+
+```sh
+unzip -q bc-atlas-<version>.vsix -d .packaged
+BCA_EXTENSION_MAIN=.packaged/extension/dist/extension.js npm test   # the tests against the package
+```

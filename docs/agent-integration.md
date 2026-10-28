@@ -91,6 +91,10 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_capabilities` reads the command contract.
 - `bc_atlas_inspect` returns an architecture model.
 - `bc_atlas_check` returns the architecture health report used by `bca check`.
+- `bc_atlas_architecture` returns the target architecture with work items (with the `bca refactor` command for moves), data ownership, and checks.
+- `bc_atlas_extraction_plan` plans extracting one component as an app: blockers, `app.json`, data moves, and steps.
+- `bc_atlas_refactor_surface` sets `Access = Internal` on objects no other component uses and writes `exposes` to `.bca.json`; `dryRun` by default.
+- `bc_atlas_refactor_move` moves an object to another component with namespace and using fixes; `dryRun` (default) returns the diff, `dryRun: false` writes it. See [Split a monolith into apps](./modularization.md).
 - `bc_atlas_report` writes the Markdown architecture report (`bca export --view report`).
 - `bc_atlas_setup_plan` detects the project and returns setup questions with recommendations.
 - `bc_atlas_setup_apply` previews (default) or writes `.bca.json`, Git hooks, and a pipeline.

@@ -5,6 +5,8 @@ import { displayPath } from "../output.js";
 import { assessArchitecture } from "../blueprint/index.js";
 import { writeBaseline } from "../blueprint/baseline.js";
 import { architectureJson, formatArchitectureMarkdown, formatArchitectureText } from "../blueprint/report.js";
+import { formatExtractionMarkdown, formatExtractionText, planExtraction } from "../blueprint/extract.js";
+import { writeSurface } from "../blueprint/surface.js";
 
 export function renderArchitecture(assessment, format = "text") {
   if (format === "json") return `${JSON.stringify(architectureJson(assessment), null, 2)}\n`;
@@ -26,9 +28,17 @@ export async function writeArchitectureConfig(assessment) {
   return file;
 }
 
+function renderExtraction(plan, format = "text") {
+  if (format === "json") return `${JSON.stringify(plan, null, 2)}\n`;
+  if (format === "markdown") return formatExtractionMarkdown(plan);
+  return formatExtractionText(plan);
+}
+
 export async function architectureCommand(input, values) {
   const assessment = await assessArchitecture(input, values);
-  const content = renderArchitecture(assessment, values.format ?? "text");
+  const content = values.extract
+    ? renderExtraction(planExtraction(assessment, values.extract), values.format ?? "text")
+    : renderArchitecture(assessment, values.format ?? "text");
   if (values.output) {
     const output = path.resolve(values.output);
     await fs.mkdir(path.dirname(output), { recursive: true });
@@ -40,12 +50,20 @@ export async function architectureCommand(input, values) {
   if (values.write) {
     console.error(`Saved the architecture to ${displayPath(await writeArchitectureConfig(assessment))}`);
   }
+  if (values.updateSurface) {
+    if (assessment.proposal) throw new Error("no architecture is configured yet; adopt one first (--propose --write)");
+    await writeSurface(assessment.context.surfaceFile, assessment.result.surface, assessment.model);
+    const objects = assessment.result.surface.reduce((total, { api }) => total + api.length, 0);
+    console.error(`Recorded the public surface (${objects} object(s) other components use) in ${displayPath(assessment.context.surfaceFile)}`);
+    if (!values.updateBaseline) return;
+  }
   if (values.updateBaseline) {
     await writeBaseline(assessment.context.baselineFile, assessment.result.violations);
     console.error(`Accepted ${assessment.result.violations.length} violation(s) in ${displayPath(assessment.context.baselineFile)}`);
     return;
   }
-  if (!assessment.proposal && !values.write && assessment.baseline.new.length) {
+  // An extraction plan is information; the architecture check stays with bca architecture and bca check.
+  if (!assessment.proposal && !values.write && !values.extract && assessment.baseline.new.length) {
     throw new CheckFailedError(`${assessment.baseline.new.length} dependency(ies) violate the architecture`);
   }
 }

@@ -4,11 +4,12 @@ html, body { margin: 0; height: 100%; }
 body {
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.5 var(--font);
+  font: var(--font-size)/1.5 var(--font);
   -webkit-font-smoothing: antialiased;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
-a { color: var(--accent); text-decoration: none; }
+a { color: var(--link); text-decoration: none; }
+:focus-visible { outline: 1px solid var(--focus); outline-offset: 1px; }
 a:hover { text-decoration: underline; }
 code, .mono { font-family: var(--mono); font-size: 12.5px; }
 h1, h2, h3 { margin: 0; line-height: 1.25; }
@@ -37,7 +38,8 @@ h1, h2, h3 { margin: 0; line-height: 1.25; }
   color: var(--text); font-weight: 500;
 }
 #nav a:hover { background: var(--hover); text-decoration: none; }
-#nav a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+#nav a[aria-current="page"] { background: var(--selected); color: var(--selected-text); outline: 1px solid var(--vscode-contrastActiveBorder, transparent); outline-offset: -1px; }
+#nav a[aria-current="page"] .count { color: inherit; }
 #nav svg { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 #nav .count { margin-left: auto; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 #nav .count.bad { color: var(--error); font-weight: 600; }
@@ -49,6 +51,9 @@ h1, h2, h3 { margin: 0; line-height: 1.25; }
 @keyframes pulse { from { opacity: 0.35; } to { opacity: 1; } }
 
 #main { overflow: auto; min-width: 0; display: flex; flex-direction: column; }
+/* In VS Code the extension's side bar lists the pages; the panel shows only the page. */
+:root[data-host="vscode"] #shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+:root[data-host="vscode"] #sidebar { display: none; }
 #page-header {
   display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;
   padding: 22px 28px 14px; position: sticky; top: 0; z-index: 5;
@@ -95,7 +100,7 @@ a.stat:hover { border-color: var(--border-strong); text-decoration: none; }
 .btn:disabled { opacity: 0.55; cursor: default; }
 .icon-button { border: 1px solid var(--border); background: transparent; border-radius: 8px; padding: 4px 9px; cursor: pointer; }
 .icon-button:hover { background: var(--hover); }
-button.link { border: 0; background: none; padding: 0; color: var(--accent); cursor: pointer; text-align: left; font: inherit; }
+button.link { border: 0; background: none; padding: 0; color: var(--link); cursor: pointer; text-align: left; font: inherit; }
 button.link:hover { text-decoration: underline; }
 #theme-toggle { display: grid; place-items: center; padding: 5px; }
 #theme-toggle svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; }
@@ -119,7 +124,7 @@ label.check input { accent-color: var(--accent); margin: 0; }
   display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
   border: 1px solid var(--border-strong); background: transparent; cursor: pointer; white-space: nowrap;
 }
-.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--hover); border-color: var(--focus); }
 .chip .count { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .segmented { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
@@ -135,7 +140,7 @@ label.check input { accent-color: var(--accent); margin: 0; }
 .pill.warning { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
 .pill.info { background: color-mix(in srgb, var(--info) 16%, transparent); color: var(--info); }
 .pill.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
-.pill.accent { background: var(--accent-soft); color: var(--accent); }
+.pill.accent { background: var(--accent-soft); color: var(--link); }
 .type { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: lowercase; }
 
 table.data { width: 100%; border-collapse: collapse; font-size: 13px; }

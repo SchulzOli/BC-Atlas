@@ -26,6 +26,8 @@ Gate CI on architecture health and keep a target architecture in place.
 | --- | --- | --- |
 | `check` | `bca check [app-root]` | Score architecture health and fail CI on cycles, policy violations, or diagnostics. |
 | `architecture` | `bca architecture [app-root]` | Find a target architecture (components, layers, allowed dependencies), list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
+| `refactor.move` | `bca refactor move [app-root]` | Move an AL object to another component: its file goes to the component's folder (cut out of a shared file), its namespace becomes the component's, and referencing files get the using they need. |
+| `refactor.surface` | `bca refactor surface [app-root]` | Lock the public surface of components: objects no other component uses get Access = Internal, and .bca.json lists what others use in exposes. |
 
 ### Export
 

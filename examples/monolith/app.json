@@ -1,0 +1,9 @@
+{
+  "id": "7e1b2c3d-4f50-4a6b-8c7d-9e0f1a2b3c4d",
+  "name": "Contoso Monolith",
+  "publisher": "BC Atlas contributors",
+  "version": "1.0.0.0",
+  "runtime": "14.0",
+  "idRanges": [{ "from": 50000, "to": 50299 }],
+  "dependencies": []
+}

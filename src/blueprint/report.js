@@ -35,6 +35,39 @@ export function architectureJson(assessment) {
   };
 }
 
+const RULE_PHRASES = {
+  "internal-access": (n) => `${n.toLocaleString("en-US")} ${n === 1 ? "uses" : "use"} internal objects`,
+  "dependency-rule": (n) => `${n.toLocaleString("en-US")} ${n === 1 ? "breaks" : "break"} rules of .bca.json`
+};
+
+/** "12 of them point the wrong way, 3 use internal objects" */
+function violationPhrase(summary) {
+  if (!summary.violations) return "none of them point the wrong way";
+  const byRule = summary.byRule ?? {};
+  const special = Object.keys(RULE_PHRASES).filter((rule) => byRule[rule]);
+  const wrongWay = summary.violations - special.reduce((total, rule) => total + byRule[rule], 0);
+  const parts = [
+    ...(wrongWay ? [`${wrongWay.toLocaleString("en-US")} of them ${wrongWay === 1 ? "points" : "point"} the wrong way`] : []),
+    ...special.map((rule) => RULE_PHRASES[rule](byRule[rule]))
+  ];
+  return parts.join(", ");
+}
+
+const CHECK_TITLES = {
+  "component-cycle": "Component cycle",
+  "unassigned-objects": "Unassigned objects",
+  "empty-component": "Empty component",
+  "unused-selector": "Unused selector",
+  "unused-component-dependency": "Unused declared dependency",
+  "inconsistent-component-dependency": "Declared dependency against the layers",
+  "declared-component-cycle": "Declared cycle",
+  "component-too-large": "Component too large",
+  "unstable-dependency": "Depends on a less stable component",
+  "foreign-table-write": "Table written by another component",
+  "could-be-internal": "Could be Access = Internal",
+  "public-surface-change": "Breaking change of the public surface"
+};
+
 function headline(assessment) {
   const { result, proposal, baseline } = assessment;
   const { summary } = result;
@@ -42,8 +75,8 @@ function headline(assessment) {
   const lines = [
     `${count(summary.components, "component")}${layers ? ` in ${count(layers, "layer")}` : ""}, ${count(summary.assigned, "object")} assigned` +
       (summary.unassigned ? `, ${count(summary.unassigned, "object")} unassigned` : "") + ".",
-    `${count(summary.dependencies, "object dependency", "object dependencies")} cross components; ${summary.violations.toLocaleString("en-US")} of them point the wrong way` +
-      `, grouped into ${count(summary.workItems, "work item")}.`,
+    `${count(summary.dependencies, "object dependency", "object dependencies")} cross components; ${violationPhrase(summary)}` +
+      (summary.workItems ? `, grouped into ${count(summary.workItems, "work item")}.` : "."),
     summary.extractable === 1
       ? "1 component can become an app of its own today."
       : `${summary.extractable.toLocaleString("en-US")} components can each become an app of their own today.`
@@ -73,6 +106,12 @@ export function formatArchitectureText(assessment, { limit = 15 } = {}) {
     lines.push(`  [${item.effort}] ${item.title}: ${objectName(item.source)} (${item.sourceComponent} -> ${item.targetComponent}), ${count(item.violations, "dependency", "dependencies")}`);
   }
   if (structural.length > limit) lines.push(`  ... ${structural.length - limit} more; use --format markdown or json for all of them`);
+  const checks = result.checks ?? [];
+  if (checks.length) {
+    lines.push("", "Architecture checks");
+    for (const check of checks.slice(0, limit)) lines.push(`  ${check.severity.toUpperCase().padEnd(7)} ${check.message}`);
+    if (checks.length > limit) lines.push(`  ... ${checks.length - limit} more`);
+  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -161,6 +200,39 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
     for (const item of result.stability.slice(0, 30)) {
       lines.push(`| ${cell(item.source)} | ${item.sourceInstability.toFixed(2)} | ${cell(item.target)} | ${item.targetInstability.toFixed(2)} | ${item.objectEdges} |`);
     }
+    lines.push("");
+  }
+  if (result.dataOwnership?.length) {
+    const users = (list) => cell(list.map(({ component, objects }) => `${component} (${objects.length})`).join(", ")) || "-";
+    lines.push("## Data ownership", "",
+      "Tables of one component that other components use. A table that others write is the hardest dependency to cut: its writes belong behind a codeunit of the owner, or the table belongs elsewhere.", "",
+      "| Table | Owner | Written by | Read by | Related from | Extended by |", "| --- | --- | --- | --- | --- | --- |");
+    for (const table of result.dataOwnership.slice(0, limit)) {
+      lines.push(`| ${cell(table.table)}${table.status === "shared-writes" ? " ⚠" : ""} | ${cell(table.component)} | ${users(table.writers)} | ${users(table.readers)} | ${users(table.relations)} | ${users(table.extenders)} |`);
+    }
+    if (result.dataOwnership.length > limit) lines.push(`| ${result.dataOwnership.length - limit} more | | | | | |`);
+    lines.push("");
+  }
+  const surfaces = (result.surface ?? []).filter(({ api, candidates }) => api.length || candidates.length);
+  if (surfaces.length) {
+    lines.push("## Public surface", "",
+      "What other components use of each component (its de facto API), and what nobody outside uses and could be `Access = Internal` (`bca refactor surface`).", "",
+      "| Component | Used by others | Objects others use | Could be internal |", "| --- | ---: | --- | --- |");
+    for (const surface of surfaces) {
+      const used = surface.api.map(({ object, usedBy, internal }) => `${object}${internal ? " (internal)" : ""} ← ${usedBy.map(({ component }) => component).join(", ")}`);
+      lines.push(`| ${cell(surface.component)} | ${surface.api.length} of ${surface.objects} | ${cell(used.slice(0, 12).join("; "))}${used.length > 12 ? `; +${used.length - 12} more` : ""} | ${cell(surface.candidates.map(({ object }) => object).slice(0, 8).join(", ")) || "-"} |`);
+    }
+    lines.push("");
+  }
+  if (result.surfaceChanges?.length) {
+    lines.push("## Breaking changes of the public surface", "", "Since `.bca-surface.json` was recorded (`bca architecture --update-surface`):", "",
+      ...result.surfaceChanges.map(({ message }) => `- ${cell(message)}`), "");
+  }
+  // Cycles, stability, and unassigned objects have sections of their own.
+  const checks = (result.checks ?? []).filter(({ rule }) => !["unstable-dependency", "unassigned-objects", "foreign-table-write", "could-be-internal", "public-surface-change"].includes(rule));
+  if (checks.length) {
+    lines.push("## Architecture checks", "", "| Severity | Check | Finding |", "| --- | --- | --- |");
+    for (const check of checks.slice(0, limit)) lines.push(`| ${check.severity} | ${CHECK_TITLES[check.rule] ?? check.rule} (\`${check.rule}\`) | ${cell(check.message)} |`);
     lines.push("");
   }
   if (result.unassigned.length) {

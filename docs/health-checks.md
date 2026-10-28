@@ -33,6 +33,10 @@ Result: PASSED - 0 error(s), 0 warning(s), 1 info (fail on: error)
 | `parse-error` | error | tree-sitter could not parse a file. With the AL compiler, its syntax errors replace this rule. |
 | AL compiler and analyzer rules (`AL0185`, `AA0137`, `AW0005`, ...) | from the compiler or rule set | Compiler errors and warnings and CodeCop, UICop, AppSourceCop, and PerTenantExtensionCop findings, with the exact range and the Microsoft help link, when the [AL toolchain](./al-toolchain.md) is installed or `--compiler-log` imports an error log. |
 | `forbidden-dependency` | from the policy | A dependency matches a `forbiddenDependencies` rule. |
+| `architecture-violation` | from `architecture.severity` | A dependency against the layers or `dependsOn` of the [target architecture](./clean-architecture.md); `violation` names the exact rule (`outward-dependency`, `same-layer-dependency`, `undeclared-component-dependency`, `layer-skip-dependency`). |
+| `internal-access` | from `architecture.severity` | A component uses an object of another component that is `Access = Internal` or not in its `exposes`. |
+| `dependency-rule` | from the rule | A dependency breaks one of the `architecture.rules`; `policy` names the rule. |
+| architecture checks (`component-cycle`, `empty-component`, `unused-selector`, `unused-component-dependency`, `inconsistent-component-dependency`, `declared-component-cycle`, `component-too-large`, `unstable-dependency`, `foreign-table-write`, `could-be-internal`, `public-surface-change`, `unassigned-objects`) | see [Checks of the architecture](./clean-architecture.md#checks-of-the-architecture) | The architecture as a whole and its configuration. |
 | other diagnostics | warning or error | Analysis diagnostics such as unreadable symbol packages. |
 | `dependency-cycle` | warning | Objects depend on each other in a cycle. Configure with `check.cycles`. |
 | `high-fan-in` | warning | More than `maxFanIn` distinct objects depend on one object. |

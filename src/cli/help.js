@@ -31,6 +31,7 @@ function topLevelName(definition) {
 const SHORT = {
   check: "Gate CI on architecture health: cycles, policies, architecture violations, diagnostics",
   architecture: "Find a target architecture, resolve what stands in its way, and enforce it with a baseline",
+  refactor: "Move objects between components, lock a component's public surface (move, surface)",
   export: "Write files: the pages as one offline HTML file, report, explorer, catalog, or one diagram",
   run: "Run the features configured for a Git hook, pipeline, or schedule",
   update: "Update BC Atlas together with the generated setup files",

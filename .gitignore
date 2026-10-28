@@ -53,4 +53,5 @@ _output_test
 website/.vitepress/dist/
 website/.vitepress/cache/
 vscode/.build/
+vscode/.packaged/
 *.vsix

@@ -7,6 +7,7 @@ import { createArchitectureModel } from "../architecture.js";
 import { assessArchitecture } from "../blueprint/index.js";
 import { writeBaseline } from "../blueprint/baseline.js";
 import { architectureJson } from "../blueprint/report.js";
+import { planExtraction } from "../blueprint/extract.js";
 import { VIEWS } from "../capabilities.js";
 import { runHealthCheck } from "../commands/check.js";
 import { writeArchitectureConfig } from "../commands/blueprint.js";
@@ -152,7 +153,15 @@ export class Workspace {
       configured: Boolean(assessment.context.options.architecture?.components?.length),
       unassigned: unassigned.slice(0, 200),
       workItems: json.workItems.map((item) => ({ ...item, evidence: item.evidence.slice(0, MAX_EVIDENCE) })),
-      violationCount: violations.length
+      violationCount: violations.length,
+      // One extraction plan per component; components without objects of their own have none.
+      extractions: Object.fromEntries(assessment.result.components.flatMap(({ name }) => {
+        try {
+          return [[name, planExtraction(assessment, name)]];
+        } catch {
+          return [];
+        }
+      }))
     };
   }
 

@@ -9,10 +9,12 @@ const path = require("node:path");
 const { readFileSync } = require("node:fs");
 
 const project = path.resolve(__dirname, "..", "..", "examples", "multi-app");
+// Like the engine tests: results do not depend on an installed AL toolchain.
+process.env.BCA_AL_COMPILER ??= "off";
 const manifest = JSON.parse(readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
 
 function fakeVscode() {
-  const registered = { commands: new Map(), lenses: [], trees: [], webviews: [], diagnostics: new Map(), status: undefined, messages: [], mcp: [] };
+  const registered = { commands: new Map(), lenses: [], trees: [], treeViews: [], webviews: [], diagnostics: new Map(), status: undefined, messages: [], mcp: [] };
   class EventEmitter {
     constructor() {
       this.listeners = [];
@@ -37,7 +39,7 @@ function fakeVscode() {
       this.end = startLine instanceof Position ? startCharacter : new Position(endLine, endCharacter);
     }
   }
-  const Uri = { file: (fsPath) => ({ fsPath, toString: () => `file://${fsPath}` }) };
+  const Uri = { file: (fsPath) => ({ fsPath, toString: () => `file://${fsPath}` }), parse: (value) => ({ toString: () => value }) };
   const disposable = { dispose() {} };
   const vscode = {
     EventEmitter,
@@ -82,9 +84,12 @@ function fakeVscode() {
         registered.webviews.push(webview);
         return webview;
       },
-      registerTreeDataProvider: (id, provider) => {
-        registered.trees.push(provider);
-        return disposable;
+      createTreeView: (id, { treeDataProvider }) => {
+        registered.trees.push(treeDataProvider);
+        const view = { visible: true, message: undefined, revealed: [], onDidChangeVisibility: () => disposable, dispose() {} };
+        view.reveal = async (item, options) => { view.revealed.push({ item, options }); };
+        registered.treeViews.push(view);
+        return view;
       },
       showWarningMessage: async (message) => { registered.messages.push(message); },
       showInformationMessage: async (message) => { registered.messages.push(message); },
@@ -139,7 +144,8 @@ test("the extension analyzes the workspace and fills the editor and the panel", 
   t.after(() => {
     Module._load = load;
   });
-  const extension = require("../src/extension");
+  // BCA_EXTENSION_MAIN runs the same test against a packaged extension (dist/extension.js of an unpacked .vsix).
+  const extension = require(process.env.BCA_EXTENSION_MAIN ? path.resolve(process.env.BCA_EXTENSION_MAIN) : "../src/extension");
   const context = { subscriptions: [], extensionPath: path.join(__dirname, ".."), workspaceState: { get: () => undefined, update: async () => {} } };
   t.after(() => extension.deactivate());
   await extension.activate(context);
@@ -176,6 +182,11 @@ test("the extension analyzes the workspace and fills the editor and the panel", 
   const response = panel.posted.find(({ id }) => id === 7);
   assert.equal(response.result.mode, "configured");
   await panel.receive({ type: "request", id: 8, method: "nope", params: {} });
+
+  // The side bar is the panel's navigation: it marks the page the panel shows.
+  await panel.receive({ type: "page", page: "architecture" });
+  assert.equal(registered.treeViews[0].revealed.at(-1).item.label, "Architecture");
+  assert.deepEqual(registered.treeViews[0].revealed.at(-1).options, { select: true, focus: false });
   assert.match(panel.posted.find(({ id }) => id === 8).error, /unknown method/u);
 
   // Commands about the object at the cursor navigate the panel.

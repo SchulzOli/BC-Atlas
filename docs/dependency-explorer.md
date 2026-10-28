@@ -50,9 +50,13 @@ seeing them as unresolved.
 
 ### Three levels
 
-- **Objects** shows one node per AL object. By default, apps are pulled into
-  their own clusters, so dependencies inside an app stay local and cross-app
-  dependencies span the space between clusters.
+- **Objects** shows one node per AL object. By default (layout **Open
+  space**), the graph floats freely in a large space, like the
+  [large-graph example](https://vasturiano.github.io/3d-force-graph/example/large-graph/)
+  of 3d-force-graph: small nodes, hairline links colored by dependency class,
+  and apps (or components) that only drift together, so there is room to fly
+  through the graph. **App clusters** pulls each app into a tight cluster
+  instead; cross-app dependencies then span the space between clusters.
 - **Modules** appears when an app contains nested `app.json` files, as the
   System Application and the Base Application in
   [BCApps](https://github.com/microsoft/BCApps) do. The AL compiler builds
@@ -175,13 +179,17 @@ objects are placed from left to right by the commit that introduced them.
 | Spacing | Room between nodes, from 50 % to 500 %: longer links (longest between large nodes), stronger repulsion, and more distance between clusters and floors. The explorer remembers it. |
 | Color | App, object type, community (Louvain clustering), build layer, age (first commit), or cross-app coupling. |
 | Size | PageRank (default), used by, depends on, cross-app links, or uniform. |
-| Layout | App clusters, free force, apps as floors, build order as floors, commit timeline axis, or flat 2D. |
+| Layout | Open space (default), app or component clusters, free force, architecture layers as floors, apps as floors, build order as floors, commit timeline axis, or flat 2D. |
 
 Click a node to highlight its neighborhood and open its details: app,
 namespace, source file and line, metrics, its dependencies inside and across
 apps, and its history. **Isolate neighborhood** hides everything else; **+1
 level** widens the neighborhood. Right-click a node to fly to it, drag it to
 pin it. **PNG** saves the current view and **JSON** the visible subgraph.
+
+The graph has the whole window: the filters open with **☰** or `F`, and the
+explorer remembers whether they are open. **Fit** frames the connected
+objects. Drag to rotate, scroll to zoom into the graph, right-drag to pan.
 
 Keyboard: `Space` play, `←` `→` step, `/` search, `Esc` clear selection, `1`
 objects, `2` modules, `3` apps, `F` filters.

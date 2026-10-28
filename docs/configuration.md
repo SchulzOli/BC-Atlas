@@ -88,6 +88,10 @@ Add a `forbiddenDependencies` array to detect invalid architectural dependencies
 Run `bca check` in CI. A rule with `"severity": "error"` fails the default
 check; use `--fail-on warning` (or `--strict`) to fail on warnings too.
 
+Rules that work with the components and layers of a target architecture
+(`component:Sales`, `layer:0`, relation kinds such as `writes`) go into
+`architecture.rules`; see [Rules of your own](./clean-architecture.md#rules-of-your-own).
+
 ## Configure health checks and reports
 
 ```json

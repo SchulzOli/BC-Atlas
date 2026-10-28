@@ -6,8 +6,76 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Changed
+
+- `internal-access` is on by default: a configured architecture can report
+  new violations where a component uses an `Access = Internal` object of
+  another one. Accept them with `bca architecture --update-baseline`, or set
+  `"severities": { "internal-access": "off" }` when components are layers of
+  one app that never split.
+
 ### Added
 
+- Dependency explorer: the new default layout **Open space** lets the graph
+  float freely in a large space, like the large-graph example of
+  3d-force-graph: small nodes, hairline links, apps or components that only
+  drift together, and the camera frames the connected objects once the layout
+  has settled. The filters start collapsed (☰ or `F`) so the graph has the
+  whole window.
+- Tools to split a monolith into apps (see the new guide
+  [Split a monolith into apps](./docs/modularization.md) and the example
+  `examples/monolith`):
+  - **Data ownership:** for every table that other components use, who
+    owns, writes, reads, relates to, and extends it; `bca check` reports
+    tables other components write (`foreign-table-write`).
+  - **Extraction plans:** `bca architecture --extract <component>` (and the
+    MCP tool `bc_atlas_extraction_plan`, and the Architecture page) lists what
+    moves, the blockers with their work items (including app cycles), the new
+    app's `app.json` with a stable ID, dependencies, and `idRanges`, the tables
+    whose data moves with `ObsoleteState = PendingMove`/`MovedTo`/`MovedFrom`,
+    and the steps in order.
+  - **Public surface:** per component, the objects other components use (its
+    de facto API) and the objects that could be `Access = Internal`
+    (`could-be-internal`). `bca refactor surface` (and MCP
+    `bc_atlas_refactor_surface`) sets `Access = Internal` on them and writes
+    the API to `exposes`. `bca architecture --update-surface` records the
+    surface in `.bca-surface.json`; `bca check` then reports changes that
+    break its users, like AppSourceCop for internal boundaries
+    (`public-surface-change`: removed or internal objects, changed procedure
+    signatures, removed events, fields, and enum values).
+  - **`bca refactor move`:** moves an AL object to another component: its
+    file, or the object cut out of a shared file, goes to the component's
+    folder, its namespace becomes the component's, and referencing files get
+    the `using` they need. Dry run by default; also the MCP tool
+    `bc_atlas_refactor_move`. Work items that are moves carry the command.
+- VS Code: the extension and its engine are bundled with esbuild; the
+  `.vsix` holds about 50 instead of 1,200 files, and CI tests the packaged
+  extension.
+- More architecture rules in `bca check`, `bca architecture`, and the
+  Architecture page:
+  - **Public objects:** a component may use only public objects of another
+    one: `internal-access` for objects with `Access = Internal` (no other app
+    can see them) or outside the component's new `exposes` selectors.
+  - **Strict layers:** `strictLayers` lets a component use only the layer
+    directly below it (`layer-skip-dependency`).
+  - **Rules of your own:** `architecture.rules` forbids dependencies by
+    selectors, now also `component:` and `layer:`, with relation `kinds`
+    (e.g. only `writes`), `except`, `across`, and a message and resolution
+    (`dependency-rule`). Its violations are baselined like the others.
+  - **Checks of the architecture:** empty components, unused selectors, unused
+    or layer-contradicting `dependsOn` entries, declared cycles, components
+    above `maxObjects`, and dependencies on less stable components. Checks of
+    the configuration point at the component in `.bca.json`.
+  - **Severities:** `architecture.severities` sets the severity of each rule
+    or turns it off.
+  - New strategies `use-public-api`, `go-through-layer`, and `follow-rule`;
+    the report counts violations by rule.
+- VS Code: the BC Atlas panel takes its design from the editor's color theme
+  (background, text, borders, accent, selection, status colors, and fonts),
+  for any theme including high contrast; the 3D explorer and the Docs page
+  inside the panel follow too. Exported pages keep the BC Atlas design.
+- VS Code: the BC Atlas side bar is the panel's navigation and marks the page
+  it shows; the panel no longer repeats the pages in a navigation of its own.
 - Microsoft's AL toolchain replaces BC Atlas's own analysis where it knows
   better. With the AL Language extension or the AL Development Tools
   installed (`al.compiler: auto`, the default), BC Atlas compiles a copy of the

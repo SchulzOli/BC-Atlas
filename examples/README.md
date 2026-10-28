@@ -1,5 +1,10 @@
 # BC Atlas examples
 
+`monolith` is one app with Core, Sales, Warehouse, and permission folders,
+a misplaced event subscriber, tables written by other components, and an
+internal codeunit: the walkthrough of [Split a monolith into apps](../docs/modularization.md)
+runs on it.
+
 `warehouse-app` is a small, standalone AL project designed to exercise BC
 Atlas without customer code. It contains namespaces, tables, pages, a page
 extension, an interface implementation, enum-based dispatch, procedure calls,

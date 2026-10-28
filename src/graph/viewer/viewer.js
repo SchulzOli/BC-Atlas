@@ -116,7 +116,9 @@
     violationsOnly: false,
     component: undefined,
     sizeBy: "pagerank",
-    layout: "clusters",
+    // Open space: a large free-floating graph to fly through, like the
+    // large-graph example of 3d-force-graph; apps or components only drift together.
+    layout: "space",
     labels: "auto",
     particles: true,
     highlight: true,
@@ -131,7 +133,7 @@
       : stored.theme ?? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
   };
   const remember = () => {
-    try { localStorage.setItem("bca-explorer", JSON.stringify({ theme: state.theme, spacing: state.spacing })); } catch { /* optional */ }
+    try { localStorage.setItem("bca-explorer", JSON.stringify({ theme: state.theme, spacing: state.spacing, filters: !document.body.classList.contains("filters-hidden") })); } catch { /* optional */ }
   };
 
   // --------------------------------------------------------------- timeline
@@ -346,7 +348,8 @@
       case "out": return 1 + node.metrics.outDegree * 1.6;
       case "cross-app": return 1 + (node.metrics.crossAppIn + node.metrics.crossAppOut) * 3;
       case "uniform": return 3;
-      default: return 1 + 24 * (node.metrics.pagerank / level.maxRank);
+      // Mostly uniform nodes, so the structure shows and hubs still stand out.
+      default: return 1 + (state.layout === "space" ? 7 : 24) * (node.metrics.pagerank / level.maxRank);
     }
   }
 
@@ -363,6 +366,8 @@
   function linkWidth(link) {
     const selected = state.selected && (link.edge.source === state.selected || link.edge.target === state.selected);
     if (state.level !== "object") return 0.6 + Math.log2(1 + link.weight) * 0.8 + (selected ? 1 : 0);
+    // Open space: hairlines; the color tells inside-app, cross-app, and violations apart.
+    if (state.layout === "space") return link.edge.violation ? 0.8 : selected ? 0.6 : 0;
     if (link.edge.violation) return 1.2 + (selected ? 0.8 : 0);
     if (crossesApps(link)) return 0.8 + Math.log2(1 + link.weight) * 0.5 + (selected ? 0.8 : 0);
     return selected ? 0.8 : 0;
@@ -444,9 +449,12 @@
   addEventListener("resize", resize);
   resize();
 
+  // Inside VS Code the app passes the editor theme's colors as tokens.
+  let themeTokens;
+
   function applyBackground() {
     document.documentElement.dataset.theme = state.theme;
-    graph.backgroundColor(state.theme === "light" ? "#f4f6fb" : "#0b1020");
+    graph.backgroundColor(themeTokens?.["--bg"] || (state.theme === "light" ? "#f4f6fb" : "#0b1020"));
   }
 
   // ----------------------------------------------------------------- layout
@@ -472,14 +480,18 @@
     return { x: Math.cos(theta) * ring * radius, y: y * radius * 0.6, z: Math.sin(theta) * ring * radius };
   }
 
+  // Open space spreads the cluster centers with the size of the graph.
+  const spread = () => state.layout === "space" ? 1.8 * Math.max(1, Math.cbrt(visible.nodes.length / 120)) : 1;
+
   function clusterForce(alpha) {
-    if (["app", "component"].includes(state.level) || !["clusters", "app-layers", "component-layers"].includes(state.layout)) return;
-    const strength = state.layout === "clusters" ? 0.12 : 0.05;
+    if (["app", "component"].includes(state.level) || !["space", "clusters", "app-layers", "component-layers"].includes(state.layout)) return;
+    const strength = { space: 0.012, clusters: 0.12 }[state.layout] ?? 0.05;
+    const scale = spread();
     for (const node of visible.nodes) {
       const anchor = ARCHITECTURE && node.component ? componentAnchor(node.component) : appAnchor(node.app);
-      node.vx += (anchor.x - node.x) * strength * alpha;
-      if (state.layout === "clusters") node.vy += (anchor.y - node.y) * strength * alpha;
-      node.vz += (anchor.z - node.z) * strength * alpha;
+      node.vx += (anchor.x * scale - node.x) * strength * alpha;
+      if (["space", "clusters"].includes(state.layout)) node.vy += (anchor.y * scale - node.y) * strength * alpha;
+      node.vz += (anchor.z * scale - node.z) * strength * alpha;
     }
   }
   graph.d3Force("appCluster", clusterForce);
@@ -488,8 +500,11 @@
   // and nodes push each other away harder.
   const nodeRadius = (node) => 4 * Math.cbrt(Math.max(1, nodeSize(node)));
   function applySpacing() {
-    graph.d3Force("link")?.distance((link) => state.spacing * (20 + nodeRadius(link.source) + nodeRadius(link.target)));
-    graph.d3Force("charge")?.strength(-30 * state.spacing * state.spacing);
+    const open = state.layout === "space" && state.level === "object";
+    graph.d3Force("link")?.distance((link) => state.spacing * ((open ? 34 : 20) + nodeRadius(link.source) + nodeRadius(link.target)));
+    // Repulsion reaches only so far, so unconnected objects do not drift off into the distance.
+    graph.d3Force("charge")?.strength((open ? -70 : -30) * state.spacing * state.spacing).distanceMax(open ? 320 * state.spacing : Infinity);
+    graph.linkOpacity(open ? 0.32 : 0.55);
   }
   applySpacing();
 
@@ -527,10 +542,27 @@
     }
     applySpacing();
     if (reheat) graph.d3ReheatSimulation();
-    setTimeout(() => graph.zoomToFit(600, 60), 1600);
+    fitWhenSettled();
   }
 
   // ------------------------------------------------------------- rendering
+  // The camera frames the graph early and again once the layout has settled,
+  // so a graph that keeps spreading out is not cut off.
+  let settleFit = false;
+  // Frame what is connected; a few loose objects should not push the camera far away.
+  function fit(duration, padding) {
+    const linked = new Set(visible.links.flatMap((link) => [link.source.id ?? link.source, link.target.id ?? link.target]));
+    graph.zoomToFit(duration, padding, linked.size ? (node) => linked.has(node.id) : undefined);
+  }
+  function fitWhenSettled() {
+    settleFit = true;
+    setTimeout(() => fit(600, 60), 1600);
+  }
+  graph.onEngineStop(() => {
+    if (!settleFit) return;
+    settleFit = false;
+    fit(900, 20);
+  });
   let fitted = false;
   function render({ layout = false } = {}) {
     computeVisible();
@@ -548,7 +580,7 @@
     updateLabelNodes();
     if (!fitted) {
       fitted = true;
-      setTimeout(() => graph.zoomToFit(600, 60), 1200);
+      fitWhenSettled();
     }
   }
 
@@ -585,7 +617,7 @@
     if (state.labels === "all" || state.level === "app") candidates = visible.nodes.slice(0, 600);
     else {
       const chosen = new Set();
-      [...visible.nodes].sort((a, b) => nodeSize(b) - nodeSize(a)).slice(0, 18).forEach(({ id }) => chosen.add(id));
+      [...visible.nodes].sort((a, b) => nodeSize(b) - nodeSize(a)).slice(0, state.layout === "space" ? 10 : 18).forEach(({ id }) => chosen.add(id));
       highlightIds?.forEach((id) => chosen.add(id));
       if (searchIds && searchIds.size <= 60) searchIds.forEach((id) => chosen.add(id));
       candidates = visible.nodes.filter(({ id }) => chosen.has(id));
@@ -915,7 +947,7 @@
       section("display", "Display", [
         select_("colorBy", "Color", [...(ARCHITECTURE ? [["component", "Component"]] : []), ["app", "App"], ["type", "Object type"], ["community", "Community (Louvain)"], ["layer", "Build layer"], ["age", "Age (first commit)"], ["cross-app", "Cross-app coupling"]], state.colorBy),
         state.level === "object" ? select_("sizeBy", "Size", [["pagerank", "PageRank"], ["in", "Used by"], ["out", "Depends on"], ["cross-app", "Cross-app links"], ["uniform", "Uniform"]], state.sizeBy) : "",
-        select_("layout", "Layout", [["clusters", ARCHITECTURE ? "Component clusters (3D)" : "App clusters (3D)"], ...(ARCHITECTURE ? [["component-layers", "Architecture layers as floors"]] : []), ["force", "Free force (3D)"], ["app-layers", "Apps as floors"], ["build-layers", "Build order as floors"], ["time", "Commit timeline axis (4D)"], ["flat", "Flat (2D)"]], state.layout),
+        select_("layout", "Layout", [["space", "Open space (3D)"], ["clusters", ARCHITECTURE ? "Component clusters (3D)" : "App clusters (3D)"], ...(ARCHITECTURE ? [["component-layers", "Architecture layers as floors"]] : []), ["force", "Free force (3D)"], ["app-layers", "Apps as floors"], ["build-layers", "Build order as floors"], ["time", "Commit timeline axis (4D)"], ["flat", "Flat (2D)"]], state.layout),
         select_("labels", "Labels", [["auto", "Important"], ["all", "All"], ["off", "Off"]], state.labels),
         `<div class="field wide"><label for="option-minDegree">Min. links <output id="min-degree-value">${state.minDegree}</output></label><input id="option-minDegree" data-setting="minDegree" type="range" min="0" max="${levels[state.level].maxLinks}" value="${Math.min(state.minDegree, levels[state.level].maxLinks)}"></div>`,
         `<div class="field wide"><label for="option-spacing" title="Longer links and more room between nodes; large nodes get the most">Spacing <output id="spacing-value">${spacingText()}</output></label><input id="option-spacing" data-setting="spacing" type="range" min="${SPACING.min}" max="${SPACING.max}" step="${SPACING.step}" value="${state.spacing}"></div>`,
@@ -935,7 +967,7 @@
   const CHOICES = {
     colorBy: ["component", "app", "type", "community", "layer", "age", "cross-app"],
     sizeBy: ["pagerank", "in", "out", "cross-app", "uniform"],
-    layout: ["clusters", "force", "component-layers", "app-layers", "build-layers", "time", "flat"],
+    layout: ["space", "clusters", "force", "component-layers", "app-layers", "build-layers", "time", "flat"],
     labels: ["auto", "all", "off"]
   };
   const FLAGS = ["appContext", "hideIsolated", "particles", "highlight", "ghosts", "violationsOnly"];
@@ -1061,8 +1093,8 @@
   // ------------------------------------------------------------------ level
   function setLevel(level) {
     // Components read best stacked by architecture layer.
-    if (level === "component" && state.layout === "clusters") state.layout = "component-layers";
-    if (level !== "component" && state.layout === "component-layers" && state.level === "component") state.layout = "clusters";
+    if (level === "component" && ["space", "clusters"].includes(state.layout)) state.layout = "component-layers";
+    if (level !== "component" && state.layout === "component-layers" && state.level === "component") state.layout = "space";
     state.level = level;
     state.minDegree = Math.min(state.minDegree, levels[level].maxLinks);
     state.selected = undefined;
@@ -1290,7 +1322,7 @@
     link.click();
   };
   const fileName = (extension) => `${(DOC.title || "bc-atlas-graph").replace(/[^\w.-]+/gu, "-").toLowerCase()}.${extension}`;
-  $("#fit").addEventListener("click", () => graph.zoomToFit(600, 60));
+  $("#fit").addEventListener("click", () => fit(600, 40));
   $("#export-png").addEventListener("click", () => {
     download(fileName("png"), graph.renderer().domElement.toDataURL("image/png"));
     toast("Saved PNG");
@@ -1307,8 +1339,14 @@
     download(fileName("json"), URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })));
     toast("Saved visible graph as JSON");
   });
-  const setTheme = (theme) => {
+  const setTheme = (theme, tokens) => {
     state.theme = theme;
+    if (tokens && typeof tokens === "object") {
+      themeTokens = tokens;
+      for (const [name, value] of Object.entries(tokens)) {
+        if (/^--[a-z0-9-]+$/u.test(name) && typeof value === "string") document.documentElement.style.setProperty(name, value);
+      }
+    }
     remember();
     applyBackground();
     refreshStyles();
@@ -1320,7 +1358,7 @@
     for (const element of [$("#theme"), $("#title"), $("#lens")]) element.hidden = true;
     addEventListener("message", (event) => {
       if (event.source !== window.parent) return;
-      if (event.data?.type === "bca-theme" && ["light", "dark"].includes(event.data.theme)) setTheme(event.data.theme);
+      if (event.data?.type === "bca-theme" && ["light", "dark"].includes(event.data.theme)) setTheme(event.data.theme, event.data.tokens);
       if (event.data?.type === "bca-select" && levels.object.byId.has(event.data.id)) {
         if (state.level !== "object") setLevel("object");
         select(event.data.id, { fly: true });
@@ -1328,9 +1366,15 @@
     });
     window.parent.postMessage({ type: "bca-ready" }, "*");
   }
-  $("#toggle-filters").addEventListener("click", (event) => {
-    const hidden = document.body.classList.toggle("filters-hidden");
-    event.currentTarget.setAttribute("aria-pressed", String(!hidden));
+  // The graph gets the whole window until the filters are opened (F); the choice is remembered.
+  const showFilters = (shown) => {
+    document.body.classList.toggle("filters-hidden", !shown);
+    $("#toggle-filters").setAttribute("aria-pressed", String(shown));
+  };
+  showFilters(stored.filters === true);
+  $("#toggle-filters").addEventListener("click", () => {
+    showFilters(document.body.classList.contains("filters-hidden"));
+    remember();
   });
 
   addEventListener("keydown", (event) => {

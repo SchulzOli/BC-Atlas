@@ -1,0 +1,10 @@
+{
+  "architecture": {
+    "components": [
+      { "name": "Core", "layer": 0, "match": ["folder:src/Core"] },
+      { "name": "Sales", "layer": 1, "match": ["folder:src/Sales"], "dependsOn": ["Core"] },
+      { "name": "Warehouse", "layer": 2, "match": ["folder:src/Warehouse"], "dependsOn": ["Sales", "Core"] },
+      { "name": "Permissions", "layer": 3, "match": ["folder:src/Permissions"], "dependsOn": ["Core", "Sales", "Warehouse"] }
+    ]
+  }
+}

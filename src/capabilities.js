@@ -197,8 +197,10 @@ const blueprintOptions = {
   }),
   depth: string("Namespace or folder segments per component; default: split until no component is too large.", { group: "Proposal", value: "n" }),
   minObjects: string("Merge smaller groups into the component they depend on most.", { group: "Proposal", value: "n", default: "1" }),
+  extract: string("Plan extracting this component as an app of its own: blockers, dependencies, app.json, table moves, and steps.", { group: "Extraction", value: "component" }),
   write: flag("Save the architecture to .bca.json (architecture section).", { group: "Enforcement" }),
   updateBaseline: flag("Accept today's violations in the baseline file; only new ones fail afterwards.", { group: "Enforcement" }),
+  updateSurface: flag("Record each component's public surface (what other components use) in .bca-surface.json; bca check then reports changes that break its users.", { group: "Enforcement" }),
   paths: pathsOption,
   ...filterOptions,
   projectRoot: projectOptions.projectRoot,
@@ -354,7 +356,62 @@ export function createCapabilities(version) {
           "bca architecture ./app",
           "bca architecture ./app --propose --format markdown -o architecture.md",
           "bca architecture ./app --propose --write --update-baseline",
-          "bca architecture ./app --format json"
+          "bca architecture ./app --format json",
+          "bca architecture ./app --extract Sales --format markdown -o extract-sales.md"
+        ]
+      }),
+      command({
+        id: "refactor.move",
+        area: "analyze",
+        argv: ["bca", "refactor", "move", "[app-root]"],
+        purpose: "Move an AL object to another component: its file goes to the component's folder (cut out of a shared file), its namespace becomes the component's, and referencing files get the using they need.",
+        options: {
+          object: { ...string("Object to move: codeunit:50100, table:\"Sales Doc\", or a name.", { value: "selector" }), required: true },
+          to: string("Target component of the architecture (.bca.json, or the proposal).", { value: "component" }),
+          folder: string("Target folder, relative to the project root (default: the component's folder).", { value: "path" }),
+          namespace: string("Target namespace (default: the component's namespace).", { value: "namespace" }),
+          apply: flag("Write the changes; without it, only show the diff."),
+          format: string("Output mode.", { group: OUTPUT, enum: ["text", "json"], default: "text" }),
+          paths: pathsOption,
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "json", when: "--format json", schema: "Refactoring" },
+        rules: [
+          "Without --apply nothing is written; review the diff first.",
+          "--apply refuses when a file changed since the analysis.",
+          "Work items of bca architecture --format json carry the command for move-extension, move-subscriber, move-object-up, and move-object-down.",
+          "Afterwards compile and run bca check."
+        ],
+        examples: [
+          "bca refactor move ./app --object codeunit:50100 --to Sales",
+          "bca refactor move ./app --object tableextension:50001 --to Sales --apply"
+        ]
+      }),
+      command({
+        id: "refactor.surface",
+        area: "analyze",
+        argv: ["bca", "refactor", "surface", "[app-root]"],
+        purpose: "Lock the public surface of components: objects no other component uses get Access = Internal, and .bca.json lists what others use in exposes.",
+        options: {
+          component: string("Only this component (default: every component).", { value: "component" }),
+          internal: string("Set Access = Internal on codeunits, queries, and enums no other component uses.", { enum: ["true", "false"], default: "true" }),
+          exposes: string("Write the de facto API of each component to exposes in .bca.json.", { enum: ["true", "false"], default: "true" }),
+          apply: flag("Write the changes; without it, only show the diff."),
+          format: string("Output mode.", { group: OUTPUT, enum: ["text", "json"], default: "text" }),
+          paths: pathsOption,
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "json", when: "--format json", schema: "Refactoring" },
+        rules: [
+          "Needs a configured architecture (.bca.json).",
+          "Tables, interfaces, extensible enums, and codeunits that publish events stay public: other apps extend, implement, or subscribe to them.",
+          "Without --apply nothing is written."
+        ],
+        examples: [
+          "bca refactor surface ./app --component Core",
+          "bca refactor surface ./app --apply"
         ]
       }),
       command({

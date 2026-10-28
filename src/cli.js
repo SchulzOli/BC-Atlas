@@ -7,6 +7,7 @@ import { describeError, UsageError } from "./cli/errors.js";
 import { commandHelp, docsOverviewHelp, overviewHelp } from "./cli/help.js";
 import { checkCommand } from "./commands/check.js";
 import { architectureCommand } from "./commands/blueprint.js";
+import { refactorMoveCommand, refactorSurfaceCommand } from "./commands/refactor.js";
 import { exportCommand } from "./commands/export.js";
 import { runCommand } from "./commands/run.js";
 import { updateCommand } from "./commands/update.js";
@@ -29,6 +30,8 @@ const HANDLERS = {
   "setup.agent": setupAgentCommand,
   check: checkCommand,
   architecture: architectureCommand,
+  "refactor.move": refactorMoveCommand,
+  "refactor.surface": refactorSurfaceCommand,
   export: exportCommand,
   run: runCommand,
   update: updateCommand,
@@ -58,6 +61,11 @@ function resolveCommand(args) {
     return { id, args: rest };
   }
   if (first === "setup" && findCommand(capabilities, `setup.${second}`)) return { id: `setup.${second}`, args: rest };
+  if (first === "refactor") {
+    if (findCommand(capabilities, `refactor.${second}`)) return { id: `refactor.${second}`, args: rest };
+    if (["-h", "--help", "help"].includes(second)) return { id: "refactor.move", args: ["--help"] };
+    throw new UsageError(`unknown refactoring "${second ?? ""}"; use "bca refactor move" or "bca refactor surface"`);
+  }
   if (TOP_LEVEL.has(first)) return { id: first, args: args.slice(1) };
   if (first && !first.startsWith("-") && existsSync(first)) {
     throw new UsageError(`"${first}" is a path, not a command; try "bca check ${first}" or "bca export ${first}", or open it in VS Code with the BC Atlas extension`);

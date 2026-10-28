@@ -57,56 +57,189 @@
   "main": "./src/extension.js",
   "contributes": {
     "commands": [
-      { "command": "bcAtlas.open", "title": "Open", "category": "BC Atlas", "icon": "$(compass)" },
-      { "command": "bcAtlas.openPage", "title": "Open Page…", "category": "BC Atlas" },
-      { "command": "bcAtlas.showObject", "title": "Show This Object", "category": "BC Atlas" },
-      { "command": "bcAtlas.showObjectIn3D", "title": "Show This Object in 3D", "category": "BC Atlas" },
-      { "command": "bcAtlas.objectDiagram", "title": "Diagram of This Object", "category": "BC Atlas" },
-      { "command": "bcAtlas.check", "title": "Run Health Check", "category": "BC Atlas", "icon": "$(pulse)" },
-      { "command": "bcAtlas.proposeArchitecture", "title": "Propose an Architecture", "category": "BC Atlas" },
-      { "command": "bcAtlas.acceptViolations", "title": "Accept Current Violations in the Baseline", "category": "BC Atlas" },
-      { "command": "bcAtlas.refresh", "title": "Analyze Again", "category": "BC Atlas", "icon": "$(refresh)" },
-      { "command": "bcAtlas.export", "title": "Export…", "category": "BC Atlas", "icon": "$(export)" },
-      { "command": "bcAtlas.generateDocs", "title": "Generate Documentation from UI Tests…", "category": "BC Atlas" },
-      { "command": "bcAtlas.setup", "title": "Set Up Automation (Hooks, Pipeline, Schedule)", "category": "BC Atlas" },
-      { "command": "bcAtlas.runTasks", "title": "Run Tasks of a Trigger…", "category": "BC Atlas" },
-      { "command": "bcAtlas.selectProject", "title": "Select Project…", "category": "BC Atlas" },
-      { "command": "bcAtlas.showOutput", "title": "Show Output", "category": "BC Atlas" }
+      {
+        "command": "bcAtlas.open",
+        "title": "Open",
+        "category": "BC Atlas",
+        "icon": "$(compass)"
+      },
+      {
+        "command": "bcAtlas.openPage",
+        "title": "Open Page…",
+        "category": "BC Atlas"
+      },
+      {
+        "command": "bcAtlas.showObject",
+        "title": "Show This Object",
+        "category": "BC Atlas"
+      },
+      {
+        "command": "bcAtlas.showObjectIn3D",
+        "title": "Show This Object in 3D",
+        "category": "BC Atlas"
+      },
+      {
+        "command": "bcAtlas.objectDiagram",
+        "title": "Diagram of This Object",
+        "category": "BC Atlas"
+      },
+      {
+        "command": "bcAtlas.check",
+        "title": "Run Health Check",
+        "category": "BC Atlas",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "bcAtlas.proposeArchitecture",
+        "title": "Propose an Architecture",
+        "category": "BC Atlas"
+      },
+      {
+        "command": "bcAtlas.acceptViolations",
+        "title": "Accept Current Violations in the Baseline",
+        "category": "BC Atlas"
+      },
+      {
+        "command": "bcAtlas.refresh",
+        "title": "Analyze Again",
+        "category": "BC Atlas",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "bcAtlas.export",
+        "title": "Export…",
+        "category": "BC Atlas",
+        "icon": "$(export)"
+      },
+      {
+        "command": "bcAtlas.generateDocs",
+        "title": "Generate Documentation from UI Tests…",
+        "category": "BC Atlas"
+      },
+      {
+        "command": "bcAtlas.setup",
+        "title": "Set Up Automation (Hooks, Pipeline, Schedule)",
+        "category": "BC Atlas"
+      },
+      {
+        "command": "bcAtlas.runTasks",
+        "title": "Run Tasks of a Trigger…",
+        "category": "BC Atlas"
+      },
+      {
+        "command": "bcAtlas.selectProject",
+        "title": "Select Project…",
+        "category": "BC Atlas"
+      },
+      {
+        "command": "bcAtlas.showOutput",
+        "title": "Show Output",
+        "category": "BC Atlas"
+      }
     ],
     "menus": {
       "commandPalette": [
-        { "command": "bcAtlas.showObject", "when": "resourceExtname == .al" },
-        { "command": "bcAtlas.showObjectIn3D", "when": "resourceExtname == .al" },
-        { "command": "bcAtlas.objectDiagram", "when": "resourceExtname == .al" }
+        {
+          "command": "bcAtlas.showObject",
+          "when": "resourceExtname == .al"
+        },
+        {
+          "command": "bcAtlas.showObjectIn3D",
+          "when": "resourceExtname == .al"
+        },
+        {
+          "command": "bcAtlas.objectDiagram",
+          "when": "resourceExtname == .al"
+        }
       ],
       "editor/context": [
-        { "command": "bcAtlas.showObject", "when": "resourceExtname == .al", "group": "navigation@90" },
-        { "command": "bcAtlas.showObjectIn3D", "when": "resourceExtname == .al", "group": "navigation@91" },
-        { "command": "bcAtlas.objectDiagram", "when": "resourceExtname == .al", "group": "navigation@92" }
+        {
+          "command": "bcAtlas.showObject",
+          "when": "resourceExtname == .al",
+          "group": "navigation@90"
+        },
+        {
+          "command": "bcAtlas.showObjectIn3D",
+          "when": "resourceExtname == .al",
+          "group": "navigation@91"
+        },
+        {
+          "command": "bcAtlas.objectDiagram",
+          "when": "resourceExtname == .al",
+          "group": "navigation@92"
+        }
       ],
       "editor/title": [
-        { "command": "bcAtlas.open", "when": "resourceExtname == .al", "group": "navigation" }
+        {
+          "command": "bcAtlas.open",
+          "when": "resourceExtname == .al",
+          "group": "navigation"
+        }
       ],
       "view/title": [
-        { "command": "bcAtlas.refresh", "when": "view == bcAtlas.pages", "group": "navigation@1" },
-        { "command": "bcAtlas.check", "when": "view == bcAtlas.pages", "group": "navigation@2" },
-        { "command": "bcAtlas.export", "when": "view == bcAtlas.pages", "group": "navigation@3" },
-        { "command": "bcAtlas.proposeArchitecture", "when": "view == bcAtlas.pages", "group": "more@1" },
-        { "command": "bcAtlas.acceptViolations", "when": "view == bcAtlas.pages", "group": "more@2" },
-        { "command": "bcAtlas.generateDocs", "when": "view == bcAtlas.pages", "group": "more@3" },
-        { "command": "bcAtlas.setup", "when": "view == bcAtlas.pages", "group": "more@4" },
-        { "command": "bcAtlas.runTasks", "when": "view == bcAtlas.pages", "group": "more@5" },
-        { "command": "bcAtlas.selectProject", "when": "view == bcAtlas.pages", "group": "more@6" }
+        {
+          "command": "bcAtlas.refresh",
+          "when": "view == bcAtlas.pages",
+          "group": "navigation@1"
+        },
+        {
+          "command": "bcAtlas.check",
+          "when": "view == bcAtlas.pages",
+          "group": "navigation@2"
+        },
+        {
+          "command": "bcAtlas.export",
+          "when": "view == bcAtlas.pages",
+          "group": "navigation@3"
+        },
+        {
+          "command": "bcAtlas.proposeArchitecture",
+          "when": "view == bcAtlas.pages",
+          "group": "more@1"
+        },
+        {
+          "command": "bcAtlas.acceptViolations",
+          "when": "view == bcAtlas.pages",
+          "group": "more@2"
+        },
+        {
+          "command": "bcAtlas.generateDocs",
+          "when": "view == bcAtlas.pages",
+          "group": "more@3"
+        },
+        {
+          "command": "bcAtlas.setup",
+          "when": "view == bcAtlas.pages",
+          "group": "more@4"
+        },
+        {
+          "command": "bcAtlas.runTasks",
+          "when": "view == bcAtlas.pages",
+          "group": "more@5"
+        },
+        {
+          "command": "bcAtlas.selectProject",
+          "when": "view == bcAtlas.pages",
+          "group": "more@6"
+        }
       ]
     },
     "viewsContainers": {
       "activitybar": [
-        { "id": "bcAtlas", "title": "BC Atlas", "icon": "media/atlas.svg" }
+        {
+          "id": "bcAtlas",
+          "title": "BC Atlas",
+          "icon": "media/atlas.svg"
+        }
       ]
     },
     "views": {
       "bcAtlas": [
-        { "id": "bcAtlas.pages", "name": "Pages", "icon": "media/atlas.svg" }
+        {
+          "id": "bcAtlas.pages",
+          "name": "Pages",
+          "icon": "media/atlas.svg"
+        }
       ]
     },
     "viewsWelcome": [
@@ -125,7 +258,9 @@
         },
         "bcAtlas.paths": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "markdownDescription": "Only analyze AL files in these folders or matching these globs, relative to the project (like `--paths`). Speeds up large repositories such as BCApps."
         },
@@ -151,14 +286,19 @@
         },
         "bcAtlas.alAnalyzers": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "markdownDescription": "Code analyzers for that compile, e.g. `CodeCop`, `UICop`, `AppSourceCop`, `PerTenantExtensionCop`. Empty: `al.codeAnalyzers` when `al.enableCodeAnalysis` is on."
         }
       }
     },
     "mcpServerDefinitionProviders": [
-      { "id": "bcAtlas.mcp", "label": "BC Atlas" }
+      {
+        "id": "bcAtlas.mcp",
+        "label": "BC Atlas"
+      }
     ]
   },
   "scripts": {
@@ -166,6 +306,7 @@
     "package": "node scripts/package.js"
   },
   "devDependencies": {
-    "@vscode/vsce": "4.0.0"
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2"
   }
 }

@@ -120,16 +120,42 @@
   // In VS Code the page follows the editor's color theme.
   const editorTheme = () => document.body.classList.contains("vscode-light") || document.body.classList.contains("vscode-high-contrast-light") ? "light" : "dark";
   let theme = LIVE ? editorTheme() : storedTheme ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  // The design tokens as the editor's theme resolves them (src/ui/theme.css).
+  // Embedded pages (explorer, docs) are documents of their own without the
+  // --vscode-* variables, so they get the resolved values.
+  const TOKENS = ["bg", "surface", "surface-2", "panel", "panel-solid", "border", "border-strong", "text", "muted", "accent", "accent-text",
+    "accent-soft", "hover", "input", "label", "label-shadow", "shadow", "ok", "warn", "error", "info", "font", "font-size", "mono", "link", "focus",
+    "selected", "selected-text"];
+  const themeTokens = () => {
+    if (!LIVE) return undefined;
+    const style = getComputedStyle(document.documentElement);
+    return Object.fromEntries(TOKENS.map((name) => [`--${name}`, style.getPropertyValue(`--${name}`).trim()]).filter(([, value]) => value));
+  };
   const applyTheme = () => {
     document.documentElement.dataset.theme = theme;
-    for (const frame of $$("iframe[data-theme-sync]")) frame.contentWindow?.postMessage({ type: "bca-theme", theme }, "*");
+    const tokens = themeTokens();
+    for (const frame of $$("iframe[data-theme-sync]")) frame.contentWindow?.postMessage({ type: "bca-theme", theme, tokens }, "*");
     for (const frame of $$("iframe[data-theme-document]")) {
-      try { frame.contentDocument.documentElement.dataset.theme = theme; } catch { /* another origin */ }
+      try {
+        const root = frame.contentDocument.documentElement;
+        root.dataset.theme = theme;
+        for (const [name, value] of Object.entries(tokens ?? {})) root.style.setProperty(name, value);
+      } catch { /* another origin */ }
     }
   };
   applyTheme();
   if (LIVE) {
     $("#theme-toggle").hidden = true;
+    // VS Code changes the body class for light, dark, and high contrast, and
+    // the --vscode-* variables on <html> for every theme switch.
+    let applied = JSON.stringify(themeTokens());
+    new MutationObserver(() => {
+      const tokens = JSON.stringify(themeTokens());
+      if (editorTheme() === theme && tokens === applied) return;
+      theme = editorTheme();
+      applied = tokens;
+      applyTheme();
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"], subtree: false });
     new MutationObserver(() => {
       if (editorTheme() === theme) return;
       theme = editorTheme();
@@ -252,12 +278,16 @@
     markNav();
   }
 
+  let shownPage;
   function markNav() {
     const page = route().page === "object" ? "objects" : route().page;
     for (const link of $$("#nav a")) {
       if (link.dataset.page === page) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
     }
+    // In VS Code the side bar of the extension is the navigation; it marks this page.
+    if (LIVE && page !== shownPage) vscode.postMessage({ type: "page", page });
+    shownPage = page;
   }
 
   function route() {
@@ -369,6 +399,28 @@
     render();
   }
 
+  /** The plan for extracting one component as an app, with a picker for the component. */
+  function extractionCard(data, name) {
+    const names = Object.keys(data.extractions ?? {});
+    if (!names.length) return "";
+    const plan = data.extractions[name];
+    const picker = `<label class="field"><span>Plan extracting</span><select id="extract-component"><option value="">a component as an app…</option>${names.map((option) => `<option${option === name ? " selected" : ""}>${esc(option)}</option>`).join("")}</select></label>`;
+    if (!plan) return `<section class="card"><h2>Extract a component <span class="muted">what moves, what blocks it, the app.json, and the steps</span></h2><div class="controls">${picker}</div></section>`;
+    const list = (items) => items.map(({ component, objects }) => `${esc(component)} <span class="muted">${fmt(objects)}</span>`).join(", ") || "nothing";
+    return `<section class="card"><h2>Extract ${esc(plan.component)} as an app <span class="muted">${plan.ready ? "ready" : `${plural(plan.blockers.length, "blocker")}`} · effort ${esc(plan.effort)}</span></h2>
+      <div class="controls">${picker}<span class="muted small" style="margin-left:auto">CLI: <code>bca architecture --extract "${esc(plan.component)}"</code></span></div>
+      <dl class="facts">
+        <dt>Objects</dt><dd>${plural(plan.objects.total, "object")} in ${plural(plan.objects.files, "file")}, today in ${esc(plan.sourceApp?.name ?? "?")}${plan.alreadyAnApp ? " (already its own app)" : ""}</dd>
+        <dt>Uses</dt><dd>${list(plan.uses)}</dd>
+        <dt>Used by</dt><dd>${list(plan.usedBy)}</dd>
+        ${plan.tables.length ? `<dt>Data to move</dt><dd>${plural(plan.tables.length, "table")}: ${plan.tables.slice(0, 8).map(({ object }) => esc(object)).join(", ")}${plan.tables.length > 8 ? ", …" : ""}</dd>` : ""}
+      </dl>
+      ${plan.blockers.length ? `<h3 class="small muted">Blockers</h3><ul class="list">${plan.blockers.map((blocker) => `<li>${severityPill("error")}<span class="grow">${esc(blocker.message)}${(blocker.workItems ?? []).slice(0, 5).map((item) => `<div class="small muted">[${esc(item.effort)}] ${esc(item.title)}: ${esc(item.source)} → ${esc(item.targetComponent)}${item.command ? ` · <code>${esc(item.command)}</code>` : ""}</div>`).join("")}</span></li>`).join("")}</ul>` : ""}
+      <h3 class="small muted">Steps</h3><ol>${plan.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol>
+      <details><summary>app.json</summary><pre class="code">${esc(JSON.stringify(plan.appJson, null, 2))}</pre></details>
+    </section>`;
+  }
+
   async function architecturePage(page, { params }) {
     const settings = {
       propose: params.get("propose") === "1" || undefined,
@@ -404,7 +456,7 @@
       ${controls}
       <div class="stats">
         ${stat({ label: "Components", value: fmt(summary.components), sub: `${plural(layers.filter((layer) => layer !== undefined).length, "layer")}, ${plural(summary.assigned, "object")}` })}
-        ${stat({ label: "Wrong-way dependencies", value: fmt(summary.violations), tone: summary.violations ? (!proposal && data.baseline.new.length ? "bad" : "warn") : "good", sub: `of ${plural(summary.dependencies, "dependency", "dependencies")} across components` })}
+        ${stat({ label: "Violations", value: fmt(summary.violations), tone: summary.violations ? (!proposal && data.baseline.new.length ? "bad" : "warn") : "good", sub: `of ${plural(summary.dependencies, "dependency", "dependencies")} across components` })}
         ${stat({ label: "Work items", value: fmt(summary.workItems), sub: Object.entries(summary.byStrategy).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([strategy, count]) => `${fmt(count)} ${esc(strategy)}`).join(", ") || "nothing to resolve" })}
         ${stat({ label: "Can become apps today", value: fmt(summary.extractable), tone: summary.extractable === summary.components ? "good" : undefined, sub: `of ${plural(summary.components, "component")}` })}
         ${proposal ? stat({ label: "Objects that belong elsewhere", value: fmt(data.proposal.moves.length), sub: "move them to shrink the work" }) : stat({ label: "Baseline", value: fmt(data.baseline.new.length), tone: data.baseline.new.length ? "bad" : "good", sub: baseline })}
@@ -425,7 +477,7 @@
           ${proposal ? `<p class="muted">Each module or app is a component; one that holds more than 15% of the objects (at least 40) is split by namespace. Components are ordered so that as few dependencies as possible point the wrong way, and each one sits one layer above the deepest component it uses.</p>
             ${data.proposal.feedback.length ? `<h3 class="small muted">Dependencies against the order</h3><ul class="list">${data.proposal.feedback.slice(0, 8).map((edge) => `<li><span class="grow">${esc(edge.source)} → ${esc(edge.target)}</span><span class="muted small nowrap">${plural(edge.objectEdges, "object link")}</span></li>`).join("")}</ul>` : ""}`
             : `<dl class="facts">
-                <dt>Rules</dt><dd>dependsOn first; otherwise only to lower layers${data.settings.allowSameLayer ? " or the same layer" : ""}</dd>
+                <dt>Rules</dt><dd>dependsOn first; otherwise only to ${data.settings.strictLayers ? "the layer directly below" : "lower layers"}${data.settings.allowSameLayer ? " or the same layer" : ""}; only public objects of other components${data.architecture.rules?.length ? `; ${plural(data.architecture.rules.length, "rule")} of .bca.json` : ""}</dd>
                 <dt>Baseline</dt><dd>${baseline}</dd>
                 <dt>Cycles</dt><dd>${data.cycles.length ? data.cycles.map((cycle) => esc(cycle.join(" → "))).join("<br>") : "none"}</dd>
                 <dt>Unassigned</dt><dd>${data.unassigned.length ? plural(summary.unassigned, "object") : "none"}</dd>
@@ -433,6 +485,13 @@
         </section>
       </div>
       <section class="card flush"><h2>Work items <span class="muted" id="work-scope"></span></h2><div id="work-items"></div></section>
+      ${!proposal && data.checks?.length ? `<section class="card"><h2>Architecture checks <span class="muted">components, declared dependencies, and selectors</span></h2>
+        <ul class="list">${data.checks.map((check) => `<li>${severityPill(check.severity)}<span class="grow">${esc(check.message)}</span><code class="muted small nowrap">${esc(check.rule)}</code></li>`).join("")}</ul></section>` : ""}
+      ${extractionCard(data, params.get("extract"))}
+      ${data.surface?.some(({ api, candidates }) => api.length || candidates.length) ? `<section class="card flush"><h2>Public surface <span class="muted">what other components use of each component, and what could be Access = Internal</span></h2>
+        ${data.surfaceChanges?.length ? `<ul class="list">${data.surfaceChanges.map((change) => `<li>${severityPill("warning")}<span class="grow">${esc(change.message)}</span></li>`).join("")}</ul>` : ""}
+        <div id="surface"></div></section>` : ""}
+      ${data.dataOwnership?.length ? `<section class="card flush"><h2>Data ownership <span class="muted">tables other components write, read, relate to, or extend</span></h2><div id="ownership"></div></section>` : ""}
       ${proposal && data.proposal.moves.length ? '<section class="card flush"><h2>Objects that belong elsewhere <span class="muted">more closely tied to another component than to their own</span></h2><div id="moves"></div></section>' : ""}
       <section class="card flush"><h2>Components <span class="muted">instability I, abstractness A, distance D after Robert C. Martin</span></h2><div id="components"></div></section>`;
 
@@ -448,7 +507,8 @@
           { key: "title", label: "What to do", render: (row) => `<b>${esc(row.title)}</b> <span class="mono muted">${esc(row.strategy)}</span>
               <details class="steps"><summary>Steps and evidence</summary><ol>${row.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol>
               ${row.alternatives?.length ? `<div class="small muted">Alternatives: ${row.alternatives.map((alternative) => esc(alternative.title)).join("; ")}</div>` : ""}
-              <ul class="small muted">${row.evidence.map((item) => `<li>${esc(item.kind)}${item.member ? ` in ${esc(item.member)}` : ""} · <span class="mono">${esc(item.file)}:${item.line}</span></li>`).join("")}</ul></details>` },
+              <ul class="small muted">${row.evidence.map((item) => `<li>${esc(item.kind)}${item.member ? ` in ${esc(item.member)}` : ""} · <span class="mono">${esc(item.file)}:${item.line}</span></li>`).join("")}</ul>
+              ${row.command ? `<div class="small">Do it: <code>${esc(row.command)}</code></div>` : ""}</details>` },
           { key: "source", label: "Object", value: (row) => row.source.label, render: (row) => `${objectLink(row.source)}<div class="type">${esc(row.source.type)}</div>` },
           { key: "from", label: "From → to", value: (row) => `${row.sourceComponent} ${row.targetComponent}`, render: (row) => `${esc(row.sourceComponent)} → ${esc(row.targetComponent)}<div class="small muted">${row.targets.slice(0, 3).map((target) => esc(target.label)).join(", ")}${row.targets.length > 3 ? ", …" : ""}</div>` },
           { key: "violations", label: "Dependencies", numeric: true, render: (row) => fmt(row.violations) }
@@ -457,6 +517,36 @@
       for (const button of $$(".component", page)) button.setAttribute("aria-pressed", String(button.dataset.component === selected));
     };
     renderScoped();
+    if ($("#ownership")) {
+      const users = (list) => list.map(({ component, objects }) => `<span title="${esc(objects.join(", "))}">${esc(component)} <span class="muted">${fmt(objects.length)}</span></span>`).join(", ") || '<span class="muted">–</span>';
+      dataTable($("#ownership"), {
+        rows: data.dataOwnership,
+        sort: { key: "writers", direction: "descending" },
+        columns: [
+          { key: "table", label: "Table", render: (row) => `<b>${esc(row.table)}</b>${row.status === "shared-writes" ? ' <span class="pill warning">written by others</span>' : ""}` },
+          { key: "component", label: "Owner" },
+          { key: "writers", label: "Written by", value: (row) => row.writers.length, render: (row) => users(row.writers) },
+          { key: "readers", label: "Read by", value: (row) => row.readers.length, render: (row) => users(row.readers) },
+          { key: "relations", label: "Related from", value: (row) => row.relations.length, render: (row) => users(row.relations) },
+          { key: "extenders", label: "Extended by", value: (row) => row.extenders.length, render: (row) => users(row.extenders) }
+        ]
+      });
+    }
+    if ($("#surface")) {
+      dataTable($("#surface"), {
+        rows: data.surface.filter(({ api, candidates }) => api.length || candidates.length),
+        sort: { key: "api", direction: "descending" },
+        columns: [
+          { key: "component", label: "Component", render: (row) => `<b>${esc(row.component)}</b>` },
+          { key: "api", label: "Used by others", numeric: true, value: (row) => row.api.length, render: (row) => `${fmt(row.api.length)} <span class="muted">of ${fmt(row.objects)}</span>` },
+          { key: "objects", label: "Objects others use", value: (row) => row.api.length, render: (row) => `<details class="steps"><summary>${row.api.slice(0, 3).map(({ name }) => esc(name)).join(", ")}${row.api.length > 3 ? ", …" : ""}</summary><ul class="small">${row.api.map((item) => `<li>${esc(item.object)}${item.internal ? ' <span class="pill error">internal</span>' : ""} <span class="muted">← ${item.usedBy.map(({ component, objects }) => `${esc(component)} ${fmt(objects)}`).join(", ")} · ${esc(item.kinds.join(", "))}</span></li>`).join("")}</ul></details>` },
+          { key: "candidates", label: "Could be internal", value: (row) => row.candidates.length, render: (row) => row.candidates.length ? `<span title="${esc(row.candidates.map(({ object }) => object).join(", "))}">${fmt(row.candidates.length)}</span> <code class="small">bca refactor surface --component "${esc(row.component)}"</code>` : '<span class="muted">–</span>' }
+        ]
+      });
+    }
+    $("#extract-component")?.addEventListener("change", (event) => {
+      go("architecture", { propose: settings.propose ? 1 : undefined, groupBy: settings.groupBy, depth: settings.depth, minObjects: settings.minObjects, extract: event.target.value || undefined });
+    });
     if ($("#moves")) {
       dataTable($("#moves"), {
         rows: data.proposal.moves,
@@ -889,7 +979,7 @@
     if (!frame || event.source !== frame.contentWindow) return;
     // The explorer unpacks its graph first, then asks for the theme and the selection.
     if (event.data?.type === "bca-ready") {
-      frame.contentWindow.postMessage({ type: "bca-theme", theme }, "*");
+      frame.contentWindow.postMessage({ type: "bca-theme", theme, tokens: themeTokens() }, "*");
       if (frame.dataset.select) frame.contentWindow.postMessage({ type: "bca-select", id: frame.dataset.select }, "*");
     }
     if (event.data?.type === "bca-open-object" && typeof event.data.id === "string") location.hash = `#/object/${encodeURIComponent(event.data.id)}`;

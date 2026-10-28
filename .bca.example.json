@@ -63,6 +63,40 @@
       "message": "Core must not depend on UI"
     }
   ],
+  "architecture": {
+    "components": [
+      { "name": "Core", "layer": 0, "match": ["namespace:Contoso.Core"], "exposes": ["type:interface,table", "object:codeunit:Core API"] },
+      { "name": "Sales", "layer": 1, "match": ["namespace:Contoso.Sales"], "dependsOn": ["Core"], "maxObjects": 400 },
+      { "name": "Integration", "layer": 2, "match": ["app:Contoso Integration"], "dependsOn": ["Sales"] }
+    ],
+    "allowSameLayer": false,
+    "strictLayers": false,
+    "maxObjects": 1500,
+    "severity": "error",
+    "unassigned": "warning",
+    "severities": {
+      "internal-access": "warning",
+      "unstable-dependency": "off"
+    },
+    "rules": [
+      {
+        "name": "owner-writes-its-tables",
+        "from": "*",
+        "to": "type:table",
+        "kinds": ["writes"],
+        "across": true,
+        "severity": "error",
+        "message": "Only the component that owns a table writes to it",
+        "resolution": "Call a codeunit of the owning component that writes the record."
+      },
+      {
+        "name": "core-has-no-ui",
+        "from": "layer:0",
+        "to": "type:page,report",
+        "except": ["object:page:Core Setup"]
+      }
+    ]
+  },
   "check": {
     "failOn": "error",
     "cycles": "warning",

@@ -18,7 +18,10 @@ export const STRATEGIES = Object.freeze({
   "raise-event": "Replace the call with an integration event",
   "move-navigation": "Move the page navigation into a page extension",
   "move-interface-down": "Move the interface to the consuming component",
-  "move-enum-value": "Move the enum value into an enum extension"
+  "move-enum-value": "Move the enum value into an enum extension",
+  "use-public-api": "Use a public object of the other component",
+  "go-through-layer": "Go through the layer in between",
+  "follow-rule": "Remove the dependency the rule forbids"
 });
 
 const EXTENSION_TYPES = new Set(["tableextension", "pageextension", "reportextension", "enumextension", "permissionsetextension", "pagecustomization"]);
@@ -38,10 +41,38 @@ function suggestion(strategy, effort, steps, alternatives = []) {
  * `usage` maps an object id to the components that depend on it, which tells
  * whether a target object really belongs further down.
  */
-export function suggestResolution({ source, target, kinds, sourceComponent, targetComponent, rule, inward, via }, { usage } = {}) {
+export function suggestResolution({ source, target, kinds, sourceComponent, targetComponent, rule, inward, via, policy, between }, { usage } = {}) {
   const has = (kind) => (kinds?.[kind] ?? 0) > 0;
   const from = `component ${sourceComponent}`;
   const to = `component ${targetComponent}`;
+
+  // A rule of .bca.json forbids the dependency; it says what to do instead.
+  if (rule === "dependency-rule") {
+    return suggestion("follow-rule", "M", [
+      policy.resolution ?? policy.message ?? `Remove the dependency of ${name(source)} on ${name(target)}: rule "${policy.name}" forbids it.`,
+      ...(policy.resolution && policy.message ? [] : [`Rule "${policy.name}": ${policy.from} must not depend on ${policy.to}${policy.kinds ? ` (${policy.kinds.join(", ")})` : ""}.`])
+    ]);
+  }
+
+  // The direction is right, but the target is not part of the other
+  // component's public surface (Access = Internal, or not in its exposes).
+  if (rule === "internal-access") {
+    const exposed = target.access !== "internal";
+    return suggestion("use-public-api", "S", [
+      `Use a public codeunit, interface, or event of ${to} instead of ${name(target)}.`,
+      exposed
+        ? `If ${name(target)} is meant to be used from other components, add it to exposes of ${targetComponent} in .bca.json.`
+        : `If ${name(target)} is meant to be used from other components, set Access = Public on it; an internal object is not visible to other apps.`
+    ], [suggestion("move-object-up", "M", [`Move ${name(source)} into ${to} if it belongs to that component's internals.`])]);
+  }
+
+  // Strict layers: only the layer directly below may be used.
+  if (rule === "layer-skip-dependency") {
+    return suggestion("go-through-layer", "M", [
+      `Reach ${name(target)} through ${between?.length ? between.join(" or ") : "a component in the layer directly below"} instead of using ${to} directly.`,
+      `Or list ${targetComponent} in dependsOn of ${sourceComponent}: a declared dependency may skip layers.`
+    ]);
+  }
 
   // The target lies further in: the direction is right, only the declaration
   // is missing (or the dependency should go through an existing one).
