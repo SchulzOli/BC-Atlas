@@ -26,6 +26,9 @@ follows [Semantic Versioning](https://semver.org/).
   each brought) or by release tag (`--history-by releases`, plus unreleased
   commits); `--last n` keeps the most recent steps. The app's Dependencies
   page has the same choice.
+- Explorer: a Spacing slider (50 % to 500 %) gives crowded graphs room:
+  longer links, longest between large nodes, stronger repulsion, and more
+  distance between clusters and floors.
 - One design system (`src/ui/theme.css`) for the app, the explorer, and the
   HTML documentation, with light and dark themes.
 

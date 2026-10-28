@@ -92,6 +92,7 @@
   };
 
   // ------------------------------------------------------------------ state
+  const SPACING = { min: 0.5, max: 5, step: 0.25 };
   const stored = (() => {
     try { return JSON.parse(localStorage.getItem("bca-explorer") ?? "{}"); } catch { return {}; }
   })();
@@ -108,6 +109,8 @@
     appContext: true,
     hideIsolated: false,
     minDegree: 0,
+    // Distance between nodes: 1 is the default; links, repulsion, clusters, and floors scale with it.
+    spacing: Number.isFinite(stored.spacing) ? Math.min(SPACING.max, Math.max(SPACING.min, stored.spacing)) : 1,
     search: "",
     colorBy: ARCHITECTURE ? "component" : "app",
     violationsOnly: false,
@@ -128,7 +131,7 @@
       : stored.theme ?? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
   };
   const remember = () => {
-    try { localStorage.setItem("bca-explorer", JSON.stringify({ theme: state.theme })); } catch { /* optional */ }
+    try { localStorage.setItem("bca-explorer", JSON.stringify({ theme: state.theme, spacing: state.spacing })); } catch { /* optional */ }
   };
 
   // --------------------------------------------------------------- timeline
@@ -451,7 +454,7 @@
     const app = apps.get(appId);
     const total = Math.max(1, apps.size);
     const index = app?.order ?? 0;
-    const radius = 90 + 30 * Math.sqrt(total);
+    const radius = (90 + 30 * Math.sqrt(total)) * state.spacing;
     // Fibonacci sphere keeps app clusters evenly apart in three dimensions.
     const y = total === 1 ? 0 : 1 - (index / (total - 1)) * 2;
     const ring = Math.sqrt(1 - y * y);
@@ -462,7 +465,7 @@
   function componentAnchor(name) {
     const total = Math.max(1, components.size);
     const index = components.get(name)?.order ?? 0;
-    const radius = 90 + 30 * Math.sqrt(total);
+    const radius = (90 + 30 * Math.sqrt(total)) * state.spacing;
     const y = total === 1 ? 0 : 1 - (index / (total - 1)) * 2;
     const ring = Math.sqrt(1 - y * y);
     const theta = Math.PI * (3 - Math.sqrt(5)) * index;
@@ -481,6 +484,15 @@
   }
   graph.d3Force("appCluster", clusterForce);
 
+  // Spacing: links get longer (more so between large nodes, so hubs get room)
+  // and nodes push each other away harder.
+  const nodeRadius = (node) => 4 * Math.cbrt(Math.max(1, nodeSize(node)));
+  function applySpacing() {
+    graph.d3Force("link")?.distance((link) => state.spacing * (20 + nodeRadius(link.source) + nodeRadius(link.target)));
+    graph.d3Force("charge")?.strength(-30 * state.spacing * state.spacing);
+  }
+  applySpacing();
+
   function applyLayout({ reheat = true } = {}) {
     const level = levels[state.level];
     const appLayer = (node) => {
@@ -492,10 +504,10 @@
       node.fx = undefined;
       node.fy = undefined;
       node.fz = undefined;
-      if (state.layout === "app-layers") node.fy = appLayer(node) * 110;
-      if (state.layout === "component-layers") node.fy = (components.get(node.component)?.layer ?? node.layer ?? 0) * (state.level === "component" ? 60 : 110);
-      if (state.layout === "build-layers") node.fy = node.metrics.buildLayer * 55;
-      if (state.layout === "time") node.fx = (node.firstFrame - LAST_FRAME / 2) * Math.max(40, 600 / Math.max(1, LAST_FRAME));
+      if (state.layout === "app-layers") node.fy = appLayer(node) * 110 * state.spacing;
+      if (state.layout === "component-layers") node.fy = (components.get(node.component)?.layer ?? node.layer ?? 0) * (state.level === "component" ? 60 : 110) * state.spacing;
+      if (state.layout === "build-layers") node.fy = node.metrics.buildLayer * 55 * state.spacing;
+      if (state.layout === "time") node.fx = (node.firstFrame - LAST_FRAME / 2) * Math.max(40, 600 / Math.max(1, LAST_FRAME)) * state.spacing;
       if (state.layout === "flat") node.z = 0;
     }
     // On the component level, a layer is a row: spread its components side by side.
@@ -508,11 +520,12 @@
       }
       for (const row of rows.values()) {
         row.forEach((node, index) => {
-          node.fx = (index - (row.length - 1) / 2) * 70;
+          node.fx = (index - (row.length - 1) / 2) * 70 * state.spacing;
           node.fz = 0;
         });
       }
     }
+    applySpacing();
     if (reheat) graph.d3ReheatSimulation();
     setTimeout(() => graph.zoomToFit(600, 60), 1600);
   }
@@ -638,6 +651,10 @@
       { x: node.x, y: node.y, z: node.z ?? 0 },
       900
     );
+  }
+
+  function spacingText() {
+    return `${Math.round(state.spacing * 100)} %`;
   }
 
   function frameLabel(index) {
@@ -901,6 +918,7 @@
         select_("layout", "Layout", [["clusters", ARCHITECTURE ? "Component clusters (3D)" : "App clusters (3D)"], ...(ARCHITECTURE ? [["component-layers", "Architecture layers as floors"]] : []), ["force", "Free force (3D)"], ["app-layers", "Apps as floors"], ["build-layers", "Build order as floors"], ["time", "Commit timeline axis (4D)"], ["flat", "Flat (2D)"]], state.layout),
         select_("labels", "Labels", [["auto", "Important"], ["all", "All"], ["off", "Off"]], state.labels),
         `<div class="field wide"><label for="option-minDegree">Min. links <output id="min-degree-value">${state.minDegree}</output></label><input id="option-minDegree" data-setting="minDegree" type="range" min="0" max="${levels[state.level].maxLinks}" value="${Math.min(state.minDegree, levels[state.level].maxLinks)}"></div>`,
+        `<div class="field wide"><label for="option-spacing" title="Longer links and more room between nodes; large nodes get the most">Spacing <output id="spacing-value">${spacingText()}</output></label><input id="option-spacing" data-setting="spacing" type="range" min="${SPACING.min}" max="${SPACING.max}" step="${SPACING.step}" value="${state.spacing}"></div>`,
         `<label class="check"><input type="checkbox" data-setting="hideIsolated" ${state.hideIsolated ? "checked" : ""}><span class="name">Hide unconnected nodes</span></label>`,
         `<label class="check"><input type="checkbox" data-setting="particles" ${state.particles ? "checked" : ""}><span class="name">Animate cross-app flow</span></label>`,
         `<label class="check"><input type="checkbox" data-setting="highlight" ${state.highlight ? "checked" : ""}><span class="name">Highlight added and changed</span></label>`,
@@ -931,6 +949,16 @@
     return { name, universe };
   };
   const toCount = (value) => Math.max(0, Math.min(levels[state.level].maxLinks, Math.trunc(Number(value)) || 0));
+  const toSpacing = (value) => Math.max(SPACING.min, Math.min(SPACING.max, Number(value) || 1));
+  let spacingTimer;
+  // Spreads or tightens the graph while the slider moves, then fits it on screen.
+  function setSpacing(value) {
+    state.spacing = toSpacing(value);
+    $("#spacing-value").textContent = spacingText();
+    remember();
+    clearTimeout(spacingTimer);
+    spacingTimer = setTimeout(() => applyLayout(), 120);
+  }
 
   $("#filters").addEventListener("change", (event) => {
     const input = event.target;
@@ -948,7 +976,8 @@
       const flag = known(FLAGS, setting);
       if (!flag) return;
       state[flag] = input.checked;
-    } else if (input.type === "range") state.minDegree = toCount(input.value);
+    } else if (setting === "spacing") return setSpacing(input.value);
+    else if (input.type === "range") state.minDegree = toCount(input.value);
     else {
       const name = known(Object.keys(CHOICES), setting);
       const value = name && known(CHOICES[name], input.value);
@@ -965,6 +994,7 @@
   });
   $("#filters").addEventListener("input", (event) => {
     if (event.target.type !== "range") return;
+    if (event.target.dataset.setting === "spacing") return setSpacing(event.target.value);
     state.minDegree = toCount(event.target.value);
     $("#min-degree-value").textContent = String(state.minDegree);
     render();

@@ -172,6 +172,7 @@ objects are placed from left to right by the commit that introduced them.
 | Object types, relation kinds | Restrict nodes and edges. An edge stays visible while at least one of its kinds is selected. |
 | Search (`/`) | Highlights matches by name, ID, type, namespace, file, or app; **Enter** flies to the first match. |
 | Min. links, hide unconnected | Remove weakly connected nodes. The slider runs from 0 to the number of links that 95% of the nodes stay under (at least 10, at most 200), so it also thins out large graphs. |
+| Spacing | Room between nodes, from 50 % to 500 %: longer links (longest between large nodes), stronger repulsion, and more distance between clusters and floors. The explorer remembers it. |
 | Color | App, object type, community (Louvain clustering), build layer, age (first commit), or cross-app coupling. |
 | Size | PageRank (default), used by, depends on, cross-app links, or uniform. |
 | Layout | App clusters, free force, apps as floors, build order as floors, commit timeline axis, or flat 2D. |
