@@ -92,9 +92,32 @@ theme, the secondary side bar closed, the window at 1440 × 900, run
 1. **Publisher.** Create the publisher `schulzoli` at
    [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage)
    (or change `publisher` in `../package.json`).
-2. **Tokens.** Add an Azure DevOps personal access token with the
-   *Marketplace (Manage)* scope as the repository secret `VSCE_PAT`; for
-   Open VSX (VSCodium, Cursor, Windsurf, Gitpod), also `OVSX_PAT`.
+2. **Sign-in without a token.** Azure DevOps retires global personal access
+   tokens, the only kind the Marketplace accepted, on December 1, 2026. The
+   workflow therefore signs in with Microsoft Entra ID through GitHub's OIDC
+   token, and nothing secret is stored:
+   1. In the [Entra admin center](https://entra.microsoft.com), register an
+      app (*App registrations → New registration*, for example
+      `bc-atlas-marketplace`). It needs no Azure subscription. An existing
+      app registration for another extension works too; just add the
+      credential from the next step.
+   2. On the app, add a federated credential (*Certificates & secrets →
+      Federated credentials → GitHub Actions*): organization `SchulzOli`,
+      repository `BC-Atlas`, entity *Environment*, environment
+      `marketplace`.
+   3. Add the app to the publisher `schulzoli` as a member with the
+      *Contributor* role (*Manage publishers → Members*), as described under
+      Microsoft Entra ID in the
+      [VS Code publishing guide](https://code.visualstudio.com/api/working-with-extensions/publishing-extension).
+   4. In the repository, add the secrets `AZURE_CLIENT_ID` (the app's
+      application ID) and `AZURE_TENANT_ID` (the directory ID), as repository
+      secrets or secrets of the `marketplace` environment.
+
+   The workflow's *Check access to the publisher* step
+   (`vsce verify-pat --azure-credential schulzoli`) fails before anything is
+   published if one of these is missing. For Open VSX (VSCodium, Cursor,
+   Windsurf, Gitpod), also add the token `OVSX_PAT`; Open VSX is not
+   affected by the Azure DevOps change.
 3. **Publish.** Run the *Publish VS Code extension* workflow with the version
    in `../package.json`.
 4. **GitHub.** Under *Settings → General → Social preview*, upload

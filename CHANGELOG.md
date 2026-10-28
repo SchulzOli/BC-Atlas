@@ -93,6 +93,11 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The *Publish VS Code extension* workflow signs in to the Marketplace with
+  Microsoft Entra ID (GitHub OIDC, `vsce --azure-credential`) instead of the
+  `VSCE_PAT` token, because Azure DevOps retires global personal access
+  tokens on December 1, 2026. It needs the secrets `AZURE_CLIENT_ID` and
+  `AZURE_TENANT_ID` and checks access to the publisher before publishing.
 - A new BC Atlas icon and logo (an "A" drawn as a dependency graph with an
   orbit), used by the extension, its activity bar, and the panel. The
   extension has a Marketplace listing with screenshots, a banner, and a social
