@@ -92,10 +92,12 @@
     }
   };
 
-  const blobUrls = new Map();
-  async function blobUrl(name, base64) {
-    if (!blobUrls.has(name)) blobUrls.set(name, URL.createObjectURL(new Blob([await inflate(base64)], { type: "text/html" })));
-    return blobUrls.get(name);
+  // Embedded pages of an exported app load through srcdoc: hosts such as
+  // claude.ai artifacts do not allow frames from blob: URLs.
+  const embedded = new Map();
+  async function embeddedPage(name, base64) {
+    if (!embedded.has(name)) embedded.set(name, await inflate(base64));
+    return embedded.get(name);
   }
 
   // ----------------------------------------------------------------- theme
@@ -512,9 +514,8 @@
       const select = params.get("select");
       if (select) frame.contentWindow?.postMessage({ type: "bca-select", id: select }, "*");
     });
-    frame.src = LIVE
-      ? `/explorer?${new URLSearchParams({ theme, ...(propose ? { propose: 1 } : {}), ...(history ? { history } : {}), ...(history && last ? { last } : {}) })}`
-      : await blobUrl("explorer", window.BCA_EXPLORER_GZIP);
+    if (LIVE) frame.src = `/explorer?${new URLSearchParams({ theme, ...(propose ? { propose: 1 } : {}), ...(history ? { history } : {}), ...(history && last ? { last } : {}) })}`;
+    else frame.srcdoc = await embeddedPage("explorer", window.BCA_EXPLORER_GZIP);
     $("#page-actions").onchange = () => go("dependencies", {
       propose: $("#propose")?.checked ? 1 : undefined,
       history: $("#history")?.value || undefined,
@@ -771,7 +772,8 @@
       $(".frame-wrap .loading", page)?.remove();
       applyTheme();
     });
-    frame.src = LIVE ? "/docs" : await blobUrl("docs", window.BCA_DOCS_GZIP);
+    if (LIVE) frame.src = "/docs";
+    else frame.srcdoc = await embeddedPage("docs", window.BCA_DOCS_GZIP);
   }
 
   const RENDERERS = {
