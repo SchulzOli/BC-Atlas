@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- Source of social-preview.jpg (1280x640 at 2x): node vscode/marketing/render.cjs -->
+<html><head><meta charset="utf-8"><style>
+  html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    font-family: "Inter", system-ui, sans-serif; color: #e8eefc;
+    background: radial-gradient(900px 500px at 15% 10%, #1d3a86 0%, transparent 60%), linear-gradient(160deg, #0d1a40 0%, #070d22 100%);
+    display: grid; grid-template-columns: 560px 1fr; align-items: center;
+  }
+  .copy { padding: 0 0 0 72px; }
+  .brand { display: flex; align-items: center; gap: 20px; }
+  .brand img { width: 96px; height: 96px; filter: drop-shadow(0 10px 30px rgba(94, 234, 212, .25)); }
+  h1 { font: 800 64px/1 "Inter Display", "Inter", sans-serif; letter-spacing: -1.5px; margin: 0; }
+  h1 small { display: block; font: 500 20px/1.3 "Inter", sans-serif; letter-spacing: .5px; color: #7dd3fc; margin-top: 8px; }
+  p { font-size: 27px; line-height: 1.35; margin: 34px 0 30px; color: #c9d5f2; }
+  p b { color: #fff; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { font-size: 16px; font-weight: 600; padding: 8px 14px; border-radius: 999px; background: rgba(91, 141, 239, .16); border: 1px solid rgba(125, 162, 255, .35); color: #dbe6ff; }
+  .chip.teal { background: rgba(94, 234, 212, .14); border-color: rgba(94, 234, 212, .45); color: #b9f5ea; }
+  .shot { position: relative; height: 640px; perspective: 1600px; }
+  .shot img {
+    position: absolute; left: 40px; top: 70px; width: 980px; border-radius: 14px;
+    transform: rotateY(-16deg) rotateX(4deg); transform-origin: left center;
+    box-shadow: 0 40px 90px rgba(0, 0, 0, .6), 0 0 0 1px rgba(255, 255, 255, .08);
+  }
+</style></head><body>
+  <div class="copy">
+    <div class="brand"><img src="icon.svg" alt=""><h1>BC Atlas<small>for Business Central &amp; AL</small></h1></div>
+    <p>See your <b>architecture</b>, find what stands in its way, and keep it clean, <b>right in VS Code</b>.</p>
+    <div class="chips"><span class="chip teal">Clean architecture</span><span class="chip">Dependencies in 3D</span><span class="chip">Health checks</span><span class="chip">CodeLens &amp; Problems</span><span class="chip">MCP for AI agents</span><span class="chip">Free &amp; MIT</span></div>
+  </div>
+  <div class="shot"><img src="screenshots/components-3d.png" alt=""></div>
+</body></html>

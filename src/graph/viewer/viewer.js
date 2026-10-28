@@ -1326,6 +1326,7 @@
         select(event.data.id, { fly: true });
       }
     });
+    window.parent.postMessage({ type: "bca-ready" }, "*");
   }
   $("#toggle-filters").addEventListener("click", (event) => {
     const hidden = document.body.classList.toggle("filters-hidden");

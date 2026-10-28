@@ -93,6 +93,10 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- A new BC Atlas icon and logo (an "A" drawn as a dependency graph with an
+  orbit), used by the extension, its activity bar, and the panel. The
+  extension has a Marketplace listing with screenshots, a banner, and a social
+  preview image; sources and the render script are in `vscode/marketing/`.
 - Fewer commands: 8 instead of 15. `bca report`, `bca graph`, `bca watch`,
   `bca inspect`, and `bca codegraph` are now `bca export --view report`,
   `--view <view>`, `--watch`, `--format json`, and `--view catalog`; `-o`
@@ -106,6 +110,9 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The 3D explorer inside the panel follows a dark theme: it now asks for the
+  theme once its graph is unpacked, instead of missing the message sent while
+  it was still loading.
 - Namespace-qualified references such as
   `Record Microsoft.Sales.Document."Sales Header"`,
   `TableData Microsoft.Sales.Document."Sales Line" = R`, and

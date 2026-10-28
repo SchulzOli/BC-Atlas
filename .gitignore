@@ -44,6 +44,10 @@ Thumbs.db
 !examples/docs/diagrams/*.svg
 !vscode/media/
 !vscode/media/*
+!vscode/marketing/
+!vscode/marketing/*
+!vscode/marketing/screenshots/
+!vscode/marketing/screenshots/*
 _output_test
 # Documentation website build
 website/.vitepress/dist/

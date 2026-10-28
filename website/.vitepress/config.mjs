@@ -12,7 +12,7 @@ const BASE = "/BC-Atlas/";
 
 const EXCLUDE = [
   "**/node_modules/**", "src/**", "test/**", "vendor/**", "website/**", ".github/**",
-  "AGENTS.md", "CONTEXT.md"
+  "AGENTS.md", "CONTEXT.md", "vscode/marketing/**"
 ];
 
 // README.md files become the index page of their folder.
@@ -102,6 +102,9 @@ function sidebar() {
   return groups;
 }
 
+// The BC Atlas mark: an "A" drawn as a dependency graph with an orbit.
+const LOGO = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#2f6fe0"/><ellipse cx="16" cy="17.5" rx="13.2" ry="4.4" transform="rotate(-14 16 17.5)" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.3"/><path d="M16 7.2L8.4 24.6M16 7.2l7.6 17.4M11 18.2h10" stroke="#fff" stroke-width="2.6" stroke-linecap="round" fill="none"/><circle cx="16" cy="7" r="3.2" fill="#5eead4" stroke="#fff" stroke-width="1.3"/></svg>')}`;
+
 export default defineConfig({
   title: "BC Atlas",
   description: "Architecture maps, health checks, and documentation for Microsoft Dynamics 365 Business Central AL projects.",
@@ -112,13 +115,14 @@ export default defineConfig({
   rewrites: REWRITES,
   cleanUrls: true,
   lastUpdated: true,
-  head: [["meta", { name: "theme-color", content: "#0b62d6" }]],
+  head: [["meta", { name: "theme-color", content: "#0b62d6" }], ["link", { rel: "icon", href: LOGO }]],
   markdown: {
     config: repositoryLinks,
     // AL is a Pascal-family language; this keeps code samples highlighted.
     languageAlias: { al: "pascal" }
   },
   themeConfig: {
+    logo: LOGO,
     nav: [
       { text: "Guide", link: "/docs/getting-started" },
       { text: "Setup", link: "/docs/setup" },
