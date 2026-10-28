@@ -6,7 +6,7 @@ analyzes it; nothing else needs to be installed. The extension contains the
 BC Atlas engine and runs it on VS Code's own Node.js runtime, in a background
 process, so the editor stays responsive while large apps are analyzed.
 
-Install **BC Atlas** (`schulzoli.bc-atlas`) from the Extensions view, or
+Install **BC Atlas** (`SchulzOli.bc-atlas`) from the Extensions view, or
 from a `.vsix` file with **Extensions: Install from VSIX…**. `bca setup` with
 VS Code tasks also recommends it in `.vscode/extensions.json`.
 

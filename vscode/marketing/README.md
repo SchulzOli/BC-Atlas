@@ -89,7 +89,7 @@ theme, the secondary side bar closed, the window at 1440 × 900, run
 
 ## Launch checklist
 
-1. **Publisher.** Create the publisher `schulzoli` at
+1. **Publisher.** Create the publisher `SchulzOli` at
    [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage)
    (or change `publisher` in `../package.json`).
 2. **Sign-in without a token.** Azure DevOps retires global personal access
@@ -118,11 +118,11 @@ theme, the secondary side bar closed, the window at 1440 × 900, run
    4. Run the *Publish VS Code extension* workflow once. The step *Show the
       identity the Marketplace sees* prints the identity's Azure DevOps
       profile ID; the Marketplace knows identities by this ID, not by their
-      Entra IDs. Add that ID to the publisher `schulzoli` as a member with
+      Entra IDs. Add that ID to the publisher `SchulzOli` as a member with
       the *Contributor* role (*Manage publishers → Members*).
 
    Until the last step is done, the step *Check access to the publisher*
-   (`vsce verify-pat --azure-credential schulzoli`) fails with
+   (`vsce verify-pat --azure-credential SchulzOli`) fails with
    `InvalidAccessException` before anything is published. For Open VSX
    (VSCodium, Cursor, Windsurf, Gitpod), also add the token `OVSX_PAT`; Open
    VSX is not affected by the Azure DevOps change.

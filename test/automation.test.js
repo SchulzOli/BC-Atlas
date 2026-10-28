@@ -6,6 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { EXTENSION_ID, mergeRecommendations } from "../src/automation/vscode.js";
+
 const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
 const example = fileURLToPath(new URL("../examples/warehouse-app", import.meta.url));
 const pkg = JSON.parse(readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8"));
@@ -223,7 +225,7 @@ test("setup adds VS Code tasks next to existing tasks for the local loop", () =>
       "Core must not depend on UI", "src/Sales.al", "19"
     ]);
     assert.deepEqual(tasks.find(({ label }) => label.endsWith("pre-push hook")).args.slice(-2), ["--trigger", "pre-push"]);
-    assert.deepEqual(JSON.parse(readFileSync(path.join(app, ".vscode", "extensions.json"), "utf8")).recommendations, ["schulzoli.bc-atlas"]);
+    assert.deepEqual(JSON.parse(readFileSync(path.join(app, ".vscode", "extensions.json"), "utf8")).recommendations, ["SchulzOli.bc-atlas"]);
 
     writeFileSync(path.join(app, ".vscode", "tasks.json"), "// my tasks\n{ \"version\": \"2.0.0\", \"tasks\": [] }\n");
     const commented = JSON.parse(bca(["setup", "apply", app, "--format", "json", "--ci", "none", "--schedule", "none"]).stdout);
@@ -270,4 +272,11 @@ test("setup agent writes slash commands for Claude Code, Copilot, and Cursor", (
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("the extension recommendation is added once, whatever its case", () => {
+  assert.deepEqual(JSON.parse(mergeRecommendations(undefined).content).recommendations, [EXTENSION_ID]);
+  assert.deepEqual(JSON.parse(mergeRecommendations('{ "recommendations": ["ms-dynamics-smb.al"] }').content).recommendations, ["ms-dynamics-smb.al", EXTENSION_ID]);
+  // Projects set up before the publisher ID was capitalized keep their entry.
+  assert.deepEqual(mergeRecommendations('{ "recommendations": ["schulzoli.bc-atlas"] }'), { unchanged: true });
 });
