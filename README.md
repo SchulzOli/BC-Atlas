@@ -5,6 +5,8 @@
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Docs](https://img.shields.io/badge/docs-schulzoli.github.io%2FBC--Atlas-0b62d6)](https://schulzoli.github.io/BC-Atlas/)
 
+![BC Atlas: see your architecture, find what stands in its way, and keep it clean, right in VS Code](./vscode/marketing/social-preview.jpg)
+
 **Understand, guard, and document Microsoft Dynamics 365 Business Central AL
 projects - straight from source.**
 

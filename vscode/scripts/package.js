@@ -67,6 +67,13 @@ writeFileSync(path.join(stage, ".vscodeignore"), [
 ].join("\n") + "\n");
 
 // 4. The .vsix.
+// vsce ignores repository.directory, so relative README links and images
+// get explicit base URLs into the extension's folder.
 const vsce = path.join(extension, "node_modules", ".bin", process.platform === "win32" ? "vsce.cmd" : "vsce");
-run(vsce, ["package", "--out", out], stage);
+const github = `${manifest.repository.url.replace(/\.git$/u, "")}`;
+run(vsce, [
+  "package", "--out", out,
+  "--baseContentUrl", `${github}/blob/HEAD/${manifest.repository.directory}`,
+  "--baseImagesUrl", `${github}/raw/HEAD/${manifest.repository.directory}`
+], stage);
 console.log(`Packaged ${path.relative(process.cwd(), out)} with bc-atlas ${engine.version}`);

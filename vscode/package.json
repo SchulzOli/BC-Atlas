@@ -1,11 +1,16 @@
 {
   "name": "bc-atlas",
-  "displayName": "BC Atlas",
-  "description": "Architecture, health, dependencies in 3D, diagrams, and documentation for Business Central AL apps, in the editor.",
+  "displayName": "BC Atlas: AL Architecture & Dependencies",
+  "description": "See and enforce the architecture of Business Central AL apps: dependencies in 3D, clean-architecture checks with fixes, health in the Problems panel, CodeLens, diagrams, and an MCP server for AI agents.",
   "version": "0.8.0",
   "publisher": "schulzoli",
   "license": "MIT",
   "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0b1432",
+    "theme": "dark"
+  },
+  "pricing": "Free",
   "homepage": "https://schulzoli.github.io/BC-Atlas/",
   "bugs": {
     "url": "https://github.com/SchulzOli/BC-Atlas/issues"
@@ -21,16 +26,30 @@
   "categories": [
     "Visualization",
     "Linters",
+    "AI",
     "Programming Languages"
   ],
   "keywords": [
     "al",
     "business central",
     "dynamics 365",
+    "d365",
+    "bc",
+    "navision",
     "architecture",
-    "dependencies",
     "clean architecture",
-    "mcp"
+    "dependencies",
+    "dependency graph",
+    "3d",
+    "code map",
+    "diagram",
+    "health check",
+    "cycles",
+    "refactoring",
+    "mcp",
+    "ai agents",
+    "copilot",
+    "documentation"
   ],
   "activationEvents": [
     "workspaceContains:**/app.json"

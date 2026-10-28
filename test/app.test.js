@@ -110,6 +110,16 @@ test("the VS Code page talks to the extension and carries its Content-Security-P
   assert.throws(() => renderAppHtml({ mode: "live" }), /unknown page mode/u);
 });
 
+test("the embedded 3D explorer asks for the theme once its graph is unpacked", () => {
+  // The explorer inflates its data asynchronously, so a theme sent on the
+  // frame's load event can arrive before it listens; it asks instead.
+  const viewer = readFileSync(path.join(root, "src", "graph", "viewer", "viewer.js"), "utf8");
+  assert.match(viewer, /window\.parent\.postMessage\(\{ type: "bca-ready" \}, "\*"\)/u);
+  assert.ok(viewer.indexOf('"bca-ready"') > viewer.indexOf("await inflate("), "asks only after the graph is unpacked");
+  const html = renderAppHtml({ mode: "vscode", csp: "default-src 'none'" });
+  assert.match(html, /event\.data\?\.type === "bca-ready"[\s\S]{0,200}type: "bca-theme"/u);
+});
+
 test("bca export writes the app as one offline file with every page's data", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-export-"));
   try {

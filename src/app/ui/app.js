@@ -532,12 +532,8 @@
     page.innerHTML = `<div class="muted small">Levels: 1 objects · 2 modules · 3 apps · 4 components. <kbd>/</kbd> searches, <kbd>Space</kbd> plays the timeline.</div>
       <div class="frame-wrap"><iframe title="3D dependency explorer" data-theme-sync></iframe>${loading(history ? `Replaying ${last ? `the last ${last} ` : "the "}${STEPS[history]}…` : "Building the 3D graph…")}</div>`;
     const frame = $("iframe", page);
-    frame.addEventListener("load", () => {
-      $(".frame-wrap .loading", page)?.remove();
-      frame.contentWindow?.postMessage({ type: "bca-theme", theme }, "*");
-      const select = params.get("select");
-      if (select) frame.contentWindow?.postMessage({ type: "bca-select", id: select }, "*");
-    });
+    if (params.get("select")) frame.dataset.select = params.get("select");
+    frame.addEventListener("load", () => $(".frame-wrap .loading", page)?.remove());
     try {
       frame.srcdoc = await api.explorer({ propose: propose ? 1 : undefined, history, last: history ? last : undefined });
     } catch (error) {
@@ -891,6 +887,11 @@
   addEventListener("message", (event) => {
     const frame = $("iframe[data-theme-sync]");
     if (!frame || event.source !== frame.contentWindow) return;
+    // The explorer unpacks its graph first, then asks for the theme and the selection.
+    if (event.data?.type === "bca-ready") {
+      frame.contentWindow.postMessage({ type: "bca-theme", theme }, "*");
+      if (frame.dataset.select) frame.contentWindow.postMessage({ type: "bca-select", id: frame.dataset.select }, "*");
+    }
     if (event.data?.type === "bca-open-object" && typeof event.data.id === "string") location.hash = `#/object/${encodeURIComponent(event.data.id)}`;
   });
 
