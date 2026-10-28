@@ -30,7 +30,8 @@ Result: PASSED - 0 error(s), 0 warning(s), 1 info (fail on: error)
 
 | Rule | Default severity | Trigger |
 | --- | --- | --- |
-| `parse-error` | error | tree-sitter could not parse a file. |
+| `parse-error` | error | tree-sitter could not parse a file. With the AL compiler, its syntax errors replace this rule. |
+| AL compiler and analyzer rules (`AL0185`, `AA0137`, `AW0005`, ...) | from the compiler or rule set | Compiler errors and warnings and CodeCop, UICop, AppSourceCop, and PerTenantExtensionCop findings, with the exact range and the Microsoft help link, when the [AL toolchain](./al-toolchain.md) is installed or `--compiler-log` imports an error log. |
 | `forbidden-dependency` | from the policy | A dependency matches a `forbiddenDependencies` rule. |
 | other diagnostics | warning or error | Analysis diagnostics such as unreadable symbol packages. |
 | `dependency-cycle` | warning | Objects depend on each other in a cycle. Configure with `check.cycles`. |
@@ -55,11 +56,14 @@ Result: PASSED - 0 error(s), 0 warning(s), 1 info (fail on: error)
 ```sh
 bca check --format json                  # machine-readable HealthReport
 bca check --format markdown -o health.md # for PR comments or job summaries
+bca check --format sarif -o bca.sarif    # GitHub code scanning, Azure DevOps
 ```
 
 The JSON report contains `passed`, `failOn`, `thresholds`, `summary`
-(apps, files, objects, relationships, object and relationship counts),
-`counts`, `hubs`, and `findings`.
+(apps, files, objects, relationships, object and relationship counts, and
+`compiler` when the AL toolchain ran), `counts`, `hubs`, and `findings`.
+Findings from the AL compiler also carry `column`, `endLine`, `endColumn`,
+`helpLink`, and `origin: "al"`.
 
 ## Configure
 

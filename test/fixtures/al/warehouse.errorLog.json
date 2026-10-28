@@ -1,0 +1,339 @@
+{
+  "version": "0.2",
+  "toolInfo": {
+    "toolName": "Microsoft (R) AL Compiler",
+    "productVersion": "18.1.43",
+    "fileVersion": "18.1.43"
+  },
+  "issues": [
+    {
+      "ruleId": "AW0005",
+      "locations": [
+        {
+          "analysisTarget": [
+            {
+              "uri": "__ROOT__/WarehouseUI.al",
+              "region": {
+                "startLine": 46,
+                "startColumn": 20,
+                "endLine": 46,
+                "endColumn": 34
+              }
+            }
+          ]
+        }
+      ],
+      "shortMessage": "Action with name 'ProcessRequest' should have a value for the Image property.",
+      "fullMessage": "Actions should use the Image property.",
+      "properties": {
+        "severity": "Info",
+        "defaultSeverity": "Info",
+        "title": "Actions should use the Image property.",
+        "category": "WebClient",
+        "helpLink": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/uicop-aw0005?wt.mc_id=d365bc_inproduct_alextension",
+        "isEnabledByDefault": "True",
+        "isSuppressedInSource": "False"
+      }
+    },
+    {
+      "ruleId": "AA0215",
+      "locations": [
+        {
+          "analysisTarget": [
+            {
+              "uri": "__ROOT__/Inventory.al",
+              "region": {
+                "startLine": 3,
+                "startColumn": 11,
+                "endLine": 3,
+                "endColumn": 39
+              }
+            }
+          ]
+        }
+      ],
+      "shortMessage": "The file Inventory.al has an incorrect name. The valid name is HandlesWarehouseActivity.Interface.al.",
+      "fullMessage": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+      "properties": {
+        "severity": "Warning",
+        "warningLevel": "1",
+        "defaultSeverity": "Warning",
+        "title": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+        "category": "Readability",
+        "helpLink": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0215?wt.mc_id=d365bc_inproduct_alextension",
+        "isEnabledByDefault": "True",
+        "isSuppressedInSource": "False"
+      }
+    },
+    {
+      "ruleId": "AA0215",
+      "locations": [
+        {
+          "analysisTarget": [
+            {
+              "uri": "__ROOT__/Inventory.al",
+              "region": {
+                "startLine": 61,
+                "startColumn": 12,
+                "endLine": 61,
+                "endColumn": 31
+              }
+            }
+          ]
+        }
+      ],
+      "shortMessage": "The file Inventory.al has an incorrect name. The valid name is WarehouseHandler.Enum.al.",
+      "fullMessage": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+      "properties": {
+        "severity": "Warning",
+        "warningLevel": "1",
+        "defaultSeverity": "Warning",
+        "title": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+        "category": "Readability",
+        "helpLink": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0215?wt.mc_id=d365bc_inproduct_alextension",
+        "isEnabledByDefault": "True",
+        "isSuppressedInSource": "False"
+      }
+    },
+    {
+      "ruleId": "AA0215",
+      "locations": [
+        {
+          "analysisTarget": [
+            {
+              "uri": "__ROOT__/Inventory.al",
+              "region": {
+                "startLine": 28,
+                "startColumn": 16,
+                "endLine": 28,
+                "endColumn": 37
+              }
+            }
+          ]
+        }
+      ],
+      "shortMessage": "The file Inventory.al has an incorrect name. The valid name is WarehouseProcessor.Codeunit.al.",
+      "fullMessage": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+      "properties": {
+        "severity": "Warning",
+        "warningLevel": "1",
+        "defaultSeverity": "Warning",
+        "title": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+        "category": "Readability",
+        "helpLink": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0215?wt.mc_id=d365bc_inproduct_alextension",
+        "isEnabledByDefault": "True",
+        "isSuppressedInSource": "False"
+      }
+    },
+    {
+      "ruleId": "AA0215",
+      "locations": [
+        {
+          "analysisTarget": [
+            {
+              "uri": "__ROOT__/Automation.al",
+              "region": {
+                "startLine": 6,
+                "startColumn": 16,
+                "endLine": 6,
+                "endColumn": 41
+              }
+            }
+          ]
+        }
+      ],
+      "shortMessage": "The file Automation.al has an incorrect name. The valid name is WarehouseNotifications.Codeunit.al.",
+      "fullMessage": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+      "properties": {
+        "severity": "Warning",
+        "warningLevel": "1",
+        "defaultSeverity": "Warning",
+        "title": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+        "category": "Readability",
+        "helpLink": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0215?wt.mc_id=d365bc_inproduct_alextension",
+        "isEnabledByDefault": "True",
+        "isSuppressedInSource": "False"
+      }
+    },
+    {
+      "ruleId": "AA0215",
+      "locations": [
+        {
+          "analysisTarget": [
+            {
+              "uri": "__ROOT__/Automation.al",
+              "region": {
+                "startLine": 19,
+                "startColumn": 21,
+                "endLine": 19,
+                "endColumn": 40
+              }
+            }
+          ]
+        }
+      ],
+      "shortMessage": "The file Automation.al has an incorrect name. The valid name is WAREHOUSEPROCESS.PermissionSet.al.",
+      "fullMessage": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+      "properties": {
+        "severity": "Warning",
+        "warningLevel": "1",
+        "defaultSeverity": "Warning",
+        "title": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+        "category": "Readability",
+        "helpLink": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0215?wt.mc_id=d365bc_inproduct_alextension",
+        "isEnabledByDefault": "True",
+        "isSuppressedInSource": "False"
+      }
+    },
+    {
+      "ruleId": "AA0215",
+      "locations": [
+        {
+          "analysisTarget": [
+            {
+              "uri": "__ROOT__/Inventory.al",
+              "region": {
+                "startLine": 8,
+                "startColumn": 13,
+                "endLine": 8,
+                "endColumn": 32
+              }
+            }
+          ]
+        }
+      ],
+      "shortMessage": "The file Inventory.al has an incorrect name. The valid name is WarehouseRequest.Table.al.",
+      "fullMessage": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+      "properties": {
+        "severity": "Warning",
+        "warningLevel": "1",
+        "defaultSeverity": "Warning",
+        "title": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+        "category": "Readability",
+        "helpLink": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0215?wt.mc_id=d365bc_inproduct_alextension",
+        "isEnabledByDefault": "True",
+        "isSuppressedInSource": "False"
+      }
+    },
+    {
+      "ruleId": "AA0215",
+      "locations": [
+        {
+          "analysisTarget": [
+            {
+              "uri": "__ROOT__/WarehouseUI.al",
+              "region": {
+                "startLine": 64,
+                "startColumn": 21,
+                "endLine": 64,
+                "endColumn": 45
+              }
+            }
+          ]
+        }
+      ],
+      "shortMessage": "The file WarehouseUI.al has an incorrect name. The valid name is WarehouseRequestExt.PageExt.al.",
+      "fullMessage": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+      "properties": {
+        "severity": "Warning",
+        "warningLevel": "1",
+        "defaultSeverity": "Warning",
+        "title": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+        "category": "Readability",
+        "helpLink": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0215?wt.mc_id=d365bc_inproduct_alextension",
+        "isEnabledByDefault": "True",
+        "isSuppressedInSource": "False"
+      }
+    },
+    {
+      "ruleId": "AA0215",
+      "locations": [
+        {
+          "analysisTarget": [
+            {
+              "uri": "__ROOT__/WarehouseUITests.al",
+              "region": {
+                "startLine": 11,
+                "startColumn": 16,
+                "endLine": 11,
+                "endColumn": 32
+              }
+            }
+          ]
+        }
+      ],
+      "shortMessage": "The file WarehouseUITests.al has an incorrect name. The valid name is WarehouseUITests.Codeunit.al.",
+      "fullMessage": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+      "properties": {
+        "severity": "Warning",
+        "warningLevel": "1",
+        "defaultSeverity": "Warning",
+        "title": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+        "category": "Readability",
+        "helpLink": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0215?wt.mc_id=d365bc_inproduct_alextension",
+        "isEnabledByDefault": "True",
+        "isSuppressedInSource": "False"
+      }
+    },
+    {
+      "ruleId": "AA0215",
+      "locations": [
+        {
+          "analysisTarget": [
+            {
+              "uri": "__ROOT__/WarehouseUI.al",
+              "region": {
+                "startLine": 5,
+                "startColumn": 12,
+                "endLine": 5,
+                "endColumn": 32
+              }
+            }
+          ]
+        }
+      ],
+      "shortMessage": "The file WarehouseUI.al has an incorrect name. The valid name is WarehouseRequests.Page.al.",
+      "fullMessage": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+      "properties": {
+        "severity": "Warning",
+        "warningLevel": "1",
+        "defaultSeverity": "Warning",
+        "title": "Follow [the style guide](https://learn.microsoft.com/dynamics365/business-central/dev-itpro/compliance/apptest-bestpracticesforalcode#file-naming) about the best practices for naming.",
+        "category": "Readability",
+        "helpLink": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0215?wt.mc_id=d365bc_inproduct_alextension",
+        "isEnabledByDefault": "True",
+        "isSuppressedInSource": "False"
+      }
+    },
+    {
+      "ruleId": "AA0137",
+      "locations": [
+        {
+          "analysisTarget": [
+            {
+              "uri": "__ROOT__/Inventory.al",
+              "region": {
+                "startLine": 51,
+                "startColumn": 37,
+                "endLine": 51,
+                "endColumn": 53
+              }
+            }
+          ]
+        }
+      ],
+      "shortMessage": "Variable 'WarehouseRequest' is unused in 'ValidateRequest'.",
+      "fullMessage": "Do not declare variables that are unused.",
+      "properties": {
+        "severity": "Warning",
+        "warningLevel": "1",
+        "defaultSeverity": "Warning",
+        "title": "Do not declare variables that are unused.",
+        "category": "Design",
+        "helpLink": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0137?wt.mc_id=d365bc_inproduct_alextension",
+        "isEnabledByDefault": "True",
+        "isSuppressedInSource": "False"
+      }
+    }
+  ]
+}

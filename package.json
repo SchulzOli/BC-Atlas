@@ -26,7 +26,7 @@
   ],
   "scripts": {
     "start": "node ./src/cli.js",
-    "test": "node --test",
+    "test": "node --import ./test/setup.js --test",
     "check": "node ./scripts/check-syntax.js && npm run docs:check",
     "docs": "node ./scripts/generate-docs.js",
     "docs:check": "node ./scripts/generate-docs.js --check",

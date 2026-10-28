@@ -22,7 +22,7 @@ import { MAX_DIAGRAM_NODES, renderSvg } from "../svg.js";
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
 // Options that select what is analyzed; every page shares them.
-const SHARED = ["projectRoot", "config", "namespace", "type", "include", "exclude", "paths"];
+const SHARED = ["projectRoot", "config", "namespace", "type", "include", "exclude", "paths", "compiler", "compilerLog", "analyzers", "alSettings", "alExtensionPath"];
 const DIAGRAM_OPTIONS = ["view", "object", "scope", "focus", "entry", "namespace", "groupBy", "direction", "moduleDepth", "objectInboundDepth", "objectOutboundDepth", "callDepth", "callDirection", "details", "noExternal"];
 
 const MAX_EVIDENCE = 3;
@@ -45,11 +45,14 @@ export class Workspace {
    * @param input app or workspace folder (the focus when projectRoot is set)
    * @param values the shared CLI options: projectRoot, config, filters, paths
    * @param live whether the files on disk can be opened and changed
+   * @param onAlUpdate called when the AL compiler finished in the background
+   *   with new results (editors); without it, analysis waits for the compiler
    */
-  constructor(input, values = {}, { live = true } = {}) {
+  constructor(input, values = {}, { live = true, onAlUpdate } = {}) {
     this.input = path.resolve(input);
     this.values = pick(values, SHARED);
     this.live = live;
+    this.onAlUpdate = onAlUpdate;
     this.generation = 0;
     this.reset();
   }
@@ -78,7 +81,7 @@ export class Workspace {
   health() {
     return this.remember("health", async () => {
       const cache = this.cache;
-      return { ...await runHealthCheck(this.input, this.values, { cache }), cache };
+      return { ...await runHealthCheck(this.input, this.values, { cache, onAlUpdate: this.onAlUpdate }), cache };
     });
   }
 

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { Language, Parser } from "web-tree-sitter";
 import { isCommitCall, operationKind } from "./operation-semantics.js";
 import { includedPermissionSets, permissionGrant } from "./permission-semantics.js";
-import { loadSymbolPackages } from "./symbols.js";
+import { loadProjectSymbols } from "./symbols.js";
 
 const GRAMMAR_PATH = fileURLToPath(
   new URL("../vendor/tree-sitter-al.wasm", import.meta.url)
@@ -1100,7 +1100,7 @@ async function readAppManifest(file, root, cache) {
  * watch), preloaded `symbols` to skip reading .alpackages again, and a
  * `fileFilter` for root-relative paths to analyze part of a large repository.
  */
-export async function analyze(input, { parseCache, symbols: preloadedSymbols, fileFilter } = {}) {
+export async function analyze(input, { parseCache, symbols: preloadedSymbols, fileFilter, al } = {}) {
   const root = path.resolve(input);
   const rootStat = await fs.stat(root);
   const base = rootStat.isDirectory() ? root : path.dirname(root);
@@ -1143,7 +1143,7 @@ export async function analyze(input, { parseCache, symbols: preloadedSymbols, fi
     }
   }
 
-  const symbols = preloadedSymbols ?? await loadSymbolPackages(base);
+  const symbols = preloadedSymbols ?? await loadProjectSymbols(base, al);
   objects.push(...symbols.objects);
   diagnostics.push(...symbols.diagnostics);
   for (const app of symbols.packages) apps.set(app.id ?? app.name, app);

@@ -143,6 +143,17 @@
           "type": "string",
           "default": "",
           "markdownDescription": "Node.js 22 or later to run the BC Atlas engine. Empty: the runtime built into VS Code."
+        },
+        "bcAtlas.alCompiler": {
+          "type": "string",
+          "default": "auto",
+          "markdownDescription": "Microsoft's AL compiler for BC Atlas. `auto`: the compiler of the AL Language extension, else the AL Development Tools (`al`). It resolves every call and reports compiler and code-analyzer findings, in the background after each change. `off`: BC Atlas's own source analysis only. Or a path to `alc`, `al`, or an AL extension folder."
+        },
+        "bcAtlas.alAnalyzers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "markdownDescription": "Code analyzers for that compile, e.g. `CodeCop`, `UICop`, `AppSourceCop`, `PerTenantExtensionCop`. Empty: `al.codeAnalyzers` when `al.enableCodeAnalysis` is on."
         }
       }
     },

@@ -17,16 +17,17 @@ import { changedPaths, findGitRoot, stagePaths } from "./git.js";
 
 const ORDER = ["check", "report", "diagrams", "docs", "codegraph"];
 
-async function runTask(task, root, config, log, appPath) {
+async function runTask(task, root, config, log, appPath, values = {}) {
   const at = (relative) => path.resolve(root, relative);
   if (task === "check") {
-    const { report } = await runHealthCheck(root, {});
+    const { report } = await runHealthCheck(root, values);
     log(`check: ${healthResultLine(report)}`);
     return { ok: report.passed, summary: healthResultLine(report) };
   }
   if (task === "report") {
     const settings = config.report ?? {};
     const result = await generateReport(root, {
+      ...values,
       outputDir: at(settings.outputDir ?? DEFAULTS.report.outputDir),
       // Independent of the working directory, so verify gives the same result everywhere.
       regenerate: `bca run ${appPath} --tasks report`
@@ -63,7 +64,7 @@ async function runTask(task, root, config, log, appPath) {
     const cache = new Map();
     for (const diagram of diagrams) {
       if (!diagram.output) throw new Error("every entry in \"diagrams\" needs an \"output\" path");
-      const architecture = await createArchitectureModel(root, { ...diagram, output: at(diagram.output) }, { cache });
+      const architecture = await createArchitectureModel(root, { ...values, ...diagram, output: at(diagram.output) }, { cache });
       await writeArchitecture(architecture, resolveOutput({ output: at(diagram.output), format: diagram.format }));
     }
     log(`diagrams: ${diagrams.length} diagram(s)`);
@@ -98,10 +99,13 @@ export async function runAutomation(input, options = {}) {
 
   const gitRoot = await findGitRoot(root);
   const appPath = gitRoot ? path.relative(gitRoot, root).replaceAll("\\", "/") || "." : ".";
+  // A commit hook must stay fast: it uses the AL compiler only when .bca.json
+  // asks for it explicitly; pushes, pipelines, and schedules use it by default.
+  const values = trigger === "pre-commit" && config.al?.compiler === undefined ? { compiler: "off" } : {};
   const results = [];
   for (const task of tasks) {
     try {
-      results.push({ task, ...(await runTask(task, root, config, log, appPath)) });
+      results.push({ task, ...(await runTask(task, root, config, log, appPath, values)) });
     } catch (error) {
       log(`${task}: failed: ${error.message}`);
       results.push({ task, ok: false, summary: error.message });

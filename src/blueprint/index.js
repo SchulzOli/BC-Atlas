@@ -1,9 +1,7 @@
 import path from "node:path";
 import { statSync } from "node:fs";
-import { analyze } from "../analyzer.js";
-import { mergeArchitectureOptions } from "../architecture.js";
+import { analyzeProject, mergeArchitectureOptions } from "../architecture.js";
 import { loadConfig } from "../config.js";
-import { resolveModel } from "../resolver.js";
 import { objectFilter, pathMatcher } from "../views.js";
 import { dependencyLens } from "../graph/lenses/dependency.js";
 import { BASELINE_FILE, compareWithBaseline, readBaseline } from "./baseline.js";
@@ -36,7 +34,7 @@ export async function architectureContext(input, values = {}) {
 
 /** The current dependency graph (object, module, and app levels). */
 export async function dependencyLevels(context, { model } = {}) {
-  const resolved = model ?? resolveModel(await analyze(context.projectRoot, { fileFilter: context.fileFilter }));
+  const resolved = model ?? await analyzeProject(context.projectRoot, context.options, { fileFilter: context.fileFilter });
   return dependencyLens(resolved, { filter: context.filter });
 }
 

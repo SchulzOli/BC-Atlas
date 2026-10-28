@@ -116,7 +116,9 @@ const projectFields = {
   type: architectureFields.type,
   include: architectureFields.include,
   exclude: architectureFields.exclude,
-  config: architectureFields.config
+  config: architectureFields.config,
+  compiler: z.string().optional().describe("AL compiler: auto (AL Language extension or AL Development Tools when installed), off, or a path"),
+  compilerLog: z.string().optional().describe("Import diagnostics from an AL compiler error log file or folder")
 };
 
 export function createMcpServer(version = pkg.version) {
@@ -193,10 +195,11 @@ export function createMcpServer(version = pkg.version) {
   }));
 
   server.registerTool("bc_atlas_check", {
-    description: "Assess architecture health: cycles, policy violations, fan-in/fan-out hot spots, diagnostics, and unresolved references.",
+    description: "Assess architecture health: cycles, policy violations, fan-in/fan-out hot spots, diagnostics, and unresolved references; with the AL compiler installed, also compiler and code-analyzer findings.",
     inputSchema: z.object({
       ...projectFields,
       failOn: z.enum(FAIL_LEVELS).optional(),
+      analyzers: z.array(z.string()).optional().describe("Code analyzers for the AL compile, e.g. CodeCop, UICop"),
       maxFanIn: z.number().int().positive().optional(),
       maxFanOut: z.number().int().positive().optional()
     }),

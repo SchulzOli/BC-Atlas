@@ -20,6 +20,7 @@ export const SECTIONS = [
     ["Documentation from AL UI tests", "al-ui-test-documentation.md"]
   ]],
   ["Integrate", [
+    ["AL toolchain: compiler, analyzers, AL settings", "al-toolchain.md"],
     ["Automation: hooks, schedules, and pipelines", "automation-and-ci.md"],
     ["Agent integration and MCP", "agent-integration.md"],
     ["MCP JSON example", "examples/mcp.json"]

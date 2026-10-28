@@ -59,7 +59,26 @@ export function createCallResolver(model, procedureRecords) {
       : object("codeunit", call.receiver) ?? object("interface", call.receiver);
   }
 
+  // The AL compiler's answer (src/al/index.js), when it has one for this call.
+  function compiledCall(call) {
+    const compiled = call.compiled;
+    if (!compiled) return undefined;
+    if (compiled.builtin) {
+      return { builtin: true, candidates: [], target: undefined, confidence: "builtin", resolvedBy: "compiler" };
+    }
+    const targetOwner = (compiled.objectId ? object(compiled.type, compiled.objectId) : undefined) ??
+      object(compiled.type, compiled.objectName);
+    const candidates = candidatesFor(targetOwner, compiled.member);
+    const exact = candidates.filter(({ procedure }) => procedure.location?.line === compiled.line);
+    const match = exact.length === 1 ? exact[0] : candidates.length === 1 ? candidates[0] : undefined;
+    return match
+      ? { targetOwner, candidates: [match], target: match.node, confidence: "resolved", resolvedBy: "compiler" }
+      : undefined;
+  }
+
   function resolveCall(owner, call) {
+    const compiled = compiledCall(call);
+    if (compiled) return compiled;
     const targetOwner = targetOwnerFor(owner, call);
     const candidates = candidatesFor(targetOwner, call.name);
     const matches = candidates.filter(

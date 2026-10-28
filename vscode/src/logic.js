@@ -12,19 +12,29 @@ function projectPath(projectRoot, file) {
   return relative.startsWith("../") || path.isAbsolute(relative) ? undefined : relative;
 }
 
-/** Health findings with a location, ready to become Problems-panel entries. */
-function findingsToProblems(health, projectRoot) {
+/**
+ * Health findings with a location, ready to become Problems-panel entries.
+ * With `skipCompiler`, AL compiler and analyzer findings are left to the AL
+ * Language extension, which already reports them.
+ */
+function findingsToProblems(health, projectRoot, { skipCompiler = false } = {}) {
   const problems = [];
   for (const finding of health?.findings ?? []) {
     if (!finding.file) continue;
-    problems.push({
+    if (skipCompiler && finding.origin === "al") continue;
+    const line = Math.max(0, (Number(finding.line) || 1) - 1);
+    problems.push(Object.fromEntries(Object.entries({
       file: path.join(projectRoot, ...posix(finding.file).split("/")),
-      line: Math.max(0, (Number(finding.line) || 1) - 1),
+      line,
+      column: finding.column ? finding.column - 1 : undefined,
+      endLine: finding.endLine ? finding.endLine - 1 : undefined,
+      endColumn: finding.endColumn ? finding.endColumn - 1 : undefined,
+      helpLink: finding.helpLink,
       severity: finding.severity,
       message: finding.message,
       code: finding.rule,
       object: finding.object
-    });
+    }).filter(([, value]) => value !== undefined)));
   }
   return problems;
 }

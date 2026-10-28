@@ -49,7 +49,8 @@ See [Clean architecture](./clean-architecture.md) for the rules behind it.
 ## In the editor
 
 - **Problems panel**: every health and architecture finding with a location,
-  at its file and line.
+  at its file and line. AL compiler and analyzer findings are left to the AL
+  Language extension, which reports them itself.
 - **CodeLens** above each object declaration: how often it is used, what it
   uses, its component, and its dependencies against the architecture. Click
   it to open the object's page.
@@ -91,6 +92,24 @@ diagrams, and work with the UI-test documentation. See
 | `bcAtlas.problems` | `true` | Findings in the Problems panel. |
 | `bcAtlas.codeLens` | `true` | CodeLens above AL objects. |
 | `bcAtlas.nodePath` | empty | Node.js 22 or later for the engine. Empty uses the runtime built into VS Code (1.101 or later). |
+| `bcAtlas.alCompiler` | `auto` | Microsoft's AL compiler: `auto` uses the AL Language extension's (or the AL Development Tools), `off` only BC Atlas's own analysis, or a path. |
+| `bcAtlas.alAnalyzers` | `[]` | Code analyzers for that compile, e.g. `CodeCop`. Empty: `al.codeAnalyzers` when `al.enableCodeAnalysis` is on. |
+
+## With the AL Language extension
+
+BC Atlas works next to Microsoft's AL Language extension and uses it:
+
+- the AL compiler of the extension resolves every call and reports compiler
+  and code-analyzer findings on the Health page. It runs in the background
+  after each change; the panel shows the last results at once and refreshes
+  when the compiler is done;
+- BC Atlas reads the editor's `al.*` settings: `al.packageCachePath` for
+  symbols, `al.codeAnalyzers` with `al.enableCodeAnalysis`, `al.ruleSetPath`,
+  and `al.assemblyProbingPaths`;
+- **AL: Download Symbols**, a new `.app`, or changed `al.*` settings start a
+  new analysis, so BC Atlas stays in step with the code and its symbols.
+
+See [AL toolchain](./al-toolchain.md).
 
 ## Share it without VS Code
 

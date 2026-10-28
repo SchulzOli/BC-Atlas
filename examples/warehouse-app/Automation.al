@@ -1,6 +1,7 @@
 namespace BCA.Example.Automation;
 
 using BCA.Example.Inventory;
+using BCA.Example.UI;
 
 codeunit 50120 "Warehouse Notifications"
 {

@@ -39,7 +39,7 @@ In VS Code, install the **BC Atlas** extension and open an AL project:
 | --- | --- | --- |
 | **In VS Code** | BC Atlas extension | Everything below in the editor: a panel with overview, health, architecture, 3D dependencies, diagrams, objects, and docs; findings in the Problems panel; CodeLens above AL objects; the MCP server for agents. [Guide](./docs/vscode.md) |
 | **Get started** | `bca setup` | Guided setup in the terminal or through your AI agent (Claude Code, Copilot, Cursor): a starter `.bca.json`, features, Husky or Git hooks, GitHub Actions or Azure Pipelines, cron schedule, and sync. |
-| **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, architecture violations, hot spots, diagnostics - with a CI exit code. |
+| **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, architecture violations, hot spots, diagnostics, and AL compiler and CodeCop/UICop/AppSourceCop findings - with a CI exit code, also as SARIF for code scanning. |
 | | `bca architecture` | Find a target architecture (components, layers), list every dependency that blocks it with how to resolve it, and enforce it with a shrinking baseline. [Guide](./docs/clean-architecture.md) |
 | **Export** | `bca export` | Everything the extension shows, as files: the BC Atlas pages as one offline HTML file to share (default), the Markdown report ([example](./examples/report/README.md)), the 3D explorer, one Markdown page per object, any of ten diagram views as D2, SVG, PNG, PDF, or JSON, with `--watch`. |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations, a flow diagram per scenario, and BPMN 2.0 processes per use case. [Example](./examples/docs/index.md) |
@@ -123,8 +123,14 @@ Generated from the checked-in [warehouse example](./examples/README.md).
 - permission sets: table-data `RIMD` rights, execute rights, and composed sets
   across dependent apps;
 - pages, parts, actions, and navigation;
-- `app.json` metadata, `.alpackages` symbols, multi-app workspaces, cycles,
-  hubs, orphans, and unresolved references.
+- `app.json` metadata, `.alpackages` symbols and `al.packageCachePath`,
+  `.code-workspace` multi-root workspaces, cycles, hubs, orphans, and
+  unresolved references.
+
+With Microsoft's AL toolchain installed (the AL Language extension or the AL
+Development Tools), the AL compiler resolves every call and reports compiler
+and code-analyzer findings; BC Atlas's own analysis is the fallback. See
+[AL toolchain](./docs/al-toolchain.md).
 
 Relationship colors are consistent across views, and labels and dash patterns
 ensure that color is never the only signal. Every edge keeps its evidence
@@ -169,6 +175,7 @@ Read the docs at **[schulzoli.github.io/BC-Atlas](https://schulzoli.github.io/BC
 search, or browse them here, starting with the [table of contents](./docs/_TOC_.md):
 
 - [Getting started](./docs/getting-started.md), [BC Atlas for VS Code](./docs/vscode.md), and [guided setup](./docs/setup.md), including [staying up to date](./docs/setup.md#staying-up-to-date)
+- [AL toolchain: compiler, analyzers, AL settings](./docs/al-toolchain.md)
 - [Automation: hooks, schedules, and pipelines](./docs/automation-and-ci.md)
 - [Architecture reports](./docs/reports.md) and [health checks](./docs/health-checks.md)
 - [Architecture diagrams and views](./docs/architecture-diagrams.md)
@@ -195,9 +202,10 @@ and update-check tools. `bca setup agent --agent claude|copilot|cursor` adds a
 ## How it works
 
 ```text
-*.al + app.json + .alpackages
+*.al + app.json + .alpackages + AL settings
   -> tree-sitter AL syntax tree
   -> objects, members, relations          (analyzer)
+  -> AL compiler: calls and diagnostics   (src/al, when the toolchain is installed)
   -> resolved model with evidence         (resolver, call analysis, semantics)
   -> view projection and insights         (views, workflow, health)
   -> D2 / SVG / JSON / Markdown / HTML    (renderers)
@@ -214,11 +222,13 @@ generated reference derive from it.
 
 ### Current limits
 
-BC Atlas is an architecture extractor, not the AL compiler. References resolve
-by object type, ID, name, namespace, app preference, and declared dependencies,
-including `.alpackages` symbols. Dynamic calls, interface dispatch, and unusual
-subscriber forms stay syntactic or unresolved when the source does not identify
-a target. Conditional compilation is represented as parsed, not evaluated.
+Object references resolve by object type, ID, name, namespace, app
+preference, and declared dependencies, including symbol packages. Calls are
+exact when the AL compiler is available; without it they resolve by name and
+number of arguments, and dynamic calls and unusual subscriber forms stay
+syntactic or unresolved when the source does not identify a target. Without
+the compiler, conditional compilation is represented as parsed, not
+evaluated.
 
 ## Development
 

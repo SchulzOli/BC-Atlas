@@ -51,7 +51,11 @@ function runner({ version, local }) {
   return local ? "npx --no-install bca" : `npx --yes bc-atlas@${version}`;
 }
 
-export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24, local = false, packageRoot = "." }) {
+// Microsoft's AL Development Tools: the AL compiler and analyzers for
+// `al.compiler: auto`. Hosted Linux agents already have .NET.
+const AL_TOOLS = "dotnet tool install --global Microsoft.Dynamics.BusinessCentral.Development.Tools";
+
+export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24, local = false, packageRoot = ".", alTools = false }) {
   const ci = triggers.ci;
   const schedule = triggers.schedule;
   const outputs = (trigger) => trigger?.outputs ?? [];
@@ -72,6 +76,10 @@ export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24, l
       "      - name: Install BC Atlas from package.json",
       "        run: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi",
       ...(packageRoot === "." ? [] : [`        working-directory: ${packageRoot}`])
+    ] : []),
+    ...(alTools ? [
+      "      - name: Install the AL compiler (AL Development Tools)",
+      `        run: ${AL_TOOLS}`
     ] : []),
     "      - name: Run BC Atlas",
     "        env:",
@@ -145,7 +153,7 @@ export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24, l
   ].join("\n");
 }
 
-export function azurePipeline({ appPath, version, triggers, nodeVersion = 24, local = false }) {
+export function azurePipeline({ appPath, version, triggers, nodeVersion = 24, local = false, alTools = false }) {
   const ci = triggers.ci;
   const schedule = triggers.schedule;
   const lines = [`# ${GENERATED_MARKER}. Change .bca.json or rerun "bca setup apply" instead of editing.`];
@@ -178,6 +186,10 @@ export function azurePipeline({ appPath, version, triggers, nodeVersion = 24, lo
     ...(local ? [
       "  - bash: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi",
       "    displayName: Install BC Atlas from package.json"
+    ] : []),
+    ...(alTools ? [
+      `  - bash: ${AL_TOOLS} && echo "##vso[task.prependpath]$HOME/.dotnet/tools"`,
+      "    displayName: Install the AL compiler (AL Development Tools)"
     ] : []),
     "  - bash: |",
     "      if [ \"$BUILD_REASON\" = \"Schedule\" ]; then trigger=schedule; else trigger=ci; fi",

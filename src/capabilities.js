@@ -74,7 +74,15 @@ const projectOptions = {
     value: "path"
   }),
   config: string("Configuration file (default: <app-root>/.bca.json).", { group: GENERAL, value: "path" }),
-  strict: flag("Fail when analysis produces warning or error diagnostics.", { group: GENERAL })
+  strict: flag("Fail when analysis produces warning or error diagnostics.", { group: GENERAL }),
+  compiler: string("AL compiler for calls and diagnostics: auto (AL Language extension or AL Development Tools when installed), off, or a path to alc, al, or the extension folder.", {
+    group: "AL tools",
+    value: "mode"
+  }),
+  compilerLog: string("Import diagnostics from an AL compiler error log file or folder (alc /errorlog, al workspace compile, AL-Go).", {
+    group: "AL tools",
+    value: "path"
+  })
 };
 
 const filterOptions = {
@@ -166,10 +174,14 @@ const exportOptions = {
 
 const checkOptions = {
   failOn: string("Lowest severity that fails the check.", { group: GENERAL, enum: FAIL_LEVELS, default: "error" }),
-  format: string("Report format.", { group: OUTPUT, short: "f", enum: ["text", "json", "markdown"], default: "text" }),
+  format: string("Report format; sarif for GitHub code scanning and Azure DevOps.", { group: OUTPUT, short: "f", enum: ["text", "json", "markdown", "sarif"], default: "text" }),
   output: string("Write the report to a file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
   maxFanIn: string("Warn when an object has more distinct dependents.", { group: GENERAL, value: "n", default: "25" }),
   maxFanOut: string("Warn when an object has more distinct dependencies.", { group: GENERAL, value: "n", default: "25" }),
+  analyzers: string("Code analyzers for the AL compile: CodeCop, UICop, AppSourceCop, PerTenantExtensionCop, or DLL paths (default: al.codeAnalyzers when al.enableCodeAnalysis is on).", {
+    group: "AL tools",
+    value: "list"
+  }),
   ...filterOptions,
   ...projectOptions
 };
@@ -190,7 +202,8 @@ const blueprintOptions = {
   paths: pathsOption,
   ...filterOptions,
   projectRoot: projectOptions.projectRoot,
-  config: projectOptions.config
+  config: projectOptions.config,
+  compiler: projectOptions.compiler
 };
 
 const docsFormat = string("Output mode.", { group: OUTPUT, enum: ["text", "json"], default: "text" });

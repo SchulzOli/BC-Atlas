@@ -22,8 +22,7 @@ const VIEW_TITLES = {
 };
 const SHARED_OPTIONS = [
   "projectRoot", "config", "namespace", "type", "include", "exclude",
-  "sourceUrl", "sourceRef", "sourcePathPrefix"
-];
+  "sourceUrl", "sourceRef", "sourcePathPrefix", "compiler", "compilerLog"];
 
 function selectedViews(value, configured) {
   const requested = value ?? configured ?? REPORT_VIEWS;

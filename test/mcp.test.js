@@ -14,6 +14,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     command: process.execPath,
     args: [path.join(root, "src", "mcp.js")],
     cwd: root,
+    env: { ...process.env },
     stderr: "pipe"
   });
 

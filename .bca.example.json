@@ -69,6 +69,11 @@
     "maxFanIn": 25,
     "maxFanOut": 25
   },
+  "al": {
+    "compiler": "auto",
+    "analyzers": ["CodeCop", "UICop"],
+    "callGraph": true
+  },
   "report": {
     "outputDir": "docs/atlas",
     "views": [
