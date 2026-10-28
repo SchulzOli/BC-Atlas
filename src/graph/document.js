@@ -126,7 +126,11 @@ export async function createGraphDocument(input, values = {}, { onFrame } = {}) 
         mode: options.architecture?.components?.length && !values.propose ? "configured" : "proposal",
         components: architecture.components,
         summary: assessment.summary,
-        workItems: assessment.workItems.slice(0, 300).map(({ id, source, sourceComponent, targetComponent, strategy, title, effort, violations, steps, alternatives }) =>
+        // Structural work first; permission grants follow the components.
+        workItems: [
+          ...assessment.workItems.filter(({ strategy }) => strategy !== "move-permissions"),
+          ...assessment.workItems.filter(({ strategy }) => strategy === "move-permissions")
+        ].slice(0, 300).map(({ id, source, sourceComponent, targetComponent, strategy, title, effort, violations, steps, alternatives }) =>
           ({ id, source: source.id, sourceComponent, targetComponent, strategy, title, effort, violations, steps, alternatives }))
       }
     } : {}),
