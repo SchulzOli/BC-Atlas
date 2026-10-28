@@ -10,6 +10,8 @@ import { findLens } from "./lenses/index.js";
 import { addMetrics } from "./metrics.js";
 import { replayHistory } from "./history.js";
 import { createTemporalGraph, frameStatistics } from "./temporal.js";
+import { annotateLevels } from "../blueprint/annotate.js";
+import { proposeArchitecture } from "../blueprint/propose.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
@@ -48,14 +50,29 @@ export async function createGraphDocument(input, values = {}, { onFrame } = {}) 
   const fileFilter = paths.length ? pathMatcher(paths) : undefined;
   const parseCache = new Map();
   const symbols = await loadSymbolPackages(projectRoot);
-  const build = async (root) => lens.build(resolveModel(await analyze(root, { parseCache, symbols, fileFilter })), { filter });
+  const graph = async (root) => lens.build(resolveModel(await analyze(root, { parseCache, symbols, fileFilter })), { filter });
+
+  // The target architecture: from .bca.json, or proposed from the current
+  // source. Every frame is checked against the same one.
+  let architecture = options.architecture?.components?.length && !values.propose ? options.architecture : undefined;
+  let current;
+  if (values.propose) {
+    current = await graph(projectRoot);
+    architecture = proposeArchitecture(current, { groupBy: values.groupBy, depth: values.depth }).architecture;
+  }
+  let assessment;
+  const build = async (root) => {
+    const levels = root === projectRoot && current ? current : await graph(root);
+    if (architecture) assessment = annotateLevels(levels, architecture);
+    return levels;
+  };
 
   // Frames keep their metadata; their graphs go straight into the merge.
   const frames = [];
   const temporal = createTemporalGraph();
   const addFrame = (frame) => {
     temporal.add(frame);
-    frames.push({ ...frame, levels: undefined });
+    frames.push({ ...frame, levels: undefined, ...(architecture ? { violations: assessment.summary.violations } : {}) });
   };
   let history;
   if (options.history) {
@@ -104,6 +121,15 @@ export async function createGraphDocument(input, values = {}, { onFrame } = {}) 
     },
     summary,
     vocabulary: vocabulary(levels),
+    ...(architecture ? {
+      architecture: {
+        mode: options.architecture?.components?.length && !values.propose ? "configured" : "proposal",
+        components: architecture.components,
+        summary: assessment.summary,
+        workItems: assessment.workItems.slice(0, 300).map(({ id, source, sourceComponent, targetComponent, strategy, title, effort, violations, steps, alternatives }) =>
+          ({ id, source: source.id, sourceComponent, targetComponent, strategy, title, effort, violations, steps, alternatives }))
+      }
+    } : {}),
     levels
   };
 }

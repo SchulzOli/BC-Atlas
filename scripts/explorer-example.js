@@ -25,7 +25,10 @@ codeunit 50019 "CON Legacy Pricing"
 `;
 
 const STEPS = [
-  ["2026-01-12T09:00:00Z", "Core: items, price groups, and pricing", (copy) => copy("core")],
+  ["2026-01-12T09:00:00Z", "Core: items, price groups, and pricing", (copy) => {
+    copy(".bca.json");
+    copy("core");
+  }],
   ["2026-02-02T09:00:00Z", "Core: legacy pricing for imported items", (_copy, write) => write("core/Legacy.al", LEGACY_PRICING)],
   ["2026-03-09T09:00:00Z", "Sales: quotes priced through Contoso Core", (copy) => copy("sales")],
   ["2026-04-13T09:00:00Z", "Integration: export quotes", (copy) => {

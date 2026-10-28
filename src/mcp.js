@@ -17,6 +17,8 @@ import { runAutomation } from "./automation/run.js";
 import { applySetup, createPlan } from "./automation/setup.js";
 import { checkForUpdate } from "./commands/update.js";
 import { writeExplorer } from "./commands/explore.js";
+import { assessArchitecture } from "./blueprint/index.js";
+import { architectureJson } from "./blueprint/report.js";
 import { generateReport } from "./commands/report.js";
 import { resolveOutput, writeArchitecture } from "./output.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
@@ -169,6 +171,23 @@ export function createMcpServer(version = pkg.version) {
       appDependencies: document.levels.app.edges.map(({ source, target, dependency, objectEdges }) =>
         ({ source, target, dependency, objectEdges }))
     };
+  }));
+
+  server.registerTool("bc_atlas_architecture", {
+    description: "Find or check the target architecture: components, layers, allowed dependencies, every dependency that points the wrong way grouped into work items with a resolution strategy (declare-dependency, move-extension, move-subscriber, move-permissions, move-field-to-extension, move-object-down, extract-interface, raise-event, ...), clean-architecture metrics, and which components can become apps of their own. Proposes an architecture when .bca.json defines none.",
+    inputSchema: z.object({
+      ...projectFields,
+      propose: z.boolean().optional().describe("Propose an architecture even when .bca.json defines one"),
+      groupBy: z.enum(["namespace", "folder", "module", "app"]).optional(),
+      depth: z.number().int().positive().optional(),
+      paths: z.array(z.string()).optional(),
+      limit: z.number().int().positive().default(50).describe("Most work items to return")
+    }),
+    annotations: { readOnlyHint: true, idempotentHint: true }
+  }, tool(async ({ path: input, limit, ...values }) => {
+    const report = architectureJson(await assessArchitecture(input, values));
+    const { violations, ...rest } = report;
+    return { ...rest, workItems: report.workItems.slice(0, limit), violationCount: violations.length };
   }));
 
   server.registerTool("bc_atlas_check", {

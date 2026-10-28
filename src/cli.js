@@ -8,6 +8,7 @@ import { commandHelp, docsOverviewHelp, overviewHelp } from "./cli/help.js";
 import { graphCommand, inspectCommand, watchCommand } from "./commands/architecture.js";
 import { checkCommand } from "./commands/check.js";
 import { exploreCommand } from "./commands/explore.js";
+import { architectureCommand } from "./commands/blueprint.js";
 import { initCommand } from "./commands/init.js";
 import { reportCommand } from "./commands/report.js";
 import { runCommand } from "./commands/run.js";
@@ -43,6 +44,7 @@ const HANDLERS = {
   graph: graphCommand,
   watch: watchCommand,
   explore: exploreCommand,
+  architecture: architectureCommand,
   check: checkCommand,
   inspect: inspectCommand,
   codegraph: codegraphCommand,

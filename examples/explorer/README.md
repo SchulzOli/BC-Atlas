@@ -24,4 +24,13 @@ node src/cli.js explore examples/multi-app -o dependencies.html
 
 ![Dependency explorer showing three apps, cross-app dependencies, and the commit timeline](../../docs/generated/images/explorer-view.png)
 
-See [Dependency explorer](../../docs/dependency-explorer.md) for every control.
+The workspace's `.bca.json` defines a target architecture: Core, Sales on top
+of Core, and Integration on top of Sales only. The item sync breaks it by
+reading Core directly, so the explorer's Components level shows one red
+dependency, the timeline shows the violation appearing in the last commit, and
+the details suggest the fix (declare Core as a dependency of Integration, or go
+through Sales). Run `node src/cli.js architecture examples/multi-app` for the
+same as a report.
+
+See [Dependency explorer](../../docs/dependency-explorer.md) for every control
+and [Clean architecture](../../docs/clean-architecture.md) for the rules.

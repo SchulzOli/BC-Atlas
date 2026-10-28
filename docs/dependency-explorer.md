@@ -64,6 +64,14 @@ seeing them as unresolved.
   `implicit`, and `unresolved`. Select an app and choose **Show its objects**
   to drill down.
 
+## Target architecture
+
+When `.bca.json` defines an `architecture` section, or with `--propose`, the
+explorer adds a **Components** level and marks every dependency that points
+the wrong way in red, with its resolution in the details. The timeline shows
+the number of violations per commit. See
+[Clean architecture](./clean-architecture.md).
+
 ## Large repositories
 
 `--paths` restricts analysis and history replay to some folders of a large

@@ -1,5 +1,6 @@
 function edgeSignature(edge) {
-  return JSON.stringify(Object.entries(edge.kinds ?? {}).sort()) + (edge.declared ? "|declared" : "");
+  return JSON.stringify(Object.entries(edge.kinds ?? {}).sort()) + (edge.declared ? "|declared" : "") +
+    (edge.violation ? `|${edge.violation.rule}` : "") + (edge.dependency ?? "");
 }
 
 function nodeSignature(node) {

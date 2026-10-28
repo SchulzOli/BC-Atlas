@@ -169,6 +169,11 @@ details.section > summary .summary-actions button:hover { color: var(--text); }
 .pill { font-size: 10px; padding: 1px 6px; border-radius: 999px; color: #fff; white-space: nowrap; }
 .kinds { color: var(--muted); font-size: 11px; }
 .history-list { margin: 0; padding-left: 16px; }
+.architecture-summary { display: grid; grid-template-columns: 92px 1fr; gap: 2px 8px; margin: 4px 0 8px; }
+.architecture-summary dt { color: var(--muted); }
+.architecture-summary dd { margin: 0; font-variant-numeric: tabular-nums; }
+.work-items li { align-items: flex-start; }
+.work-items small { color: var(--muted); }
 .history-list li { margin: 2px 0; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
 

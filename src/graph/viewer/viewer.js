@@ -26,8 +26,11 @@
     implicit: { label: "Implicit (Microsoft apps, platform)", color: "#5b8def" },
     undeclared: { label: "Undeclared app dependency", color: "#ff4d4f" },
     unresolved: { label: "Unresolved or external", color: "#f5a623" },
-    "declared-unused": { label: "Declared but unused", color: "#a0a8b8" }
+    "declared-unused": { label: "Declared but unused", color: "#a0a8b8" },
+    allowed: { label: "Allowed by the architecture", color: "#2bb673" },
+    violation: { label: "Against the architecture", color: "#ff4d4f" }
   };
+  const VIOLATION_COLOR = "#ff4d4f";
   const STATUS_COLORS = { added: "#00d8ff", changed: "#ffd400", removed: "#ff3b5c" };
   const PALETTE = [
     "#5b8def", "#f28e2b", "#59a14f", "#e15759", "#b07aa1", "#76b7b2",
@@ -54,6 +57,15 @@
         order: index
       });
     });
+
+  // Components of the target architecture, in configuration order.
+  const ARCHITECTURE = DOC.architecture;
+  const components = new Map((ARCHITECTURE?.components ?? []).map((component, index) => [component.name, {
+    ...component,
+    color: PALETTE[index % PALETTE.length],
+    order: index
+  }]));
+  const componentColor = (name) => components.get(name)?.color ?? "#8a8f98";
 
   const levels = {};
   for (const [name, level] of Object.entries(DOC.levels)) {
@@ -89,7 +101,9 @@
     hideIsolated: false,
     minDegree: 0,
     search: "",
-    colorBy: "app",
+    colorBy: ARCHITECTURE ? "component" : "app",
+    violationsOnly: false,
+    component: undefined,
     sizeBy: "pagerank",
     layout: "clusters",
     labels: "auto",
@@ -151,13 +165,16 @@
       const value = visibility(node, true);
       if (value !== "absent" && typeOk(node)) nodeState.set(node.id, value);
     }
-    const inSelection = (node) => state.apps.has(state.level === "app" ? node.id : node.app) &&
-      !(state.level === "object" && state.module && node.module !== state.module);
+    const inSelection = (node) => state.level === "component" || (
+      state.apps.has(state.level === "app" ? node.id : node.app) &&
+      !(state.level === "object" && state.module && node.module !== state.module) &&
+      !(state.level === "object" && state.component && node.component !== state.component));
 
     const candidateEdges = [];
     for (const edge of level.edges) {
       if (!nodeState.has(edge.source) || !nodeState.has(edge.target)) continue;
-      if (!state.dependencies.has(edge.dependency)) continue;
+      if (!state.dependencies.has(edge.dependency) && !(edge.violation && state.dependencies.has("violation"))) continue;
+      if (state.violationsOnly && !edge.violation && edge.dependency !== "violation") continue;
       const weight = enabledWeight(edge);
       const declaredOnly = state.level !== "object" && edge.dependency === "declared-unused";
       if (!weight && !declaredOnly) continue;
@@ -288,7 +305,10 @@
         const crossing = node.metrics.crossAppIn + node.metrics.crossAppOut;
         return crossing ? sequential(Math.min(1, crossing / 6)) : dim();
       }
-      default: return apps.get(state.level === "app" ? node.id : node.app)?.color ?? "#9aa3ad";
+      case "component": return componentColor(node.component);
+      default: return state.level === "component"
+        ? componentColor(node.component)
+        : apps.get(state.level === "app" ? node.id : node.app)?.color ?? "#9aa3ad";
     }
   }
 
@@ -322,6 +342,7 @@
     if (link.ghost) return STATUS_COLORS.removed;
     if (highlightIds && !(highlightIds.has(link.edge.source) && highlightIds.has(link.edge.target) &&
       (link.edge.source === state.selected || link.edge.target === state.selected))) return dim();
+    if (link.edge.violation) return VIOLATION_COLOR;
     if (link.edge.inCycle && link.edge.dependency === "intra-app") return "#c678dd";
     return DEPENDENCIES[link.edge.dependency]?.color ?? "#7b8ba6";
   }
@@ -330,12 +351,13 @@
   function linkWidth(link) {
     const selected = state.selected && (link.edge.source === state.selected || link.edge.target === state.selected);
     if (state.level !== "object") return 0.6 + Math.log2(1 + link.weight) * 0.8 + (selected ? 1 : 0);
+    if (link.edge.violation) return 1.2 + (selected ? 0.8 : 0);
     if (crossesApps(link)) return 0.8 + Math.log2(1 + link.weight) * 0.5 + (selected ? 0.8 : 0);
     return selected ? 0.8 : 0;
   }
   function linkParticles(link) {
     if (!state.particles || link.ghost) return 0;
-    if (link.edge.dependency === "undeclared") return 4;
+    if (link.edge.dependency === "undeclared" || link.edge.violation || link.edge.dependency === "violation") return 4;
     return crossesApps(link) && link.edge.dependency !== "declared-unused" ? 2 : 0;
   }
 
@@ -362,6 +384,7 @@
       ${escapeHtml(source?.label)} → ${escapeHtml(target?.label)}<br>
       <span style="color:${DEPENDENCIES[link.edge.dependency]?.color}">${escapeHtml(DEPENDENCIES[link.edge.dependency]?.label ?? link.edge.dependency)}</span>
       ${link.edge.kinds && Object.keys(link.edge.kinds).length ? `<br>${escapeHtml(kindsText(link.edge.kinds))}` : ""}
+      ${link.edge.violation ? `<br><b style="color:${VIOLATION_COLOR}">Against the architecture:</b> ${escapeHtml(link.edge.violation.title)}` : ""}
     </div>`;
   }
 
@@ -389,7 +412,7 @@
     .linkDirectionalArrowRelPos(1)
     .linkDirectionalArrowColor(linkColor)
     .linkDirectionalParticles(linkParticles)
-    .linkDirectionalParticleWidth((link) => link.edge.dependency === "undeclared" ? 2.4 : 1.6)
+    .linkDirectionalParticleWidth((link) => link.edge.dependency === "undeclared" || link.edge.violation ? 2.4 : 1.6)
     .linkDirectionalParticleSpeed(0.006)
     .linkDirectionalParticleColor(linkColor)
     .onNodeClick((node) => select(node.id, { fly: false }))
@@ -427,11 +450,21 @@
     return { x: Math.cos(theta) * ring * radius, y: y * radius * 0.6, z: Math.sin(theta) * ring * radius };
   }
 
+  function componentAnchor(name) {
+    const total = Math.max(1, components.size);
+    const index = components.get(name)?.order ?? 0;
+    const radius = 90 + 30 * Math.sqrt(total);
+    const y = total === 1 ? 0 : 1 - (index / (total - 1)) * 2;
+    const ring = Math.sqrt(1 - y * y);
+    const theta = Math.PI * (3 - Math.sqrt(5)) * index;
+    return { x: Math.cos(theta) * ring * radius, y: y * radius * 0.6, z: Math.sin(theta) * ring * radius };
+  }
+
   function clusterForce(alpha) {
-    if (state.level === "app" || !["clusters", "app-layers"].includes(state.layout)) return;
+    if (["app", "component"].includes(state.level) || !["clusters", "app-layers", "component-layers"].includes(state.layout)) return;
     const strength = state.layout === "clusters" ? 0.12 : 0.05;
     for (const node of visible.nodes) {
-      const anchor = appAnchor(node.app);
+      const anchor = ARCHITECTURE && node.component ? componentAnchor(node.component) : appAnchor(node.app);
       node.vx += (anchor.x - node.x) * strength * alpha;
       if (state.layout === "clusters") node.vy += (anchor.y - node.y) * strength * alpha;
       node.vz += (anchor.z - node.z) * strength * alpha;
@@ -451,6 +484,7 @@
       node.fy = undefined;
       node.fz = undefined;
       if (state.layout === "app-layers") node.fy = appLayer(node) * 110;
+      if (state.layout === "component-layers") node.fy = (components.get(node.component)?.layer ?? node.layer ?? 0) * 110;
       if (state.layout === "build-layers") node.fy = node.metrics.buildLayer * 55;
       if (state.layout === "time") node.fx = (node.firstFrame - LAST_FRAME / 2) * Math.max(40, 600 / Math.max(1, LAST_FRAME));
       if (state.layout === "flat") node.z = 0;
@@ -495,7 +529,7 @@
 
   function renderStats() {
     const inter = visible.links.filter(crossesApps).length;
-    const noun = { app: "apps", module: "modules" }[state.level] ?? "objects";
+    const noun = { app: "apps", module: "modules", component: "components" }[state.level] ?? "objects";
     $("#stats").textContent = `${visible.nodes.length} ${noun} · ${visible.links.length} dependencies · ${inter} across apps`;
   }
 
@@ -620,7 +654,18 @@
     const incoming = level.edges.filter((edge) => edge.target === id && visibility(edge, false) === "present");
     const metrics = node.metrics;
     const panel = $("#details");
-    const rows = state.level === "module"
+    const rows = state.level === "component"
+      ? [
+          ["Layer", node.layer],
+          ["Objects", node.objectCount],
+          ["May depend on", (node.dependsOn ?? []).join(", ") || "-"],
+          ["Instability", node.componentMetrics?.instability.toFixed(2)],
+          ["Abstractness", node.componentMetrics?.abstractness.toFixed(2)],
+          ["Distance", node.componentMetrics?.distance.toFixed(2)],
+          ["Wrong-way deps", node.violations],
+          ["Ready to extract", node.extractable ? "yes" : "no"]
+        ]
+      : state.level === "module"
       ? [
           ["App", app ? `<span class="swatch" style="display:inline-block;background:${app.color}"></span> ${escapeHtml(app.label)}` : ""],
           ["Manifest", node.path ? `<span class="mono">${escapeHtml(node.path)}</span>` : "app root"],
@@ -637,6 +682,7 @@
         ]
       : [
           ["App", app ? `<span class="swatch" style="display:inline-block;background:${app.color}"></span> ${escapeHtml(app.label)}` : ""],
+          ...(node.component ? [["Component", `<span class="swatch" style="display:inline-block;background:${componentColor(node.component)}"></span> ${escapeHtml(node.component)}`]] : []),
           ["Namespace", escapeHtml(node.namespace)],
           ["Source", node.file ? `<span class="mono">${escapeHtml(node.file)}${node.line ? `:${node.line}` : ""}</span>` : escapeHtml(node.origin)],
           ["Depends on", `${metrics.outDegree} (${metrics.crossAppOut} across apps)`],
@@ -657,6 +703,7 @@
         ${state.level === "object" ? `<button class="icon-button" data-action="only-app">Only this app</button>` : `<button class="icon-button" data-action="drill">Show its objects</button>`}
       </div>
       <dl>${rows.filter(([, value]) => value !== undefined && value !== "").map(([label, value]) => `<dt>${label}</dt><dd>${typeof value === "string" && value.startsWith("<") ? value : escapeHtml(value)}</dd>`).join("")}</dl>
+      ${violationsHtml(outgoing)}
       <h3>Depends on (${outgoing.length})</h3>${dependencyList(outgoing, "out")}
       <h3>Used by (${incoming.length})</h3>${dependencyList(incoming, "in")}
       ${historyHtml(node)}`;
@@ -684,6 +731,9 @@
         <li data-node="${escapeHtml(source?.id)}"><span class="name">From ${escapeHtml(source?.label)}</span></li>
         <li data-node="${escapeHtml(target?.id)}"><span class="name">To ${escapeHtml(target?.label)}</span></li>
       </ul>
+      ${edge.violation ? `<h3>Against the architecture</h3>
+        <p><b>${escapeHtml(edge.violation.title)}</b> · <span class="mono">${escapeHtml(edge.violation.strategy)}</span> · effort ${EFFORT[edge.violation.effort]}</p>
+        <ul class="history-list">${edge.violation.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ul>` : ""}
       ${evidence.length ? `<h3>Evidence</h3><ul class="history-list">${evidence.join("")}</ul>` : ""}
       ${historyHtml(edge)}`;
     panel.classList.add("open");
@@ -712,8 +762,16 @@
       render({ layout: true });
     }
     if (action === "drill" && node) {
+      if (state.level === "component") {
+        state.component = node.component;
+        state.module = undefined;
+        setLevel("object");
+        toast(`Objects of component ${node.label}; Reset filters shows all`);
+        return;
+      }
       state.apps = new Set([state.level === "app" ? node.id : node.app]);
       state.module = state.level === "module" ? node.id : undefined;
+      state.component = undefined;
       setLevel("object");
       if (state.module) toast(`Objects of module ${node.label}; Reset filters shows all`);
     }
@@ -728,6 +786,37 @@
         <span class="name" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
         <span class="count">${total ?? ""}</span>
       </label>`).join("");
+  }
+
+  const EFFORT = { S: "small", M: "medium", L: "large" };
+
+  /** Summary of the target architecture and the work items, largest first. */
+  function architectureHtml() {
+    const summary = ARCHITECTURE.summary;
+    const items = ARCHITECTURE.workItems.slice(0, 12).map((item, index) => {
+      const source = levels.object.byId.get(item.source);
+      return `<li data-work-item="${index}" title="${escapeHtml(item.steps.join(" "))}">
+        <span class="pill" style="background:${VIOLATION_COLOR}">${item.violations}</span>
+        <span class="name">${escapeHtml(source?.label ?? "?")}: ${escapeHtml(item.sourceComponent)} → ${escapeHtml(item.targetComponent)}<br><small>${escapeHtml(item.title)} · ${EFFORT[item.effort]}</small></span>
+      </li>`;
+    }).join("");
+    return `<dl class="architecture-summary">
+        <dt>Components</dt><dd>${summary.components}</dd>
+        <dt>Wrong-way</dt><dd>${summary.violations.toLocaleString("en-US")} ${summary.violations === 1 ? "dependency" : "dependencies"}</dd>
+        <dt>Work items</dt><dd>${summary.workItems.toLocaleString("en-US")}</dd>
+        <dt>Extractable</dt><dd>${summary.extractable} of ${summary.components}</dd>
+      </dl>
+      ${items ? `<ul class="link-list work-items">${items}</ul>` : `<p class="hint">Every dependency follows the architecture.</p>`}
+      <p class="hint">${ARCHITECTURE.mode === "proposal" ? "Proposed from today's dependencies. " : ""}Click a work item to see its object.</p>`;
+  }
+
+  function violationsHtml(edges) {
+    const wrong = edges.filter(({ violation }) => violation);
+    if (!wrong.length) return "";
+    const first = wrong[0].violation;
+    return `<h3>Against the architecture (${wrong.length})</h3>
+      <p><b>${escapeHtml(first.title)}</b> · effort ${EFFORT[first.effort]}</p>
+      <ul class="history-list">${first.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ul>`;
   }
 
   function section(id, title, body, { open = true, bulk = false } = {}) {
@@ -763,10 +852,12 @@
     const kindItems = DOC.vocabulary.kinds.filter((kind) => kindCounts.has(kind)).map((kind) => [kind, kind, kindCounts.get(kind)]);
 
     $("#filters").innerHTML = [
+      ARCHITECTURE ? section("architecture", ARCHITECTURE.mode === "proposal" ? "Proposed architecture" : "Architecture", architectureHtml(), { open: isOpen("architecture") }) : "",
       section("dependencies", "Dependency scope", checkList("dependencies", dependencies, state.dependencies, {
         swatch: (value) => DEPENDENCIES[value].color, line: true
-      }) + `<p class="hint">Inside one app vs. across app boundaries (app.json).</p>`, { open: isOpen("dependencies") }),
-      section("apps", `Apps (${appItems.length})`, checkList("apps", appItems, state.apps, {
+      }) + (ARCHITECTURE ? `<label class="check"><input type="checkbox" data-setting="violationsOnly" ${state.violationsOnly ? "checked" : ""}><span class="swatch line" style="background:${VIOLATION_COLOR}"></span><span class="name">Only dependencies against the architecture</span></label>` : "") +
+        `<p class="hint">Inside one app vs. across app boundaries (app.json).</p>`, { open: isOpen("dependencies") }),
+      state.level === "component" ? "" : section("apps", `Apps (${appItems.length})`, checkList("apps", appItems, state.apps, {
         swatch: (value) => apps.get(value)?.color
       }) + (state.level === "object" ? `<label class="check"><input type="checkbox" data-setting="appContext" ${state.appContext ? "checked" : ""}><span class="name">Show neighbors in other apps</span></label>` : ""),
       { open: isOpen("apps"), bulk: true }),
@@ -775,9 +866,9 @@
         : "",
       section("kinds", "Relation kinds", checkList("kinds", kindItems, state.kinds), { open: isOpen("kinds", false), bulk: true }),
       section("display", "Display", [
-        select_("colorBy", "Color", [["app", "App"], ["type", "Object type"], ["community", "Community (Louvain)"], ["layer", "Build layer"], ["age", "Age (first commit)"], ["cross-app", "Cross-app coupling"]], state.colorBy),
+        select_("colorBy", "Color", [...(ARCHITECTURE ? [["component", "Component"]] : []), ["app", "App"], ["type", "Object type"], ["community", "Community (Louvain)"], ["layer", "Build layer"], ["age", "Age (first commit)"], ["cross-app", "Cross-app coupling"]], state.colorBy),
         state.level === "object" ? select_("sizeBy", "Size", [["pagerank", "PageRank"], ["in", "Used by"], ["out", "Depends on"], ["cross-app", "Cross-app links"], ["uniform", "Uniform"]], state.sizeBy) : "",
-        select_("layout", "Layout", [["clusters", "App clusters (3D)"], ["force", "Free force (3D)"], ["app-layers", "Apps as floors"], ["build-layers", "Build order as floors"], ["time", "Commit timeline axis (4D)"], ["flat", "Flat (2D)"]], state.layout),
+        select_("layout", "Layout", [["clusters", ARCHITECTURE ? "Component clusters (3D)" : "App clusters (3D)"], ...(ARCHITECTURE ? [["component-layers", "Architecture layers as floors"]] : []), ["force", "Free force (3D)"], ["app-layers", "Apps as floors"], ["build-layers", "Build order as floors"], ["time", "Commit timeline axis (4D)"], ["flat", "Flat (2D)"]], state.layout),
         select_("labels", "Labels", [["auto", "Important"], ["all", "All"], ["off", "Off"]], state.labels),
         `<div class="field"><label for="option-minDegree">Min. links</label><input id="option-minDegree" data-setting="minDegree" type="range" min="0" max="10" value="${state.minDegree}"></div>`,
         `<label class="check"><input type="checkbox" data-setting="hideIsolated" ${state.hideIsolated ? "checked" : ""}><span class="name">Hide unconnected nodes</span></label>`,
@@ -794,12 +885,12 @@
   // constants, so nothing typed into the DOM ever reaches innerHTML.
   const LISTS = ["dependencies", "apps", "types", "kinds"];
   const CHOICES = {
-    colorBy: ["app", "type", "community", "layer", "age", "cross-app"],
+    colorBy: ["component", "app", "type", "community", "layer", "age", "cross-app"],
     sizeBy: ["pagerank", "in", "out", "cross-app", "uniform"],
-    layout: ["clusters", "force", "app-layers", "build-layers", "time", "flat"],
+    layout: ["clusters", "force", "component-layers", "app-layers", "build-layers", "time", "flat"],
     labels: ["auto", "all", "off"]
   };
-  const FLAGS = ["appContext", "hideIsolated", "particles", "highlight", "ghosts"];
+  const FLAGS = ["appContext", "hideIsolated", "particles", "highlight", "ghosts", "violationsOnly"];
   const known = (values, value) => values[values.indexOf(value)];
   const listValues = (list) => {
     const name = known(LISTS, list);
@@ -848,6 +939,15 @@
     render();
   });
   $("#filters").addEventListener("click", (event) => {
+    const workItem = event.target.closest("[data-work-item]");
+    if (workItem) {
+      const item = ARCHITECTURE?.workItems[Number(workItem.dataset.workItem)];
+      if (!item) return;
+      state.component = undefined;
+      state.module = undefined;
+      if (state.level !== "object") setLevel("object");
+      return chooseResult(item.source);
+    }
     const bulk = event.target.closest("[data-bulk]");
     if (bulk) {
       event.preventDefault();
@@ -869,7 +969,9 @@
         minDegree: 0,
         hideIsolated: false,
         focusDepth: 0,
-        module: undefined
+        module: undefined,
+        component: undefined,
+        violationsOnly: false
       });
       buildFilters();
       render();
@@ -879,6 +981,7 @@
   // ----------------------------------------------------------------- legend
   function renderLegend() {
     const used = new Set(visible.links.map((link) => link.edge.dependency));
+    if (visible.links.some((link) => link.edge.violation)) used.add("violation");
     const rows = Object.entries(DEPENDENCIES)
       .filter(([key]) => used.has(key))
       .map(([, { label, color }]) => `<div class="row"><span class="swatch line" style="background:${color}"></span>${label}</div>`);
@@ -920,7 +1023,7 @@
     state.hideIsolated = true;
     toast(`${visible.links.length.toLocaleString()} dependencies: showing those that leave a module. Turn on "Inside one app" to see all.`);
   }
-  document.querySelectorAll("[data-level]").forEach((button) => button.addEventListener("click", () => setLevel(known(["object", "module", "app"], button.dataset.level) ?? "object")));
+  document.querySelectorAll("[data-level]").forEach((button) => button.addEventListener("click", () => setLevel(known(["object", "module", "app", "component"], button.dataset.level) ?? "object")));
 
   // --------------------------------------------------------------- timeline
   let timer;
@@ -963,7 +1066,7 @@
     const stats = frame.stats;
     info.innerHTML = `<div class="title" title="${escapeHtml(frame.label)}">${escapeHtml(frame.label || frame.id)}</div>
       <div class="meta">${escapeHtml(frameLabel(state.frame))}${frame.author ? ` · ${escapeHtml(frame.author)}` : ""}${frame.commits > 1 ? ` · ${frame.commits} commits` : ""}
-      · <span class="delta-add">+${stats.addedNodes}</span> <span class="delta-remove">−${stats.removedNodes}</span> <span class="delta-change">~${stats.changedNodes}</span></div>`;
+      · <span class="delta-add">+${stats.addedNodes}</span> <span class="delta-remove">−${stats.removedNodes}</span> <span class="delta-change">~${stats.changedNodes}</span>${Number.isFinite(frame.violations) ? ` · <span class="delta-remove">${Number(frame.violations).toLocaleString("en-US")} against the architecture</span>` : ""}</div>`;
   }
 
   function renderSpark() {
@@ -986,6 +1089,9 @@
         });
     const max = Math.max(1, ...values.map(({ total }) => total));
     const barWidth = width / frames;
+    // Violations against the architecture per commit: a red line over the bars.
+    const violations = state.timeline === "git" ? FRAMES.map((frame) => frame.violations) : [];
+    const maxViolations = Math.max(1, ...violations.filter(Number.isFinite));
     values.forEach((value, index) => {
       const x = index * barWidth;
       const height = (value.total / max) * 28;
@@ -1001,6 +1107,18 @@
         offset += Math.min(markHeight, 3);
       }
     });
+    if (violations.some(Number.isFinite)) {
+      context.strokeStyle = VIOLATION_COLOR;
+      context.lineWidth = 1.5;
+      context.beginPath();
+      violations.forEach((value, index) => {
+        const x = index * barWidth + barWidth / 2;
+        const y = 30 - ((value ?? 0) / maxViolations) * 26;
+        if (index) context.lineTo(x, y);
+        else context.moveTo(x, y);
+      });
+      context.stroke();
+    }
   }
   $("#spark").addEventListener("click", (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -1143,11 +1261,13 @@
     else if (event.key === "1") setLevel("object");
     else if (event.key === "2" && levels.module) setLevel("module");
     else if (event.key === "3" || (event.key === "2" && !levels.module)) setLevel("app");
+    else if (event.key === "4" && levels.component) setLevel("component");
     else if (event.key.toLowerCase() === "f") $("#toggle-filters").click();
   });
 
   // ------------------------------------------------------------------- init
   if (!levels.module) document.querySelector('[data-level="module"]').hidden = true;
+  if (!levels.component) document.querySelector('[data-level="component"]').hidden = true;
   $("#title").textContent = DOC.title;
   $("#title").title = DOC.title;
   $("#lens").textContent = `${DOC.lens.title} · ${FRAMES.length > 1 ? `${FRAMES.length} frames` : "snapshot"}`;
@@ -1156,7 +1276,10 @@
   // Tens of thousands of object edges (a Base Application) start on the
   // module or app level; drill down from there.
   const large = levels.object.edges.length > LARGE_EDGES;
-  if (large) {
+  if (large && levels.component) {
+    setLevel("component");
+    toast("Large graph: starting on the architecture components. Select one and choose Show its objects.");
+  } else if (large) {
     setLevel(levels.module ? "module" : "app");
     toast("Large graph: starting on the module level. Select a module and choose Show its objects.");
   } else {

@@ -37,6 +37,7 @@ Measure architecture health and read the resolved model.
 | Command | Invocation | Purpose |
 | --- | --- | --- |
 | `check` | `bca check [app-root]` | Score architecture health and fail CI on cycles, policy violations, or diagnostics. |
+| `architecture` | `bca architecture [app-root]` | Find a target architecture (components, layers, allowed dependencies), list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
 | `inspect` | `bca inspect [app-root]` | Print the resolved architecture model as JSON. |
 
 ### Document

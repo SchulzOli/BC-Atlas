@@ -149,10 +149,34 @@ const exploreOptions = {
     enum: ["html", "json"]
   }),
   lens: string("Relationship family to explore.", { group: SELECTION, enum: ["dependency"], default: "dependency" }),
+  propose: flag("Show a proposed target architecture (components, layers) when .bca.json defines none.", { group: SELECTION }),
+  groupBy: string("How a proposed architecture groups objects into components.", { group: SELECTION, enum: ["namespace", "folder", "module", "app"] }),
   history: flag("Replay Git history: one frame per commit that changed AL files or app.json.", { group: "Timeline" }),
   maxCommits: string("Most frames to replay; older commits are sampled evenly.", { group: "Timeline", value: "n", default: "60" }),
   since: string("Only replay commits after this date (anything git log --since accepts).", { group: "Timeline", value: "date" }),
   title: string("Explorer title.", { group: OUTPUT, value: "text" }),
+  paths: string("Only analyze AL files in this folder or matching this glob, relative to the project root.", {
+    group: FILTERS,
+    repeatable: true,
+    value: "path"
+  }),
+  ...filterOptions,
+  projectRoot: projectOptions.projectRoot,
+  config: projectOptions.config
+};
+
+const blueprintOptions = {
+  format: string("Report format.", { group: OUTPUT, short: "f", enum: ["text", "markdown", "json"], default: "text" }),
+  output: string("Write the report to a file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
+  propose: flag("Propose an architecture from today's dependencies, even when .bca.json defines one.", { group: "Proposal" }),
+  groupBy: string("How the proposal groups objects into components.", {
+    group: "Proposal",
+    enum: ["namespace", "folder", "module", "app"]
+  }),
+  depth: string("Namespace or folder segments per component; default: split until no component is too large.", { group: "Proposal", value: "n" }),
+  minObjects: string("Merge smaller groups into the component they depend on most.", { group: "Proposal", value: "n", default: "1" }),
+  write: flag("Save the architecture to .bca.json (architecture section).", { group: "Enforcement" }),
+  updateBaseline: flag("Accept today's violations in the baseline file; only new ones fail afterwards.", { group: "Enforcement" }),
   paths: string("Only analyze AL files in this folder or matching this glob, relative to the project root.", {
     group: FILTERS,
     repeatable: true,
@@ -384,6 +408,25 @@ export function createCapabilities(version) {
           "bca check ./app",
           "bca check ./app --fail-on warning",
           "bca check ./app --format markdown -o health.md"
+        ]
+      }),
+      command({
+        id: "architecture",
+        area: "analyze",
+        argv: ["bca", "architecture", "[app-root]"],
+        purpose: "Find a target architecture (components, layers, allowed dependencies), list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline.",
+        options: blueprintOptions,
+        output: { type: "json", when: "--format json", schema: "ArchitectureReport" },
+        rules: [
+          "Without an architecture section in .bca.json, the command proposes one from today's dependencies.",
+          "Exit code 1 when the configured architecture has violations that are not in the baseline.",
+          "bca check enforces the same rules in CI; the baseline only shrinks."
+        ],
+        examples: [
+          "bca architecture ./app",
+          "bca architecture ./app --propose --format markdown -o architecture.md",
+          "bca architecture ./app --propose --write --update-baseline",
+          "bca architecture ./app --format json"
         ]
       }),
       command({
