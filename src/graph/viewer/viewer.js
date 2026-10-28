@@ -77,8 +77,12 @@
     }
     const maxRank = Math.max(1e-9, ...level.nodes.map(({ metrics }) => metrics.pagerank));
     const maxLayer = Math.max(0, ...level.nodes.map(({ metrics }) => metrics.buildLayer));
+    // The "Min. links" slider reaches the 95th percentile of links per node:
+    // 10 on a small app, around 100 on the Base Application.
+    const degrees = level.nodes.map(({ metrics }) => metrics.inDegree + metrics.outDegree).sort((a, b) => a - b);
+    const maxLinks = Math.max(10, Math.min(200, degrees[Math.floor(degrees.length * 0.95)] ?? 10));
     level.edges.forEach((edge) => { edge.firstFrame = edge.presence[0][0]; });
-    levels[name] = { ...level, byId, maxRank, maxLayer };
+    levels[name] = { ...level, byId, maxRank, maxLayer, maxLinks };
   }
 
   const count = (items, read) => {
@@ -888,7 +892,7 @@
         state.level === "object" ? select_("sizeBy", "Size", [["pagerank", "PageRank"], ["in", "Used by"], ["out", "Depends on"], ["cross-app", "Cross-app links"], ["uniform", "Uniform"]], state.sizeBy) : "",
         select_("layout", "Layout", [["clusters", ARCHITECTURE ? "Component clusters (3D)" : "App clusters (3D)"], ...(ARCHITECTURE ? [["component-layers", "Architecture layers as floors"]] : []), ["force", "Free force (3D)"], ["app-layers", "Apps as floors"], ["build-layers", "Build order as floors"], ["time", "Commit timeline axis (4D)"], ["flat", "Flat (2D)"]], state.layout),
         select_("labels", "Labels", [["auto", "Important"], ["all", "All"], ["off", "Off"]], state.labels),
-        `<div class="field"><label for="option-minDegree">Min. links</label><input id="option-minDegree" data-setting="minDegree" type="range" min="0" max="10" value="${state.minDegree}"></div>`,
+        `<div class="field wide"><label for="option-minDegree">Min. links <output id="min-degree-value">${state.minDegree}</output></label><input id="option-minDegree" data-setting="minDegree" type="range" min="0" max="${levels[state.level].maxLinks}" value="${Math.min(state.minDegree, levels[state.level].maxLinks)}"></div>`,
         `<label class="check"><input type="checkbox" data-setting="hideIsolated" ${state.hideIsolated ? "checked" : ""}><span class="name">Hide unconnected nodes</span></label>`,
         `<label class="check"><input type="checkbox" data-setting="particles" ${state.particles ? "checked" : ""}><span class="name">Animate cross-app flow</span></label>`,
         `<label class="check"><input type="checkbox" data-setting="highlight" ${state.highlight ? "checked" : ""}><span class="name">Highlight added and changed</span></label>`,
@@ -918,7 +922,7 @@
         : DOC.vocabulary[name];
     return { name, universe };
   };
-  const toCount = (value) => Math.max(0, Math.min(10, Math.trunc(Number(value)) || 0));
+  const toCount = (value) => Math.max(0, Math.min(levels[state.level].maxLinks, Math.trunc(Number(value)) || 0));
 
   $("#filters").addEventListener("change", (event) => {
     const input = event.target;
@@ -954,6 +958,7 @@
   $("#filters").addEventListener("input", (event) => {
     if (event.target.type !== "range") return;
     state.minDegree = toCount(event.target.value);
+    $("#min-degree-value").textContent = String(state.minDegree);
     render();
   });
   $("#filters").addEventListener("click", (event) => {
@@ -1021,6 +1026,7 @@
     if (level === "component" && state.layout === "clusters") state.layout = "component-layers";
     if (level !== "component" && state.layout === "component-layers" && state.level === "component") state.layout = "clusters";
     state.level = level;
+    state.minDegree = Math.min(state.minDegree, levels[level].maxLinks);
     state.selected = undefined;
     state.focusDepth = 0;
     $("#details").classList.remove("open");

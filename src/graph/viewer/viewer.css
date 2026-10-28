@@ -147,6 +147,9 @@ details.section > summary .summary-actions button:hover { color: var(--text); }
 
 .field { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 6px; padding: 3px 0; }
 .field label { color: var(--muted); }
+.field.wide { grid-template-columns: 1fr; gap: 2px; }
+.field.wide label { display: flex; justify-content: space-between; }
+.field.wide output { color: var(--text); font-variant-numeric: tabular-nums; }
 .field select, .field input[type="range"] { width: 100%; }
 .field select {
   padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--input);
