@@ -81,7 +81,7 @@ Skip hooks once with `git commit --no-verify` or `git push --no-verify`.
 - a health check whose findings appear in the Problems panel;
 - report and documentation builds;
 - dry runs of the pre-commit and pre-push hooks;
-- a live architecture diagram (background `bca watch`);
+- the BC Atlas app, updated on every AL change (background `bca app`);
 - the setup wizard.
 
 See [Guided setup](./setup.md#local-development).
@@ -157,7 +157,7 @@ sync, allow the build service to contribute to the repository.
 ## Read the model from scripts
 
 ```sh
-bca inspect ./app -o architecture.json
+bca export ./app --view project --format json -o architecture.json
 bca check ./app --format json > health.json
 bca run ./app --trigger ci --format json > run.json
 ```

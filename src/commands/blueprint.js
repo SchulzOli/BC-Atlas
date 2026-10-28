@@ -13,7 +13,7 @@ export function renderArchitecture(assessment, format = "text") {
 }
 
 /** Saves the evaluated architecture in .bca.json, keeping every other setting. */
-async function writeArchitectureConfig(assessment) {
+export async function writeArchitectureConfig(assessment) {
   const file = assessment.context.config.path ?? path.join(assessment.context.projectRoot, ".bca.json");
   let config = {};
   try {

@@ -19,7 +19,7 @@ The command writes matching D2 source and SVG files to `examples/output`:
 - `ui` focuses on pages, actions, extensions, and source tables.
 
 It also writes the complete [architecture report](./report/README.md) produced
-by `bca report examples/warehouse-app --output-dir examples/report --codegraph`,
+by `bca export examples/warehouse-app --view report -o examples/report --codegraph`,
 including the health summary and one Markdown page per object.
 
 Finally it generates the [user documentation](./docs/index.md) from the AL UI
@@ -33,18 +33,24 @@ them without declaring it. `npm run examples` replays it as a Git history and
 writes the [dependency explorer example](./explorer/README.md):
 
 ```sh
-node src/cli.js explore examples/multi-app -o dependencies.html
+node src/cli.js export examples/multi-app --view explorer -o dependencies.html
 ```
 
-You can also explore other views:
+Open either example in the app, or export other views:
 
 ```sh
-node src/cli.js graph examples/warehouse-app --view contracts -o contracts.svg
-node src/cli.js graph examples/warehouse-app --view events -o events.svg
-node src/cli.js graph examples/warehouse-app --view data -o data.svg
-node src/cli.js inspect examples/warehouse-app -o model.json
+node src/cli.js app examples/warehouse-app
+node src/cli.js export examples/warehouse-app -o warehouse.html
+node src/cli.js export examples/warehouse-app --view contracts -o contracts.svg
+node src/cli.js export examples/warehouse-app --view events -o events.svg
+node src/cli.js export examples/warehouse-app --view data -o data.svg
+node src/cli.js export examples/warehouse-app --view project -f json -o model.json
 node src/cli.js check examples/warehouse-app
 ```
+
+The documentation website hosts both examples as exported apps:
+[warehouse](https://schulzoli.github.io/BC-Atlas/examples/app/html/warehouse-app.html)
+and [multi-app](https://schulzoli.github.io/BC-Atlas/examples/app/html/multi-app.html).
 
 The PNG images in `docs/generated/images` are browser captures of these SVG
 outputs at a consistent viewport. Regenerate the SVG files first whenever view

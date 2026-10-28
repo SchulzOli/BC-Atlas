@@ -75,9 +75,11 @@ export async function createGraphDocument(input, values = {}, { onFrame } = {}) 
     frames.push({ ...frame, levels: undefined, ...(architecture ? { violations: assessment.summary.violations } : {}) });
   };
   let history;
-  if (options.history) {
+  if (options.history || options.historyBy) {
     history = await replayHistory(projectRoot, {
+      by: options.historyBy ?? "commits",
       maxCommits: positiveInteger(options.maxCommits, "max-commits", 60),
+      last: options.last === undefined ? undefined : positiveInteger(options.last, "last"),
       since: options.since,
       fileFilter
     }, async (directory, frame, index, total) => {
@@ -111,6 +113,7 @@ export async function createGraphDocument(input, values = {}, { onFrame } = {}) 
     project: { name: path.basename(projectRoot) },
     timeline: {
       source: history ? "git" : "snapshot",
+      ...(history ? { by: history.by, steps: history.steps } : {}),
       commits: history?.commits ?? 0,
       frames: frames.map(({ levels: _levels, changedFiles, ...frame }, index) => ({
         index,

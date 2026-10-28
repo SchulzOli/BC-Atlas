@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 
 const read = (name) => readFileSync(new URL(`./viewer/${name}`, import.meta.url), "utf8");
+const theme = () => readFileSync(new URL("../ui/theme.css", import.meta.url), "utf8");
 
 let library;
 /** The 3d-force-graph browser bundle (MIT, includes three.js). */
@@ -43,7 +44,7 @@ export function renderExplorerHtml(document) {
   return read("template.html")
     .replace("__TITLE__", () => escapeHtml(document.title))
     .replace("__GENERATOR__", () => escapeHtml(document.generator))
-    .replace("/*__STYLE__*/", () => read("viewer.css"))
+    .replace("/*__STYLE__*/", () => `${theme()}\n${read("viewer.css")}`)
     .replace("__DATA__", () => dataScript(document))
     .replace("/*__LIBRARY__*/", () => forceGraphLibrary())
     .replace("/*__APP__*/", () => read("viewer.js"));

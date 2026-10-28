@@ -5,27 +5,18 @@ import { createCapabilities, findCommand } from "./capabilities.js";
 import { parseCommandArgs } from "./cli/args.js";
 import { describeError, UsageError } from "./cli/errors.js";
 import { commandHelp, docsOverviewHelp, overviewHelp } from "./cli/help.js";
-import { graphCommand, inspectCommand, watchCommand } from "./commands/architecture.js";
+import { appCommand } from "./commands/app.js";
 import { checkCommand } from "./commands/check.js";
-import { exploreCommand } from "./commands/explore.js";
 import { architectureCommand } from "./commands/blueprint.js";
-import { initCommand } from "./commands/init.js";
-import { reportCommand } from "./commands/report.js";
+import { exportCommand } from "./commands/export.js";
 import { runCommand } from "./commands/run.js";
 import { updateCommand } from "./commands/update.js";
 import { maybeNotifyUpdate } from "./update.js";
 import { setupAgentCommand, setupApplyCommand, setupCommand, setupPlanCommand } from "./commands/setup.js";
-import { generateCodeGraph } from "./codegraph.js";
 import { DOCS_COMMANDS } from "./docs/cli.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const capabilities = createCapabilities(pkg.version);
-
-async function codegraphCommand(input, values) {
-  const result = await generateCodeGraph(input, values);
-  console.log(`Generated ${result.objects} object page(s); ${result.unresolved} unresolved reference(s).`);
-  console.log(`Wrote ${result.outputDirectory}`);
-}
 
 async function mcpCommand() {
   const { startMcpServer } = await import("./mcp.js");
@@ -33,22 +24,16 @@ async function mcpCommand() {
 }
 
 const HANDLERS = {
-  init: initCommand,
+  app: appCommand,
   setup: setupCommand,
   "setup.plan": setupPlanCommand,
   "setup.apply": setupApplyCommand,
   "setup.agent": setupAgentCommand,
-  report: reportCommand,
+  check: checkCommand,
+  architecture: architectureCommand,
+  export: exportCommand,
   run: runCommand,
   update: updateCommand,
-  graph: graphCommand,
-  watch: watchCommand,
-  explore: exploreCommand,
-  architecture: architectureCommand,
-  check: checkCommand,
-  inspect: inspectCommand,
-  codegraph: codegraphCommand,
-  capabilities: () => process.stdout.write(`${JSON.stringify(capabilities, null, 2)}\n`),
   mcp: mcpCommand,
   ...DOCS_COMMANDS
 };
@@ -76,12 +61,12 @@ function resolveCommand(args) {
   }
   if (first === "setup" && findCommand(capabilities, `setup.${second}`)) return { id: `setup.${second}`, args: rest };
   if (TOP_LEVEL.has(first)) return { id: first, args: args.slice(1) };
-  // `bca <path>` remains a shortcut for `bca graph <path>`.
-  if (first && !first.startsWith("-") && existsSync(first)) return { id: "graph", args };
+  // `bca <path>` opens the app for that path.
+  if (first && !first.startsWith("-") && existsSync(first)) return { id: "app", args };
   if (first && !first.startsWith("-")) {
     throw new UsageError(`unknown command or path "${first}".${suggestion(first)}`);
   }
-  return { id: "graph", args };
+  return { id: "app", args };
 }
 
 async function main(args) {
@@ -94,6 +79,12 @@ async function main(args) {
     return maybeNotifyUpdate(pkg.version, { command: "version" });
   }
   if (args[0] === "help") {
+    if (args[1] === "--format" || args[1]?.startsWith("--format=")) {
+      const format = args[1].includes("=") ? args[1].split("=")[1] : args[2];
+      if (format !== "json" && format !== "text") throw new UsageError("--format must be json or text");
+      if (format === "json") return process.stdout.write(`${JSON.stringify(capabilities, null, 2)}\n`);
+      return process.stdout.write(overviewHelp(capabilities));
+    }
     if (!args[1]) return process.stdout.write(overviewHelp(capabilities));
     const id = args[2] && findCommand(capabilities, `${args[1]}.${args[2]}`) ? `${args[1]}.${args[2]}` : args[1];
     if (id === "docs") return process.stdout.write(docsOverviewHelp(capabilities));

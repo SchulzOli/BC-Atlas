@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { FORMATS } from "./capabilities.js";
 import { renderD2 } from "./d2.js";
-import { renderSvg } from "./svg.js";
+import { MAX_DIAGRAM_NODES, renderSvg } from "./svg.js";
 
 function runD2Executable(source, output, options) {
   return new Promise((resolve, reject) => {
@@ -77,6 +77,9 @@ export async function writeArchitecture(architecture, target) {
   await writeFile(target.d2Output, source);
   if (target.format === "d2") return { files: [target.d2Output] };
   if (target.format === "svg") {
+    if (model.objects.length > MAX_DIAGRAM_NODES) {
+      throw new Error(`${model.objects.length} nodes are too many for the bundled SVG renderer (at most ${MAX_DIAGRAM_NODES}); wrote ${target.d2Output}. Filter with --namespace or --paths, choose a focused view, or render the D2 file with the d2 executable`);
+    }
     await writeFile(target.finalOutput, await renderSvg(source, options));
   } else {
     await fs.mkdir(path.dirname(target.finalOutput), { recursive: true });

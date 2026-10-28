@@ -4,6 +4,10 @@ import os from "node:os";
 import path from "node:path";
 
 const FIELD = "\u001f";
+const RECORD = "\u001e";
+
+/** What one timeline frame stands for. */
+export const HISTORY_MODES = Object.freeze(["commits", "prs", "releases"]);
 
 function git(cwd, args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
@@ -77,8 +81,26 @@ function blobReader(cwd) {
   };
 }
 
-/** Lists commits that touched AL files or app.json below the project root. */
-export function projectCommits(projectRoot, { since } = {}) {
+/**
+ * Recognizes a merged pull request from a commit message: GitHub merge
+ * commits ("Merge pull request #12 from ..."; the title is the first body
+ * line), squash merges ("Title (#12)"), Azure DevOps ("Merged PR 12: Title"),
+ * and GitLab merge commits ("See merge request group/project!12").
+ */
+export function pullRequestOf(subject = "", body = "") {
+  const firstLine = body.split("\n").map((line) => line.trim()).find(Boolean);
+  let match = /^Merge pull request #(\d+)\b/u.exec(subject);
+  if (match) return { number: Number(match[1]), id: `#${match[1]}`, title: firstLine ?? subject };
+  match = /^Merged PR (\d+):\s*(.+)$/u.exec(subject);
+  if (match) return { number: Number(match[1]), id: `#${match[1]}`, title: match[2] };
+  match = /See merge request \S*!(\d+)/u.exec(body);
+  if (match) return { number: Number(match[1]), id: `!${match[1]}`, title: firstLine && !firstLine.startsWith("See merge request") ? firstLine : subject };
+  match = /^(.*\S)\s+\(#(\d+)\)$/u.exec(subject);
+  if (match) return { number: Number(match[2]), id: `#${match[2]}`, title: match[1] };
+  return undefined;
+}
+
+function repositoryOf(projectRoot) {
   let repository;
   try {
     repository = git(projectRoot, ["rev-parse", "--show-toplevel"]).trim();
@@ -89,6 +111,86 @@ export function projectCommits(projectRoot, { since } = {}) {
   // Ask Git for the prefix: paths like C:\Users\RUNNER~1 and C:/Users/runneradmin
   // name the same folder but do not compare equal.
   const prefix = git(projectRoot, ["rev-parse", "--show-prefix"]).trim().replace(/\/$/u, "");
+  return { repository, prefix };
+}
+
+function readLog(repository, args) {
+  return git(repository, ["log", `--format=%H${FIELD}%h${FIELD}%aI${FIELD}%an${FIELD}%s${FIELD}%b${RECORD}`, ...args])
+    .split(RECORD)
+    .map((record) => record.replace(/^\n/u, ""))
+    .filter(Boolean)
+    .map((record) => {
+      const [sha, short, date, author, subject, body = ""] = record.split(FIELD);
+      // Git versions print %aI as "Z" or "+00:00"; normalize to UTC for stable output.
+      return { sha, short, date: new Date(date).toISOString(), author, subject, body };
+    });
+}
+
+const count = (repository, args) => Number(git(repository, ["rev-list", "--count", ...args]).trim());
+
+/** One step per merged pull request on the first-parent line; direct commits stay commits. */
+function pullRequestSteps(repository, prefix, { since }) {
+  const args = ["--first-parent", "--reverse"];
+  if (since) args.push(`--since=${since}`);
+  return readLog(repository, [...args, "--", ...pathspecs(prefix)]).map((commit) => {
+    const pull = pullRequestOf(commit.subject, commit.body);
+    if (!pull) return { ...commit, kind: "commit", id: commit.short, label: commit.subject, commits: 1 };
+    const merge = git(repository, ["rev-list", "--parents", "-n", "1", commit.sha]).trim().split(" ").length > 2;
+    return {
+      ...commit,
+      kind: "pull-request",
+      id: pull.id,
+      label: pull.title,
+      number: pull.number,
+      commits: merge ? count(repository, ["--no-merges", `${commit.sha}^1..${commit.sha}`]) : 1
+    };
+  });
+}
+
+/** One step per release tag reachable from HEAD, plus the commits after the last one. */
+function releaseSteps(repository, prefix, { since }) {
+  const tags = git(repository, [
+    "for-each-ref", "--merged", "HEAD", "--sort=creatordate",
+    `--format=%(refname:short)${FIELD}%(objectname)${FIELD}%(*objectname)${FIELD}%(creatordate:iso-strict)${FIELD}%(taggername)${FIELD}%(contents:subject)`,
+    "refs/tags"
+  ]).split("\n").filter(Boolean).map((line) => {
+    const [name, object, peeled, date, tagger, subject] = line.split(FIELD);
+    return { name, sha: peeled || object, date: new Date(date).toISOString(), tagger, subject };
+  });
+  const specs = pathspecs(prefix);
+  // --since takes anything git log accepts, so Git decides which releases are recent.
+  const recent = since ? new Set(git(repository, ["rev-list", `--since=${since}`, "HEAD"]).split("\n").filter(Boolean)) : undefined;
+  const steps = [];
+  let previous;
+  for (const tag of tags) {
+    if (recent && !recent.has(tag.sha)) {
+      previous = tag.sha;
+      continue;
+    }
+    const [commit] = readLog(repository, ["-1", tag.sha]);
+    steps.push({
+      ...commit,
+      sha: commit.sha,
+      kind: "release",
+      id: tag.name,
+      label: tag.subject && tag.subject !== commit.subject ? `${tag.name}: ${tag.subject}` : tag.name,
+      author: tag.tagger || commit.author,
+      date: tag.date,
+      commits: count(repository, [previous ? `${previous}..${tag.sha}` : tag.sha, "--", ...specs])
+    });
+    previous = tag.sha;
+  }
+  const unreleased = count(repository, [previous ? `${previous}..HEAD` : "HEAD", "--", ...specs]);
+  if (unreleased && previous) {
+    const [head] = readLog(repository, ["-1", "HEAD"]);
+    steps.push({ ...head, kind: "unreleased", id: "unreleased", label: `Unreleased: ${head.subject}`, commits: unreleased });
+  }
+  return steps;
+}
+
+/** Lists commits that touched AL files or app.json below the project root. */
+export function projectCommits(projectRoot, { since } = {}) {
+  const { repository, prefix } = repositoryOf(projectRoot);
   const args = ["log", "--reverse", `--format=%H${FIELD}%h${FIELD}%aI${FIELD}%an${FIELD}%s`];
   if (since) args.push(`--since=${since}`);
   const commits = git(repository, [...args, "--", ...pathspecs(prefix)])
@@ -108,9 +210,17 @@ export function projectCommits(projectRoot, { since } = {}) {
  * `visit`. The working tree becomes a last frame when it has uncommitted
  * AL changes.
  */
-export async function replayHistory(projectRoot, { maxCommits = 60, since, fileFilter } = {}, visit) {
+export async function replayHistory(projectRoot, { by = "commits", maxCommits = 60, last, since, fileFilter } = {}, visit) {
+  if (!HISTORY_MODES.includes(by)) throw new Error(`history steps must be one of: ${HISTORY_MODES.join(", ")}`);
   const { repository, prefix, commits: all } = projectCommits(projectRoot, { since });
-  const commits = sampleCommits(all, maxCommits);
+  let steps = by === "prs"
+    ? pullRequestSteps(repository, prefix, { since })
+    : by === "releases"
+      ? releaseSteps(repository, prefix, { since })
+      : all.map((commit) => ({ ...commit, kind: "commit", id: commit.short, label: commit.subject }));
+  if (by === "releases" && !steps.length) throw new Error("no release tags reachable from HEAD; use --history-by commits or prs");
+  if (last) steps = steps.slice(-last);
+  const commits = sampleCommits(steps, maxCommits);
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "bca-history-"));
   const reader = blobReader(repository);
   const local = (file) => {
@@ -131,6 +241,8 @@ export async function replayHistory(projectRoot, { maxCommits = 60, since, fileF
         : git(repository, ["ls-tree", "-r", "-z", "--name-only", commit.sha])
           .split("\0").filter((file) => file && relevant(prefix, file, fileFilter))
           .map((file) => ({ status: "A", file }));
+      // Releases or pull requests from before the project existed have nothing to show.
+      if (!previous && !changes.length) continue;
       for (const { status, file } of changes) {
         const target = local(file);
         if (status.startsWith("D")) {
@@ -142,15 +254,20 @@ export async function replayHistory(projectRoot, { maxCommits = 60, since, fileF
         await fs.mkdir(path.dirname(target), { recursive: true });
         await fs.writeFile(target, content);
       }
-      const span = previous ? all.indexOf(commit) - all.indexOf(previous) : all.indexOf(commit) + 1;
+      // A step stands for every commit since the previous one; sampled steps
+      // add up the ones they skip.
+      const skipped = steps.slice(previous ? steps.indexOf(previous) + 1 : 0, steps.indexOf(commit) + 1);
+      const span = skipped.reduce((sum, step) => sum + (step.commits ?? 1), 0);
       await visit(directory, {
-        id: commit.short,
+        id: commit.id,
         sha: commit.sha,
-        kind: "commit",
-        label: commit.subject,
+        kind: commit.kind,
+        label: commit.label,
         date: commit.date,
         author: commit.author,
         commits: span,
+        ...(commit.number ? { number: commit.number } : {}),
+        ...(skipped.length > 1 && by !== "commits" ? { includes: skipped.length } : {}),
         changedFiles: new Set(changes.map(({ file }) => toPosix(path.relative(directory, local(file)))))
       }, index, commits.length);
       previous = commit;
@@ -165,5 +282,5 @@ export async function replayHistory(projectRoot, { maxCommits = 60, since, fileF
     .map((entry) => entry.slice(3))
     .filter((file) => relevant(prefix, file, fileFilter))
     .map((file) => prefix ? file.slice(prefix.length + 1) : file);
-  return { commits: all.length, sampled: commits.length, workingTreeChanges: dirty };
+  return { by, commits: all.length, steps: steps.length, sampled: commits.length, workingTreeChanges: dirty };
 }

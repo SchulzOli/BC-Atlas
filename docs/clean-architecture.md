@@ -15,7 +15,7 @@ become an app of its own only when nothing it uses points outward or sideways.
 bca architecture ./app --propose --format markdown -o architecture.md   # 1. find
 bca architecture ./app --propose --write --update-baseline               # 2. adopt
 bca check ./app                                                          # 3. enforce
-bca explore ./app --history -o architecture.html                         # 4. watch
+bca app ./app                                                            # 4. watch
 ```
 
 ## 1. Find a suitable architecture
@@ -24,17 +24,28 @@ Without an `architecture` section in `.bca.json`, `bca architecture` proposes
 one from today's dependencies:
 
 1. **Group** the objects into candidate components. By default (`auto`) every
-   module (nested `app.json`) or app is a component, and any that holds more
-   than 15% of the objects is split by namespace: one segment below the common
-   prefix, and deeper until no part is that large. `--group-by namespace`,
-   `folder`, `module`, or `app` chooses one grouping; `--depth` fixes the
-   number of namespace or folder segments.
+   module (nested `app.json`) or app is a component, and any that is too large
+   is split by namespace (see below). `--group-by namespace`, `folder`,
+   `module`, or `app` chooses one grouping; `--depth` fixes the number of
+   namespace or folder segments.
 2. **Order** the components so that as few object dependencies as possible
    point against the order (a weighted feedback arc set). Permission sets are
    left out of this step: they grant access to everything and follow the
    components instead of shaping them.
 3. **Layer** them: layer 0 is the core, every other component sits one layer
    above the deepest component it may use.
+
+### When a component is split by namespace
+
+| Step | Rule |
+| --- | --- |
+| Too large | More than 15% of the analyzed objects, and at least 40: `max(40, 15% × objects)`. For the Base Application run below (8,347 objects) that is 1,253. |
+| First cut | One namespace segment below the prefix the objects share, e.g. `Microsoft.Sales`, `Microsoft.Finance`. |
+| Deeper | A part with more than 15% (and at least 40) of the split objects goes one segment deeper, for at most 8 rounds. |
+| Leftovers | Objects directly in a namespace that was split deeper stay together as a component of their own. |
+| Context | Objects outside the analyzed path (`--paths`, a focus folder) are not split; each of their apps stays one component. |
+| Small groups | `--min-objects N` merges groups with fewer than N objects into the component they depend on most. Default: 1 (no merging). |
+| Overrides | `--depth N` uses N segments and never splits further; `--group-by namespace` splits every object by namespace, not only large modules. |
 
 The proposal lists the components with their layers and allowed dependencies,
 the dependencies that still point the wrong way, which components can become
@@ -85,13 +96,28 @@ Selectors:
 
 ## 3. Resolve what stands in the way
 
-Every dependency that breaks a rule is a **violation**:
+Every dependency that breaks a rule is a **violation**.
 
-| Rule | Meaning |
-| --- | --- |
-| `outward-dependency` | A component uses a component in a higher layer. |
-| `same-layer-dependency` | A component uses a sibling in the same layer. |
-| `undeclared-component-dependency` | The target is not in `dependsOn`. |
+**What is checked.** Only dependencies between two different components. All
+13 relation kinds count (extends, implements, calls, uses, reads, writes,
+relates, selects, runs, part, subscribes, permits, includes). Not checked:
+dependencies inside one component, and dependencies to objects that belong to
+no component, such as platform objects (`Integer`, `Date`), unresolved
+references, and package symbols no selector matches.
+
+**The rules, in order.** For a dependency from component A to component B, the
+first rule that applies decides:
+
+| # | When | Result |
+| --- | --- | --- |
+| 1 | A has `dependsOn` | Allowed only if B is listed, otherwise `undeclared-component-dependency`. Layers are not consulted. The list is direct, not transitive: A → B → C does not allow A → C. |
+| 2 | A or B has no `layer` | Allowed (no rule applies). |
+| 3 | B's layer is higher than A's | `outward-dependency`: an inner component uses an outer one. |
+| 4 | Same layer and `allowSameLayer` is `false` | `same-layer-dependency`: siblings that use each other cannot become separate apps. |
+| 5 | B's layer is lower | Allowed. |
+
+A proposal sets `dependsOn` on every component, so its violations always come
+from rule 1.
 
 Violations are grouped into **work items**: one per source object, target
 component, and strategy. Each one says what to do in AL terms:
@@ -125,8 +151,9 @@ Per component, after Robert C. Martin:
 | Abstractness (A) | Share of interfaces among the objects. |
 | Distance (D) | \|A + I − 1\|: stable components should be abstract, unstable ones concrete. |
 
-A component that depends on a less stable one breaks the stable dependencies
-principle; the Markdown report lists those pairs.
+A component that depends on a less stable one (instability higher by more
+than 0.1) breaks the stable dependencies principle; the Markdown report lists
+those pairs. This is information only and never fails a check.
 
 ## 4. Enforce it over time
 
@@ -150,8 +177,11 @@ architecture cannot erode silently. Commit `.bca.json` and the baseline.
 
 ## 5. See it
 
-`bca explore` shows the architecture as soon as `.bca.json` defines one, or
-with `--propose`:
+The app (`bca app`) has an Architecture page with the layers, the work items,
+and the components, and buttons to adopt a proposal and to accept today's
+violations. Its Dependencies page, the 3D explorer (also
+`bca export --view explorer`), shows the architecture as soon as `.bca.json`
+defines one, or with `--propose`:
 
 - a **Components** level with allowed (green) and wrong-way (red) component
   dependencies; select a component and choose **Show its objects**;

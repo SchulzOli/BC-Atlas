@@ -10,7 +10,7 @@
   the Base Application's `Customer` table (unresolved, no symbols).
 
 `npm run examples` commits the workspace step by step into a temporary Git
-repository and runs `bca explore --history` on it, so the timeline has five
+repository and runs the explorer export with `--history` on it, so the timeline has five
 frames: Core, a legacy pricing codeunit, Sales on top of Core, the quote
 export, and finally the item sync that introduces the undeclared dependency
 while the legacy codeunit is removed.
@@ -19,7 +19,7 @@ while the legacy codeunit is removed.
 (published with the documentation website), or build it locally:
 
 ```sh
-node src/cli.js explore examples/multi-app -o dependencies.html
+node src/cli.js export examples/multi-app --view explorer -o dependencies.html
 ```
 
 ![Dependency explorer showing three apps, cross-app dependencies, and the commit timeline](../../docs/generated/images/explorer-view.png)

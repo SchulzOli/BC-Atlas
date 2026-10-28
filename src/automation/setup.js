@@ -4,7 +4,7 @@
 // the terminal wizard, or an AI agent relays them and calls the CLI.
 import { chmod, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { createStarterConfig } from "../commands/init.js";
+import { createStarterConfig } from "./starter.js";
 import { EXPORT_FORMATS } from "../docs/export.js";
 import { loadCorpus } from "../docs/model.js";
 import { CI_PROVIDERS, DEFAULTS, HOOK_MANAGERS, outputsFor, parseList, TASKS, validateCron } from "./config.js";
@@ -57,7 +57,7 @@ async function xliffLanguages(root) {
 }
 
 /** Finds the folder with the most documented UI-test scenarios. */
-async function findUiTests(root, gitRoot) {
+export async function findUiTests(root, gitRoot) {
   const candidates = new Set(["."]);
   for (const directory of await directories(root)) if (/test/iu.test(path.basename(directory))) candidates.add(directory);
   if (gitRoot && gitRoot !== root) {

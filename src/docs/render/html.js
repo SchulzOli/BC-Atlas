@@ -1,6 +1,7 @@
 // Single self-contained HTML file: navigation, use cases, journey, indexes,
 // coverage, and every scenario as a guide or test case. No external assets,
 // prints cleanly, and works offline or as a pipeline artifact.
+import { readFileSync } from "node:fs";
 import { label, phrase } from "../phrases.js";
 import { escapeXml, html } from "./format.js";
 import { testCaseRows } from "./markdown.js";
@@ -8,11 +9,11 @@ import { humanizeFeature, sameAsTitle } from "../task.js";
 
 const LINK_HEADINGS = { next: "heading.next", related: "heading.related", alternative: "heading.alternative" };
 
-const STYLE = `
-:root{--bg:#fff;--fg:#1b1f24;--muted:#5b6470;--line:#d9dee4;--accent:#0b62d6;--soft:#f3f6f9;--ui:#0b3d7a}
-@media (prefers-color-scheme:dark){:root{--bg:#14171b;--fg:#e6e9ed;--muted:#9aa4b0;--line:#2c333b;--accent:#6aa7ff;--soft:#1c2127;--ui:#a9c8ff}}
+// The BC Atlas design tokens (src/ui/theme.css), so the guides look like the app.
+const STYLE = `${readFileSync(new URL("../../ui/theme.css", import.meta.url), "utf8")}
+:root{--fg:var(--text);--line:var(--border);--soft:var(--surface-2);--ui:var(--accent)}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif}
+body{margin:0;background:var(--surface);color:var(--fg);font:15px/1.55 var(--font)}
 header{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 header h1{margin:0;font-size:22px;flex:1 1 auto}
 header input{flex:0 1 280px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--soft);color:var(--fg)}

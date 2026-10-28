@@ -6,13 +6,15 @@ Command-line options override configuration values.
 
 ## Create a configuration
 
-Run `bca init` in the folder that contains `app.json`. It writes a starter
+Run `bca setup` in the folder that contains `app.json`. It writes a starter
 `.bca.json` with your app name, excluded test folders, source links for your
-Git host, and default `check` and `report` sections. Use `--print` to preview
-it or `--force` to replace an existing file.
+Git host, and default `check` and `report` sections, and asks which
+automation you want. For the file alone, answer `none` to the automation
+questions or run:
 
 ```sh
-bca init ./app
+bca setup apply ./app --hooks none --ci none --editor none --schedule none --dry-run
+bca setup apply ./app --hooks none --ci none --editor none --schedule none
 ```
 
 The complete reference is [`.bca.example.json`](../.bca.example.json). A

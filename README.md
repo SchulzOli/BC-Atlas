@@ -11,7 +11,9 @@ projects - straight from source.**
 BC Atlas (`bca`) parses AL with
 [`tree-sitter-al`](https://github.com/SShadowS/tree-sitter-al), resolves
 objects, calls, events, data access, and permissions into an architecture
-model, and turns it into diagrams, health checks, reports, and documentation.
+model, and shows it in one app: overview, health, a target architecture with
+the work to reach it, a 3D dependency explorer, diagrams, one page per object,
+and documentation from UI tests. The same results are files for Git and CI.
 Parser and renderer are WebAssembly: Node.js is the only requirement.
 
 **Documentation: [schulzoli.github.io/BC-Atlas](https://schulzoli.github.io/BC-Atlas/)**
@@ -19,31 +21,28 @@ Parser and renderer are WebAssembly: Node.js is the only requirement.
 ```sh
 npm install --global bc-atlas
 cd path/to/al-project
-bca setup     # features, Husky hooks, VS Code tasks, pipeline, schedule (or: bca setup agent)
-bca report    # docs/atlas/README.md: overview, diagrams, health
-bca check     # architecture gate for CI
-bca update    # new version? see what changed and update everything in one step
+bca .                       # open the app in your browser; it updates while you code
+bca setup                   # .bca.json, Husky hooks, VS Code tasks, pipeline, schedule (or: bca setup agent)
+bca check                   # architecture gate for CI
+bca export --view report    # docs/atlas/README.md: overview, diagrams, health
+bca update                  # new version? see what changed and update everything in one step
 ```
+
+![The BC Atlas app: overview of the multi-app example with health, architecture, and the most connected objects](./docs/generated/images/app-overview.png)
 
 ## Features at a glance
 
 | Area | Command | What you get |
 | --- | --- | --- |
-| **Get started** | `bca setup` | Guided setup in the terminal or through your AI agent (Claude Code, Copilot, Cursor): features, Husky or Git hooks, GitHub Actions or Azure Pipelines, cron schedule, and sync. |
-| | `bca init` | A starter `.bca.json`: title, excluded test folders, source links for your Git host. |
-| | `bca report` | One Markdown page with an at-a-glance table, six architecture diagrams, and the health summary. [Example](./examples/report/README.md) |
-| **Visualize** | `bca graph` | D2, SVG, PNG, PDF, or JSON for ten focused views (below). |
-| | `bca watch` | The same diagram, rebuilt on every AL change. |
-| | `bca explore` | An interactive 3D dependency explorer: inside one app vs. across apps, filterable, replayable over Git history. [Guide](./docs/dependency-explorer.md) |
-| **Analyze** | `bca architecture` | Find a target architecture (components, layers), list every dependency that blocks it with how to resolve it, and enforce it with a shrinking baseline. [Guide](./docs/clean-architecture.md) |
-| | `bca check` | Health findings - cycles, forbidden dependencies, hot spots, diagnostics - with a CI exit code. |
-| | `bca inspect` | The resolved architecture model as JSON for scripts. |
-| **Document** | `bca codegraph` | One linked Markdown page per AL object. |
+| **Get started** | `bca app` | The BC Atlas app in your browser, for one project: overview, health, architecture, 3D dependencies, diagrams, objects, and docs, updated on every AL change. `bca <app-root>` opens it. [Guide](./docs/app.md) |
+| | `bca setup` | Guided setup in the terminal or through your AI agent (Claude Code, Copilot, Cursor): a starter `.bca.json`, features, Husky or Git hooks, GitHub Actions or Azure Pipelines, cron schedule, and sync. |
+| **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, architecture violations, hot spots, diagnostics - with a CI exit code. |
+| | `bca architecture` | Find a target architecture (components, layers), list every dependency that blocks it with how to resolve it, and enforce it with a shrinking baseline. [Guide](./docs/clean-architecture.md) |
+| **Export** | `bca export` | Everything the app shows, as files: the app as one offline HTML file (default), the Markdown report ([example](./examples/report/README.md)), the 3D explorer, one Markdown page per object, any of ten diagram views as D2, SVG, PNG, PDF, or JSON, with `--watch`. |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations, a flow diagram per scenario, and BPMN 2.0 processes per use case. [Example](./examples/docs/index.md) |
 | **Integrate** | `bca run` | One entry point for Git hooks, schedules, and pipelines; verifies, stages, or publishes generated files. Also available as a [GitHub Action](./docs/automation-and-ci.md#github-actions). |
 | | `bca update` | "BC Atlas 0.8.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
-| | `bca capabilities` | A versioned JSON contract of every command for tools and agents. |
-| | `bca mcp` | A Model Context Protocol server for AI agents. |
+| | `bca mcp` | A Model Context Protocol server for AI agents; `bca help --format json` is the versioned command contract. |
 
 Run `bca` for the same overview in your terminal and `bca help <command>` for
 options and examples.
@@ -52,16 +51,18 @@ options and examples.
 
 | View | Answers | Example |
 | --- | --- | --- |
-| `project` | What does the app contain? | `bca graph --view project -o project.svg` |
-| `module` | How do namespaces or folders depend on each other? | `bca graph --view module -o modules.svg` |
-| `object` | What surrounds one object? | `bca graph --view object --object codeunit:50100 -o object.svg` |
-| `data` | Which code reads and writes which tables? | `bca graph --view data -o data.svg` |
-| `call` | Which procedures call each other? | `bca graph --view call --root-procedure Post --call-direction both -o calls.svg` |
-| `boundary` | What crosses a namespace, folder, app, or object boundary? | `bca graph --view boundary --scope namespace:Contoso.Sales -o boundary.svg` |
-| `contracts` | Which types implement an interface? | `bca graph --view contracts -o contracts.svg` |
-| `events` | Which subscribers react to which publishers? | `bca graph --view events --focus OnPosted -o events.svg` |
-| `ui` | How do pages, actions, and source tables connect? | `bca graph --view ui --focus "Sales Order" -o ui.svg` |
-| `workflow` | What happens after an action or entry point? | `bca graph --view workflow --entry action:Release -o flow.svg` |
+| `project` | What does the app contain? | `bca export --view project -o project.svg` |
+| `module` | How do namespaces or folders depend on each other? | `bca export --view module -o modules.svg` |
+| `object` | What surrounds one object? | `bca export --view object --object codeunit:50100 -o object.svg` |
+| `data` | Which code reads and writes which tables? | `bca export --view data -o data.svg` |
+| `call` | Which procedures call each other? | `bca export --view call --root-procedure Post --call-direction both -o calls.svg` |
+| `boundary` | What crosses a namespace, folder, app, or object boundary? | `bca export --view boundary --scope namespace:Contoso.Sales -o boundary.svg` |
+| `contracts` | Which types implement an interface? | `bca export --view contracts -o contracts.svg` |
+| `events` | Which subscribers react to which publishers? | `bca export --view events --focus OnPosted -o events.svg` |
+| `ui` | How do pages, actions, and source tables connect? | `bca export --view ui --focus "Sales Order" -o ui.svg` |
+| `workflow` | What happens after an action or entry point? | `bca export --view workflow --entry action:Release -o flow.svg` |
+
+In the app, the Diagrams page renders every view with zoom and pan.
 
 ### Clean architecture
 
@@ -72,7 +73,8 @@ move an extension or subscriber, move a field into a table extension, invert
 it with an interface), and shows which components can become apps of their
 own. Save it to `.bca.json`, accept today's violations in a baseline, and
 `bca check` keeps the architecture from eroding: new violations fail CI,
-fixed ones shrink the baseline.
+fixed ones shrink the baseline. In the app, the Architecture page shows the
+layers and work items and adopts a proposal with one click.
 
 ```sh
 bca architecture ./app --propose --format markdown -o architecture.md
@@ -82,8 +84,8 @@ bca check ./app
 
 ### Interactive dependency explorer
 
-`bca explore` writes one offline HTML file with a 3D graph of every AL object
-and app. Dependencies inside one app stay gray; dependencies across apps are
+The app's Dependencies page, also written by `bca export --view explorer` as
+one offline HTML file, shows a 3D graph of every AL object and app. Dependencies inside one app stay gray; dependencies across apps are
 checked against `app.json` and colored as declared, implicit (Microsoft),
 undeclared, or unresolved. Filter by app, class, type, or relation kind,
 switch to the app level, and press play: with `--history` the timeline replays
@@ -91,7 +93,7 @@ how objects and dependencies were added, changed, and removed commit by
 commit.
 
 ```sh
-bca explore ./workspace --history -o dependencies.html
+bca export ./workspace --view explorer --history -o dependencies.html
 ```
 
 ![Dependency explorer with three apps, an undeclared cross-app dependency, and the commit timeline](./docs/generated/images/explorer-view.png)
@@ -163,7 +165,7 @@ optionally as Dependabot pull requests. See [Guided setup](./docs/setup.md).
 Read the docs at **[schulzoli.github.io/BC-Atlas](https://schulzoli.github.io/BC-Atlas/)**, with
 search, or browse them here, starting with the [table of contents](./docs/_TOC_.md):
 
-- [Getting started](./docs/getting-started.md) and [guided setup](./docs/setup.md), including [staying up to date](./docs/setup.md#staying-up-to-date)
+- [Getting started](./docs/getting-started.md), [the BC Atlas app](./docs/app.md), and [guided setup](./docs/setup.md), including [staying up to date](./docs/setup.md#staying-up-to-date)
 - [Automation: hooks, schedules, and pipelines](./docs/automation-and-ci.md)
 - [Architecture reports](./docs/reports.md) and [health checks](./docs/health-checks.md)
 - [Architecture diagrams and views](./docs/architecture-diagrams.md)
@@ -176,8 +178,8 @@ search, or browse them here, starting with the [table of contents](./docs/_TOC_.
 ## AI agents and tools
 
 ```sh
-bca capabilities   # versioned JSON contract: argv templates, options, enums, exit codes
-bca mcp            # MCP stdio server (also installed as bca-mcp)
+bca help --format json   # versioned JSON contract: argv templates, options, enums, exit codes
+bca mcp                  # MCP stdio server (also installed as bca-mcp)
 ```
 
 Agents should read the contract first, pass arguments as arrays, parse stdout
@@ -195,11 +197,15 @@ and update-check tools. `bca setup agent --agent claude|copilot|cursor` adds a
   -> objects, members, relations          (analyzer)
   -> resolved model with evidence         (resolver, call analysis, semantics)
   -> view projection and insights         (views, workflow, health)
-  -> D2 / SVG / JSON / Markdown           (renderers)
+  -> D2 / SVG / JSON / Markdown / HTML    (renderers)
+  -> the app: one workspace, served live by bca app or exported as one file
 ```
 
 Parsing, resolution, projection, and rendering are separate stages, so new
-views and outputs do not touch the parser. Every command is defined once in
+views and outputs do not touch the parser. The app, `bca check`,
+`bca architecture`, and `bca export` read the same analysis, so they always
+agree; `src/ui/theme.css` gives the app, the explorer, and the HTML
+documentation one look. Every command is defined once in
 `src/capabilities.js`; help, argument validation, the JSON contract, and the
 generated reference derive from it.
 
@@ -231,7 +237,7 @@ Container:
 
 ```sh
 docker build -t bc-atlas .
-docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/workspace" bc-atlas report /workspace/app --output-dir /workspace/docs/atlas
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/workspace" bc-atlas export /workspace/app --view report -o /workspace/docs/atlas
 ```
 
 The AL grammar is pinned in `vendor/tree-sitter-al.wasm`; update it with

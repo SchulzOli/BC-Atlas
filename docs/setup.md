@@ -112,7 +112,7 @@ Setup covers the whole local loop, not only pipelines:
 
 | Moment | What runs | Configured by |
 | --- | --- | --- |
-| While you edit | **BC Atlas: Live architecture diagram** rebuilds `.bca/live/architecture.svg` on every AL change | `--editor vscode` |
+| While you edit | **BC Atlas: Open the app** starts `bca app` in the background; the app updates on every AL change | `--editor vscode` |
 | On demand | **BC Atlas: Health check** (findings in the Problems panel with file and line), **Architecture report**, **User documentation** | `--editor vscode` |
 | Before committing | **BC Atlas: Run pre-commit hook** / **Run pre-push hook**: the exact hook command, without committing | `--editor vscode` |
 | `git commit` | The pre-commit tasks through Husky or `.githooks` | `--hooks`, `--pre-commit` |

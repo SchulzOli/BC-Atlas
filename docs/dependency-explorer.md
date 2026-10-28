@@ -1,7 +1,9 @@
 # Dependency explorer
 
-`bca explore` turns an AL app or a multi-app workspace into an interactive 3D
-graph you can rotate, filter, search, and replay over time. It answers two
+The dependency explorer turns an AL app or a multi-app workspace into an
+interactive 3D graph you can rotate, filter, search, and replay over time. It
+is the Dependencies page of the app (`bca app`), and
+`bca export --view explorer` writes it as a file. It answers two
 questions the static diagrams cannot answer at a glance:
 
 - **Which dependencies stay inside one app, and which cross app boundaries?**
@@ -12,9 +14,11 @@ questions the static diagrams cannot answer at a glance:
   dependencies appear, change, and disappear in the order they were committed.
 
 ```sh
-bca explore ./workspace -o dependencies.html            # current source
-bca explore ./workspace --history -o dependencies.html  # replay Git history
-bca explore ./workspace --format json -o graph.json     # the data behind it
+bca export ./workspace --view explorer -o dependencies.html            # current source
+bca export ./workspace --view explorer --history -o dependencies.html  # replay Git history
+bca export ./workspace --view explorer --history-by prs -o dependencies.html       # one frame per pull request
+bca export ./workspace --view explorer --history-by releases -o dependencies.html  # one frame per release
+bca export ./workspace --view explorer --format json -o graph.json     # the data behind it
 ```
 
 Open the HTML file in any current browser. It is one self-contained file
@@ -79,7 +83,7 @@ repository; everything else is not even parsed. For the Base Application in
 BCApps, include its declared dependencies so that they resolve:
 
 ```sh
-bca explore ./BCApps/src \
+bca export ./BCApps/src --view explorer \
   --paths "Layers/W1/BaseApp" \
   --paths "System Application/App" \
   --paths "Business Foundation/App" \
@@ -122,8 +126,22 @@ them.
 The timeline at the bottom replays the graph frame by frame. Press **Space**
 to play, **←** and **→** to step, or click a bar.
 
-- **Git history** (`--history`): one frame per commit that changed an AL file
-  or `app.json` below the project root. Objects that appear in a frame are
+- **Git history** (`--history`): one frame per step that changed an AL file
+  or `app.json` below the project root. `--history-by` chooses the step:
+
+  | `--history-by` | One frame per | Frame shows |
+  | --- | --- | --- |
+  | `commits` (default) | commit | the commit message |
+  | `prs` | merged pull request on the main line (first parent) | `PR #12`, the pull request title, and how many commits it brought |
+  | `releases` | release tag reachable from `HEAD`, plus "Unreleased" for later commits | the tag, its message, and how many commits changed AL since the previous release |
+
+  Pull requests are recognized from GitHub merge commits ("Merge pull request
+  #12"), squash merges ("Title (#12)"), Azure DevOps ("Merged PR 12: Title"),
+  and GitLab merge commits ("See merge request group/project!12"). Commits
+  pushed directly to the main line stay frames of their own. Tags from before
+  the project existed are skipped.
+
+  Objects that appear in a frame are
   cyan, objects whose file changed are yellow, and removed objects stay as red
   ghosts for two frames. Newly added nodes grow out of an existing neighbor,
   so you can watch the architecture being built. With uncommitted AL changes,
@@ -134,10 +152,11 @@ to play, **←** and **→** to step, or click a bar.
   Cycle members share one layer.
 
 The bar chart above the slider shows the size of the graph per frame with
-added, changed, and removed marks. For long histories, `--max-commits` samples
-the commits evenly and always keeps the first and the last one; `--since`
-limits the replay to recent work. Each frame then covers several commits, and
-the frame info says how many.
+added, changed, and removed marks. `--last 10` replays only the last 10
+steps, and `--since` only recent work. For long histories, `--max-commits`
+samples the steps evenly and always keeps the first and the last one. A frame
+then covers several steps, and the frame info says how many commits (and pull
+requests or releases) it stands for.
 
 Choose the layout **Commit timeline axis (4D)** to turn time into space:
 objects are placed from left to right by the commit that introduced them.
@@ -152,7 +171,8 @@ objects are placed from left to right by the commit that introduced them.
 | Apps | Restrict to apps. **Show neighbors in other apps** keeps the direct dependencies of the selected apps visible in gray. |
 | Object types, relation kinds | Restrict nodes and edges. An edge stays visible while at least one of its kinds is selected. |
 | Search (`/`) | Highlights matches by name, ID, type, namespace, file, or app; **Enter** flies to the first match. |
-| Min. links, hide unconnected | Remove weakly connected nodes. |
+| Min. links, hide unconnected | Remove weakly connected nodes. The slider runs from 0 to the number of links that 95% of the nodes stay under (at least 10, at most 200), so it also thins out large graphs. |
+| Spacing | Room between nodes, from 50 % to 500 %: longer links (longest between large nodes), stronger repulsion, and more distance between clusters and floors. The explorer remembers it. |
 | Color | App, object type, community (Louvain clustering), build layer, age (first commit), or cross-app coupling. |
 | Size | PageRank (default), used by, depends on, cross-app links, or uniform. |
 | Layout | App clusters, free force, apps as floors, build order as floors, commit timeline axis, or flat 2D. |

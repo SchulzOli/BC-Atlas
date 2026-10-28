@@ -1,35 +1,4 @@
-:root {
-  --bg: #0b1020;
-  --panel: rgba(17, 24, 42, 0.92);
-  --panel-solid: #11182a;
-  --border: rgba(148, 163, 184, 0.18);
-  --text: #e5e9f2;
-  --muted: #94a3b8;
-  --accent: #5b8def;
-  --accent-text: #ffffff;
-  --hover: rgba(148, 163, 184, 0.12);
-  --input: rgba(15, 23, 42, 0.9);
-  --label: #f1f5f9;
-  --label-shadow: 0 0 3px #000, 0 0 6px #000;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  color-scheme: dark;
-}
-
-:root[data-theme="light"] {
-  --bg: #f4f6fb;
-  --panel: rgba(255, 255, 255, 0.94);
-  --panel-solid: #ffffff;
-  --border: rgba(15, 23, 42, 0.12);
-  --text: #0f172a;
-  --muted: #64748b;
-  --accent: #2f6fe0;
-  --hover: rgba(15, 23, 42, 0.06);
-  --input: #ffffff;
-  --label: #0f172a;
-  --label-shadow: 0 0 3px #fff, 0 0 6px #fff;
-  --shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
-  color-scheme: light;
-}
+/* Tokens come from src/ui/theme.css. */
 
 * { box-sizing: border-box; }
 
@@ -147,6 +116,9 @@ details.section > summary .summary-actions button:hover { color: var(--text); }
 
 .field { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 6px; padding: 3px 0; }
 .field label { color: var(--muted); }
+.field.wide { grid-template-columns: 1fr; gap: 2px; }
+.field.wide label { display: flex; justify-content: space-between; }
+.field.wide output { color: var(--text); font-variant-numeric: tabular-nums; }
 .field select, .field input[type="range"] { width: 100%; }
 .field select {
   padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--input);

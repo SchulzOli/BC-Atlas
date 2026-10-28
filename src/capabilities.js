@@ -1,6 +1,6 @@
 // Single source of truth for every BC Atlas command. The CLI parser, the
 // built-in help, the generated documentation, and the machine-readable
-// `bca capabilities` contract are all derived from this catalog.
+// `bca help --format json` contract are all derived from this catalog.
 
 export const VIEWS = Object.freeze([
   ["project", "AL objects grouped into role lanes (Data, UI, Services, ...)"],
@@ -16,6 +16,13 @@ export const VIEWS = Object.freeze([
 ]);
 
 export const FORMATS = Object.freeze(["d2", "json", "svg", "png", "pdf"]);
+// What `bca export` can write besides the diagram views.
+export const EXPORTS = Object.freeze([
+  ["app", "The app as one offline HTML file: every page, the diagrams, the 3D explorer, and the docs"],
+  ["report", "Markdown report (README.md) with health, diagrams, and an optional object catalog"],
+  ["explorer", "Interactive 3D dependency explorer (HTML), replayable over Git history, or its graph as JSON"],
+  ["catalog", "One linked Markdown page per AL object"]
+]);
 export const SEVERITIES = Object.freeze(["error", "warning", "info"]);
 export const FAIL_LEVELS = Object.freeze(["error", "warning", "info", "never"]);
 export const REPORT_VIEWS = Object.freeze(["project", "module", "data", "contracts", "events", "ui"]);
@@ -24,27 +31,22 @@ export const FEATURE_AREAS = Object.freeze([
   {
     id: "start",
     title: "Get started",
-    summary: "Set up a project and produce a complete overview in one step."
-  },
-  {
-    id: "visualize",
-    title: "Visualize",
-    summary: "Render focused architecture diagrams from AL source."
+    summary: "Open the app for a project, or set up automation for it."
   },
   {
     id: "analyze",
     title: "Analyze",
-    summary: "Measure architecture health and read the resolved model."
+    summary: "Gate CI on architecture health and keep a target architecture in place."
   },
   {
-    id: "document",
-    title: "Document",
-    summary: "Generate Markdown object catalogs and user guides from AL UI tests."
+    id: "export",
+    title: "Export",
+    summary: "Write what the app shows as files, and user guides from AL UI tests."
   },
   {
     id: "integrate",
     title: "Integrate",
-    summary: "Connect BC Atlas to scripts, CI pipelines, and AI agents."
+    summary: "Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents."
   }
 ]);
 
@@ -82,14 +84,7 @@ const filterOptions = {
   exclude: string("File or object glob to exclude.", { group: FILTERS, repeatable: true, value: "glob" })
 };
 
-const architectureOptions = {
-  output: string("Output file path.", { group: OUTPUT, short: "o", value: "path", default: "bc-atlas.d2" }),
-  format: string("Output format; inferred from the output extension when omitted.", {
-    group: OUTPUT,
-    short: "f",
-    enum: FORMATS
-  }),
-  view: string("Architecture projection.", { group: SELECTION, enum: VIEWS.map(([id]) => id), default: "project" }),
+const diagramOptions = {
   object: string("Object name, ID, key, or typed selector such as codeunit:50100.", { group: SELECTION, value: "selector" }),
   objectInboundDepth: string("Incoming depth for the object view.", { group: SELECTION, value: "n", default: "1" }),
   objectOutboundDepth: string("Outgoing depth for the object view.", { group: SELECTION, value: "n", default: "1" }),
@@ -100,9 +95,9 @@ const architectureOptions = {
     value: "selector"
   }),
   focus: string("Name fragment for the contracts, events, or ui view.", { group: SELECTION, value: "text" }),
-  groupBy: string("Grouping mode (project: role, others: namespace).", {
+  groupBy: string("Diagram views: role, namespace, folder, or type (default: role for project, else namespace). Proposed architecture: auto, namespace, folder, module, or app.", {
     group: SELECTION,
-    enum: ["namespace", "folder", "type", "role"]
+    enum: ["auto", "namespace", "folder", "module", "app", "type", "role"]
   }),
   moduleDepth: string("Namespace segments in the module view, or auto.", { group: SELECTION, value: "n", default: "auto" }),
   folderDepth: string("Folder segments in a folder-grouped module view.", { group: SELECTION, value: "n", default: "1" }),
@@ -123,10 +118,48 @@ const architectureOptions = {
   }),
   maxEdges: string("Diagram edge cap.", { group: RENDERING, value: "n", default: "500" }),
   direction: string("Diagram direction.", { group: RENDERING, enum: ["right", "down", "left", "up"], default: "right" }),
-  title: string("Diagram title.", { group: RENDERING, value: "text" }),
   noLegend: flag("Hide edge and confidence legends.", { group: RENDERING }),
   details: flag("Show member counts in nodes.", { group: RENDERING }),
-  noExternal: flag("Hide unresolved and external dependencies.", { group: RENDERING }),
+  noExternal: flag("Hide unresolved and external dependencies.", { group: RENDERING })
+};
+
+const pathsOption = string("Only analyze AL files in this folder or matching this glob, relative to the project root.", {
+  group: FILTERS,
+  repeatable: true,
+  value: "path"
+});
+
+const exportOptions = {
+  view: string("What to write: app, report, explorer, catalog, or a diagram view.", {
+    group: OUTPUT,
+    enum: [...EXPORTS.map(([id]) => id), ...VIEWS.map(([id]) => id)],
+    default: "app"
+  }),
+  output: string("Output file or folder (default: bc-atlas.html, docs/atlas, bc-atlas-explorer.html, docs/codegraph, or bc-atlas-<view>.svg); - writes JSON to stdout.", {
+    group: OUTPUT,
+    short: "o",
+    value: "path"
+  }),
+  format: string("app: html; explorer: html or json; report: svg or d2 diagrams; diagram views: svg, d2, json, png, or pdf. Inferred from the output extension when omitted.", {
+    group: OUTPUT,
+    short: "f",
+    enum: ["html", ...FORMATS]
+  }),
+  title: string("Title of the report, explorer, or diagram.", { group: OUTPUT, value: "text" }),
+  watch: flag("Write again whenever AL source, app.json, or .bca.json changes.", { group: OUTPUT }),
+  debounce: string("Delay before writing again with --watch, in milliseconds.", { group: OUTPUT, value: "ms", default: "250" }),
+  views: string("Report: comma-separated diagram views.", { group: "Report", value: "list", default: REPORT_VIEWS.join(",") }),
+  codegraph: flag("Report: also write the object catalog.", { group: "Report" }),
+  json: flag("Report: also write the resolved model as model.json.", { group: "Report" }),
+  history: flag("Explorer and app: replay Git history, one frame per step (see --history-by) that changed AL files or app.json.", { group: "Timeline" }),
+  historyBy: string("One frame per commit, per merged pull request, or per release tag; implies --history.", { group: "Timeline", enum: ["commits", "prs", "releases"], default: "commits" }),
+  last: string("Only the last n steps (commits, pull requests, or releases).", { group: "Timeline", value: "n" }),
+  maxCommits: string("Most frames to replay; older steps are sampled evenly.", { group: "Timeline", value: "n", default: "60" }),
+  since: string("Only replay commits after this date (anything git log --since accepts).", { group: "Timeline", value: "date" }),
+  propose: flag("Explorer: show a proposed target architecture when .bca.json defines none.", { group: SELECTION }),
+  lens: string("Explorer: relationship family.", { group: SELECTION, enum: ["dependency"], default: "dependency" }),
+  ...diagramOptions,
+  paths: pathsOption,
   ...sourceLinkOptions,
   ...projectOptions
 };
@@ -139,30 +172,6 @@ const checkOptions = {
   maxFanOut: string("Warn when an object has more distinct dependencies.", { group: GENERAL, value: "n", default: "25" }),
   ...filterOptions,
   ...projectOptions
-};
-
-const exploreOptions = {
-  output: string("Output file path.", { group: OUTPUT, short: "o", value: "path", default: "bc-atlas-explorer.html" }),
-  format: string("html: interactive offline explorer; json: the temporal graph document.", {
-    group: OUTPUT,
-    short: "f",
-    enum: ["html", "json"]
-  }),
-  lens: string("Relationship family to explore.", { group: SELECTION, enum: ["dependency"], default: "dependency" }),
-  propose: flag("Show a proposed target architecture (components, layers) when .bca.json defines none.", { group: SELECTION }),
-  groupBy: string("How a proposed architecture groups objects into components.", { group: SELECTION, enum: ["auto", "namespace", "folder", "module", "app"], default: "auto" }),
-  history: flag("Replay Git history: one frame per commit that changed AL files or app.json.", { group: "Timeline" }),
-  maxCommits: string("Most frames to replay; older commits are sampled evenly.", { group: "Timeline", value: "n", default: "60" }),
-  since: string("Only replay commits after this date (anything git log --since accepts).", { group: "Timeline", value: "date" }),
-  title: string("Explorer title.", { group: OUTPUT, value: "text" }),
-  paths: string("Only analyze AL files in this folder or matching this glob, relative to the project root.", {
-    group: FILTERS,
-    repeatable: true,
-    value: "path"
-  }),
-  ...filterOptions,
-  projectRoot: projectOptions.projectRoot,
-  config: projectOptions.config
 };
 
 const blueprintOptions = {
@@ -178,11 +187,16 @@ const blueprintOptions = {
   minObjects: string("Merge smaller groups into the component they depend on most.", { group: "Proposal", value: "n", default: "1" }),
   write: flag("Save the architecture to .bca.json (architecture section).", { group: "Enforcement" }),
   updateBaseline: flag("Accept today's violations in the baseline file; only new ones fail afterwards.", { group: "Enforcement" }),
-  paths: string("Only analyze AL files in this folder or matching this glob, relative to the project root.", {
-    group: FILTERS,
-    repeatable: true,
-    value: "path"
-  }),
+  paths: pathsOption,
+  ...filterOptions,
+  projectRoot: projectOptions.projectRoot,
+  config: projectOptions.config
+};
+
+const appOptions = {
+  port: string("Port on localhost (default: 4317, or the next free one).", { value: "port" }),
+  noOpen: flag("Do not open a browser."),
+  paths: pathsOption,
   ...filterOptions,
   projectRoot: projectOptions.projectRoot,
   config: projectOptions.config
@@ -217,7 +231,7 @@ export function createCapabilities(version) {
     transport: {
       stdout: "json",
       encoding: "utf-8",
-      rule: "For machine reads, use inspect, check, or docs commands with --format json. Parse stdout only after exit code 0."
+      rule: "For machine reads, use check, architecture, docs, or export (a diagram view, -o -) with --format json, and help --format json for this contract. Parse stdout only after exit code 0."
     },
     exitCodes: { success: 0, operation: 1, usage: 2 },
     conventions: {
@@ -227,25 +241,28 @@ export function createCapabilities(version) {
       sourceOfTruth: "AL source is authoritative; generated JSON, Markdown, D2, and SVG are outputs."
     },
     areas: FEATURE_AREAS,
+    exports: EXPORTS.map(([id, summary]) => ({ id, summary })),
     views: VIEWS.map(([id, summary]) => ({ id, summary })),
     commands: [
       command({
-        id: "init",
+        id: "app",
         area: "start",
-        argv: ["bca", "init", "[app-root]"],
-        purpose: "Create a .bca.json configuration tailored to an AL project.",
-        options: {
-          force: flag("Overwrite an existing configuration file."),
-          print: flag("Print the configuration instead of writing it.")
-        },
-        output: { type: "file", path: "<app-root>/.bca.json" },
-        examples: ["bca init ./app", "bca init ./app --print"]
+        argv: ["bca", "app", "[app-root]"],
+        aliases: ["bca <app-root>"],
+        purpose: "Open BC Atlas in the browser: overview, health, architecture, 3D dependencies, diagrams, objects, and docs for one project, updated when AL files change.",
+        options: appOptions,
+        output: { type: "process", transport: "http", termination: "SIGINT" },
+        rules: [
+          "Listens on localhost only; changes (adopting an architecture, accepting violations) need the token of the page the command opened.",
+          "Without a terminal or browser, use export --view app for the same pages as one offline file."
+        ],
+        examples: ["bca app", "bca ./app", "bca app ./workspace --port 8080 --no-open"]
       }),
       command({
         id: "setup",
         area: "start",
         argv: ["bca", "setup", "[app-root]"],
-        purpose: "Set up automation step by step: features, Git hooks, pipelines, schedules, and sync.",
+        purpose: "Set up BC Atlas for a project step by step: .bca.json, features, Git hooks, pipelines, schedules, and sync.",
         options: {
           yes: flag("Accept every recommendation without asking."),
           dryRun: flag("Show the planned files without writing them.")
@@ -318,86 +335,6 @@ export function createCapabilities(version) {
         examples: ["bca setup agent --agent claude", "bca setup agent --agent copilot", "bca setup agent --print"]
       }),
       command({
-        id: "report",
-        area: "start",
-        argv: ["bca", "report", "[app-root]"],
-        purpose: "Write a complete architecture report: overview, health, and diagrams for every view.",
-        options: {
-          outputDir: string("Report directory.", { group: OUTPUT, value: "path", default: "docs/atlas" }),
-          views: string("Comma-separated views to render.", { group: OUTPUT, value: "list", default: REPORT_VIEWS.join(",") }),
-          format: string("Diagram format.", { group: OUTPUT, enum: ["svg", "d2"], default: "svg" }),
-          codegraph: flag("Also generate the linked Markdown object catalog.", { group: OUTPUT }),
-          json: flag("Also write the resolved project model as model.json.", { group: OUTPUT }),
-          title: string("Report title.", { group: OUTPUT, value: "text" }),
-          ...filterOptions,
-          ...sourceLinkOptions,
-          projectRoot: projectOptions.projectRoot,
-          config: projectOptions.config
-        },
-        output: { type: "directory", pathOption: "outputDir", default: "docs/atlas", entry: "README.md" },
-        examples: ["bca report ./app", "bca report ./app --codegraph --output-dir docs/architecture"]
-      }),
-      command({
-        id: "graph",
-        area: "visualize",
-        argv: ["bca", "graph", "[app-root]"],
-        purpose: "Write an architecture diagram (D2, SVG, PNG, PDF) or model file (JSON).",
-        aliases: ["bca <app-root>"],
-        options: architectureOptions,
-        output: { type: "file", pathOption: "output", default: "bc-atlas.d2" },
-        rules: ["object view requires --object", "boundary view requires at least one --scope"],
-        examples: [
-          "bca graph ./app -o architecture.svg",
-          "bca graph ./app --view object --object codeunit:50100 -o posting.svg",
-          "bca graph ./app --view workflow --entry ProcessDocument -o workflow.svg",
-          "bca graph ./app --view boundary --scope namespace:Contoso.Sales -o boundary.svg"
-        ]
-      }),
-      command({
-        id: "graph.workflow",
-        area: "visualize",
-        variantOf: "graph",
-        argv: ["bca", "graph", "[app-root]"],
-        purpose: "Write a bounded workflow diagram.",
-        options: {
-          ...architectureOptions,
-          view: { type: "string", const: "workflow", required: true, description: "Workflow projection." },
-          entry: { ...architectureOptions.entry, required: true }
-        },
-        output: { type: "file", pathOption: "output", default: "bc-atlas.d2" }
-      }),
-      command({
-        id: "watch",
-        area: "visualize",
-        argv: ["bca", "watch", "[app-root]"],
-        purpose: "Rebuild a diagram whenever AL source, app.json, or .bca.json changes.",
-        options: {
-          ...architectureOptions,
-          debounce: string("Rebuild debounce in milliseconds.", { group: GENERAL, value: "ms", default: "250" })
-        },
-        output: { type: "process", termination: "SIGINT" },
-        examples: ["bca watch ./app --view module -o modules.svg"]
-      }),
-      command({
-        id: "explore",
-        area: "visualize",
-        argv: ["bca", "explore", "[app-root]"],
-        purpose: "Write an interactive 3D dependency explorer: inside one app vs. across apps, filterable, replayable over Git history.",
-        options: exploreOptions,
-        output: { type: "file", pathOption: "output", default: "bc-atlas-explorer.html" },
-        rules: [
-          "html is one self-contained file that works offline; json is the GraphDocument behind it",
-          "--history needs Git; without it the timeline replays the build order (dependencies first)",
-          "edges are classified as intra-app, declared, implicit (Microsoft), undeclared, or unresolved"
-        ],
-        examples: [
-          "bca explore ./workspace -o dependencies.html",
-          "bca explore ./workspace --history --max-commits 120 -o dependencies.html",
-          "bca explore ./app --format json -o dependencies.json",
-          "bca explore ./BCApps/src --paths \"Layers/W1/BaseApp\" --paths \"System Application/App\" --history -o base-app.html"
-        ]
-      }),
-      command({
         id: "check",
         area: "analyze",
         argv: ["bca", "check", "[app-root]"],
@@ -431,37 +368,34 @@ export function createCapabilities(version) {
         ]
       }),
       command({
-        id: "inspect",
-        area: "analyze",
-        argv: ["bca", "inspect", "[app-root]"],
-        purpose: "Print the resolved architecture model as JSON.",
-        options: {
-          ...architectureOptions,
-          output: string("Write JSON to a file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
-          format: { type: "string", const: "json", group: OUTPUT, short: "f", description: "Always json." }
-        },
-        output: { type: "json", schema: "ArchitectureModel", schemaVersion: 1 },
-        rules: ["Omit --output to receive JSON on stdout."],
-        examples: ["bca inspect ./app > model.json", "bca inspect ./app --view workflow --entry ProcessDocument"]
-      }),
-      command({
-        id: "codegraph",
-        area: "document",
-        argv: ["bca", "codegraph", "[app-root]"],
-        purpose: "Generate one linked Markdown page per AL object.",
-        options: {
-          outputDir: string("Markdown output directory.", { group: OUTPUT, value: "path", default: "docs/codegraph" }),
-          include: filterOptions.include,
-          exclude: filterOptions.exclude,
-          ...sourceLinkOptions,
-          ...projectOptions
-        },
-        output: { type: "directory", pathOption: "outputDir", default: "docs/codegraph" },
-        examples: ["bca codegraph ./app --output-dir docs/codegraph"]
+        id: "export",
+        area: "export",
+        argv: ["bca", "export", "[app-root]"],
+        purpose: "Write what the app shows as files: the app as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view.",
+        options: exportOptions,
+        output: { type: "file", pathOption: "output", default: "bc-atlas.html" },
+        rules: [
+          "object view requires --object; boundary view requires at least one --scope; workflow view requires --entry",
+          "A diagram view with --format json and no --output prints the resolved model to stdout",
+          "--history needs Git; without it the explorer replays the build order (dependencies first)",
+          "PNG and PDF need the d2 executable on PATH; SVG uses the bundled renderer"
+        ],
+        examples: [
+          "bca export ./app -o atlas.html",
+          "bca export ./app --view report",
+          "bca export ./app --view report --codegraph -o docs/architecture",
+          "bca export ./workspace --view explorer --history -o dependencies.html",
+          "bca export ./workspace --view explorer --history-by prs --last 30 -o dependencies.html",
+          "bca export ./app --view module -o modules.svg",
+          "bca export ./app --view object --object codeunit:50100 -o posting.svg",
+          "bca export ./app --view workflow --entry ProcessDocument -o workflow.svg --watch",
+          "bca export ./app --view project --format json > model.json",
+          "bca export ./app --view catalog -o docs/codegraph"
+        ]
       }),
       command({
         id: "docs.list",
-        area: "document",
+        area: "export",
         argv: ["bca", "docs", "list", "<test-root>"],
         purpose: "List documented UI-test scenarios.",
         options: { format: docsFormat },
@@ -470,7 +404,7 @@ export function createCapabilities(version) {
       }),
       command({
         id: "docs.show",
-        area: "document",
+        area: "export",
         argv: ["bca", "docs", "show", "<test-root>"],
         purpose: "Show one scenario, its prerequisites, and its diagnostics.",
         options: { id: { ...string("Stable document ID.", { value: "document-id" }), required: true }, format: docsFormat },
@@ -479,7 +413,7 @@ export function createCapabilities(version) {
       }),
       command({
         id: "docs.validate",
-        area: "document",
+        area: "export",
         argv: ["bca", "docs", "validate", "<test-root>"],
         purpose: "Validate IDs, tags, links, and prerequisite cycles.",
         options: { strict: flag("Treat warnings as failures."), format: docsFormat },
@@ -488,7 +422,7 @@ export function createCapabilities(version) {
       }),
       command({
         id: "docs.generate",
-        area: "document",
+        area: "export",
         argv: ["bca", "docs", "generate", "<test-root>"],
         purpose: "Generate user guides or test cases with flow diagrams as Markdown, HTML, DITA, Azure DevOps CSV, or BPMN.",
         options: {
@@ -532,7 +466,7 @@ export function createCapabilities(version) {
       }),
       command({
         id: "docs.set",
-        area: "document",
+        area: "export",
         argv: ["bca", "docs", "set", "<test-root>"],
         purpose: "Add or replace documentation metadata in AL source.",
         options: {
@@ -550,7 +484,7 @@ export function createCapabilities(version) {
       }),
       command({
         id: "docs.unset",
-        area: "document",
+        area: "export",
         argv: ["bca", "docs", "unset", "<test-root>"],
         purpose: "Remove documentation metadata from AL source.",
         options: {
@@ -568,7 +502,7 @@ export function createCapabilities(version) {
       }),
       command({
         id: "docs.automation",
-        area: "document",
+        area: "export",
         argv: ["bca", "docs", "automation", "<test-root>"],
         purpose: "Print a CI pipeline that keeps generated guides in sync.",
         options: {
@@ -581,7 +515,7 @@ export function createCapabilities(version) {
       }),
       command({
         id: "docs.glossary",
-        area: "document",
+        area: "export",
         argv: ["bca", "docs", "glossary"],
         purpose: "List supported documentation tags and prerequisite types.",
         options: { format: docsFormat },
@@ -631,14 +565,6 @@ export function createCapabilities(version) {
           "Afterwards runs bca setup apply --from-config so hooks, tasks, pipelines, and agent commands use the new version."
         ],
         examples: ["bca update", "bca update --check", "bca update --yes"]
-      }),
-      command({
-        id: "capabilities",
-        area: "integrate",
-        argv: ["bca", "capabilities"],
-        purpose: "Print this machine-readable command contract as JSON.",
-        output: { type: "json", schema: "CapabilityManifest" },
-        examples: ["bca capabilities"]
       }),
       command({
         id: "mcp",

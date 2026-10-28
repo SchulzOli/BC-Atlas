@@ -8,21 +8,34 @@ Run `npm install --global bc-atlas`. For a checkout, run `npm ci` and
 ## "unknown command or path"
 
 The first argument is neither a command nor an existing path. Run `bca` to see
-all commands. `bca <path>` is a shortcut for `bca graph <path>`, so check the
+all commands. `bca <path>` is a shortcut for `bca app <path>`, so check the
 path for typos.
+
+## "unknown command" for `graph`, `report`, `explore`, `inspect`, ...
+
+These commands are now part of `bca export` and `bca app`. See the table
+[Earlier commands](./cli-reference.md#earlier-commands) in the CLI
+reference.
+
+## The app does not open in the browser
+
+`bca app` prints its URL (`http://127.0.0.1:4317/` by default). Open it
+yourself when no browser starts, for example in a container or over SSH (use
+port forwarding there). `--port` selects another port; `--no-open` skips the
+browser. The app only answers on the local machine.
 
 ## "serve" is no longer available
 
-The local web server (`bca serve`, `bca docs serve`) was removed in 0.6.0.
-Use `bca report` for a browsable, static overview that works in any Markdown
-viewer and in your repository host, and `bca docs ...` for documentation
-metadata.
+The documentation server (`bca serve`, `bca docs serve`) was removed in 0.6.0.
+Use `bca app` for a browsable overview, `bca export --view report` for a
+static one in any Markdown viewer and your repository host, and
+`bca docs ...` for documentation metadata.
 
 ## BC Atlas finds no AL files
 
 Check that the input path contains `.al` files. Check `--include`, `--exclude`,
 `--namespace`, and `--type` filters, and the `exclude` list in `.bca.json`
-(`bca init` excludes test folders).
+(the `.bca.json` written by `bca setup` excludes test folders).
 
 ## The object view fails
 
@@ -30,7 +43,7 @@ The object view requires `--object`. Use a name, object ID, object key, or
 typed selector.
 
 ```sh
-bca graph ./app --view object --object codeunit:50100 -o object.svg
+bca export ./app --view object --object codeunit:50100 -o object.svg
 ```
 
 ## The boundary view fails
@@ -45,7 +58,11 @@ when you do not need raster or PDF output.
 
 ## A diagram is too large
 
-Use `bca report` for an overview, then select a focused view. Add filters.
+Use the app or `bca export --view report` for an overview, then select a
+focused view. Add filters. The bundled SVG renderer draws at most 1,500 nodes;
+larger views (the project view of the Base Application has about 9,500) stop
+with a message and keep the `.d2` file, which the `d2` executable can render
+with more memory. In the app, the Diagrams page has a namespace filter.
 Reduce `--max-edges` only after you select the required scope.
 
 ## Many unresolved references

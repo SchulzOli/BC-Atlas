@@ -91,14 +91,12 @@ export function vscodeTasks({ appPath, command, features, triggers }) {
     if (triggers[hook]) tasks.push(task(`Run ${hook} hook`, ["run", appPath, "--trigger", hook]));
   }
   tasks.push(
-    task("Live architecture diagram", [
-      "watch", appPath, "--output", `${appPath === "." ? "" : `${appPath}/`}.bca/live/architecture.svg`
-    ], {
+    task("Open the app", ["app", appPath], {
       isBackground: true,
       problemMatcher: {
         owner: "bc-atlas",
-        pattern: { regexp: "^bca: (rebuild failed): (.*)$", message: 2 },
-        background: { activeBegins: "^Analyzed ", activeEnds: "^Watching |^Wrote .*\\.d2$" }
+        pattern: { regexp: "^bca( app)?: (.*)$", message: 2 },
+        background: { activeBegins: "^Analyzing ", activeEnds: "^BC Atlas is running at " }
       }
     }),
     task("Set up automation", ["setup", appPath], { presentation: { focus: true, panel: "dedicated" } })

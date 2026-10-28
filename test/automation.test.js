@@ -213,7 +213,7 @@ test("setup adds VS Code tasks next to existing tasks for the local loop", () =>
       "BC Atlas: User documentation",
       "BC Atlas: Run pre-commit hook",
       "BC Atlas: Run pre-push hook",
-      "BC Atlas: Live architecture diagram",
+      "BC Atlas: Open the app",
       "BC Atlas: Set up automation"
     ]);
     const check = tasks.find(({ label }) => label === "BC Atlas: Health check");

@@ -34,7 +34,7 @@ processes and do not replace the UI-test documentation.
 ## Command
 
 ```text
-bca codegraph <file-or-directory> --output-dir docs/codegraph
+bca export <file-or-directory> --view catalog -o docs/codegraph
 ```
 
 The command analyzes the complete input before writing files. It creates the
@@ -345,7 +345,7 @@ The generator validates that:
 CI can regenerate and compare the output:
 
 ```sh
-bca codegraph app --output-dir docs/codegraph
+bca export app --view catalog -o docs/codegraph
 git diff --exit-code -- docs/codegraph
 ```
 
@@ -357,7 +357,7 @@ git diff --exit-code -- docs/codegraph
    object types: table, page, codeunit, and interface.
 3. Add deterministic path allocation, links, backlinks, and `index.md`.
 4. Add the remaining specialized object renderers listed above.
-5. Expose `bca codegraph`, document it, and add generation snapshots plus a
+5. Expose it as `bca export --view catalog`, document it, and add generation snapshots plus a
    stale-output CI example.
 
 The first usable increment ends after step 3. Other object types already get

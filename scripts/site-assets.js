@@ -36,4 +36,14 @@ for (const name of readdirSync(path.join(root, "examples/explorer")).filter((ent
   writeFileSync(target, renderExplorerHtml(JSON.parse(readFileSync(path.join(root, "examples/explorer", name), "utf8"))));
   copied++;
 }
+// The app itself, exported as offline pages for the example projects.
+const { Workspace } = await import("../src/app/workspace.js");
+const { renderSnapshotHtml } = await import("../src/app/snapshot.js");
+for (const name of ["warehouse-app", "multi-app"]) {
+  const { html } = await renderSnapshotHtml(new Workspace(path.join(root, "examples", name), {}, { live: false }));
+  const target = path.join(dist, publishedHtmlPath(`examples/app/${name}.html`));
+  mkdirSync(path.dirname(target), { recursive: true });
+  writeFileSync(target, html);
+  copied++;
+}
 console.log(`Copied ${copied} standalone HTML file(s) into the website.`);

@@ -3,7 +3,7 @@
 Use the capability manifest before an agent constructs a BC Atlas command.
 
 ```sh
-bca capabilities
+bca help --format json
 ```
 
 The command writes versioned JSON to standard output. It defines command IDs, argument templates, options, output contracts, and exit codes.
@@ -12,7 +12,7 @@ The command writes versioned JSON to standard output. It defines command IDs, ar
 
 1. Pass each argument as a separate array item.
 2. Do not construct a shell command string.
-3. Use `inspect`, `check --format json`, or `docs ... --format json` for machine reads.
+3. Use `export --view <view> --format json`, `check --format json`, `architecture --format json`, or `docs ... --format json` for machine reads.
 4. Check for exit code `0` before you parse standard output.
 5. Run `docs set` and `docs unset` with `--dry-run` first.
 6. Pass `--expected-hash` when you write AL metadata.
@@ -30,7 +30,7 @@ agent. See [Guided setup](./setup.md).
 
 AL source is authoritative. JSON, Markdown, D2, and SVG files are generated outputs.
 
-Read the [generated capability summary](./reference/cli-capabilities.md) for the current command list. Use `bca capabilities` for the complete machine contract.
+Read the [generated capability summary](./reference/cli-capabilities.md) for the current command list. Use `bca help --format json` for the complete machine contract.
 
 ## MCP server
 
@@ -89,7 +89,7 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_capabilities` reads the command contract.
 - `bc_atlas_inspect` returns an architecture model.
 - `bc_atlas_check` returns the architecture health report used by `bca check`.
-- `bc_atlas_report` writes the Markdown architecture report used by `bca report`.
+- `bc_atlas_report` writes the Markdown architecture report (`bca export --view report`).
 - `bc_atlas_setup_plan` detects the project and returns setup questions with recommendations.
 - `bc_atlas_setup_apply` previews (default) or writes `.bca.json`, Git hooks, and a pipeline.
 - `bc_atlas_run` runs the tasks configured for a trigger and reports sync status.

@@ -2,7 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createGraphDocument } from "../graph/document.js";
 import { renderExplorerHtml } from "../graph/html.js";
-import { displayPath } from "../output.js";
 
 export const EXPLORE_FORMATS = Object.freeze(["html", "json"]);
 
@@ -30,25 +29,4 @@ export async function writeExplorer(input, values = {}, { onFrame } = {}) {
   await fs.mkdir(path.dirname(target.file), { recursive: true });
   await fs.writeFile(target.file, content);
   return { document, file: target.file, format: target.format };
-}
-
-export async function exploreCommand(input, values) {
-  const started = Date.now();
-  const { document, file } = await writeExplorer(input, values, {
-    onFrame: (frame, index, total) => console.error(
-      `Frame ${index + 1}/${total}: ${frame.id} ${frame.date.slice(0, 10)} ` +
-      `(${Math.round((Date.now() - started) / 1000)} s)`
-    )
-  });
-  const objects = document.levels.object;
-  const crossApp = objects.edges.filter(({ scope }) => scope === "inter-app").length;
-  const undeclared = document.levels.app.edges.filter(({ dependency }) => dependency === "undeclared").length;
-  const frames = document.timeline.frames.length;
-  console.log(
-    `${document.lens.title}: ${objects.nodes.length} object(s), ${objects.edges.length} dependency edge(s), ` +
-    `${crossApp} across apps, ${document.levels.app.nodes.length} app(s)` +
-    `${undeclared ? `, ${undeclared} undeclared app dependency(ies)` : ""}` +
-    `${frames > 1 ? `; ${frames} frame(s) from ${document.timeline.commits} commit(s)` : ""}.`
-  );
-  console.log(`Wrote ${displayPath(file)}`);
 }

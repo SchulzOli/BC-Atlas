@@ -16,10 +16,10 @@ const sections = SECTIONS;
 const toc = [
   "# BC Atlas documentation",
   "",
-  "BC Atlas is organized into five feature areas: get started, visualize,",
-  "analyze, document, and integrate. This table of contents follows the same",
-  "structure. The generated CLI capability reference comes directly from the",
-  "source code.",
+  "BC Atlas is one app (`bca app`) and a small CLI organized into four feature",
+  "areas: get started, analyze, export, and integrate. This table of contents",
+  "follows the same structure. The generated CLI capability reference comes",
+  "directly from the source code.",
   "",
   `Read it online at ${WEBSITE}.`,
   ""
@@ -49,9 +49,10 @@ const areaSections = capabilities.areas.flatMap((area) => [
     .map(({ id, argv, purpose }) => `| \`${id}\` | \`${argv.join(" ")}\` | ${purpose} |`),
   ""
 ]);
-const graph = capabilities.commands.find(({ id }) => id === "graph");
+const exporter = capabilities.commands.find(({ id }) => id === "export");
+const exports = capabilities.exports.map(({ id, summary }) => `| \`${id}\` | ${summary} |`);
 const views = capabilities.views.map(({ id, summary }) => `| \`${id}\` | ${summary} |`);
-const formats = graph.options.format.enum.map((format) => `- \`${format}\``);
+const formats = exporter.options.format.enum.map((format) => `- \`${format}\``);
 
 const capabilityReference = [
   "# Generated CLI capabilities",
@@ -64,13 +65,19 @@ const capabilityReference = [
   "## Commands by feature area",
   "",
   ...areaSections,
-  "## Architecture views",
+  "## What `bca export` writes",
+  "",
+  "| `--view` | Writes |",
+  "| --- | --- |",
+  ...exports,
+  "",
+  "## Diagram views",
   "",
   "| View | Shows |",
   "| --- | --- |",
   ...views,
   "",
-  "## Diagram formats",
+  "## Export formats",
   "",
   ...formats,
   "",

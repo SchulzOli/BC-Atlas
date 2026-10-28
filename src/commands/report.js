@@ -103,8 +103,8 @@ function renderReadme({ title, health, diagrams, codegraph, model, json, format,
 }
 
 function commandLine(input, values) {
-  const parts = ["bca", "report", input];
-  if (values.outputDir) parts.push("--output-dir", values.outputDir);
+  const parts = ["bca", "export", input, "--view", "report"];
+  if (values.outputDir) parts.push("-o", values.outputDir);
   if (values.views) parts.push("--views", values.views);
   if (values.format && values.format !== "svg") parts.push("--format", values.format);
   if (values.codegraph) parts.push("--codegraph");
@@ -181,11 +181,4 @@ export async function generateReport(input, values = {}, { log = () => {} } = {}
     command: values.regenerate ?? commandLine(displayPath(path.resolve(input)), displayValues)
   }));
   return { outputDirectory, readme, health, diagrams, codegraph };
-}
-
-export async function reportCommand(input, values) {
-  const result = await generateReport(input, values, { log: (message) => console.log(message) });
-  const rendered = result.diagrams.filter(({ skipped }) => !skipped).length;
-  console.log(healthResultLine(result.health));
-  console.log(`Wrote ${displayPath(result.readme)} with ${rendered} diagram(s)`);
 }
