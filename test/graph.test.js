@@ -236,15 +236,15 @@ test("explorer HTML compresses large graphs", async () => {
   assert.equal(restored.title, document.title);
 });
 
-test("explore command writes HTML or JSON", () => {
+test("the explorer export writes HTML or JSON", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-explore-"));
   try {
-    const html = spawnSync(process.execPath, [cli, "explore", workspace, "-o", path.join(directory, "graph.html")], { encoding: "utf8" });
+    const html = spawnSync(process.execPath, [cli, "export", workspace, "--view", "explorer", "-o", path.join(directory, "graph.html")], { encoding: "utf8" });
     assert.equal(html.status, 0, html.stderr);
     assert.match(html.stdout, /13 object\(s\), 18 dependency edge\(s\), 6 across apps, 4 app\(s\), 1 undeclared/u);
     assert.match(readFileSync(path.join(directory, "graph.html"), "utf8"), /bca-graph-data/u);
 
-    const json = spawnSync(process.execPath, [cli, "explore", workspace, "-f", "json", "-o", path.join(directory, "graph.html")], { encoding: "utf8" });
+    const json = spawnSync(process.execPath, [cli, "export", workspace, "--view", "explorer", "-f", "json", "-o", path.join(directory, "graph.html")], { encoding: "utf8" });
     assert.equal(json.status, 0, json.stderr);
     assert.equal(JSON.parse(readFileSync(path.join(directory, "graph.json"), "utf8")).schemaVersion, 1);
   } finally {

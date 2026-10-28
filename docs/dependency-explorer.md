@@ -1,7 +1,9 @@
 # Dependency explorer
 
-`bca explore` turns an AL app or a multi-app workspace into an interactive 3D
-graph you can rotate, filter, search, and replay over time. It answers two
+The dependency explorer turns an AL app or a multi-app workspace into an
+interactive 3D graph you can rotate, filter, search, and replay over time. It
+is the Dependencies page of the app (`bca app`), and
+`bca export --view explorer` writes it as a file. It answers two
 questions the static diagrams cannot answer at a glance:
 
 - **Which dependencies stay inside one app, and which cross app boundaries?**
@@ -12,9 +14,9 @@ questions the static diagrams cannot answer at a glance:
   dependencies appear, change, and disappear in the order they were committed.
 
 ```sh
-bca explore ./workspace -o dependencies.html            # current source
-bca explore ./workspace --history -o dependencies.html  # replay Git history
-bca explore ./workspace --format json -o graph.json     # the data behind it
+bca export ./workspace --view explorer -o dependencies.html            # current source
+bca export ./workspace --view explorer --history -o dependencies.html  # replay Git history
+bca export ./workspace --view explorer --format json -o graph.json     # the data behind it
 ```
 
 Open the HTML file in any current browser. It is one self-contained file
@@ -79,7 +81,7 @@ repository; everything else is not even parsed. For the Base Application in
 BCApps, include its declared dependencies so that they resolve:
 
 ```sh
-bca explore ./BCApps/src \
+bca export ./BCApps/src --view explorer \
   --paths "Layers/W1/BaseApp" \
   --paths "System Application/App" \
   --paths "Business Foundation/App" \

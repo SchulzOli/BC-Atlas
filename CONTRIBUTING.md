@@ -59,7 +59,7 @@ src/
 ```
 
 To add or change a command, edit `src/capabilities.js` first. Help text,
-argument parsing, enum validation, the `bca capabilities` contract, and the
+argument parsing, enum validation, the `bca help --format json` contract, and the
 generated reference in `docs/reference/` all derive from it. Then add the
 handler in `src/commands/`, register it in `src/cli.js`, document every option
 in `docs/cli-reference.md` (a test enforces this), and run `npm run docs`.

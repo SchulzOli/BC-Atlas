@@ -95,6 +95,10 @@
   const stored = (() => {
     try { return JSON.parse(localStorage.getItem("bca-explorer") ?? "{}"); } catch { return {}; }
   })();
+  // Inside the BC Atlas app the explorer follows the app's theme and hands
+  // object details over to it.
+  const EMBEDDED = window.parent !== window;
+  const requestedTheme = new URLSearchParams(location.search).get("theme");
   const state = {
     level: "object",
     dependencies: new Set(Object.keys(DEPENDENCIES)),
@@ -120,7 +124,8 @@
     speed: 1,
     selected: undefined,
     focusDepth: 0,
-    theme: stored.theme ?? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
+    theme: ["light", "dark"].includes(requestedTheme) ? requestedTheme
+      : stored.theme ?? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
   };
   const remember = () => {
     try { localStorage.setItem("bca-explorer", JSON.stringify({ theme: state.theme })); } catch { /* optional */ }
@@ -722,6 +727,7 @@
         <button class="icon-button" data-action="focus" aria-pressed="${state.focusDepth > 0}">${state.focusDepth > 0 ? `Neighborhood ${state.focusDepth}` : "Isolate neighborhood"}</button>
         ${state.focusDepth > 0 ? `<button class="icon-button" data-action="deeper">+1 level</button>` : ""}
         ${state.level === "object" ? `<button class="icon-button" data-action="only-app">Only this app</button>` : `<button class="icon-button" data-action="drill">Show its objects</button>`}
+        ${EMBEDDED && state.level === "object" ? `<button class="icon-button" data-action="open-object">Open object</button>` : ""}
       </div>
       <dl>${rows.filter(([, value]) => value !== undefined && value !== "").map(([label, value]) => `<dt>${label}</dt><dd>${typeof value === "string" && value.startsWith("<") ? value : escapeHtml(value)}</dd>`).join("")}</dl>
       ${violationsHtml(outgoing)}
@@ -769,6 +775,7 @@
     const node = levels[state.level].byId.get(state.selected);
     if (action === "close") select(undefined);
     if (action === "fly" && node) flyTo(node.id);
+    if (action === "open-object" && node) window.parent.postMessage({ type: "bca-open-object", id: node.id }, "*");
     if (action === "focus") {
       state.focusDepth = state.focusDepth ? 0 : 1;
       render();
@@ -1267,13 +1274,26 @@
     download(fileName("json"), URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })));
     toast("Saved visible graph as JSON");
   });
-  $("#theme").addEventListener("click", () => {
-    state.theme = state.theme === "light" ? "dark" : "light";
+  const setTheme = (theme) => {
+    state.theme = theme;
     remember();
     applyBackground();
     refreshStyles();
     renderSpark();
-  });
+  };
+  $("#theme").addEventListener("click", () => setTheme(state.theme === "light" ? "dark" : "light"));
+  if (EMBEDDED) {
+    // The app around it shows the title and owns the theme.
+    for (const element of [$("#theme"), $("#title"), $("#lens")]) element.hidden = true;
+    addEventListener("message", (event) => {
+      if (event.source !== window.parent) return;
+      if (event.data?.type === "bca-theme" && ["light", "dark"].includes(event.data.theme)) setTheme(event.data.theme);
+      if (event.data?.type === "bca-select" && levels.object.byId.has(event.data.id)) {
+        if (state.level !== "object") setLevel("object");
+        select(event.data.id, { fly: true });
+      }
+    });
+  }
   $("#toggle-filters").addEventListener("click", (event) => {
     const hidden = document.body.classList.toggle("filters-hidden");
     event.currentTarget.setAttribute("aria-pressed", String(!hidden));

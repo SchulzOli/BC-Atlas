@@ -2,7 +2,10 @@
 
 Use a view that answers one question. Large all-purpose diagrams become difficult to read.
 
-For a first overview, run `bca report`: it renders the project, module, data,
+The fastest way to look at every view is the Diagrams page of the app
+(`bca app`): pick a view, set its options, zoom, and download the SVG. The
+commands below write the same diagrams as files. For a first overview in your
+repository, `bca export --view report` renders the project, module, data,
 contracts, events, and UI views into one Markdown page. See
 [Architecture reports](./reports.md).
 
@@ -10,16 +13,16 @@ contracts, events, and UI views into one Markdown page. See
 
 | Question | View | Example |
 | --- | --- | --- |
-| What does the application contain? | `project` | `bca graph ./app --view project -o project.svg` |
-| How do modules depend on each other? | `module` | `bca graph ./app --view module -o modules.svg` |
-| What depends on one AL object? | `object` | `bca graph ./app --view object --object codeunit:50100 -o object.svg` |
-| Which tables does code read or write? | `data` | `bca graph ./app --view data -o data.svg` |
-| Which procedures call each other? | `call` | `bca graph ./app --view call -o calls.svg` |
-| Which dependencies cross a boundary? | `boundary` | `bca graph ./app --view boundary --scope namespace:Contoso.Sales -o boundary.svg` |
-| Which types implement a contract? | `contracts` | `bca graph ./app --view contracts -o contracts.svg` |
-| Which publishers connect to subscribers? | `events` | `bca graph ./app --view events -o events.svg` |
-| How do pages connect to data and actions? | `ui` | `bca graph ./app --view ui -o ui.svg` |
-| What happens after an entry point? | `workflow` | `bca graph ./app --view workflow --entry ProcessDocument -o workflow.svg` |
+| What does the application contain? | `project` | `bca export ./app --view project -o project.svg` |
+| How do modules depend on each other? | `module` | `bca export ./app --view module -o modules.svg` |
+| What depends on one AL object? | `object` | `bca export ./app --view object --object codeunit:50100 -o object.svg` |
+| Which tables does code read or write? | `data` | `bca export ./app --view data -o data.svg` |
+| Which procedures call each other? | `call` | `bca export ./app --view call -o calls.svg` |
+| Which dependencies cross a boundary? | `boundary` | `bca export ./app --view boundary --scope namespace:Contoso.Sales -o boundary.svg` |
+| Which types implement a contract? | `contracts` | `bca export ./app --view contracts -o contracts.svg` |
+| Which publishers connect to subscribers? | `events` | `bca export ./app --view events -o events.svg` |
+| How do pages connect to data and actions? | `ui` | `bca export ./app --view ui -o ui.svg` |
+| What happens after an entry point? | `workflow` | `bca export ./app --view workflow --entry ProcessDocument -o workflow.svg` |
 
 ## Read a data view
 
@@ -65,7 +68,7 @@ visible as separate facts.
 Apply filters before you increase the edge limit:
 
 ```sh
-bca graph ./app \
+bca export ./app \
   --namespace "Contoso.Sales.**" \
   --type table,codeunit,page \
   --exclude "**/test/**" \
@@ -89,7 +92,7 @@ PNG and PDF output require the D2 executable on `PATH`. BC Atlas keeps the inter
 Use a repository URL template:
 
 ```sh
-bca graph ./app --source-url "https://github.com/example/repo/blob/main/{file}#L{line}" -o architecture.svg
+bca export ./app --source-url "https://github.com/example/repo/blob/main/{file}#L{line}" -o architecture.svg
 ```
 
 For detailed selectors and view behavior, read the [CLI reference](./cli-reference.md).

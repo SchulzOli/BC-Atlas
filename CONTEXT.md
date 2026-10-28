@@ -23,7 +23,7 @@ A normalized table-data grant, execute grant, permission-set inclusion, or permi
 A rule result (error, warning, or info) derived from the project-view **Architecture Model**, such as a dependency cycle, a forbidden dependency, or a fan-in hot spot.
 
 **Graph Document**:
-The temporal graph written by `bca explore`: an object level and an app level, each node and edge with presence spans across timeline frames.
+The temporal graph behind the dependency explorer (`bca export --view explorer --format json`): an object level and an app level, each node and edge with presence spans across timeline frames.
 
 **Lens**:
 One relationship family (first: dependency) projected from the **Architecture Model** into a **Graph Document**.

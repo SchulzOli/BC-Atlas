@@ -2,8 +2,8 @@
 
 Every command, option, default, and configuration setting of `bca`, grouped by
 feature area. Run `bca --help` for the overview, `bca help <command>` or
-`bca <command> --help` for one command, and `bca capabilities` for the same
-information as JSON.
+`bca <command> --help` for one command, and `bca help --format json` for the
+same information as JSON.
 
 Command-line values override values loaded from `.bca.json`. An omitted
 `[app-root]` means the current directory.
@@ -12,65 +12,95 @@ Command-line values override values loaded from `.bca.json`. An omitted
 
 | Area | Command | Purpose |
 | --- | --- | --- |
-| Get started | `setup` | Set up automation interactively, or with `--yes`. |
+| Get started | `app` | Open the BC Atlas app in the browser for one project. Default command: `bca <app-root>`. |
+| Get started | `setup` | Set up a project interactively, or with `--yes`: `.bca.json`, Git hooks, pipelines, schedules. |
 | Get started | `setup plan` | Detect the project and list setup questions with recommended answers. |
 | Get started | `setup apply` | Write `.bca.json`, Git hooks, and a pipeline from setup answers. |
 | Get started | `setup agent` | Add a `/bca-setup` command for Claude Code, Copilot, or Cursor. |
-| Get started | `init` | Create a starter `.bca.json` configuration. |
-| Get started | `report` | Write a complete architecture report: overview, health, and diagrams. |
-| Visualize | `graph` | Write a diagram (D2, SVG, PNG, PDF) or model file (JSON). Default command. |
-| Visualize | `watch` | Rebuild a diagram whenever AL source, `app.json`, or `.bca.json` changes. |
-| Visualize | `explore` | Write an interactive 3D dependency explorer (HTML) or its graph document (JSON), optionally replayed over Git history. |
-| Analyze | `check` | Score architecture health and fail CI on cycles, policy violations, or diagnostics. |
+| Analyze | `check` | Score architecture health and fail CI on cycles, policy violations, architecture violations, or diagnostics. |
 | Analyze | `architecture` | Find a target architecture, list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
-| Analyze | `inspect` | Print the resolved architecture model as JSON. |
-| Document | `codegraph` | Generate one linked Markdown page per AL object. |
-| Document | `docs list` | List documented UI-test scenarios. |
-| Document | `docs show` | Show one scenario, its prerequisites, and its diagnostics. |
-| Document | `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
-| Document | `docs generate` | Generate Markdown user guides and an index. |
-| Document | `docs set` | Add or replace documentation metadata in AL source. |
-| Document | `docs unset` | Remove documentation metadata from AL source. |
-| Document | `docs automation` | Print a CI pipeline that keeps generated guides in sync. |
-| Document | `docs glossary` | List supported documentation tags and prerequisite types. |
+| Export | `export` | Write what the app shows as files: the app as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, a diagram, or the resolved model as JSON. |
+| Export | `docs list` | List documented UI-test scenarios. |
+| Export | `docs show` | Show one scenario, its prerequisites, and its diagnostics. |
+| Export | `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
+| Export | `docs generate` | Generate user guides or test cases as Markdown, HTML, DITA, Azure DevOps CSV, or BPMN. |
+| Export | `docs set` | Add or replace documentation metadata in AL source. |
+| Export | `docs unset` | Remove documentation metadata from AL source. |
+| Export | `docs automation` | Print a CI pipeline that keeps generated guides in sync. |
+| Export | `docs glossary` | List supported documentation tags and prerequisite types. |
 | Integrate | `run` | Run the features configured for a trigger and sync their output. |
 | Integrate | `update` | Check for a new version, show the release notes, and update BC Atlas and the generated setup files. |
-| Integrate | `capabilities` | Print the machine-readable command contract as JSON. |
 | Integrate | `mcp` | Start the MCP stdio server for AI agents (also installed as `bca-mcp`). |
 
 ```text
+bca app [app-root] [options]        # or: bca <app-root> [options]
 bca setup [app-root] [--yes] [--dry-run]
 bca setup plan [app-root] [options]
 bca setup apply [app-root] [options]
 bca setup agent [app-root] [options]
-bca init [app-root] [options]
-bca report [app-root] [options]
-bca graph [app-root] [options]      # or: bca <app-root> [options]
-bca watch [app-root] [options]
-bca explore [app-root] [options]
 bca check [app-root] [options]
 bca architecture [app-root] [options]
-bca inspect [app-root] [options]
-bca codegraph [app-root] [options]
-bca run [app-root] [options]
-bca update [app-root] [options]
+bca export [app-root] [--view <what>] [-o <path>] [options]
 bca docs <command> <test-root> [options]
 bca docs glossary [options]
-bca capabilities
+bca run [app-root] [options]
+bca update [app-root] [options]
 bca mcp
+bca help [<command>] [--format json]
 ```
+
+### Earlier commands
+
+Several commands are now part of `app` and `export`:
+
+| Before | Now |
+| --- | --- |
+| `bca init` | `bca setup` (it writes `.bca.json`), or `bca setup apply --hooks none --ci none --editor none --schedule none` for the file alone |
+| `bca report` | `bca export --view report` (`--output-dir` is now `-o`) |
+| `bca graph`, `bca <app-root>` with diagram options | `bca export --view <view>`; `bca <app-root>` now opens the app |
+| `bca watch` | `bca export --view <view> --watch`, or the app, which updates itself |
+| `bca explore` | `bca export --view explorer`, or the app's Dependencies page |
+| `bca inspect` | `bca export --view <view> --format json` (stdout) |
+| `bca codegraph` | `bca export --view catalog` (`--output-dir` is now `-o`) |
+| `bca capabilities` | `bca help --format json` |
 
 ### Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Operation failed, or a check (`check`, `docs validate`) found blocking issues. |
+| `1` | Operation failed, or a check (`check`, `architecture`, `docs validate`) found blocking issues. |
 | `2` | Invalid usage: unknown command, unknown option, invalid enum value, or missing required value. |
 
 Global flags: `-h`, `--help` shows help; `-V`, `--version` shows the version.
 
 ## Get started
+
+### `app`
+
+```text
+bca app [app-root] [--port <port>] [--no-open]
+bca <app-root>
+```
+
+Analyzes the project, starts a local web server, and opens the BC Atlas app
+in the browser: overview, health, architecture, 3D dependencies, diagrams,
+objects, and docs on one screen. The app re-analyzes when AL files,
+`app.json`, `.bca.json`, or the architecture baseline change, and open pages
+refresh. Stop it with `Ctrl+C`. See [The BC Atlas app](./app.md).
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--port` | port | Port on localhost. Default: `4317`, or the next free one. |
+| `--no-open` | flag | Print the URL without opening a browser. |
+| `--paths` | path or glob | Only analyze AL files in these folders. Repeatable. |
+| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `export`. |
+| `--project-root` | path | Analyze a wider workspace; the positional path becomes the focus. |
+| `--config` | path | Configuration file. |
+
+The server listens on `127.0.0.1` only. Changes from the app (adopting an
+architecture, accepting violations) need a token that only the page the
+command served knows.
 
 ### `setup`
 
@@ -83,6 +113,11 @@ run on a schedule, and how generated files stay in sync. It then shows the
 planned changes and applies them after confirmation. Needs an interactive
 terminal; use `--yes` to accept the recommendations. See
 [Guided setup](./setup.md).
+
+The `.bca.json` it writes is pre-filled from what BC Atlas detects: the app
+name from `app.json`, test folders (excluded from analysis), a source-link
+template for GitHub, GitLab, or Azure DevOps remotes, and `check` and `report`
+sections with the default thresholds.
 
 | Option | Value | Description |
 | --- | --- | --- |
@@ -151,91 +186,147 @@ through the CLI: `.claude/commands/bca-setup.md`,
 | `--print` | flag | Print the instructions instead of writing a file. |
 | `--force` | flag | Replace an existing command file. |
 
-### `init`
+## Analyze
+
+### `architecture`
 
 ```text
-bca init [app-root] [--force] [--print]
+bca architecture [app-root] [options]
 ```
 
-Writes `<app-root>/.bca.json`. The file is pre-filled from what BC Atlas
-detects: the app name from `app.json`, test folders (excluded from analysis),
-and a source-link template for GitHub, GitLab, or Azure DevOps remotes. It also
-contains `check` and `report` sections with the default thresholds.
+Checks the target architecture in the `architecture` section of `.bca.json`,
+or proposes one from today's dependencies when there is none. Lists every
+dependency that points the wrong way, grouped into work items with a
+resolution strategy, plus clean-architecture metrics per component. Exits with
+`1` when the configured architecture has violations that are not in the
+baseline. See [Clean architecture](./clean-architecture.md).
+
+```text
+bca architecture ./app --propose --format markdown -o architecture.md
+bca architecture ./app --propose --write --update-baseline
+bca architecture ./app --format json
+```
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--force` | flag | Overwrite an existing `.bca.json`. |
-| `--print` | flag | Print the configuration to stdout instead of writing it. |
-
-### `report`
-
-```text
-bca report [app-root] [options]
-```
-
-Writes a self-contained Markdown report to a directory (default
-`docs/atlas`): `README.md` with an at-a-glance table, one section and diagram
-per view, the architecture health summary, and a regeneration command. See
-[Architecture reports](./reports.md).
-
-| Option | Value | Description |
-| --- | --- | --- |
-| `--output-dir` | path | Report directory. Default: `docs/atlas`. |
-| `--views` | list | Comma-separated views: `project`, `module`, `data`, `contracts`, `events`, `ui`, `call`. Default: all except `call`. |
-| `--format` | `svg` or `d2` | Diagram format. `d2` skips SVG rendering. Default: `svg`. |
-| `--codegraph` | flag | Also write the linked object catalog to `<output-dir>/objects`. |
-| `--json` | flag | Also write the resolved project model to `model.json`. |
-| `--title` | text | Report title. Default: `<app name> architecture`. |
-| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `graph`. |
-| `--source-url`, `--source-ref`, `--source-path-prefix` | text | Source links, as for `graph`. |
+| `-f`, `--format` | format | `text`, `markdown`, or `json`. Default: `text`. |
+| `-o`, `--output` | path | Write the report to a file instead of stdout. |
+| `--propose` | flag | Propose an architecture even when `.bca.json` defines one. |
+| `--group-by` | mode | `auto`, `namespace`, `folder`, `module`, or `app`. Default `auto`: modules (or apps), and any that is still too large split by namespace. |
+| `--depth` | integer | Namespace or folder segments per component. Default: split until no component holds more than 15% of the objects. |
+| `--min-objects` | integer | Merge smaller groups into the component they depend on most. Default: `1`. |
+| `--write` | flag | Save the architecture to the `architecture` section of `.bca.json`. |
+| `--update-baseline` | flag | Accept today's violations in `.bca-architecture-baseline.json`; only new ones fail afterwards. |
+| `--paths` | path or glob | Only analyze AL files in these folders. Repeatable. |
+| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `export`. |
 | `--project-root` | path | Analyze a wider workspace. |
 | `--config` | path | Configuration file. |
 
-## Visualize
-
-### `graph`
+### `check`
 
 ```text
-bca graph [app-root] [options]
-bca <app-root> [options]
+bca check [app-root] [options]
 ```
 
-Analyzes the input and writes the requested diagram or JSON model. Omitting
-`graph` uses this command when the first argument is an existing path.
+Analyzes the project view and evaluates health rules: diagnostics, forbidden
+dependencies, dependency cycles, fan-in/fan-out hot spots, orphan objects, and
+unresolved references. Exits with `1` when a finding reaches `--fail-on`. See
+[Architecture health checks](./health-checks.md).
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--fail-on` | level | `error`, `warning`, `info`, or `never`. Default: `error`. |
+| `-f`, `--format` | format | `text`, `json`, or `markdown`. Default: `text`. |
+| `-o`, `--output` | path | Write the report to a file; the result line goes to stderr. |
+| `--max-fan-in` | integer | Warn when more distinct objects depend on one object. Default: `25`. |
+| `--max-fan-out` | integer | Warn when one object depends on more distinct objects. Default: `25`. |
+| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `export`. |
+| `--project-root` | path | Analyze a wider workspace. |
+| `--config` | path | Configuration file. |
+| `--strict` | flag | Shortcut for `--fail-on warning`. |
+
+## Export
+
+### `export`
 
 ```text
-bca graph src -o architecture.svg
-bca graph src --view workflow --entry ProcessDocument -o workflow.svg
-bca src --view data --format json -o data.json
+bca export [app-root] [--view <what>] [-o <path>] [options]
 ```
 
-`graph`, `watch`, and `inspect` share these options.
+Writes what the app shows as files. `--view` selects what:
+
+| `--view` | Writes | Default output | Formats |
+| --- | --- | --- | --- |
+| `app` (default) | The app as one self-contained, offline HTML file: every page, the report diagrams, the 3D explorer, and the docs. | `bc-atlas.html` | `html` |
+| `report` | Markdown report: `README.md` with an at-a-glance table, one section and diagram per view, the health summary, and a regeneration command. See [Architecture reports](./reports.md). | `docs/atlas` | `svg` or `d2` diagrams |
+| `explorer` | The interactive 3D dependency explorer, or its graph document. See [Dependency explorer](./dependency-explorer.md). | `bc-atlas-explorer.html` | `html` or `json` |
+| `catalog` | One linked Markdown page per AL object. See [Code Graph](./code-graph-markdown-design.md). | `docs/codegraph` | Markdown |
+| `project`, `module`, `object`, `data`, `call`, `boundary`, `contracts`, `events`, `ui`, `workflow` | One diagram view, or its resolved model as JSON. See [Architecture diagrams](./architecture-diagrams.md). | `bc-atlas-<view>.svg` | `svg`, `d2`, `json`, `png`, `pdf` |
+
+```text
+bca export ./app -o atlas.html
+bca export ./app --view report --codegraph
+bca export ./workspace --view explorer --history -o dependencies.html
+bca export ./app --view module -o modules.svg
+bca export ./app --view workflow --entry ProcessDocument -o workflow.svg --watch
+bca export ./app --view project --format json > model.json
+bca export ./app --view catalog -o docs/codegraph
+```
 
 #### Output
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `-o`, `--output` | path | Output path. Default: `bc-atlas.d2`. `inspect` writes to stdout when omitted. |
-| `-f`, `--format` | format | `d2`, `json`, `svg`, `png`, or `pdf`. Inferred from the output extension when omitted. |
+| `--view` | what | `app`, `report`, `explorer`, `catalog`, or a diagram view. Default: `app`. |
+| `-o`, `--output` | path | Output file or folder (defaults above). `-` writes JSON to stdout. |
+| `-f`, `--format` | format | `html`, `d2`, `json`, `svg`, `png`, or `pdf`, as the view allows. Inferred from the output extension when omitted. |
+| `--title` | text | Title of the report, explorer, or diagram. |
+| `--watch` | flag | Write again whenever AL source, `app.json`, or `.bca.json` changes. Stop with `Ctrl+C`. |
+| `--debounce` | milliseconds | Delay before writing again with `--watch`. Default: `250`. |
 
-- D2, JSON, and SVG output use bundled functionality.
-- PNG and PDF require the `d2` executable on `PATH`.
+- A diagram view with `--format json` and no `--output` prints the resolved
+  model to stdout (progress goes to stderr), for scripts.
+- D2, JSON, and SVG use bundled functionality; PNG and PDF require the `d2`
+  executable on `PATH`.
 - If `--format` conflicts with the extension, the format wins:
   `-o calls.d2 --format svg` writes `calls.svg` and keeps `calls.d2`.
-- Rendered output always keeps the generated `.d2` source next to it.
+- Rendered diagrams always keep the generated `.d2` source next to them.
+- The object catalog replaces its folder atomically; BC Atlas refuses to
+  replace a non-empty folder that has no generated `index.md`.
+
+#### Report
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--views` | list | Comma-separated views: `project`, `module`, `data`, `contracts`, `events`, `ui`, `call`. Default: all except `call`. |
+| `--codegraph` | flag | Also write the linked object catalog to `<output>/objects`. |
+| `--json` | flag | Also write the resolved project model to `model.json`. |
+
+`--format svg` (default) or `d2` selects the diagram format; `d2` skips SVG
+rendering.
+
+#### Explorer and timeline
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--lens` | lens | Relationship family. Default and currently only value: `dependency`. |
+| `--propose` | flag | Show a proposed target architecture (components, layers) when `.bca.json` defines none. With an `architecture` section, the explorer always shows it. |
+| `--group-by` | mode | With `--propose`: how the proposal groups objects, `auto` (default), `namespace`, `folder`, `module`, or `app`. |
+| `--history` | flag | Replay Git history, one frame per commit that changed AL files or `app.json`. Also for `--view app`. |
+| `--max-commits` | integer | Most frames to replay; older commits are sampled evenly. Default: `60`. |
+| `--since` | date | Only replay commits after this date (`git log --since` syntax). |
 
 #### View selection
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--view` | view | `project`, `module`, `object`, `data`, `call`, `boundary`, `contracts`, `events`, `ui`, or `workflow`. Default: `project`. |
 | `--object` | selector | Required by the `object` view. Object name, ID, key, or typed selector such as `codeunit:50100`. |
 | `--object-inbound-depth` | integer ≥ 0 | Incoming depth for the object view. Default: `1`. |
 | `--object-outbound-depth` | integer ≥ 0 | Outgoing depth for the object view. Default: `1`. |
 | `--members` | list | Focused-object members: `fields`, `actions`, `triggers`, `events`, `procedures`. |
 | `--scope` | selector | Boundary scope: `namespace:`, `folder:`, `app:`, or `object:`. Repeatable; required by `boundary`. |
 | `--focus` | text | Restrict the `contracts`, `events`, or `ui` view to matching names. |
-| `--group-by` | mode | `namespace`, `folder`, `type`, or `role`. Project view defaults to `role`; others to `namespace`. |
+| `--group-by` | mode | Diagram views: `namespace`, `folder`, `type`, or `role`. Project view defaults to `role`; others to `namespace`. |
 | `--module-depth` | integer or `auto` | Namespace segments kept by the module view. Default: `auto`. |
 | `--folder-depth` | integer | Folder segments in a folder-grouped module view. Default: `1`. |
 
@@ -247,6 +338,7 @@ bca src --view data --format json -o data.json
 | `--type` | types | Include object types. Comma-separated and repeatable. |
 | `--include` | glob | Include matching file paths or object selectors. Repeatable. |
 | `--exclude` | glob | Exclude matching file paths or object selectors. Repeatable. |
+| `--paths` | path or glob | Only analyze AL files in these folders (or matching these globs), relative to the project root. Repeatable. Speeds up large repositories such as BCApps. |
 
 #### Call view
 
@@ -281,7 +373,6 @@ dispatch and collapsed paths are labelled `inferred`.
 | --- | --- | --- |
 | `--max-edges` | integer | Diagram edge cap. Default: `500`. Also caps workflow edges unless `workflow.maxEdges` is configured. |
 | `--direction` | value | `right`, `down`, `left`, or `up`. Default: `right`. |
-| `--title` | text | Diagram title. |
 | `--no-legend` | flag | Hide edge-kind and confidence legends. |
 | `--details` | flag | Show member counts in nodes. |
 | `--no-external` | flag | Hide external and unresolved nodes. Unresolved edges remain in JSON. |
@@ -298,157 +389,9 @@ dispatch and collapsed paths are labelled `inferred`.
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--project-root` | path | Analyze this app or multi-app workspace; the positional path becomes the rendered focus. |
+| `--project-root` | path | Analyze this app or multi-app workspace; the positional path becomes the focus. |
 | `--config` | path | Configuration file. Default: `<app-root>/.bca.json` when present. |
 | `--strict` | flag | Fail when analysis produces warning or error diagnostics. |
-
-### `watch`
-
-```text
-bca watch [app-root] [options]
-```
-
-Builds once, then watches recursively for AL files, `app.json`, and
-`.bca.json`. Accepts every `graph` option plus:
-
-| Option | Value | Description |
-| --- | --- | --- |
-| `--debounce` | milliseconds | Rebuild debounce. Default: `250`. |
-
-Stop with `Ctrl+C`.
-
-### `explore`
-
-```text
-bca explore [app-root] [options]
-```
-
-Writes the interactive dependency explorer: one self-contained HTML file with a
-3D graph of AL objects and apps, filters, and a timeline. Dependencies inside
-one app are kept apart from dependencies across apps. See
-[Dependency explorer](./dependency-explorer.md).
-
-```text
-bca explore ./workspace -o dependencies.html
-bca explore ./workspace --history --max-commits 120 -o dependencies.html
-bca explore ./app --format json -o dependencies.json
-```
-
-| Option | Value | Description |
-| --- | --- | --- |
-| `-o`, `--output` | path | Output path. Default: `bc-atlas-explorer.html`. |
-| `-f`, `--format` | format | `html` (explorer) or `json` (graph document). Inferred from the extension. |
-| `--lens` | lens | Relationship family. Default and currently only value: `dependency`. |
-| `--propose` | flag | Show a proposed target architecture (components, layers) when `.bca.json` defines none. With an `architecture` section, the explorer always shows it. |
-| `--group-by` | mode | How a proposed architecture groups objects: `auto` (default), `namespace`, `folder`, `module`, or `app`. |
-| `--history` | flag | Replay Git history, one frame per commit that changed AL files or `app.json`. |
-| `--max-commits` | integer | Most frames to replay; older commits are sampled evenly. Default: `60`. |
-| `--since` | date | Only replay commits after this date (`git log --since` syntax). |
-| `--title` | text | Explorer title. |
-| `--paths` | path or glob | Only analyze AL files in these folders (or matching these globs), relative to the project root. Repeatable. Speeds up large repositories such as BCApps. |
-| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `graph`. |
-| `--project-root` | path | Analyze a wider workspace; the positional path becomes the selection. |
-| `--config` | path | Configuration file. |
-
-## Analyze
-
-### `architecture`
-
-```text
-bca architecture [app-root] [options]
-```
-
-Checks the target architecture in the `architecture` section of `.bca.json`,
-or proposes one from today's dependencies when there is none. Lists every
-dependency that points the wrong way, grouped into work items with a
-resolution strategy, plus clean-architecture metrics per component. Exits with
-`1` when the configured architecture has violations that are not in the
-baseline. See [Clean architecture](./clean-architecture.md).
-
-```text
-bca architecture ./app --propose --format markdown -o architecture.md
-bca architecture ./app --propose --write --update-baseline
-bca architecture ./app --format json
-```
-
-| Option | Value | Description |
-| --- | --- | --- |
-| `-f`, `--format` | format | `text`, `markdown`, or `json`. Default: `text`. |
-| `-o`, `--output` | path | Write the report to a file instead of stdout. |
-| `--propose` | flag | Propose an architecture even when `.bca.json` defines one. |
-| `--group-by` | mode | `auto`, `namespace`, `folder`, `module`, or `app`. Default `auto`: modules (or apps), and any that is still too large split by namespace. |
-| `--depth` | integer | Namespace or folder segments per component. Default: split until no component holds more than 15% of the objects. |
-| `--min-objects` | integer | Merge smaller groups into the component they depend on most. Default: `1`. |
-| `--write` | flag | Save the architecture to the `architecture` section of `.bca.json`. |
-| `--update-baseline` | flag | Accept today's violations in `.bca-architecture-baseline.json`; only new ones fail afterwards. |
-| `--paths` | path or glob | Only analyze AL files in these folders. Repeatable. |
-| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `graph`. |
-| `--project-root` | path | Analyze a wider workspace. |
-| `--config` | path | Configuration file. |
-
-### `check`
-
-```text
-bca check [app-root] [options]
-```
-
-Analyzes the project view and evaluates health rules: diagnostics, forbidden
-dependencies, dependency cycles, fan-in/fan-out hot spots, orphan objects, and
-unresolved references. Exits with `1` when a finding reaches `--fail-on`. See
-[Architecture health checks](./health-checks.md).
-
-| Option | Value | Description |
-| --- | --- | --- |
-| `--fail-on` | level | `error`, `warning`, `info`, or `never`. Default: `error`. |
-| `-f`, `--format` | format | `text`, `json`, or `markdown`. Default: `text`. |
-| `-o`, `--output` | path | Write the report to a file; the result line goes to stderr. |
-| `--max-fan-in` | integer | Warn when more distinct objects depend on one object. Default: `25`. |
-| `--max-fan-out` | integer | Warn when one object depends on more distinct objects. Default: `25`. |
-| `--namespace`, `--type`, `--include`, `--exclude` | glob | Filters, as for `graph`. |
-| `--project-root` | path | Analyze a wider workspace. |
-| `--config` | path | Configuration file. |
-| `--strict` | flag | Shortcut for `--fail-on warning`. |
-
-### `inspect`
-
-```text
-bca inspect [app-root] [options]
-```
-
-Runs the same analysis, filtering, and view projection as `graph` and prints
-JSON to stdout. With `--output`, JSON is written to that file. `--format`
-accepts only `json`.
-
-```text
-bca inspect src --view workflow --entry ProcessDocument
-bca inspect src --strict -o model.json
-```
-
-## Document
-
-### `codegraph`
-
-```text
-bca codegraph [app-root] --output-dir docs/codegraph
-```
-
-Mirrors source directories below the output directory. Objects declared at the
-input root use an object-type folder such as `table` or `codeunit`. Each page
-contains metadata, members, dependencies, backlinks, and a source location.
-The output directory is replaced atomically; BC Atlas refuses to replace a
-non-empty directory that has no generated `index.md`.
-
-| Option | Value | Description |
-| --- | --- | --- |
-| `--output-dir` | path | Markdown directory. Default: `docs/codegraph`. |
-| `--include` | glob | Include matching paths or object selectors. Repeatable. |
-| `--exclude` | glob | Exclude matching paths or object selectors. Repeatable. |
-| `--source-url` | template | Repository source links with `{file}`, `{line}`, and `{ref}`. |
-| `--source-ref` | text | Commit, tag, or branch for `{ref}`. |
-| `--source-path-prefix` | path | Repository path prepended to `{file}`. |
-| `--project-root` | path | Analyze a wider workspace before restricting output. |
-| `--config` | path | Configuration file. |
-| `--strict` | flag | Fail on warning or error diagnostics. |
 
 ### `docs` commands
 
@@ -588,15 +531,16 @@ version exists. The check runs at most once a day in the background. It is off
 in CI, Git hooks, `bca run`, `--format json`, and when `BCA_NO_UPDATE_CHECK`
 or `NO_UPDATE_NOTIFIER` is set.
 
-### `capabilities`
+### `help`
 
 ```text
-bca capabilities
+bca help [<command>]
+bca help --format json
 ```
 
-Writes only UTF-8 JSON: `schemaVersion`, version, exit codes, invocation
-conventions, feature `areas`, `views`, and every command with its `argv`
-template, `area`, options (CLI token, type, enum, default, `required`,
+`--format json` writes only UTF-8 JSON: `schemaVersion`, version, exit codes,
+invocation conventions, feature `areas`, `views`, and every command with its
+`argv` template, `area`, options (CLI token, type, enum, default, `required`,
 `repeatable`), output contract, rules, and examples. Agents must pass
 arguments as an array, parse stdout only after exit code `0`, and run `docs set`
 or `docs unset` with `--dry-run` before writing.
@@ -614,8 +558,8 @@ Starts the Model Context Protocol server on stdio. See
 ## Configuration file
 
 `.bca.json` at the input root is loaded automatically; `--config` selects
-another file. `bca init` creates a starter file. The root accepts the camelCase
-form of every architecture option: `view`, `output`, `format`, `object`,
+another file. `bca setup` creates a starter file. The root accepts the camelCase
+form of every `export` diagram option: `view`, `output`, `format`, `object`,
 `scope`, `focus`, `projectRoot`, `namespaces`, `types`, `include`, `exclude`,
 `groupBy`, `moduleDepth`, `folderDepth`, `includeUnresolvedCalls`,
 `rootProcedure`, `callDepth`, `callDirection`, `expandProcedures`,
@@ -637,7 +581,7 @@ Configuration-only settings:
 | `automation` | `hooks`, `ci`, and `triggers` (`pre-commit`, `pre-push`, `ci`, `schedule`), each with `tasks`, `sync`, and for `schedule` a `cron`. Written by `bca setup`. |
 | `docs` | Settings for the `docs` task of `bca run`: `tests`, `app`, `export`, `as`, `language`, `title`, `outputDir`. |
 | `codegraph` | `outputDir` for the `codegraph` task. |
-| `diagrams` | List of `graph` option objects with an `output`, rendered by the `diagrams` task. |
+| `diagrams` | List of `export` diagram option objects with a `view` and an `output`, rendered by the `diagrams` task. |
 | `report` | Report defaults: `outputDir`, `views`, `format`, `codegraph`, `json`, `title`. |
 
 ```json

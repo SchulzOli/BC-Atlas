@@ -43,9 +43,9 @@ function run(arguments_) {
 
 await fs.mkdir(output, { recursive: true });
 for (const [name, options] of diagrams) {
-  await run(["graph", input, ...options, "--output", path.join(output, `${name}.d2`)]);
+  await run(["export", input, ...options, "--format", "d2", "--output", path.join(output, `${name}.d2`)]);
   await run([
-    "graph",
+    "export",
     input,
     ...options,
     "--format",
@@ -55,7 +55,7 @@ for (const [name, options] of diagrams) {
   ]);
 }
 
-await run(["report", input, "--output-dir", path.join("examples", "report"), "--codegraph"]);
+await run(["export", input, "--view", "report", "-o", path.join("examples", "report"), "--codegraph"]);
 await run([
   "docs", "generate", input,
   "--app", input,

@@ -8,6 +8,22 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `bca app`: BC Atlas as an app in your browser. One look and feel for
+  everything the tool does: an overview, health findings, the architecture
+  (layers, work items, components; adopt a proposal or accept violations with
+  one click), the 3D dependency explorer, diagrams for every view with zoom
+  and pan, a searchable object list with one page per object (dependencies,
+  members, violations, source links), and the UI-test documentation. It
+  re-analyzes when AL files change and open pages refresh. `bca <app-root>`
+  opens it. The server listens on localhost only; changes need the page's
+  token.
+- `bca export`: one command for every file output. `--view app` (default)
+  writes the app as one offline HTML file to share or publish from CI;
+  `report`, `explorer`, `catalog`, and the ten diagram views write what the
+  former commands wrote; `--watch` writes again on every change.
+- One design system (`src/ui/theme.css`) for the app, the explorer, and the
+  HTML documentation, with light and dark themes.
+
 - `bca architecture`: clean architecture for AL apps. Define components
   (namespace, folder, app, module, type, or object selectors), layers, and
   allowed dependencies in `.bca.json`, or let BC Atlas propose them from
@@ -22,13 +38,14 @@ follows [Semantic Versioning](https://semver.org/).
 - `--write` saves the architecture to `.bca.json`; `--update-baseline`
   accepts today's violations. `bca check` fails on new violations, reports
   fixed ones so the baseline only shrinks, and warns about component cycles.
-- `bca explore` shows the architecture: a Components level, violating edges
+- The dependency explorer shows the architecture: a Components level, violating edges
   in red with their resolution, an Architecture panel with the largest work
   items, violations per commit on the timeline, and architecture layers as a
   layout. The MCP server offers `bc_atlas_architecture`.
 
-- `bca explore`: an interactive 3D dependency explorer in one self-contained,
-  offline HTML file. Dependencies inside one app are kept apart from
+- Dependency explorer (`bca export --view explorer`, and the app's
+  Dependencies page): an interactive 3D dependency explorer in one
+  self-contained, offline HTML file. Dependencies inside one app are kept apart from
   dependencies across apps, which are checked against `app.json`: `declared`,
   `implicit` (Microsoft apps), `undeclared`, and `unresolved`. Switch between
   an object level and an app level; filter by app, dependency class, object
@@ -48,7 +65,7 @@ follows [Semantic Versioning](https://semver.org/).
 - Platform system objects (`Integer`, `Date`, `Field`, `AllObjWithCaption`,
   `Company`, ...) and `System "..."` permissions count as implicit
   dependencies instead of unresolved ones.
-- `bca explore --paths` analyzes and replays only some folders of a large
+- `--paths` analyzes and replays only some folders of a large
   repository. Large explorer files embed their graph gzip-compressed and start
   on the module level.
 
@@ -65,6 +82,12 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Fewer commands: 9 instead of 15. `bca report`, `bca graph`, `bca watch`,
+  `bca inspect`, and `bca codegraph` are now `bca export --view report`,
+  `--view <view>`, `--watch`, `--format json`, and `--view catalog`; `-o`
+  replaces `--output-dir`. `bca init` is part of `bca setup`, and
+  `bca capabilities` is `bca help --format json`. `bca <app-root>` opens the
+  app instead of writing a diagram. See the table in the CLI reference.
 - The journey diagram shows each scenario with its permission set and number
   of steps. `[NEXT]` and `[REQUIRES]` between the same scenarios are one
   arrow in flow direction; `[ALTERNATIVE]` and `[RELATED]` are dashed lines.

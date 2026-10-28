@@ -1,12 +1,12 @@
 # Architecture reports
 
-`bca report` produces the fastest complete overview of an AL project: one
-Markdown page that links every diagram, the health summary, and optionally the
+`bca export --view report` writes a complete overview of an AL project into
+your repository: one Markdown page that links every diagram, the health summary, and optionally the
 object catalog. The output is plain Markdown and SVG, so it renders on GitHub,
 Azure DevOps, GitLab, and in any Markdown viewer without a server.
 
 ```sh
-bca report ./app
+bca export ./app --view report
 ```
 
 See the [warehouse example report](../examples/report/README.md) generated
@@ -35,13 +35,13 @@ report.
 
 ```sh
 # Select views and skip SVG rendering for a fast draft
-bca report ./app --views project,data,call --format d2
+bca export ./app --view report --views project,data,call --format d2
 
 # Full documentation set in a custom folder
-bca report ./app --output-dir docs/architecture --codegraph --json
+bca export ./app --view report -o docs/architecture --codegraph --json
 
 # Restrict the report to one area of a larger workspace
-bca report ./apps/Sales --project-root . --namespace "Contoso.Sales.**"
+bca export ./apps/Sales --view report --project-root . --namespace "Contoso.Sales.**"
 ```
 
 Save defaults in the `report` section of `.bca.json`:
@@ -65,7 +65,7 @@ The report is deterministic: the same source produces the same files. Commit
 it and let CI fail when it is stale:
 
 ```sh
-bca report
+bca export --view report
 git diff --exit-code -- docs/atlas
 ```
 

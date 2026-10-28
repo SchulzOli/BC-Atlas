@@ -9,44 +9,32 @@ Run `npm run docs` after a capability changes.
 
 ### Get started
 
-Set up a project and produce a complete overview in one step.
+Open the app for a project, or set up automation for it.
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
-| `init` | `bca init [app-root]` | Create a .bca.json configuration tailored to an AL project. |
-| `setup` | `bca setup [app-root]` | Set up automation step by step: features, Git hooks, pipelines, schedules, and sync. |
+| `app` | `bca app [app-root]` | Open BC Atlas in the browser: overview, health, architecture, 3D dependencies, diagrams, objects, and docs for one project, updated when AL files change. |
+| `setup` | `bca setup [app-root]` | Set up BC Atlas for a project step by step: .bca.json, features, Git hooks, pipelines, schedules, and sync. |
 | `setup.plan` | `bca setup plan [app-root]` | Detect the project and list setup questions with recommended answers. |
 | `setup.apply` | `bca setup apply [app-root]` | Write .bca.json, Git hooks, and a pipeline from setup answers. |
 | `setup.agent` | `bca setup agent [app-root]` | Add a /bca-setup command for your AI agent that runs the guided setup through the CLI. |
-| `report` | `bca report [app-root]` | Write a complete architecture report: overview, health, and diagrams for every view. |
-
-### Visualize
-
-Render focused architecture diagrams from AL source.
-
-| Command | Invocation | Purpose |
-| --- | --- | --- |
-| `graph` | `bca graph [app-root]` | Write an architecture diagram (D2, SVG, PNG, PDF) or model file (JSON). |
-| `watch` | `bca watch [app-root]` | Rebuild a diagram whenever AL source, app.json, or .bca.json changes. |
-| `explore` | `bca explore [app-root]` | Write an interactive 3D dependency explorer: inside one app vs. across apps, filterable, replayable over Git history. |
 
 ### Analyze
 
-Measure architecture health and read the resolved model.
+Gate CI on architecture health and keep a target architecture in place.
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
 | `check` | `bca check [app-root]` | Score architecture health and fail CI on cycles, policy violations, or diagnostics. |
 | `architecture` | `bca architecture [app-root]` | Find a target architecture (components, layers, allowed dependencies), list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
-| `inspect` | `bca inspect [app-root]` | Print the resolved architecture model as JSON. |
 
-### Document
+### Export
 
-Generate Markdown object catalogs and user guides from AL UI tests.
+Write what the app shows as files, and user guides from AL UI tests.
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
-| `codegraph` | `bca codegraph [app-root]` | Generate one linked Markdown page per AL object. |
+| `export` | `bca export [app-root]` | Write what the app shows as files: the app as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view. |
 | `docs.list` | `bca docs list <test-root>` | List documented UI-test scenarios. |
 | `docs.show` | `bca docs show <test-root>` | Show one scenario, its prerequisites, and its diagnostics. |
 | `docs.validate` | `bca docs validate <test-root>` | Validate IDs, tags, links, and prerequisite cycles. |
@@ -58,16 +46,24 @@ Generate Markdown object catalogs and user guides from AL UI tests.
 
 ### Integrate
 
-Connect BC Atlas to scripts, CI pipelines, and AI agents.
+Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents.
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
 | `run` | `bca run [app-root]` | Run the features configured for a trigger (Git hook, pipeline, schedule) and sync their output. |
 | `update` | `bca update [app-root]` | Check for a new BC Atlas version, show what changed, and update it together with the generated setup files. |
-| `capabilities` | `bca capabilities` | Print this machine-readable command contract as JSON. |
 | `mcp` | `bca mcp` | Start the Model Context Protocol server on stdio for AI agents. |
 
-## Architecture views
+## What `bca export` writes
+
+| `--view` | Writes |
+| --- | --- |
+| `app` | The app as one offline HTML file: every page, the diagrams, the 3D explorer, and the docs |
+| `report` | Markdown report (README.md) with health, diagrams, and an optional object catalog |
+| `explorer` | Interactive 3D dependency explorer (HTML), replayable over Git history, or its graph as JSON |
+| `catalog` | One linked Markdown page per AL object |
+
+## Diagram views
 
 | View | Shows |
 | --- | --- |
@@ -82,8 +78,9 @@ Connect BC Atlas to scripts, CI pipelines, and AI agents.
 | `ui` | Pages, source tables, parts, actions, and navigation |
 | `workflow` | Calls, events, and data mutations traced from entry points |
 
-## Diagram formats
+## Export formats
 
+- `html`
 - `d2`
 - `json`
 - `svg`

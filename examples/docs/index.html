@@ -5,11 +5,95 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="BC Atlas">
 <title>BC Atlas Warehouse Example</title>
-<style>
-:root{--bg:#fff;--fg:#1b1f24;--muted:#5b6470;--line:#d9dee4;--accent:#0b62d6;--soft:#f3f6f9;--ui:#0b3d7a}
-@media (prefers-color-scheme:dark){:root{--bg:#14171b;--fg:#e6e9ed;--muted:#9aa4b0;--line:#2c333b;--accent:#6aa7ff;--soft:#1c2127;--ui:#a9c8ff}}
+<style>/*
+ * BC Atlas design tokens, shared by the app, the 3D explorer, and the HTML
+ * documentation export. Without a data-theme attribute the page follows the
+ * operating system; data-theme="light" or "dark" overrides it.
+ */
+:root {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface-2: #eef1f7;
+  --panel: rgba(255, 255, 255, 0.94);
+  --panel-solid: #ffffff;
+  --border: rgba(15, 23, 42, 0.12);
+  --border-strong: rgba(15, 23, 42, 0.22);
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #2f6fe0;
+  --accent-text: #ffffff;
+  --accent-soft: rgba(47, 111, 224, 0.12);
+  --hover: rgba(15, 23, 42, 0.06);
+  --input: #ffffff;
+  --label: #0f172a;
+  --label-shadow: 0 0 3px #fff, 0 0 6px #fff;
+  --shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --ok: #15803d;
+  --warn: #b45309;
+  --error: #dc2626;
+  --info: #0369a1;
+  --paper: #ffffff;
+  --radius: 10px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1020;
+    --surface: #11182a;
+    --surface-2: #172036;
+    --panel: rgba(17, 24, 42, 0.92);
+    --panel-solid: #11182a;
+    --border: rgba(148, 163, 184, 0.18);
+    --border-strong: rgba(148, 163, 184, 0.32);
+    --text: #e5e9f2;
+    --muted: #94a3b8;
+    --accent: #5b8def;
+    --accent-soft: rgba(91, 141, 239, 0.16);
+    --hover: rgba(148, 163, 184, 0.12);
+    --input: rgba(15, 23, 42, 0.9);
+    --label: #f1f5f9;
+    --label-shadow: 0 0 3px #000, 0 0 6px #000;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --error: #f87171;
+    --info: #38bdf8;
+    --paper: #f8fafc;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0b1020;
+  --surface: #11182a;
+  --surface-2: #172036;
+  --panel: rgba(17, 24, 42, 0.92);
+  --panel-solid: #11182a;
+  --border: rgba(148, 163, 184, 0.18);
+  --border-strong: rgba(148, 163, 184, 0.32);
+  --text: #e5e9f2;
+  --muted: #94a3b8;
+  --accent: #5b8def;
+  --accent-soft: rgba(91, 141, 239, 0.16);
+  --hover: rgba(148, 163, 184, 0.12);
+  --input: rgba(15, 23, 42, 0.9);
+  --label: #f1f5f9;
+  --label-shadow: 0 0 3px #000, 0 0 6px #000;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --error: #f87171;
+  --info: #38bdf8;
+  --paper: #f8fafc;
+  color-scheme: dark;
+}
+
+:root{--fg:var(--text);--line:var(--border);--soft:var(--surface-2);--ui:var(--accent)}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif}
+body{margin:0;background:var(--surface);color:var(--fg);font:15px/1.55 var(--font)}
 header{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 header h1{margin:0;font-size:22px;flex:1 1 auto}
 header input{flex:0 1 280px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--soft);color:var(--fg)}

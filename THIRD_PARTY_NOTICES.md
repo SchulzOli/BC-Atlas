@@ -29,7 +29,7 @@ authors. Both licensed under the MIT License. Sources:
 <https://github.com/vasturiano/3d-force-graph>, <https://github.com/mrdoob/three.js>
 
 The 3d-force-graph browser bundle, which includes three.js, is embedded in the
-HTML files written by `bca explore`.
+explorer HTML files written by `bca export` and served by `bca app`.
 
 ## graphology
 
@@ -37,4 +37,4 @@ Copyright Guillaume Plique (Yomguithereal). Licensed under the MIT License.
 Source: <https://github.com/graphology/graphology>
 
 `graphology`, `graphology-metrics`, and `graphology-communities-louvain` build
-the graph model of `bca explore` and compute its metrics.
+the graph model of the dependency explorer and compute its metrics.

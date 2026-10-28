@@ -14,7 +14,7 @@ open an issue to discuss priorities.
 
 ## Visualize
 
-- More `bca explore` lenses with the same timeline and filters: calls, data
+- More dependency explorer lenses with the same timeline and filters: calls, data
   access, events, contracts, UI navigation, and permissions.
 - Explorer: compare two commits side by side and blame an edge to the commit
   that introduced it.

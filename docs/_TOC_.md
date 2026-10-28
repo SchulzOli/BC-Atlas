@@ -1,33 +1,31 @@
 # BC Atlas documentation
 
-BC Atlas is organized into five feature areas: get started, visualize,
-analyze, document, and integrate. This table of contents follows the same
-structure. The generated CLI capability reference comes directly from the
-source code.
+BC Atlas is one app (`bca app`) and a small CLI organized into four feature
+areas: get started, analyze, export, and integrate. This table of contents
+follows the same structure. The generated CLI capability reference comes
+directly from the source code.
 
 Read it online at https://schulzoli.github.io/BC-Atlas/.
 
 ## Start here
 
 - [Getting started](./getting-started.md)
+- [The BC Atlas app](./app.md)
 - [Guided setup (wizard or AI agent)](./setup.md)
-- [Architecture reports](./reports.md)
 - [Configuration](./configuration.md)
-
-## Visualize
-
-- [Architecture diagrams and views](./architecture-diagrams.md)
-- [Dependency explorer (3D, timeline)](./dependency-explorer.md)
 
 ## Analyze
 
 - [Clean architecture: find, resolve, enforce](./clean-architecture.md)
 - [Architecture health checks](./health-checks.md)
 
-## Document
+## Export
 
-- [Documentation from AL UI tests](./al-ui-test-documentation.md)
+- [Architecture reports](./reports.md)
+- [Architecture diagrams and views](./architecture-diagrams.md)
+- [Dependency explorer (3D, timeline)](./dependency-explorer.md)
 - [Code Graph as Markdown](./code-graph-markdown-design.md)
+- [Documentation from AL UI tests](./al-ui-test-documentation.md)
 
 ## Integrate
 

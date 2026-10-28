@@ -1,9 +1,10 @@
 # Getting started
 
 BC Atlas reads Microsoft Dynamics 365 Business Central AL source and turns it
-into architecture diagrams, health checks, reports, and documentation. This
-page takes you from installation to a complete architecture report in four
-commands.
+into an app for your browser: architecture, health, dependencies, diagrams,
+objects, and documentation in one place. The same results are available as
+files for Git and CI. This page takes you from installation to a guarded
+architecture in a few commands.
 
 You are reading the docs either on GitHub or on the
 [documentation website](https://schulzoli.github.io/BC-Atlas/), which adds
@@ -25,9 +26,22 @@ npm install --global bc-atlas
 bca --version
 ```
 
-Run `bca` without arguments to see every feature grouped by area.
+Run `bca --help` to see every feature grouped by area.
 
-## 2. Set up the project
+## 2. Open the app
+
+```sh
+cd path/to/al-project
+bca .
+```
+
+BC Atlas analyzes the source and opens the app in your browser: an overview,
+health findings, the architecture (proposed from today's dependencies until
+you adopt one), the 3D dependency explorer, every diagram view, and one page
+per object. Keep it open while you code; it updates when AL files change. See
+[The BC Atlas app](./app.md).
+
+## 3. Set up the project
 
 ```sh
 cd path/to/al-project
@@ -42,13 +56,13 @@ pipeline. Prefer a conversation? Run `bca setup agent --agent claude` (or
 `copilot`, `cursor`) and use `/bca-setup` in your agent. See
 [Guided setup](./setup.md).
 
-`bca init` only writes a starter `.bca.json` without automation. See
-[Configuration](./configuration.md).
+The starter `.bca.json` excludes test folders and links objects to your Git
+host. See [Configuration](./configuration.md).
 
-## 3. Generate the overview
+## 4. Write the overview into the repository
 
 ```sh
-bca report
+bca export --view report
 ```
 
 This writes `docs/atlas/README.md` with:
@@ -63,7 +77,10 @@ Add `--codegraph` for one linked Markdown page per AL object. See
 [Architecture reports](./reports.md) and the
 [generated example](../examples/report/README.md).
 
-## 4. Guard the architecture in CI
+To share the app itself, `bca export -o atlas.html` writes it as one offline
+HTML file.
+
+## 5. Guard the architecture in CI
 
 ```sh
 bca check
@@ -71,11 +88,14 @@ bca check
 
 `check` prints a health summary and exits with `1` when a finding reaches the
 fail level (default: `error`). Use `--fail-on warning` to also block cycles,
-forbidden dependencies, and hot spots. See
-[Architecture health checks](./health-checks.md) and
+forbidden dependencies, and hot spots. Once you adopt an architecture (in the
+app, or with `bca architecture --propose --write --update-baseline`), `check`
+also fails on new dependencies that point the wrong way. See
+[Architecture health checks](./health-checks.md),
+[Clean architecture](./clean-architecture.md), and
 [Automation](./automation-and-ci.md).
 
-## 5. Stay up to date
+## 6. Stay up to date
 
 BC Atlas tells you in the terminal when a new version exists:
 
@@ -92,10 +112,11 @@ let Dependabot propose updates instead. See
 
 | I want to | Command | Read |
 | --- | --- | --- |
-| See one object and its neighbors | `bca graph --view object --object codeunit:50100 -o object.svg` | [Architecture diagrams](./architecture-diagrams.md) |
-| Trace what happens after an action | `bca graph --view workflow --entry action:Release -o flow.svg` | [Architecture diagrams](./architecture-diagrams.md) |
-| Keep a diagram live while coding | `bca watch -o architecture.svg` | [CLI reference](./cli-reference.md#watch) |
-| Feed the model to a script | `bca inspect > model.json` | [CLI reference](./cli-reference.md#inspect) |
+| See one object and its neighbors | Objects page in the app, or `bca export --view object --object codeunit:50100 -o object.svg` | [Architecture diagrams](./architecture-diagrams.md) |
+| Trace what happens after an action | `bca export --view workflow --entry action:Release -o flow.svg` | [Architecture diagrams](./architecture-diagrams.md) |
+| Split a large app into smaller ones | Architecture page in the app, or `bca architecture --propose` | [Clean architecture](./clean-architecture.md) |
+| Keep a diagram file current while coding | `bca export --view module -o modules.svg --watch` | [CLI reference](./cli-reference.md#export) |
+| Feed the model to a script | `bca export --view project --format json > model.json` | [CLI reference](./cli-reference.md#export) |
 | Turn UI tests into user guides | `bca docs generate ./test --output-dir docs/guides` | [AL UI-test documentation](./al-ui-test-documentation.md) |
 | Let an AI agent use BC Atlas | `bca mcp` | [Agent integration](./agent-integration.md) |
 

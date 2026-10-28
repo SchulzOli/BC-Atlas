@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { REPORT_VIEWS } from "../capabilities.js";
-import { displayPath } from "../output.js";
 
 const IGNORED_DIRECTORIES = new Set([".git", ".alpackages", ".vscode", "node_modules", ".snapshots", "docs"]);
 const TEST_DIRECTORY = /^(test|tests|testapp|test-app|uitest|uitests)$/iu;
@@ -86,30 +85,4 @@ export async function createStarterConfig(root) {
   config.report = { outputDir: "docs/atlas", views: [...REPORT_VIEWS], codegraph: false };
   config.forbiddenDependencies = [];
   return { config, app, testDirectories, repository };
-}
-
-export async function initCommand(input, values) {
-  const root = path.resolve(input);
-  const { config, app, testDirectories } = await createStarterConfig(root);
-  const content = `${JSON.stringify(config, null, 2)}\n`;
-  if (values.print) return process.stdout.write(content);
-
-  const target = path.join(root, ".bca.json");
-  if (!values.force) {
-    const exists = await fs.stat(target).then(() => true, () => false);
-    if (exists) throw new Error(`${target} already exists; use --force to overwrite or --print to preview`);
-  }
-  await fs.writeFile(target, content);
-  console.log(`Created ${displayPath(target)}${app ? ` for ${app.name}` : ""}.`);
-  if (!app) console.log("No app.json found here; point init at the folder that contains app.json for best results.");
-  if (testDirectories.length) console.log(`Excluded test folders: ${testDirectories.join(", ")}`);
-  const where = displayPath(root);
-  console.log([
-    "",
-    "Next steps",
-    `  bca setup ${where}      automate it: Git hooks, pipelines, schedules`,
-    `  bca report ${where}     overview, health summary, and diagrams in docs/atlas`,
-    `  bca check ${where}      architecture health gate for CI`,
-    `  bca graph ${where} -o architecture.svg`
-  ].join("\n"));
 }

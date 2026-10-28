@@ -15,7 +15,7 @@ become an app of its own only when nothing it uses points outward or sideways.
 bca architecture ./app --propose --format markdown -o architecture.md   # 1. find
 bca architecture ./app --propose --write --update-baseline               # 2. adopt
 bca check ./app                                                          # 3. enforce
-bca explore ./app --history -o architecture.html                         # 4. watch
+bca app ./app                                                            # 4. watch
 ```
 
 ## 1. Find a suitable architecture
@@ -177,8 +177,11 @@ architecture cannot erode silently. Commit `.bca.json` and the baseline.
 
 ## 5. See it
 
-`bca explore` shows the architecture as soon as `.bca.json` defines one, or
-with `--propose`:
+The app (`bca app`) has an Architecture page with the layers, the work items,
+and the components, and buttons to adopt a proposal and to accept today's
+violations. Its Dependencies page, the 3D explorer (also
+`bca export --view explorer`), shows the architecture as soon as `.bca.json`
+defines one, or with `--propose`:
 
 - a **Components** level with allowed (green) and wrong-way (red) component
   dependencies; select a component and choose **Show its objects**;

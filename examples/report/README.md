@@ -112,7 +112,7 @@ Pages, source tables, parts, actions, and navigation.
 ## Regenerate
 
 ```sh
-bca report examples/warehouse-app --output-dir examples/report --codegraph
+bca export examples/warehouse-app --view report -o examples/report --codegraph
 ```
 
 _4 AL file(s) analyzed. Result: PASSED - 0 error(s), 0 warning(s), 1 info (fail on: error)._

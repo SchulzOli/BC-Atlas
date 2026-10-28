@@ -4,21 +4,20 @@
 export const SECTIONS = [
   ["Start here", [
     ["Getting started", "getting-started.md"],
+    ["The BC Atlas app", "app.md"],
     ["Guided setup (wizard or AI agent)", "setup.md"],
-    ["Architecture reports", "reports.md"],
     ["Configuration", "configuration.md"]
-  ]],
-  ["Visualize", [
-    ["Architecture diagrams and views", "architecture-diagrams.md"],
-    ["Dependency explorer (3D, timeline)", "dependency-explorer.md"]
   ]],
   ["Analyze", [
     ["Clean architecture: find, resolve, enforce", "clean-architecture.md"],
     ["Architecture health checks", "health-checks.md"]
   ]],
-  ["Document", [
-    ["Documentation from AL UI tests", "al-ui-test-documentation.md"],
-    ["Code Graph as Markdown", "code-graph-markdown-design.md"]
+  ["Export", [
+    ["Architecture reports", "reports.md"],
+    ["Architecture diagrams and views", "architecture-diagrams.md"],
+    ["Dependency explorer (3D, timeline)", "dependency-explorer.md"],
+    ["Code Graph as Markdown", "code-graph-markdown-design.md"],
+    ["Documentation from AL UI tests", "al-ui-test-documentation.md"]
   ]],
   ["Integrate", [
     ["Automation: hooks, schedules, and pipelines", "automation-and-ci.md"],

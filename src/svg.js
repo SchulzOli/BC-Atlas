@@ -2,6 +2,10 @@ import { D2 } from "@terrastruct/d2";
 
 let renderer;
 
+// Larger diagrams exhaust the memory of the bundled WebAssembly renderer
+// (4 GB) after a minute or more; the Base Application has about 9,500 objects.
+export const MAX_DIAGRAM_NODES = 1500;
+
 function getRenderer() {
   renderer ??= new D2();
   return renderer;
@@ -14,7 +18,17 @@ function optionalNumber(value, name) {
   return number;
 }
 
-export async function renderSvg(source, options = {}) {
+// The renderer answers one request at a time, so concurrent renders (the app
+// server) wait for each other.
+let queue = Promise.resolve();
+
+export function renderSvg(source, options = {}) {
+  const result = queue.then(() => renderNow(source, options));
+  queue = result.catch(() => {});
+  return result;
+}
+
+async function renderNow(source, options) {
   const layout = options.layout ?? "dagre";
   if (!["dagre", "elk"].includes(layout)) {
     throw new Error(
@@ -37,6 +51,14 @@ export async function renderSvg(source, options = {}) {
   try {
     const result = await d2.compile(source, compileOptions);
     return await d2.render(result.diagram, result.renderOptions);
+  } catch (error) {
+    // A diagram too large for the WebAssembly renderer ends its Go runtime;
+    // the next diagram gets a fresh renderer instead of the same error.
+    if (renderer === d2) {
+      renderer = undefined;
+      d2.worker?.terminate?.();
+    }
+    throw error;
   } finally {
     // @terrastruct/d2 keeps a Node worker alive. Unref preserves it for reuse
     // without preventing one-shot CLI invocations from exiting.

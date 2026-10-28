@@ -34,15 +34,10 @@ async function renderJourneySvg(source) {
   }
 }
 
-/**
- * @param options { outputDirectory, formats, mode, language, appRoot, title, version }
- * @returns { files, catalog, warnings }
- */
-export async function exportDocumentation(corpus, options = {}) {
+async function prepareCatalog(corpus, options) {
   if (corpus.diagnostics.some(({ severity }) => severity === "error")) {
     throw new Error("documentation corpus has errors; run docs validate for details");
   }
-  const formats = parseFormats(options.formats);
   const mode = options.mode ?? "guide";
   if (!DOCUMENT_MODES.includes(mode)) throw new Error(`--as must be one of: ${DOCUMENT_MODES.join(", ")}`);
   const language = options.language ?? "en-US";
@@ -65,6 +60,36 @@ export async function exportDocumentation(corpus, options = {}) {
     captions,
     title: options.title ?? (captions?.appName ? `${captions.appName}` : undefined)
   });
+  // Every scenario gets a BPMN-style flow of its clicks; every use case a
+  // process with one lane per permission set.
+  const named = catalog.useCases.filter(({ feature }) => feature);
+  const processes = new Map(named.map((useCase) => [useCase.id, useCaseProcess(useCase, catalog)]));
+  return { catalog, warnings, mode, named, processes, journey: journeyD2(catalog) };
+}
+
+function renderHtmlPage({ catalog, mode, processes }, journeySvg) {
+  const flows = new Map(catalog.tasks.map((task) => [task.id, renderProcessSvg(layoutProcess(scenarioProcess(task)))]));
+  const processSvgs = new Map([...processes].map(([id, process]) => [id, renderProcessSvg(layoutProcess(process), {
+    linkFor: (node) => (node.task ? `#${node.task.id}` : undefined)
+  })]));
+  return renderHtml(catalog, { mode, journeySvg, flows, processes: processSvgs });
+}
+
+/** The documentation as one self-contained HTML page, without writing files. */
+export async function documentationHtml(corpus, options = {}) {
+  const prepared = await prepareCatalog(corpus, options);
+  const journeySvg = prepared.journey ? await renderJourneySvg(prepared.journey) : undefined;
+  return renderHtmlPage(prepared, journeySvg);
+}
+
+/**
+ * @param options { outputDirectory, formats, mode, language, appRoot, title, version }
+ * @returns { files, catalog, warnings }
+ */
+export async function exportDocumentation(corpus, options = {}) {
+  const formats = parseFormats(options.formats);
+  const prepared = await prepareCatalog(corpus, options);
+  const { catalog, warnings, mode, named, processes, journey } = prepared;
 
   const directory = path.resolve(options.outputDirectory ?? process.env.BC_DOCS_OUTPUT ?? "docs/generated");
   await fs.mkdir(directory, { recursive: true });
@@ -77,23 +102,14 @@ export async function exportDocumentation(corpus, options = {}) {
   };
 
   const visual = formats.includes("markdown") || formats.includes("html");
-  const journey = journeyD2(catalog);
   let journeySvg;
   if (journey && visual) {
     journeySvg = await renderJourneySvg(journey);
   }
-  // Every scenario gets a BPMN-style flow of its clicks; every use case a
-  // process with one lane per permission set.
-  const named = catalog.useCases.filter(({ feature }) => feature);
-  const processes = new Map(named.map((useCase) => [useCase.id, useCaseProcess(useCase, catalog)]));
-  const flows = new Map();
-  if (visual) {
-    for (const task of catalog.tasks) flows.set(task.id, renderProcessSvg(layoutProcess(scenarioProcess(task))));
-  }
 
   if (formats.includes("markdown")) {
     for (const task of catalog.tasks) {
-      await write(`diagrams/${task.id}.svg`, flows.get(task.id));
+      await write(`diagrams/${task.id}.svg`, renderProcessSvg(layoutProcess(scenarioProcess(task))));
       const flowImage = `diagrams/${task.id}.svg`;
       await write(`${task.id}.md`, mode === "testcase" ? renderTestCase(task, { flowImage }) : renderGuide(task, { flowImage }));
     }
@@ -111,10 +127,7 @@ export async function exportDocumentation(corpus, options = {}) {
     await write("index.md", renderIndex(catalog, { journeyImage: journeySvg ? "journey.svg" : undefined }));
   }
   if (formats.includes("html")) {
-    const processSvgs = new Map([...processes].map(([id, process]) => [id, renderProcessSvg(layoutProcess(process), {
-      linkFor: (node) => (node.task ? `#${node.task.id}` : undefined)
-    })]));
-    await write("index.html", renderHtml(catalog, { mode, journeySvg, flows, processes: processSvgs }));
+    await write("index.html", renderHtmlPage(prepared, journeySvg));
   }
   if (formats.includes("dita")) {
     for (const task of catalog.tasks) await write(`${task.id}.dita`, renderDitaTask(task));

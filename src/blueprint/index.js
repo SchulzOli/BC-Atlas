@@ -13,7 +13,7 @@ import { proposeArchitecture } from "./propose.js";
 export { evaluateArchitecture } from "./evaluate.js";
 export { proposeArchitecture } from "./propose.js";
 
-/** Options shared by bca architecture, bca check, and bca explore. */
+/** Options shared by bca architecture, bca check, the explorer, and the app. */
 export async function architectureContext(input, values = {}) {
   const config = await loadConfig(values.projectRoot ?? input, values.config);
   const options = mergeArchitectureOptions(config.values, values);

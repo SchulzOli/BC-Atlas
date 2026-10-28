@@ -1,4 +1,4 @@
-import { FEATURE_AREAS, VIEWS } from "../capabilities.js";
+import { EXPORTS, FEATURE_AREAS, VIEWS } from "../capabilities.js";
 
 const DOCS_URL = "https://github.com/SchulzOli/BC-Atlas/tree/main/docs";
 
@@ -27,13 +27,24 @@ function topLevelName(definition) {
   return definition.id.split(".")[0];
 }
 
+// One-line summaries for the overview; the full purpose is in each command's help.
+const SHORT = {
+  app: "Open the app in your browser: overview, health, architecture, dependencies, diagrams, objects, docs",
+  check: "Gate CI on architecture health: cycles, policies, architecture violations, diagnostics",
+  architecture: "Find a target architecture, resolve what stands in its way, and enforce it with a baseline",
+  export: "Write what the app shows as files: offline app, report, explorer, catalog, or one diagram",
+  run: "Run the features configured for a Git hook, pipeline, or schedule",
+  update: "Update BC Atlas together with the generated setup files",
+  mcp: "Start the Model Context Protocol server for AI agents"
+};
+
 export function overviewHelp(capabilities) {
   const lines = [
     `BC Atlas ${capabilities.version} - architecture maps, health checks, and documentation for Business Central AL`,
     "",
     "Usage",
     "  bca <command> [app-root] [options]",
-    "  bca <app-root> [options]          shortcut for: bca graph <app-root>",
+    "  bca <app-root> [options]          shortcut for: bca app <app-root>",
     ""
   ];
   for (const area of FEATURE_AREAS) {
@@ -46,14 +57,14 @@ export function overviewHelp(capabilities) {
       rows.push(name === "docs"
         ? ["docs", "Turn AL UI tests into user guides and test cases (list, validate, generate, ...)"]
         : name === "setup"
-          ? ["setup", "Set up automation: features, hooks, pipelines, schedules (plan, apply, agent)"]
-          : [name, definition.purpose.replace(/\.$/u, "")]);
+          ? ["setup", "Set up a project: .bca.json, Git hooks, pipelines, schedules (plan, apply, agent)"]
+          : [name, SHORT[name] ?? definition.purpose.replace(/\.$/u, "")]);
     }
     lines.push(area.title, ...aligned(rows), "");
   }
   lines.push(
-    "Views for graph, watch, and inspect (--view)",
-    ...aligned(VIEWS.map(([id, summary]) => [id, summary])),
+    "What bca export writes (--view)",
+    ...aligned([...EXPORTS, ...VIEWS].map(([id, summary]) => [id, summary])),
     "",
     "Common options",
     ...aligned([
@@ -62,10 +73,11 @@ export function overviewHelp(capabilities) {
     ]),
     "",
     "Next steps",
-    "  bca setup              choose features, Git hooks, pipelines, and schedules",
-    "  bca setup agent        let your AI agent guide the setup (Claude, Copilot, Cursor)",
-    "  bca report             write docs/atlas/README.md with diagrams and a health summary",
-    "  bca help <command>     show options and examples for one command",
+    "  bca ./app                  open the app for an AL project in your browser",
+    "  bca setup                  choose features, Git hooks, pipelines, and schedules",
+    "  bca export --view report   write docs/atlas/README.md with diagrams and a health summary",
+    "  bca help <command>         show options and examples for one command",
+    "  bca help --format json     print the machine-readable command contract",
     "",
     `Documentation: ${DOCS_URL}`
   );

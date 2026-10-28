@@ -54,8 +54,9 @@ jobs:
         shell: bash
         run: |
           node src/cli.js --help
-          node src/cli.js graph test/fixtures --view project --output dist/architecture.d2
-          node src/cli.js inspect test/fixtures --output dist/model.json
+          node src/cli.js export test/fixtures --view project --format d2 --output dist/architecture.d2
+          node src/cli.js export test/fixtures --view project --format json --output dist/model.json
+          node src/cli.js export examples/warehouse-app --output dist/atlas.html
           node src/cli.js check examples/warehouse-app
 
   action:
