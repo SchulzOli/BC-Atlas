@@ -147,8 +147,10 @@ test("the extension analyzes the workspace and fills the editor and the panel", 
   for (const { command } of manifest.contributes.commands) assert.ok(registered.commands.has(command), `${command} is not registered`);
 
   // The first analysis fills the status bar, Problems, CodeLens, and the side bar.
+  // The status bar comes first; Problems follow after one more request.
   const deadline = Date.now() + 60_000;
-  while (!registered.status.text?.includes("error") && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 200));
+  const filled = () => registered.status.text?.includes("error") && [...registered.diagnostics.keys()].some((name) => name.endsWith("ItemSync.al"));
+  while (!filled() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 200));
   assert.equal(registered.status.text, "$(error) BC Atlas: 1 error");
   const [file, problems] = [...registered.diagnostics].find(([name]) => name.endsWith("ItemSync.al"));
   assert.equal(path.dirname(file), path.join(project, "integration"));
