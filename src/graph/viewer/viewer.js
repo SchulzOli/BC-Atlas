@@ -484,10 +484,25 @@
       node.fy = undefined;
       node.fz = undefined;
       if (state.layout === "app-layers") node.fy = appLayer(node) * 110;
-      if (state.layout === "component-layers") node.fy = (components.get(node.component)?.layer ?? node.layer ?? 0) * 110;
+      if (state.layout === "component-layers") node.fy = (components.get(node.component)?.layer ?? node.layer ?? 0) * (state.level === "component" ? 60 : 110);
       if (state.layout === "build-layers") node.fy = node.metrics.buildLayer * 55;
       if (state.layout === "time") node.fx = (node.firstFrame - LAST_FRAME / 2) * Math.max(40, 600 / Math.max(1, LAST_FRAME));
       if (state.layout === "flat") node.z = 0;
+    }
+    // On the component level, a layer is a row: spread its components side by side.
+    if (state.layout === "component-layers" && state.level === "component") {
+      const rows = new Map();
+      for (const node of [...level.nodes].sort((a, b) => a.label.localeCompare(b.label))) {
+        const layer = node.layer ?? 0;
+        if (!rows.has(layer)) rows.set(layer, []);
+        rows.get(layer).push(node);
+      }
+      for (const row of rows.values()) {
+        row.forEach((node, index) => {
+          node.fx = (index - (row.length - 1) / 2) * 70;
+          node.fz = 0;
+        });
+      }
     }
     if (reheat) graph.d3ReheatSimulation();
     setTimeout(() => graph.zoomToFit(600, 60), 1600);
@@ -528,9 +543,11 @@
   }
 
   function renderStats() {
-    const inter = visible.links.filter(crossesApps).length;
     const noun = { app: "apps", module: "modules", component: "components" }[state.level] ?? "objects";
-    $("#stats").textContent = `${visible.nodes.length} ${noun} · ${visible.links.length} dependencies · ${inter} across apps`;
+    const third = ARCHITECTURE
+      ? `${visible.links.filter((link) => link.edge.violation || link.edge.dependency === "violation").length} against the architecture`
+      : `${visible.links.filter(crossesApps).length} across apps`;
+    $("#stats").textContent = `${visible.nodes.length} ${noun} · ${visible.links.length} dependencies · ${third}`;
   }
 
   // ----------------------------------------------------------------- labels
@@ -805,6 +822,7 @@
         <dt>Wrong-way</dt><dd>${summary.violations.toLocaleString("en-US")} ${summary.violations === 1 ? "dependency" : "dependencies"}</dd>
         <dt>Work items</dt><dd>${summary.workItems.toLocaleString("en-US")}</dd>
         <dt>Extractable</dt><dd>${summary.extractable} of ${summary.components}</dd>
+        ${summary.byStrategy?.["move-permissions"] ? `<dt>Grants</dt><dd>${summary.byStrategy["move-permissions"].toLocaleString("en-US")} in permission sets</dd>` : ""}
       </dl>
       ${items ? `<ul class="link-list work-items">${items}</ul>` : `<p class="hint">Every dependency follows the architecture.</p>`}
       <p class="hint">${ARCHITECTURE.mode === "proposal" ? "Proposed from today's dependencies. " : ""}Click a work item to see its object.</p>`;
@@ -946,6 +964,8 @@
       state.component = undefined;
       state.module = undefined;
       if (state.level !== "object") setLevel("object");
+      // Show the object with its neighbors only, so the work item stands out.
+      state.focusDepth = 1;
       return chooseResult(item.source);
     }
     const bulk = event.target.closest("[data-bulk]");
@@ -997,6 +1017,9 @@
 
   // ------------------------------------------------------------------ level
   function setLevel(level) {
+    // Components read best stacked by architecture layer.
+    if (level === "component" && state.layout === "clusters") state.layout = "component-layers";
+    if (level !== "component" && state.layout === "component-layers" && state.level === "component") state.layout = "clusters";
     state.level = level;
     state.selected = undefined;
     state.focusDepth = 0;
@@ -1091,7 +1114,10 @@
     const barWidth = width / frames;
     // Violations against the architecture per commit: a red line over the bars.
     const violations = state.timeline === "git" ? FRAMES.map((frame) => frame.violations) : [];
-    const maxViolations = Math.max(1, ...violations.filter(Number.isFinite));
+    // Scaled to their own range, so a slow drift over the commits shows.
+    const known = violations.filter(Number.isFinite);
+    const minViolations = Math.min(...known);
+    const range = Math.max(1, Math.max(...known) - minViolations);
     values.forEach((value, index) => {
       const x = index * barWidth;
       const height = (value.total / max) * 28;
@@ -1113,7 +1139,7 @@
       context.beginPath();
       violations.forEach((value, index) => {
         const x = index * barWidth + barWidth / 2;
-        const y = 30 - ((value ?? 0) / maxViolations) * 26;
+        const y = 30 - (((value ?? minViolations) - minViolations) / range) * 26;
         if (index) context.lineTo(x, y);
         else context.moveTo(x, y);
       });
