@@ -267,7 +267,7 @@ workflow with that version. It tests and packages the extension with the
 current engine and publishes it to the Visual Studio Marketplace as the
 publisher `schulzoli`, signed in with Microsoft Entra ID through GitHub's OIDC
 token (no Marketplace token is stored; see the
-[launch checklist](./vscode/marketing/README.md#launch-checklist)), and, with
+[launch checklist](https://github.com/SchulzOli/BC-Atlas/blob/main/vscode/marketing/README.md#launch-checklist)), and, with
 the secret `OVSX_PAT`, to Open VSX. Every CI run uploads the `.vsix` as the
 `bc-atlas-vsix` artifact.
 
