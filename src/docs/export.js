@@ -49,7 +49,7 @@ async function prepareCatalog(corpus, options) {
 
   let captions;
   if (options.appRoot) {
-    captions = await loadCaptionIndex(options.appRoot, { language: options.language });
+    captions = await loadCaptionIndex(options.appRoot, { language: options.language, parseCache: options.parseCache });
     // English is the usual source language of AL captions; it needs no XLIFF.
     if (options.language && !captions.translationFile && !/^en\b/iu.test(options.language)) {
       warnings.push(`no ${options.language} XLIFF file found under ${options.appRoot}; using the captions from the AL source`);

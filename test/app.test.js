@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fork, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { renderAppHtml } from "../src/app/page.js";
 import { createService } from "../src/app/service.js";
 import { Workspace } from "../src/app/workspace.js";
+import { openParseCache, parseCacheFile } from "../src/parse-cache.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cli = path.join(root, "src", "cli.js");
@@ -81,6 +82,43 @@ test("adopting an architecture writes .bca.json and the baseline", async () => {
     assert.equal((await service.call("overview")).architecture.mode, "configured");
   } finally {
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("the workspace keeps parse results on disk and parses only changed files again", async () => {
+  const directory = copyWorkspace();
+  const cacheDirectory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-parse-cache-"));
+  const previous = process.env.BCA_CACHE_DIR;
+  process.env.BCA_CACHE_DIR = cacheDirectory;
+  try {
+    const first = new Workspace(directory);
+    const objects = (await first.overview()).summary.objects;
+    assert.equal(await first.saving, true);
+    assert.ok(existsSync(parseCacheFile(directory)));
+
+    // The next editor session reads every file's objects from disk.
+    const second = new Workspace(directory);
+    assert.equal((await second.parseCache()).size, 5);
+    assert.equal((await second.overview()).summary.objects, objects);
+    assert.equal(await second.saving, false, "nothing was parsed, so nothing is written");
+
+    // A changed file is parsed again; its old entry is dropped.
+    const file = path.join(directory, "sales", "Quotes.al");
+    writeFileSync(file, `${readFileSync(file, "utf8")}\n// changed\n`);
+    second.reset();
+    await second.overview();
+    assert.equal(await second.saving, true);
+    assert.equal((await openParseCache(directory)).size, 5);
+
+    // A damaged file starts over instead of failing.
+    writeFileSync(parseCacheFile(directory), "not a cache");
+    assert.equal((await openParseCache(directory)).size, 0);
+    assert.equal((await new Workspace(directory).overview()).summary.objects, objects);
+  } finally {
+    if (previous === undefined) delete process.env.BCA_CACHE_DIR;
+    else process.env.BCA_CACHE_DIR = previous;
+    rmSync(directory, { recursive: true, force: true });
+    rmSync(cacheDirectory, { recursive: true, force: true });
   }
 });
 

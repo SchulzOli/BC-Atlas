@@ -18,6 +18,7 @@ import { documentationHtml } from "../docs/export.js";
 import { loadCorpus } from "../docs/model.js";
 import { createGraphDocument } from "../graph/document.js";
 import { renderExplorerHtml } from "../graph/html.js";
+import { openParseCache } from "../parse-cache.js";
 import { MAX_DIAGRAM_NODES, renderSvg } from "../svg.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
@@ -58,6 +59,14 @@ export class Workspace {
     this.reset();
   }
 
+  /**
+   * Parse results by file content, kept across generations and on disk, so
+   * a changed file or a new editor session parses only what changed.
+   */
+  parseCache() {
+    return (this.parsing ??= openParseCache(this.input));
+  }
+
   /** Forgets every result; the next request analyzes the source again. */
   reset() {
     this.cache = new Map();
@@ -82,7 +91,11 @@ export class Workspace {
   health() {
     return this.remember("health", async () => {
       const cache = this.cache;
-      return { ...await runHealthCheck(this.input, this.values, { cache, onAlUpdate: this.onAlUpdate }), cache };
+      const parseCache = await this.parseCache();
+      const result = await runHealthCheck(this.input, this.values, { cache, parseCache, onAlUpdate: this.onAlUpdate });
+      // Written in the background; a failed write only costs the next start a parse.
+      this.saving = parseCache.save().catch(() => false);
+      return { ...result, cache };
     });
   }
 
@@ -287,7 +300,7 @@ export class Workspace {
     }
     const key = `diagram:${JSON.stringify(options)}`;
     return this.remember(key, async () => {
-      const projection = await createArchitectureModel(this.input, { ...this.values, ...options }, { cache: this.cache });
+      const projection = await createArchitectureModel(this.input, { ...this.values, ...options }, { cache: this.cache, parseCache: await this.parseCache() });
       const nodes = projection.model.objects.length;
       if (!nodes) {
         return { view: projection.view, nodes: 0, edges: 0, empty: projection.model.emptyMessage ?? "No matching objects." };
@@ -324,7 +337,7 @@ export class Workspace {
         ...this.values,
         propose: propose || undefined,
         ...(history ? { history: true, historyBy: history === true ? "commits" : history, last } : {})
-      });
+      }, { parseCache: await this.parseCache() });
       return renderExplorerHtml(document);
     });
   }
@@ -355,7 +368,9 @@ export class Workspace {
         mode: docs.settings.as,
         language: docs.settings.language,
         title: docs.settings.title,
-        appRoot: path.resolve(root, docs.settings.app ?? ".")
+        appRoot: path.resolve(root, docs.settings.app ?? "."),
+        // The captions come from the app's source, parsed already.
+        parseCache: await this.parseCache()
       });
     });
   }

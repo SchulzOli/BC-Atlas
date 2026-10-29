@@ -135,7 +135,10 @@ change files. Add `--history` (or `--history-by prs` or
 
 The first analysis of the Base Application with the System Application and
 Business Foundation (about 9,500 objects) takes about two minutes; afterwards
-every page opens in under a second. The first rendering of a large diagram
+every page opens in under a second. BC Atlas keeps the parse results of every
+file on disk (in `BCA_CACHE_DIR`, default `<temp>/bc-atlas`, next to the AL
+compiler's results), so reopening a project or saving a file parses only the
+files that changed. The first rendering of a large diagram
 view can take 20 seconds; it is cached until the source changes. Views with
 more than 1,500 nodes are not drawn: filter them by namespace or pick a
 focused view. Use `bcAtlas.paths` to analyze only some folders of a large

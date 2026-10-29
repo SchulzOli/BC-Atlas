@@ -33,6 +33,15 @@ follows [Semantic Versioning](https://semver.org/).
 - `id:50100..50199` selects objects by ID range; proposals use it for code
   without namespaces or functional folders.
 
+### Changed
+
+- VS Code and `bca export --view app` keep the parse results of every AL file
+  on disk (`BCA_CACHE_DIR`, default `<temp>/bc-atlas/parse`) and across
+  changes, so reopening a project or saving a file parses only what changed.
+  The Docs page and the explorer reuse them instead of parsing the app again.
+  On a 2,931-object app the overview opens in about 8 seconds instead of 15,
+  and the Docs page in about 11 instead of 25.
+
 ### Fixed
 
 - The report no longer writes an absolute path into README.md when a view has

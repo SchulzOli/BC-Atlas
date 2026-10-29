@@ -103,8 +103,8 @@ function pageRecord() {
  * Builds a caption index for an AL app.
  * @returns {{ language?: string, translationFile?: string, pages: Map, page(name), control(page, path), action(page, path) }}
  */
-export async function loadCaptionIndex(appRoot, { language } = {}) {
-  const model = await analyze(appRoot);
+export async function loadCaptionIndex(appRoot, { language, parseCache } = {}) {
+  const model = await analyze(appRoot, { parseCache });
   const translation = await loadTranslation(path.resolve(appRoot), language);
   const translate = (fallback, ...parts) => withoutAccessKey(translation?.entries.get(key(...parts)) ?? fallback);
 
