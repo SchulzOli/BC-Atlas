@@ -11,7 +11,8 @@ import { RdfXmlParser } from "rdfxml-streaming-parser";
 
 import { resourceIris } from "../src/knowledge/graph.js";
 import { writeKnowledgeGraph } from "../src/knowledge/index.js";
-import { BCA, relationProperty } from "../src/knowledge/vocabulary.js";
+import { ONTOLOGY_FILES, ontologyFile, ontologyMarkdown } from "../src/knowledge/ontology.js";
+import { BCA, ONTOLOGY, relationProperty, vocabulary } from "../src/knowledge/vocabulary.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cli = path.join(root, "src", "cli.js");
@@ -124,6 +125,47 @@ test("the knowledge graph has the ontology, the apps, components, objects, membe
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("--no-evidence leaves out the Relation resources and keeps the direct relations", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-kg-"));
+  try {
+    const parse = (file) => new Store(new Parser({ format: "N-Triples" }).parse(readFileSync(file, "utf8")));
+    const full = await writeKnowledgeGraph(workspace, { output: path.join(directory, "full.nt") });
+    const lean = await writeKnowledgeGraph(workspace, { output: path.join(directory, "lean.nt"), noEvidence: true });
+    const [all, direct] = [parse(full.file), parse(lean.file)];
+    assert.ok(all.getSubjects(`${RDF}type`, `${BCA}Relation`).length > 0);
+    assert.equal(direct.getSubjects(`${RDF}type`, `${BCA}Relation`).length, 0);
+    assert.ok(lean.triples < full.triples);
+    // Every direct relation triple of the full graph is still there.
+    const writes = all.getQuads(null, `${BCA}writes`, null);
+    assert.ok(writes.length > 0);
+    for (const quad of writes) assert.equal(direct.countQuads(quad.subject, quad.predicate, quad.object), 1);
+    // The graph points to the published ontology.
+    assert.equal(direct.countQuads("urn:bc-atlas:graph", `${RDFS}seeAlso`, `${ONTOLOGY}.ttl`), 1);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("the published ontology is the same in every file and its page documents every term", async () => {
+  const canonicalOf = async (extension) => {
+    const text = ontologyFile(extension, "1.2.3");
+    const quads = extension === "rdf" || extension === "owl" ? await parseRdfXml(text)
+      : extension === "jsonld" ? new Parser({ format: "N-Quads" }).parse(await jsonld.toRDF(JSON.parse(text), { format: "application/n-quads" }))
+        : new Parser({ format: extension === "nt" ? "N-Triples" : "Turtle" }).parse(text);
+    return canonical(quads);
+  };
+  const turtle = await canonicalOf("ttl");
+  for (const extension of Object.keys(ONTOLOGY_FILES)) assert.deepEqual(await canonicalOf(extension), turtle, extension);
+  assert.ok(turtle.includes(`${ONTOLOGY} http://www.w3.org/2002/07/owl#versionInfo "1.2.3"^^http://www.w3.org/2001/XMLSchema#string`));
+
+  // Each term's IRI fragment is an anchor on the page at the ontology's IRI.
+  const page = ontologyMarkdown("1.2.3", "https://example.com/");
+  const terms = [...vocabulary({ version: "1.2.3" })].map(({ s }) => s).filter((s) => s.startsWith(BCA));
+  assert.ok(terms.length > 60);
+  for (const term of terms) assert.ok(page.includes(`<a id="${term.slice(BCA.length)}"></a>`), term);
+  assert.match(page, /\[OWL \(RDF\/XML\)\]\(https:\/\/example\.com\/ontology\.owl\)/u);
 });
 
 test("resource IRIs are URNs by default and follow a base IRI", () => {

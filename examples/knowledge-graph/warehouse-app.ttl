@@ -3,6 +3,7 @@
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix vann: <http://purl.org/vocab/vann/> .
 @prefix bca: <https://schulzoli.github.io/BC-Atlas/ontology#> .
 
 <urn:bc-atlas:graph> a owl:Ontology ;
@@ -11,7 +12,7 @@
     dcterms:created "2025-01-01T00:00:00.000Z"^^xsd:dateTime ;
     dcterms:creator "BC Atlas 0.11.0" ;
     dcterms:conformsTo <https://schulzoli.github.io/BC-Atlas/ontology> ;
-    rdfs:seeAlso <https://schulzoli.github.io/BC-Atlas/ontology> .
+    rdfs:seeAlso <https://schulzoli.github.io/BC-Atlas/ontology.ttl> .
 
 bca:App a owl:Class ;
     rdfs:label "AL app" ;

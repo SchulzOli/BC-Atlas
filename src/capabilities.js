@@ -157,6 +157,7 @@ const exportOptions = {
     enum: ["html", ...FORMATS, ...KNOWLEDGE_FORMATS]
   }),
   baseIri: string("Knowledge graph: base IRI of the exported resources (default urn:bc-atlas:).", { group: OUTPUT, value: "iri" }),
+  noEvidence: flag("Knowledge graph: leave out the bca:Relation resources with each relation's file, line, and operations; the direct relation triples stay. About a third of the size.", { group: OUTPUT }),
   title: string("Title of the report, explorer, or diagram.", { group: OUTPUT, value: "text" }),
   watch: flag("Write again whenever AL source, app.json, or .bca.json changes.", { group: OUTPUT }),
   debounce: string("Delay before writing again with --watch, in milliseconds.", { group: OUTPUT, value: "ms", default: "250" }),

@@ -40,6 +40,7 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 
 - [CLI reference](./cli-reference.md)
 - [Generated CLI capabilities](./reference/cli-capabilities.md)
+- [BC Atlas ontology](./reference/ontology.md)
 - [Troubleshooting](./troubleshooting.md)
 
 ## Generated examples

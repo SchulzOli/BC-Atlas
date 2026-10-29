@@ -46,4 +46,12 @@ for (const name of ["warehouse-app", "multi-app"]) {
   writeFileSync(target, html);
   copied++;
 }
-console.log(`Copied ${copied} standalone HTML file(s) into the website.`);
+// The ontology at its IRI: /ontology is the page (docs/reference/ontology.md),
+// /ontology.ttl and the other files next to it are the RDF.
+const { ONTOLOGY_FILES, ontologyFile } = await import("../src/knowledge/ontology.js");
+const { version } = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+for (const extension of Object.keys(ONTOLOGY_FILES)) {
+  writeFileSync(path.join(dist, `ontology.${extension}`), ontologyFile(extension, version));
+  copied++;
+}
+console.log(`Copied ${copied} standalone HTML and ontology file(s) into the website.`);

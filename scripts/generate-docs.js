@@ -4,6 +4,7 @@ import path from "node:path";
 import process from "node:process";
 
 import { createCapabilities } from "../src/capabilities.js";
+import { ontologyFile, ontologyMarkdown } from "../src/knowledge/ontology.js";
 import { SECTIONS, WEBSITE } from "./docs-structure.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -28,7 +29,7 @@ const toc = [
 for (const [heading, entries] of sections) {
   toc.push(`## ${heading}`, "");
   for (const [label, relativePath] of entries) {
-    if (relativePath !== "reference/cli-capabilities.md") {
+    if (!["reference/cli-capabilities.md", "reference/ontology.md"].includes(relativePath)) {
       await readFile(path.join(docsRoot, relativePath));
     }
     toc.push(`- [${label}](./${relativePath.replaceAll("\\", "/")})`);
@@ -93,7 +94,11 @@ const capabilityReference = [
 
 const outputs = new Map([
   [path.join(docsRoot, "_TOC_.md"), toc.join("\n")],
-  [path.join(docsRoot, "reference", "cli-capabilities.md"), capabilityReference]
+  [path.join(docsRoot, "reference", "cli-capabilities.md"), capabilityReference],
+  // The ontology, published by the website at its IRI (scripts/site-assets.js).
+  [path.join(docsRoot, "reference", "ontology.md"), ontologyMarkdown(packageJson.version, WEBSITE)],
+  [path.join(docsRoot, "reference", "ontology.ttl"), ontologyFile("ttl", packageJson.version)],
+  [path.join(docsRoot, "reference", "ontology.owl"), ontologyFile("owl", packageJson.version)]
 ]);
 
 const check = process.argv.includes("--check");

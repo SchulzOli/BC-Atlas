@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitepress";
 import { PROJECT_PAGES, REPOSITORY, SECTIONS, WEBSITE } from "../../scripts/docs-structure.js";
+import { ONTOLOGY_FILES } from "../../src/knowledge/ontology.js";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const BASE = "/BC-Atlas/";
@@ -20,8 +21,12 @@ const REWRITES = {
   "README.md": "index.md",
   "examples/README.md": "examples/index.md",
   "examples/report/README.md": "examples/report/index.md",
-  "examples/explorer/README.md": "examples/explorer/index.md"
+  "examples/explorer/README.md": "examples/explorer/index.md",
+  // The ontology's IRI is https://schulzoli.github.io/BC-Atlas/ontology.
+  "docs/reference/ontology.md": "ontology.md"
 };
+
+const SOURCES = Object.fromEntries(Object.entries(REWRITES).map(([from, to]) => [to, from]));
 
 function markdownPages(directory = ROOT, relative = "") {
   const pages = new Set();
@@ -54,7 +59,10 @@ function pageLink(file) {
  */
 function repositoryLinks(md) {
   md.core.ruler.after("inline", "bca-repository-links", (state) => {
-    const source = path.relative(ROOT, state.env.path ?? "").replaceAll("\\", "/");
+    // A rewritten page may come with its new path; links are relative to the file in the repository.
+    const rendered = path.relative(ROOT, state.env.path ?? "").replaceAll("\\", "/");
+    const source = SOURCES[rendered] ?? rendered;
+    const moved = path.posix.dirname(REWRITES[source] ?? source) !== path.posix.dirname(source);
     if (!source || source.startsWith("..")) return;
     for (const block of state.tokens) {
       for (const token of block.children ?? []) {
@@ -65,7 +73,8 @@ function repositoryLinks(md) {
         const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(source), decodeURI(target)));
         const suffix = hash ? `#${hash}` : "";
         if (PAGES.has(resolved)) {
-          if (REWRITES[resolved]) token.attrSet("href", `${pageLink(resolved)}${suffix}`);
+          // Relative links resolve against the rewritten page, so a moved page links absolutely.
+          if (REWRITES[resolved] || moved) token.attrSet("href", `${pageLink(resolved)}${suffix}`);
           continue;
         }
         if (resolved.startsWith("examples/") && resolved.endsWith(".html")) {
@@ -116,6 +125,10 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
   head: [["meta", { name: "theme-color", content: "#0b62d6" }], ["link", { rel: "icon", href: LOGO }]],
+  // The ontology page points tools to its RDF files.
+  transformHead: ({ pageData }) => pageData.filePath === "docs/reference/ontology.md"
+    ? Object.entries(ONTOLOGY_FILES).map(([extension, [, type]]) => ["link", { rel: "alternate", type, href: `${BASE}ontology.${extension}` }])
+    : [],
   markdown: {
     config: repositoryLinks,
     // AL is a Pascal-family language; this keeps code samples highlighted.

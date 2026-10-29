@@ -5,6 +5,7 @@
     xmlns:owl="http://www.w3.org/2002/07/owl#"
     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
     xmlns:dcterms="http://purl.org/dc/terms/"
+    xmlns:vann="http://purl.org/vocab/vann/"
     xmlns:bca="https://schulzoli.github.io/BC-Atlas/ontology#">
   <owl:Ontology rdf:about="urn:bc-atlas:graph">
     <rdfs:label>BC Atlas Warehouse Example</rdfs:label>
@@ -12,7 +13,7 @@
     <dcterms:created rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2025-01-01T00:00:00.000Z</dcterms:created>
     <dcterms:creator>BC Atlas 0.11.0</dcterms:creator>
     <dcterms:conformsTo rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
-    <rdfs:seeAlso rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+    <rdfs:seeAlso rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology.ttl"/>
   </owl:Ontology>
   <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#App">
     <rdfs:label>AL app</rdfs:label>
