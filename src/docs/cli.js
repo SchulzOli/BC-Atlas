@@ -8,6 +8,9 @@ import { documentationGlossary } from "./tags.js";
 import { planMetadataEdit, writeMetadataEdit } from "./al-ui-writer.js";
 import { CheckFailedError, UsageError } from "../cli/errors.js";
 import { displayPath } from "../output.js";
+import path from "node:path";
+
+const portable = (value) => value.replaceAll("\\", "/");
 
 function printJson(value) {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
@@ -28,8 +31,13 @@ async function list(input, values) {
   const corpus = await loadCorpus(input);
   const summaries = corpus.scenarios.map(scenarioSummary);
   if (values.format === "json") return printJson(summaries);
-  if (!summaries.length) return console.log("No documented UI tests found.");
-  for (const item of summaries) console.log(`${item.id}\t${item.title}\t${item.file}#${item.procedure}`);
+  if (!summaries.length) console.log("No documented UI tests found.");
+  // Paths relative to the listed folder read better than ../../ chains from the working directory.
+  for (const [index, item] of summaries.entries()) {
+    const file = portable(path.relative(corpus.root, corpus.scenarios[index].path)) || path.basename(corpus.scenarios[index].path);
+    console.log(`${item.id}\t${item.title}\t${file}#${item.procedure}`);
+  }
+  if (corpus.skipped.length) console.error(`${corpus.skipped.length} [SCENARIO] test(s) without UI steps are not documented.`);
 }
 
 async function show(input, values) {
@@ -53,7 +61,9 @@ async function show(input, values) {
 async function validate(input, values) {
   const corpus = await loadCorpus(input);
   if (values.format === "json") printJson(corpus.diagnostics);
-  else if (!corpus.diagnostics.length) console.log(`Documentation corpus is valid (${corpus.scenarios.length} scenario(s)).`);
+  else if (!corpus.diagnostics.length) {
+    console.log(`Documentation corpus is valid (${corpus.scenarios.length} scenario(s)${corpus.skipped.length ? `; ${corpus.skipped.length} [SCENARIO] test(s) without UI steps are not documented` : ""}).`);
+  }
   else for (const item of corpus.diagnostics) console.error(`${item.severity}: ${item.code}: ${item.message}`);
   const serious = corpus.diagnostics.filter(({ severity }) =>
     severity === "error" || (values.strict && severity === "warning"));

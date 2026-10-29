@@ -58,7 +58,7 @@ seeing them as unresolved.
   The groups follow **Color**: apps, components, communities, object types,
   or build layers. Tightly coupled objects (one writes or extends the other)
   sit closer together than loosely coupled ones (events, permission grants);
-  see [Coupling weights](./clean-architecture.md#coupling-weights). **App clusters** pulls each app into a tight cluster
+  see [Relation types and weights](./clean-architecture.md#relation-types-and-weights). **App clusters** pulls each app into a tight cluster
   instead; cross-app dependencies then span the space between clusters.
 - **Modules** appears when an app contains nested `app.json` files, as the
   System Application and the Base Application in

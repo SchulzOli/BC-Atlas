@@ -24,7 +24,7 @@ export function architectureJson(assessment) {
     ...rest,
     mode: proposal ? "proposal" : "configured",
     architecture,
-    ...(proposal ? { proposal: { groupBy: proposal.groupBy, feedback: proposal.feedback, moves: proposal.moves } } : {}),
+    ...(proposal ? { proposal: { groupBy: proposal.groupBy, feedback: proposal.feedback, moves: proposal.moves, recommendations: proposal.recommendations } } : {}),
     baseline: {
       used: baseline.baselined,
       new: baseline.new.map(({ id }) => id),
@@ -68,6 +68,17 @@ const CHECK_TITLES = {
   "public-surface-change": "Breaking change of the public surface"
 };
 
+/** App candidates with their components: { app, components: [recommendation] } plus the shared core and loose objects. */
+function appCandidates(recommendations = []) {
+  const apps = new Map();
+  for (const recommendation of recommendations) {
+    const key = recommendation.app ?? (recommendation.role === "shared" ? "(shared core)" : "(no relations)");
+    if (!apps.has(key)) apps.set(key, []);
+    apps.get(key).push(recommendation);
+  }
+  return [...apps].map(([app, components]) => ({ app, components }));
+}
+
 function headline(assessment) {
   const { result, proposal, baseline } = assessment;
   const { summary } = result;
@@ -98,6 +109,13 @@ export function formatArchitectureText(assessment, { limit = 15 } = {}) {
   for (const component of [...result.components].sort((a, b) => (a.layer ?? 0) - (b.layer ?? 0) || a.name.localeCompare(b.name))) {
     const cohesion = component.metrics.cohesion === undefined ? "   -" : `${String(Math.round(component.metrics.cohesion * 100)).padStart(3)}%`;
     lines.push(`  ${String(component.layer ?? "-").padStart(3)}  ${component.name.padEnd(32)} ${String(component.metrics.objects).padStart(6)}  ${cohesion}  I ${component.metrics.instability.toFixed(2)}  ${String(component.violations).padStart(5)}${component.extractable ? "  ready to extract" : ""}`);
+  }
+  if (assessment.proposal?.recommendations?.length) {
+    lines.push("", "App candidates and namespaces");
+    for (const { app, components } of appCandidates(assessment.proposal.recommendations)) {
+      lines.push(`  ${app}`);
+      for (const recommendation of components) lines.push(`    ${recommendation.component.padEnd(30)} ${recommendation.namespace ?? ""}${recommendation.keepsNamespace ? " (kept)" : ""}`);
+    }
   }
   const items = baseline.baselined ? result.workItems.filter((item) => baseline.new.some(({ source, targetComponent }) =>
     source.id === item.source.id && targetComponent === item.targetComponent)) : result.workItems;
@@ -150,6 +168,18 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
     lines.push(`| ${component.layer ?? ""} | ${cell(component.name)} | ${metrics.objects} | ${cell((component.dependsOn ?? component.dependsOnActual).join(", ") || "-")} | ${metrics.cohesion === undefined ? "-" : `${Math.round(metrics.cohesion * 100)}%`} | ${metrics.instability.toFixed(2)} | ${metrics.abstractness.toFixed(2)} | ${metrics.distance.toFixed(2)} | ${component.violations} | ${component.extractable ? "yes" : "no"} |`);
   }
   lines.push("", "Layer 0 is the core. Cohesion is the share of a component's coupling that stays inside it. Instability is outgoing / (incoming + outgoing) coupling; components should depend on more stable ones. Distance measures how far a component is from the balance of abstractness and stability.", "");
+  if (proposal?.recommendations?.length) {
+    lines.push("## App candidates and namespaces", "",
+      "Components that are coupled more to each other than to the rest could become one app together; a component on its own could become an app by itself. The shared core holds objects that many components use.", "",
+      "| App candidate | Component | Role | Namespace |", "| --- | --- | --- | --- |");
+    const roles = { app: "app of its own", component: "component", shared: "shared core", review: "no relations" };
+    for (const { app, components } of appCandidates(proposal.recommendations)) {
+      for (const recommendation of components) {
+        lines.push(`| ${cell(app)} | ${cell(recommendation.component)} | ${roles[recommendation.role]} | \`${cell(recommendation.namespace)}\`${recommendation.keepsNamespace ? " (kept)" : ""} |`);
+      }
+    }
+    lines.push("");
+  }
 
   const items = baseline.baselined
     ? result.workItems.filter((item) => baseline.new.some(({ source, targetComponent }) => source.id === item.source.id && targetComponent === item.targetComponent))

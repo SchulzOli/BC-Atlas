@@ -1,13 +1,31 @@
 // How strongly a dependency binds two AL objects, by what it would take to
-// cut it. Writing another component's table or extending its objects binds
-// hardest; calls and reads can go behind an interface or a codeunit; an event
-// subscriber is already loose; a permission set grant is moved, not cut.
+// cut it. Relations come in five types:
+//
+//   structural      belong together: an extension and what it extends, a page
+//                   and its source table, a contract and its implementation,
+//                   a field and the table it relates to, a page and its parts
+//   data            writing another component's data binds hardest; reading less
+//   behavioral      calls and runs can go behind an interface or an event
+//   loose           variables, event subscribers, and enum values that select
+//                   an implementation are already loose
+//   administrative  permission set grants move with the objects; they never
+//                   decide where an object belongs
+//
 // Repeated uses of one kind count logarithmically: ten calls bind more than
 // one, but not ten times as much.
+
+export const RELATION_TYPES = Object.freeze({
+  structural: ["extends", "source", "implements", "relates", "part"],
+  data: ["writes", "reads"],
+  behavioral: ["calls", "runs"],
+  loose: ["selects", "uses", "subscribes"],
+  administrative: ["permits", "includes"]
+});
 
 export const COUPLING_WEIGHTS = Object.freeze({
   writes: 5,
   extends: 4,
+  source: 4,
   relates: 3,
   implements: 3,
   calls: 2,
@@ -41,4 +59,9 @@ export function coupling(kinds, weights = COUPLING_WEIGHTS) {
     if (count > 0) total += (weights[kind] ?? 1) * Math.log2(1 + count);
   }
   return Number(total.toFixed(3));
+}
+
+/** The type of a relation kind: structural, data, behavioral, loose, or administrative. */
+export function relationType(kind) {
+  return Object.keys(RELATION_TYPES).find((type) => RELATION_TYPES[type].includes(kind)) ?? "loose";
 }

@@ -67,6 +67,41 @@ the open standard for step-by-step procedures:
 When `[THEN]` has no text, the `[SCENARIO]` sentence is used as the expected
 result. Explicit `[THEN]` text is preferred.
 
+### Microsoft's test convention
+
+Test codeunits written the way Microsoft writes the Business Central tests work
+without changes:
+
+```al
+trigger OnRun()
+begin
+    // [FEATURE] [Bank Deposit] [UI]
+end;
+
+[Test]
+[HandlerFunctions('GeneralJournalBatchesPageHandler,ConfirmHandler')]
+procedure PostBankDepositOpensPostedDeposit()
+begin
+    // [SCENARIO 218101] Posting a bank deposit opens the posted deposit
+    // [SCENARIO 218101] with its lines
+    ...
+    // [VERIFY] The posted deposit shows the lines
+```
+
+| Source | Read as |
+| --- | --- |
+| `[FEATURE]` in the `OnRun` trigger | Features of every test in the codeunit, before the test's own. |
+| `[FEATURE] [Sales] [Invoice]` | One feature per bracket; `[UI]` and `[UT]` mark the kind of test and are left out. |
+| `[SCENARIO 218101] Text` | The work item number is kept as a reference (`references` in JSON); repeated `[SCENARIO]` lines form one sentence. |
+| `[VERIFY]` | Same as `[THEN]`. |
+| A statement as the scenario ("Users can post ...") | Shown as it is; "Use this guide to ..." is used only for instructions ("Post a ..."). |
+
+A directory run documents only tests that have UI steps (or an explicit
+`[DOC-ID]`); `bca docs list` and `bca docs validate` report how many
+`[SCENARIO]` tests without UI steps they left out. A test ends where its
+procedure ends: tags and TestPage calls in helper procedures after it never
+leak into it.
+
 Each `[WHEN]` comment becomes a numbered phase. A scenario with only one
 `[WHEN]` phase lists its instructions directly as numbered steps. Supported `TestPage` operations
 following that comment are rendered as detailed steps beneath the phase.
@@ -76,6 +111,28 @@ BC Atlas also follows reachable local procedure calls when a helper contains
 Within expanded UI helpers, `repeat` blocks are summarized as “for each record”
 instructions and UI operations guarded by `if` are described as conditional.
 Expansion is cycle-safe and limited to eight helper levels.
+
+| TestPage code | Step |
+| --- | --- |
+| `OpenNew()`, `OpenEdit()`, `OpenView()` | Open the page (and create a record) |
+| `Field.SetValue(x)`, `Field.Value := x` | Enter a value; `''` clears the field |
+| `Action.Invoke()` | Choose the action |
+| `OK().Invoke()`, `Cancel()`, `Yes()`, `No()`, `LookupOK()` | Choose the button |
+| `Filter.SetFilter(Field, x)` | Filter the list |
+| `GoToRecord(...)`, `GoToKey(...)`, `First()`, `Last()`, `Next()`, `Previous()` | Select a record or line |
+| `Field.Lookup()`, `Field.Drilldown()`, `Field.AssistEdit()` | Look up, drill down, or open the field's assist edit |
+| `Lines.New()` | Add a line |
+| `Close()` | Close the page |
+| `Page.Trap()` before an action | The action's result: “The ... page opens.” |
+| `Page.Trap()` before code that opens the page (`Page.Run`) | A step “The ... page opens.” |
+| `asserterror` before a statement | The step is followed by “Business Central shows an error message.” |
+| `[ModalPageHandler]`, `[PageHandler]`, `[RequestPageHandler]` in `HandlerFunctions` | “If the ... page opens, do the following:” with the handler's steps |
+| `[ConfirmHandler]` with `Reply := true` or `false` | “If Business Central asks you to confirm, choose Yes/No.” |
+
+Calls may span several lines. Handler steps are placed after the action that
+opens a page (or before a page that code opens), otherwise after the first
+action of the phase (or the first value entered, or the first page opened);
+the “If ...” wording keeps them correct wherever the dialog appears.
 
 `[PERMISSIONS]` is optional and may be repeated for multiple permission sets.
 `[PERMISSION]` is accepted as an alias. When neither tag is present, no

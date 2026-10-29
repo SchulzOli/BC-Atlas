@@ -15,12 +15,25 @@ import { humanizeIdentifier, inlineStep, operationStep } from "./steps.js";
 import { markdown } from "./render/format.js";
 
 const AL_TEST_PATTERN = /\[Test\](?:\s*\[[^\]]+\])*\s*procedure\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/giu;
+// TestPage variables in var sections and in parameters (handlers get the page as one).
 const TEST_PAGE_PATTERN =
-  /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*TestPage\s+(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))\s*;/gimu;
-const UI_OPERATION_PATTERN =
-  /^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.(?:[A-Za-z_][A-Za-z0-9_]*|"[^"\n]+"))*)\.(OpenNew|OpenEdit|OpenView|Close|New|Invoke|SetValue|GoToRecord)\((.*?)\);\s*$/gimu;
-const UI_OPERATION_DETECTOR =
-  /\.(?:OpenNew|OpenEdit|OpenView|Close|New|Invoke|SetValue|GoToRecord)\s*\(/iu;
+  /\b([A-Za-z_][A-Za-z0-9_]*)\s*:\s*Test(?:Request)?Page\s+(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))/giu;
+// A member in a chain: Field, "Sell-to Customer No.", or a call such as OK().
+const MEMBER = String.raw`(?:[A-Za-z_][A-Za-z0-9_]*(?:\(\))?|"[^"\n]+")`;
+const UI_METHODS = "OpenNew|OpenEdit|OpenView|Close|New|Invoke|SetValue|GoToRecord|GoToKey|Trap|First|Last|Next|Previous|Lookup|Drilldown|AssistEdit|SetFilter";
+// One statement, possibly spread over lines, possibly expected to fail (asserterror).
+const UI_OPERATION_PATTERN = new RegExp(
+  String.raw`^[ \t]*(asserterror[ \t]+)?([A-Za-z_][A-Za-z0-9_]*(?:\.${MEMBER})*)\.(${UI_METHODS})[ \t]*\(([^;]*?)\)[ \t]*;`,
+  "gimu"
+);
+// Page.Field.Value := 'x' sets a field like SetValue.
+const VALUE_ASSIGNMENT_PATTERN = new RegExp(
+  String.raw`^[ \t]*(asserterror[ \t]+)?([A-Za-z_][A-Za-z0-9_]*(?:\.${MEMBER})+)\.Value[ \t]*:=[ \t]*([^;]+?)[ \t]*;`,
+  "gimu"
+);
+const UI_OPERATION_DETECTOR = new RegExp(String.raw`\.(?:${UI_METHODS})\s*\(|\.Value\s*:=`, "iu");
+// Dialog buttons of a TestPage: Page.OK().Invoke().
+const BUTTONS = { ok: "ok", cancel: "cancel", yes: "yes", no: "no", lookupok: "ok", lookupcancel: "cancel" };
 const GRAMMAR_PATH = fileURLToPath(
   new URL("../../vendor/tree-sitter-al.wasm", import.meta.url)
 );
@@ -66,6 +79,26 @@ function splitReference(reference, procedure) {
   return { filename: reference, procedure: undefined };
 }
 
+// [UI] and [UT] in a [FEATURE] list (Microsoft's convention) say what kind
+// of test it is, not which feature it documents.
+const TEST_KINDS = new Set(["UI", "UT"]);
+
+/**
+ * One tag comment: "[SCENARIO 218101] Text" (Microsoft's work item number),
+ * "[WHEN]/[THEN] Text", "[GIVEN] [SETUP] Text", "[FEATURE] [Sales] [Invoice]".
+ */
+function tagLine(text) {
+  const head = text.match(/^\[([A-Z][A-Z-]*)(?:\s+([^\]]*?))?\](?:\/\[([A-Z][A-Z-]*)\])?\s*(.*)$/u);
+  if (!head) return undefined;
+  let rest = head[4];
+  const groups = [];
+  for (let match = rest.match(/^\[([^\]]+)\]\s*/u); match; match = rest.match(/^\[([^\]]+)\]\s*/u)) {
+    groups.push(match[1].trim());
+    rest = rest.slice(match[0].length);
+  }
+  return { tags: [head[1], head[3]].filter(Boolean), reference: head[2]?.trim() || undefined, groups, text: rest.trim() };
+}
+
 function taggedEntries(source) {
   const entries = [];
   let current = [];
@@ -75,20 +108,34 @@ function taggedEntries(source) {
       current = [];
       continue;
     }
-    const tagged = comment[1].match(
-      /^\[([A-Z-]+)\](?:\/\[([A-Z-]+)\])?(?:\s+\[([A-Z-]+)\])?\s*(.*)$/u
-    );
+    const tagged = tagLine(comment[1].trim());
     if (tagged) {
-      current = [tagged[1], tagged[2]].filter(Boolean).map((tag) => {
-        const entry = { tag, qualifier: tagged[3], text: tagged[4].trim() };
+      current = [];
+      for (const tag of tagged.tags) {
+        const reference = tagged.reference ? { reference: tagged.reference } : {};
+        if (canonicalTag(tag) === "FEATURE" && tagged.groups.length) {
+          // Every bracketed name is a feature of its own.
+          for (const group of tagged.groups.filter((name) => !TEST_KINDS.has(name.toUpperCase()))) entries.push({ tag, text: group, ...reference });
+          if (tagged.text) {
+            const entry = { tag, text: tagged.text, ...reference };
+            entries.push(entry);
+            current.push(entry);
+          }
+          continue;
+        }
+        // An uppercase bracket right after the tag qualifies it ([GIVEN] [SETUP]);
+        // other brackets are part of the text.
+        const qualified = /^[A-Z][A-Z-]*$/u.test(tagged.groups[0] ?? "");
+        const prefix = tagged.groups.slice(qualified ? 1 : 0).map((group) => `[${group}]`).join(" ");
+        const entry = { tag, qualifier: qualified ? tagged.groups[0] : undefined, text: [prefix, tagged.text].filter(Boolean).join(" "), ...reference };
         entries.push(entry);
-        return entry;
-      });
+        current.push(entry);
+      }
       continue;
     }
     if (!current.length || !comment[1].trim()) continue;
     for (const entry of current) {
-      entry.text = `${entry.text} ${comment[1].trim()}`;
+      entry.text = `${entry.text} ${comment[1].trim()}`.trim();
     }
   }
   return entries;
@@ -210,21 +257,73 @@ function collectTestPages(source, initial = new Map()) {
   return testPages;
 }
 
-// Converts one TestPage call into a structured, language-neutral operation.
-function operationFor(match, page) {
+/** The first argument of a call: SetFilter("No.", X) -> "No.". */
+function splitArguments(text) {
+  const parts = [];
+  let depth = 0;
+  let quote = "";
+  let current = "";
+  for (const character of String(text)) {
+    if (quote) {
+      if (character === quote) quote = "";
+    } else if (character === "'" || character === '"') quote = character;
+    else if (character === "(") depth++;
+    else if (character === ")") depth--;
+    else if (character === "," && depth === 0) {
+      parts.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += character;
+  }
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+// Converts one TestPage statement into a structured, language-neutral operation.
+function operationFor({ chain, method, args, attempt }, page) {
   // Quoted members such as "Sell-to Customer No." may contain dots.
-  const parts = match[1].match(/"[^"]+"|[^.]+/gu).map((part) => part.replace(/^"|"$/gu, ""));
+  const parts = chain.match(/"[^"]+"|[^.]+/gu).map((part) => part.replace(/^"|"$/gu, "").replace(/\(\)$/u, ""));
   parts.shift();
-  const operation = match[2];
-  const mode = { OpenNew: "new", OpenEdit: "edit", OpenView: "view" }[operation];
-  if (mode) return { kind: "open", mode, page, creationTarget: mode === "new" ? singular(page.label) : undefined };
-  if (operation === "GoToRecord") return { kind: "go-to-record", page, record: humanizeIdentifier(match[3]) };
-  if (operation === "Close") return { kind: "close", page };
-  if (operation === "New") return { kind: "new-line", page, sections: parts };
+  const operation = method.toLowerCase();
+  const tried = attempt ? { attempt: true } : {};
+  const mode = { opennew: "new", openedit: "edit", openview: "view" }[operation];
+  if (mode) return { kind: "open", mode, page, creationTarget: mode === "new" ? singular(page.label) : undefined, ...tried };
+  if (operation === "gotorecord" || operation === "gotokey") return { kind: "go-to-record", page, record: humanizeIdentifier(splitArguments(args)[0] ?? ""), ...tried };
+  if (operation === "close") return { kind: "close", page, ...tried };
+  if (operation === "trap") return { kind: "trap", page };
+  if (["first", "last", "next", "previous"].includes(operation)) return parts.length ? undefined : { kind: "navigate", page, direction: operation };
+  if (operation === "new") return { kind: "new-line", page, sections: parts, ...tried };
+  if (operation === "setfilter") {
+    if (parts.at(-1)?.toLowerCase() !== "filter") return undefined;
+    const [field, value] = splitArguments(args);
+    if (!field) return undefined;
+    return { kind: "filter", page, sections: parts.slice(0, -1), member: field.replace(/^"|"$/gu, ""), value: exampleValue(value ?? ""), ...tried };
+  }
   const member = parts.pop();
-  if (operation === "Invoke") return { kind: "invoke", page, sections: parts, member };
-  if (operation === "SetValue") return { kind: "set", page, sections: parts, member, value: exampleValue(match[3]) };
+  if (!member) return undefined;
+  if (operation === "invoke") {
+    const button = BUTTONS[member.toLowerCase()];
+    if (button && !parts.length) return { kind: "button", page, button, ...tried };
+    return { kind: "invoke", page, sections: parts, member, ...tried };
+  }
+  if (operation === "setvalue") return { kind: "set", page, sections: parts, member, value: exampleValue(args), ...tried };
+  if (["lookup", "drilldown", "assistedit"].includes(operation)) {
+    return { kind: operation === "assistedit" ? "assist-edit" : operation, page, sections: parts, member, ...tried };
+  }
   return undefined;
+}
+
+/** TestPage statements in source order. */
+function uiStatements(source) {
+  const statements = [];
+  for (const match of source.matchAll(UI_OPERATION_PATTERN)) {
+    statements.push({ index: match.index, chain: match[2], method: match[3], args: match[4], attempt: Boolean(match[1]) });
+  }
+  for (const match of source.matchAll(VALUE_ASSIGNMENT_PATTERN)) {
+    statements.push({ index: match.index, chain: match[2], method: "SetValue", args: match[3], attempt: Boolean(match[1]) });
+  }
+  return statements.sort((a, b) => a.index - b.index);
 }
 
 function repeatRanges(source) {
@@ -256,17 +355,33 @@ function legacyStep(op) {
   return markdown(inlineStep(operationStep(op, ENGLISH), ENGLISH.language));
 }
 
-function deriveGuidance(source, knownTestPages = new Map()) {
+function deriveGuidance(source, knownTestPages = new Map(), { trapped: initialTrap } = {}) {
   const testPages = collectTestPages(source, knownTestPages);
   const creationTargets = new Set();
   const found = [];
-  for (const match of source.matchAll(UI_OPERATION_PATTERN)) {
-    const page = testPages.get(match[1].split(".")[0]);
+  let trapped = initialTrap;
+  for (const statement of uiStatements(source)) {
+    const page = testPages.get(statement.chain.split(".")[0]);
     if (!page) continue;
-    const op = operationFor(match, page);
+    const op = operationFor(statement, page);
     if (!op) continue;
+    // Page.Trap() catches the page the next action opens; the action's result is that page.
+    if (op.kind === "trap") {
+      trapped = page;
+      continue;
+    }
+    // An action on another page opens the trapped one; a statement on the
+    // trapped page itself means something else opened it (Page.Run).
+    // Other statements (opening the page to start from, entering values) leave the trap waiting.
+    if (trapped && op.page.name !== trapped.name && ["invoke", "button", "lookup", "drilldown", "assist-edit"].includes(op.kind)) {
+      op.opens = trapped;
+      trapped = undefined;
+    } else if (trapped && op.page.name === trapped.name) {
+      found.push({ index: statement.index, op: { kind: "opened", page: trapped } });
+      trapped = undefined;
+    }
     if (op.creationTarget) creationTargets.add(op.creationTarget);
-    found.push({ index: match.index, op });
+    found.push({ index: statement.index, op });
   }
 
   const operations = [];
@@ -290,9 +405,11 @@ function deriveGuidance(source, knownTestPages = new Map()) {
   const creationTarget = creationTargets.size === 1
     ? creationTargets.values().next().value
     : undefined;
-  const hasExamples = found.some(({ op }) => op.kind === "set" && ["text", "choice"].includes(op.value.kind));
+  const hasExamples = found.some(({ op }) => ["set", "filter"].includes(op.kind) && ["text", "choice"].includes(op.value.kind) && op.value.value !== "");
   return {
     operations,
+    // A trap still waiting for its page, for the code that follows.
+    trapped,
     steps: operations.map(legacyStep),
     hasExamples,
     creationTarget,
@@ -301,24 +418,48 @@ function deriveGuidance(source, knownTestPages = new Map()) {
   };
 }
 
-async function procedureSources(source) {
+// Parsing a file once serves all of its tests.
+const structures = new Map();
+
+/**
+ * The procedures of an AL file with their exact ranges and attributes
+ * ([Test], [ModalPageHandler], ...), and the codeunit's OnRun trigger, where
+ * Microsoft's tests keep the [FEATURE] of the whole codeunit.
+ */
+async function fileStructure(source) {
+  if (structures.has(source)) return structures.get(source);
   const language = await getLanguage();
   const parser = new Parser();
   parser.setLanguage(language);
   const tree = parser.parse(source);
   const procedures = new Map();
+  const ranges = new Map();
+  const attributes = new Map();
+  let onRun = "";
   const visit = (node) => {
     if (node.type === "procedure") {
       const nameNode = node.childForFieldName("name");
       if (nameNode) {
         const name = source.slice(nameNode.startIndex, nameNode.endIndex).toLowerCase();
         procedures.set(name, source.slice(node.startIndex, node.endIndex));
+        ranges.set(name, { start: node.startIndex, end: node.endIndex });
+        const names = [];
+        for (let sibling = node.previousNamedSibling; sibling?.type === "attribute_item"; sibling = sibling.previousNamedSibling) {
+          names.unshift(source.slice(sibling.startIndex, sibling.endIndex));
+        }
+        attributes.set(name, names);
       }
+    }
+    if (node.type === "trigger_declaration" && /^trigger\s+OnRun\b/iu.test(source.slice(node.startIndex, node.endIndex))) {
+      onRun = source.slice(node.startIndex, node.endIndex);
     }
     for (const child of node.namedChildren) visit(child);
   };
   visit(tree.rootNode);
-  return procedures;
+  const structure = { procedures, ranges, attributes, onRun };
+  if (structures.size > 16) structures.delete(structures.keys().next().value);
+  structures.set(source, structure);
+  return structure;
 }
 
 function bareProcedureCalls(source) {
@@ -383,11 +524,70 @@ function whenBlocks(source) {
       .filter(Boolean);
     return {
       title: marker[1].trim(),
+      start: afterMarker,
       source: source.slice(afterMarker, end),
       results,
       index
     };
   });
+}
+
+// Operations after which Business Central can open a dialog, most likely first:
+// actions, then entering values, then opening and closing pages.
+const TRIGGERS = [
+  new Set(["invoke", "button", "lookup", "drilldown", "assist-edit"]),
+  new Set(["set", "new-line"]),
+  new Set(["open", "close"])
+];
+
+/**
+ * Pages and confirmations the test answers in handler procedures
+ * ([HandlerFunctions('...')]) become steps: "When the X page opens, ...".
+ */
+function handlerOperations(attributes, structure) {
+  const declared = attributes.map((item) => item.match(/^\[\s*HandlerFunctions\s*\(\s*'([^']*)'/iu)?.[1]).filter(Boolean)
+    .flatMap((list) => list.split(",").map((name) => name.trim().toLowerCase()).filter(Boolean));
+  const operations = [];
+  for (const name of declared) {
+    const source = structure.procedures.get(name);
+    if (!source) continue;
+    const kinds = (structure.attributes.get(name) ?? []).join(" ");
+    if (/\[\s*ConfirmHandler\b/iu.test(kinds)) {
+      const reply = source.match(/\bReply\s*:=\s*(true|false)\s*;/iu)?.[1]?.toLowerCase();
+      operations.push({ kind: "confirm", answer: reply === "true" ? "yes" : reply === "false" ? "no" : undefined });
+      continue;
+    }
+    if (!/\[\s*(?:ModalPageHandler|PageHandler|RequestPageHandler)\b/iu.test(kinds)) continue;
+    const pages = collectTestPages(source);
+    const page = pages.values().next().value;
+    if (!page) continue;
+    const steps = deriveGuidance(source, pages).operations;
+    if (steps.length) operations.push({ kind: "dialog", page, steps });
+  }
+  return operations;
+}
+
+/**
+ * Inserts handler steps where a dialog most likely appears: before a page
+ * that code opens (posting asks first, then shows the posted document),
+ * after an action that opens a page, else after the first action (or the
+ * first entry, or the first page opened) that can open a dialog.
+ */
+function placeHandlers(sections, operations, handlers) {
+  if (!handlers.length) return;
+  const lists = [...sections.map(({ operations: items }) => items), operations];
+  for (const list of lists) {
+    const opened = list.findIndex((op) => op.kind === "opened");
+    if (opened >= 0) return void list.splice(opened, 0, ...handlers);
+    const opener = list.findIndex((op) => op.opens);
+    if (opener >= 0) return void list.splice(opener + 1, 0, ...handlers);
+  }
+  for (const kinds of TRIGGERS) {
+    for (const list of lists) {
+      const index = list.findIndex((op) => kinds.has(op.kind));
+      if (index >= 0) return void list.splice(index + 1, 0, ...handlers);
+    }
+  }
 }
 
 function guidePrerequisites(items, creationTarget) {
@@ -427,14 +627,21 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
     );
   }
 
-  const remainder = source.slice(selected.index);
-  const boundary = remainder.slice(selected[0].length)
-    .search(/\n {4}(?=#(?:end)?region\b|\[[A-Za-z])/u);
-  const end = boundary < 0
-    ? source.length
-    : selected.index + selected[0].length + boundary;
+  // The test ends where its procedure ends, so helpers after it never leak in.
+  const structure = await fileStructure(source);
+  const parsedRange = structure.ranges.get(selected[1].toLowerCase());
+  let end;
+  if (parsedRange && parsedRange.end > selected.index) end = parsedRange.end;
+  else {
+    const remainder = source.slice(selected.index);
+    const boundary = remainder.slice(selected[0].length)
+      .search(/\n {4}(?=#(?:end)?region\b|\[[A-Za-z]|(?:local\s+|internal\s+)?procedure\b)/u);
+    end = boundary < 0 ? source.length : selected.index + selected[0].length + boundary;
+  }
   const sourceText = source.slice(selected.index, end).trim().replace(/\n\s*\}\s*$/u, "");
-  const entries = taggedEntries(sourceText);
+  // Tags of the whole codeunit (its OnRun trigger) come first.
+  const codeunitEntries = taggedEntries(structure.onRun).filter(({ tag }) => canonicalTag(tag) === "FEATURE");
+  const entries = [...codeunitEntries, ...taggedEntries(sourceText)];
   const comments = taggedComments(entries);
   const diagnostics = tagDiagnostics(entries);
   const scenarios = commentValues(comments, "SCENARIO");
@@ -444,13 +651,15 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
 
   const goal = scenarios.join(" ").trim();
   const expected = commentValues(comments, "THEN");
-  const procedures = await procedureSources(source);
+  const procedures = structure.procedures;
   const expanded = expandUiHelpers(sourceText, procedures);
   const testPages = collectTestPages(expanded.source);
   const guidance = deriveGuidance(expanded.source, testPages);
   const guideSections = whenBlocks(sourceText).map((section) => {
     const sectionExpansion = expandUiHelpers(section.source, procedures);
-    const derived = deriveGuidance(sectionExpansion.source, testPages);
+    // A page trapped in [GIVEN] (or an earlier phase) is opened by an action in this one.
+    const before = deriveGuidance(expandUiHelpers(sourceText.slice(0, section.start), procedures).source, testPages);
+    const derived = deriveGuidance(sectionExpansion.source, testPages, { trapped: before.trapped });
     return {
       title: section.title,
       steps: derived.steps,
@@ -459,6 +668,12 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
       expandedHelpers: sectionExpansion.expanded
     };
   });
+  const handlers = handlerOperations(structure.attributes.get(selected[1].toLowerCase()) ?? [], structure);
+  if (handlers.length) {
+    placeHandlers(guideSections.filter(({ operations }) => operations.length), guidance.operations, handlers);
+    for (const section of guideSections) section.steps = section.operations.map(legacyStep);
+    guidance.steps = guidance.operations.map(legacyStep);
+  }
   const prerequisites = commentValues(comments, "GIVEN");
   const permissions = [...new Set([
     ...commentValues(comments, "PERMISSIONS"),
@@ -484,12 +699,14 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
     actions: commentValues(comments, "WHEN"),
     expected: expectedResults,
     guideExpected: guideExpectedResults(expectedResults, guidance.creationTarget),
-    features: commentValues(comments, "FEATURE"),
+    features: uniqueValues(commentValues(comments, "FEATURE")),
+    references: uniqueValues(entries.map(({ reference }) => reference).filter(Boolean)),
     links: parsedLinks(comments),
-    metadata: entries.map(({ tag, qualifier, text }) => ({
+    metadata: entries.map(({ tag, qualifier, text, reference }) => ({
       tag: canonicalTag(tag) ?? tag,
       qualifier,
-      value: text
+      value: text,
+      ...(reference ? { reference } : {})
     })),
     diagnostics,
     procedure: selected[1],
@@ -524,7 +741,15 @@ export async function loadAlUiTest(reference, options = {}) {
   };
 }
 
-export async function loadAlUiTests(filename) {
+function hasUiSteps(value) {
+  return value.guideOperations.length > 0 || value.guideSections.some(({ operations }) => operations.length);
+}
+
+/**
+ * The documented scenarios of one AL file. `skipped` collects [SCENARIO]
+ * tests without any UI step; they stay out of the documentation.
+ */
+export async function loadAlUiTests(filename, skipped = []) {
   const absolutePath = path.resolve(filename);
   const content = await fs.readFile(absolutePath, "utf8");
   if (!collectTestPages(content).size) return [];
@@ -533,6 +758,11 @@ export async function loadAlUiTests(filename) {
   for (const procedure of procedures) {
     try {
       const value = await parseAlUiTest(content, absolutePath, procedure);
+      // A test without UI steps documents nothing a user does, unless its author gave it a [DOC-ID].
+      if (!hasUiSteps(value) && value.idSource !== "explicit") {
+        skipped.push({ path: absolutePath, procedure: value.procedure });
+        continue;
+      }
       scenarios.push({
         path: absolutePath,
         relativePath: portablePath(path.relative(process.cwd(), absolutePath)),

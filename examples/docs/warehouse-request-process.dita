@@ -7,7 +7,7 @@
     <metadata>
       <keywords><keyword>warehouse-requests</keyword></keywords>
       <othermeta name="bc-atlas-source" content="WarehouseUITests.al#WarehouseRequests_ProcessRequest_MarksRequestProcessed"/>
-      <othermeta name="bc-atlas-source-sha256" content="36b4ee9a14095a7d1b2c191fa90aa0730cf134c0bae6def43f21ac9ac4bc2ddc"/>
+      <othermeta name="bc-atlas-source-sha256" content="1d0f50f47d4649d681fa22efc87c915400cf23f756c0da2639d6fa4bb33ca5c7"/>
     </metadata>
   </prolog>
   <taskbody>

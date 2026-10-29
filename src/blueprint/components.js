@@ -3,13 +3,14 @@ import { normalizeIdentifier } from "../resolver.js";
 // A component is a named part of the target architecture (a future app, or a
 // layer inside one). Objects are assigned by selectors; the most specific
 // matching selector wins (object, then the longest namespace or folder, then
-// module and app, then type, then *):
+// the narrowest ID range, then module and app, then type, then *):
 //   namespace:Contoso.Sales      the namespace and everything below it
 //   folder:src/Sales             files below a folder (globs allowed)
 //   app:Contoso Sales            an app by name or ID
 //   module:Job Queue             a module (nested app.json) by name or ID
 //   type:table                   an object type
 //   object:codeunit:Sales-Post   one object by type and name or ID
+//   id:50100..50199              objects whose ID lies in a range (or id:50100)
 //   *                            everything not matched before
 // Selectors joined with & must all match (module:Base Application &
 // namespace:Microsoft.Sales); their specificities add up. Architecture rules
@@ -51,7 +52,7 @@ function compileSingle(selector, { apps, modules, componentOf, layerOf }) {
   if (text === "*" || text === "**") return () => 1;
   const separator = text.indexOf(":");
   if (separator < 1) {
-    throw new Error(`Invalid component selector "${text}"; use namespace:, folder:, app:, module:, type:, object:, or *`);
+    throw new Error(`Invalid component selector "${text}"; use namespace:, folder:, app:, module:, type:, object:, id:, or *`);
   }
   const kind = text.slice(0, separator).toLowerCase();
   const value = text.slice(separator + 1).trim();
@@ -98,6 +99,15 @@ function compileSingle(selector, { apps, modules, componentOf, layerOf }) {
     if ([...layers].some((layer) => !Number.isInteger(layer))) throw new Error(`"${text}": layer: takes layer numbers, e.g. layer:0,1`);
     return (node) => layers.has(layerOf(node)) && 200;
   }
+  if (kind === "id") {
+    const range = value.match(/^(\d+)(?:\s*\.\.\s*(\d+))?$/u);
+    if (!range) throw new Error(`"${text}": id: takes an object ID or a range, e.g. id:50100..50199`);
+    const from = Number(range[1]);
+    const to = Number(range[2] ?? range[1]);
+    // Narrower ranges are more specific; any range is less specific than a namespace or folder.
+    const specificity = 90 + Math.max(0, 9 - Math.floor(Math.log10(to - from + 1) * 2));
+    return (node) => /^\d+$/u.test(String(node.objectId ?? "")) && Number(node.objectId) >= from && Number(node.objectId) <= to && specificity;
+  }
   if (kind === "type") {
     const types = new Set(wanted.split(",").map((type) => type.trim()));
     return (node) => types.has(node.type) && 10;
@@ -108,7 +118,7 @@ function compileSingle(selector, { apps, modules, componentOf, layerOf }) {
     return (node) => (!type || node.type === type.toLowerCase()) &&
       [node.label, node.objectId].filter(Boolean).some((candidate) => normalizeIdentifier(candidate) === name) && 1000;
   }
-  throw new Error(`Unsupported selector kind "${kind}"; use namespace, folder, app, module, type, or object${componentOf ? ", component, or layer" : ""}`);
+  throw new Error(`Unsupported selector kind "${kind}"; use namespace, folder, app, module, type, object, or id${componentOf ? ", component, or layer" : ""}`);
 }
 
 /** Apps and modules by id, for selectors that name them. */

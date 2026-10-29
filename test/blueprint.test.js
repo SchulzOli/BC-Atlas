@@ -149,6 +149,10 @@ test("the most specific selector assigns an object", () => {
   assert.equal(assign({ namespace: "Contoso.Sales.Setup", type: "table", label: "Sales Setup" }), "Sales");
   assert.equal(assign({ namespace: "Contoso.Sales.Document", type: "codeunit", label: "Sales-Post" }), "Posting");
   assert.equal(assign({ namespace: "Other", type: "page", label: "Other" }), "Everything");
+  const byId = componentMatcher([{ name: "Block", match: ["id:50100..50199"] }, { name: "One", match: ["id:50150"] }], levels);
+  assert.equal(byId({ type: "table", objectId: "50120", label: "A" }), "Block");
+  assert.equal(byId({ type: "page", objectId: "50150", label: "B" }), "One");
+  assert.equal(byId({ type: "page", objectId: "50200", label: "C" }), undefined);
   assert.throws(() => componentMatcher([{ name: "A", match: ["layer:1"] }], levels), /work in architecture rules/u);
   assert.throws(() => componentMatcher([{ name: "A", match: ["*"], dependsOn: ["B"] }], levels), /unknown component "B"/u);
 });
@@ -373,14 +377,17 @@ test("coupling weights what it takes to cut a dependency", async () => {
   assert.throws(() => couplingWeights({ writes: -1 }), /must be a number of 0 or more/u);
 });
 
-test("grouping by coupling forms components from namespaces that belong together, and every architecture gets a quality score", async () => {
+test("the relations decide the components, and every architecture gets a quality score", async () => {
   const monolith = path.join(root, "examples", "monolith");
-  const { proposal, result } = await assessArchitecture(monolith, { propose: true, groupBy: "coupling" });
+  const { proposal, result } = await assessArchitecture(monolith, { propose: true });
+  // Warehouse writes and relates to the sales order, so it belongs with Sales; the permission set follows its ID neighbors.
   assert.deepEqual(proposal.architecture.components.map(({ name, match }) => [name, match]).sort(), [
-    ["Core", ["namespace:Contoso.Core"]],
-    ["Permissions", ["namespace:Contoso.Permissions"]],
-    ["Sales", ["namespace:Contoso.Sales"]],
-    ["Warehouse", ["namespace:Contoso.Warehouse"]]
+    ["Core", ["namespace:Contoso.Core", "id:50000"]],
+    ["Sales", ["namespace:Contoso.Sales", "namespace:Contoso.Warehouse"]]
+  ]);
+  assert.deepEqual(proposal.recommendations.map(({ component, role, namespace, keepsNamespace }) => [component, role, namespace, Boolean(keepsNamespace)]).sort(), [
+    ["Core", "component", "Contoso.Core", true],
+    ["Sales", "component", "Contoso.Sales", false]
   ]);
   assert.ok(result.summary.coupling.share > 0 && result.summary.coupling.share < 1);
   assert.equal(typeof result.summary.coupling.modularity, "number");
@@ -405,3 +412,88 @@ const LAYERED_MONOLITH = [
   { name: "Warehouse", layer: 2, match: ["folder:src/Warehouse"] },
   { name: "Permissions", layer: 3, match: ["folder:src/Permissions"] }
 ];
+
+// A NAV-style app: no namespaces (or some, when mixed), type folders, one ID
+// block per business area, and one setup table that every area reads.
+function legacyWorkspace({ mixed = false } = {}) {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-legacy-"));
+  writeFileSync(path.join(directory, "app.json"), JSON.stringify({ id: "11111111-1111-1111-1111-111111111111", name: "Legacy", publisher: "Contoso", version: "1.0.0.0", runtime: "12.0" }));
+  const files = [{ folder: "Tables", name: "GeneralSetup", id: 50900, body: 'table 50900 "CON General Setup"\n{\n    fields\n    {\n        field(1; "Primary Key"; Code[10]) { }\n    }\n}\n' }];
+  const table = (id, name, relation) => `table ${id} "${name}"\n{\n    fields\n    {\n        field(1; "No."; Code[20]) { ${relation ? `TableRelation = "${relation}"."No."; ` : ""}}\n    }\n}\n`;
+  const page = (id, name, source) => `page ${id} "${name}"\n{\n    SourceTable = "${source}";\n}\n`;
+  const codeunit = (id, name, uses) => `codeunit ${id} "${name}"\n{\n    procedure Run()\n    var\n${uses.map(([type, target], index) => `        V${index}: ${type} "${target}";`).join("\n")}\n    begin\n${uses.map(([type], index) => `        V${index}.${type === "Record" ? "Modify()" : "Run()"};`).join("\n")}\n    end;\n}\n`;
+  for (const [area, base] of [["Sales", 50000], ["Purchase", 50100], ["Inventory", 50200], ["Service", 50300]]) {
+    const name = (suffix) => `CON ${area} ${suffix}`;
+    const add = (folder, suffix, id, body) => files.push({ folder, name: `${area}${suffix}`, area, id, body });
+    add("Tables", "Header", base, table(base, name("Header")));
+    add("Tables", "Line", base + 1, table(base + 1, name("Line"), name("Header")));
+    add("Tables", "Entry", base + 2, table(base + 2, name("Entry"), name("Line")));
+    add("Pages", "Card", base, page(base, name("Card"), name("Header")));
+    add("Pages", "Lines", base + 1, page(base + 1, name("Lines"), name("Line")));
+    add("Codeunits", "Mgt", base, codeunit(base, name("Mgt"), [["Record", name("Header")], ["Record", name("Line")], ["Record", "CON General Setup"]]));
+    add("Codeunits", "Post", base + 1, codeunit(base + 1, name("Post"), [["Codeunit", name("Mgt")], ["Record", name("Line")], ["Record", name("Entry")], ["Record", "CON General Setup"]]));
+    add("Codeunits", "Calc", base + 2, codeunit(base + 2, name("Calc"), [["Record", name("Entry")], ["Codeunit", name("Post")], ["Record", name("Header")], ...(area === "Service" ? [["Record", "CON Inventory Entry"]] : [])]));
+  }
+  for (const file of files) {
+    mkdirSync(path.join(directory, "src", file.folder), { recursive: true });
+    const namespaced = mixed && ["Sales", "Purchase"].includes(file.area) && file.id % 2 === 0;
+    const header = mixed ? `${namespaced ? `namespace Contoso.${file.area};\n\n` : ""}using Contoso.Sales;\nusing Contoso.Purchase;\n\n` : "";
+    writeFileSync(path.join(directory, "src", file.folder, `${file.name}.${file.folder.slice(0, -1)}.al`), header + file.body);
+  }
+  return directory;
+}
+
+const membersOf = (result) => {
+  const members = {};
+  for (const [id, component] of result.assignment) {
+    const match = /::(table|page|codeunit)::(\d+)$/u.exec(id);
+    if (match) (members[component] ??= []).push(`${match[1]}:${match[2]}`);
+  }
+  return Object.fromEntries(Object.entries(members).map(([component, list]) => [component, list.sort()]).sort());
+};
+
+test("without namespaces, the relations find the business areas and a shared core", async () => {
+  const directory = legacyWorkspace();
+  try {
+    const { proposal, result } = await assessArchitecture(directory, { propose: true });
+    const members = membersOf(result);
+    assert.deepEqual(Object.keys(members), ["Inventory", "Purchase", "Sales", "Service", "Shared"]);
+    for (const [component, base] of [["Sales", 500], ["Purchase", 501], ["Inventory", 502], ["Service", 503]]) {
+      assert.equal(members[component].length, 8);
+      assert.ok(members[component].every((object) => object.split(":")[1].startsWith(String(base))), `${component} holds its own ID block`);
+    }
+    assert.deepEqual(members.Shared, ["table:50900"], "the setup table every area reads is the shared core");
+    // Without namespaces or functional folders, object ID ranges describe the components.
+    const match = Object.fromEntries(proposal.architecture.components.map(({ name, match }) => [name, match]));
+    assert.deepEqual(match.Sales, ["id:50000..50002"]);
+    assert.deepEqual(match.Shared, ["id:50900"]);
+    assert.equal(result.summary.unassigned, 0);
+
+    const roles = Object.fromEntries(proposal.recommendations.map((recommendation) => [recommendation.component, recommendation]));
+    assert.equal(roles.Shared.role, "shared");
+    assert.equal(roles.Sales.role, "app", "Sales is coupled to nothing but the shared core");
+    assert.equal(roles.Sales.namespace, "Contoso.Sales", "the publisher is the namespace root");
+    // Service uses Inventory and is too small to stand alone: one app candidate.
+    assert.equal(roles.Service.app, "Inventory");
+    assert.equal(roles.Service.namespace, "Contoso.Inventory.Service");
+    assert.match(proposal.architecture.components.find(({ name }) => name === "Service").description, /app candidate Inventory; namespace Contoso\.Inventory\.Service/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("namespaces on some objects do not change what the relations decide", async () => {
+  const legacy = legacyWorkspace();
+  const mixed = legacyWorkspace({ mixed: true });
+  try {
+    const plain = await assessArchitecture(legacy, { propose: true });
+    const partly = await assessArchitecture(mixed, { propose: true });
+    assert.deepEqual(membersOf(partly.result), membersOf(plain.result));
+    const match = Object.fromEntries(partly.proposal.architecture.components.map(({ name, match }) => [name, match]));
+    assert.deepEqual(match.Sales, ["namespace:Contoso.Sales", "id:50001"], "a namespace that one component holds becomes its selector");
+    assert.equal(partly.result.summary.unassigned, 0);
+  } finally {
+    rmSync(legacy, { recursive: true, force: true });
+    rmSync(mixed, { recursive: true, force: true });
+  }
+});

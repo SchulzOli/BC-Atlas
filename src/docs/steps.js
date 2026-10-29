@@ -53,7 +53,8 @@ function shortLabel(language, sections, key, values) {
 
 function single(op, context) {
   const { language } = context;
-  const page = { ui: pageCaption(op, context) };
+  // Confirmations have no page.
+  const page = op.page ? { ui: pageCaption(op, context) } : undefined;
   switch (op.kind) {
     case "open": {
       const record = { ui: englishLike(language) ? singular(page.ui) : page.ui };
@@ -106,7 +107,7 @@ function single(op, context) {
       const key = op.value.kind === "boolean"
         ? (op.value.value ? "set.on" : "set.off")
         : op.value.kind === "choice" ? "set.choice"
-          : op.value.kind === "text" ? "set.text" : "set.variable";
+          : op.value.kind === "text" ? (op.value.value === "" ? "set.clear" : "set.text") : "set.variable";
       return {
         cmd: withSections(language, member.sections, phrase(language, key, { field, value: { input: String(op.value.value) } })),
         short: shortLabel(language, member.sections, op.value.kind === "boolean" || op.value.kind === "choice"
@@ -114,7 +115,65 @@ function single(op, context) {
         info: member.tooltip,
         expected: phrase(language, "expect.set"),
         page: op.page.name,
+        example: ["text", "choice"].includes(op.value.kind) && op.value.value !== ""
+      };
+    }
+    case "button": {
+      const button = { ui: phrase(language, `ui.${op.button}`)[0] };
+      return {
+        cmd: phrase(language, "button", { button }),
+        short: phrase(language, "short.button", { button }),
+        expected: phrase(language, "expect.button"),
+        page: op.page.name
+      };
+    }
+    case "filter": {
+      const member = memberInfo(op, context, "field");
+      const field = { ui: member.caption };
+      const key = ["text", "choice"].includes(op.value.kind) ? "filter" : "filter.variable";
+      return {
+        cmd: withSections(language, member.sections, phrase(language, key, { field, value: { input: String(op.value.value) } })),
+        short: shortLabel(language, member.sections, "short.filter", { field }),
+        info: member.tooltip,
+        expected: phrase(language, "expect.filter"),
+        page: op.page.name,
         example: ["text", "choice"].includes(op.value.kind)
+      };
+    }
+    case "navigate":
+      return {
+        cmd: phrase(language, `navigate.${op.direction}`),
+        short: phrase(language, "short.navigate"),
+        expected: phrase(language, "expect.select"),
+        page: op.page.name
+      };
+    case "lookup":
+    case "drilldown":
+    case "assist-edit": {
+      const member = memberInfo(op, context, "field");
+      const field = { ui: member.caption };
+      return {
+        cmd: withSections(language, member.sections, phrase(language, op.kind, { field })),
+        short: shortLabel(language, member.sections, `short.${op.kind}`, { field }),
+        info: member.tooltip,
+        expected: phrase(language, op.kind === "drilldown" ? "expect.drilldown" : op.kind === "lookup" ? "expect.lookup" : "expect.set"),
+        page: op.page.name
+      };
+    }
+    case "opened":
+      // A page that code (not a UI action) opens, such as Page.Run in a test helper.
+      return {
+        cmd: phrase(language, "expect.opens", { page }),
+        short: phrase(language, "short.open", { page, record: page }),
+        expected: phrase(language, "expect.opens", { page }),
+        page: op.page.name
+      };
+    case "confirm": {
+      const button = { ui: phrase(language, `ui.${op.answer === "no" ? "no" : "yes"}`)[0] };
+      return {
+        cmd: phrase(language, op.answer ? `confirm.${op.answer}` : "confirm.any", { button }),
+        short: phrase(language, "short.confirm"),
+        expected: phrase(language, "expect.confirm")
       };
     }
     default:
@@ -123,29 +182,70 @@ function single(op, context) {
 }
 
 /**
+ * An operation as the user experiences it: an attempt that the test expects
+ * to fail (asserterror) says so, and an action that opens a page the test
+ * traps names that page as its result.
+ */
+function experienced(op, context) {
+  const { language } = context;
+  const step = single(op, context);
+  if (op.opens) {
+    // Shown after the instruction in guides, and as the expected result in test cases.
+    step.outcome = phrase(language, "expect.opens", { page: { ui: context.captions?.page(op.opens.name)?.caption ?? op.opens.label } });
+    step.expected = step.outcome;
+  }
+  if (op.attempt) {
+    step.cmd = phrase(language, "attempt", { instruction: step.cmd });
+    step.short = phrase(language, "short.attempt", { instruction: step.short });
+    step.expected = phrase(language, "expect.error");
+  }
+  return step;
+}
+
+/**
  * Builds a step: { cmd, info?, expected, items?, pages, actions }.
  * A repeated block becomes one step whose items are the repeated operations.
  */
 export function operationStep(op, context) {
-  if (op.kind !== "repeat") {
-    const step = single(op, context);
-    return { ...step, pages: [step.page], actions: step.action ? [[step.page, step.action]] : [] };
+  if (op.kind !== "repeat" && op.kind !== "dialog") {
+    const step = experienced(op, context);
+    return { ...step, pages: step.page ? [step.page] : [], actions: step.action ? [[step.page, step.action]] : [] };
   }
   const { language } = context;
   const items = op.steps.map((child) => {
-    const step = single(child, context);
+    // A loop inside a dialog (or a dialog inside a loop) reads as one line.
+    if (child.kind === "repeat" || child.kind === "dialog") {
+      const nested = operationStep(child, context);
+      return { ...nested, cmd: inlineStep(nested, language), items: undefined };
+    }
+    const step = experienced(child, context);
     return {
       ...step,
       cmd: child.conditional ? phrase(language, "conditional", { instruction: inline(language, step.cmd) }) : step.cmd
     };
   });
+  const pages = items.map(({ page }) => page).filter(Boolean);
+  const actions = items.filter(({ action }) => action).map(({ page, action }) => [page, action]);
+  if (op.kind === "dialog") {
+    // A page the test answers in a handler: "When the X page opens, do the following:".
+    const page = { ui: context.captions?.page(op.page.name)?.caption ?? op.page.label };
+    return {
+      cmd: phrase(language, "dialog", { page }),
+      short: phrase(language, "short.dialog", { page }),
+      expected: phrase(language, "expect.dialog"),
+      items,
+      dialog: true,
+      pages: [op.page.name, ...pages],
+      actions
+    };
+  }
   return {
     cmd: phrase(language, "repeat", { record: { ui: op.record } }),
     short: phrase(language, "short.repeat", { record: { ui: op.record } }),
     expected: phrase(language, "expect.repeat"),
     items,
-    pages: items.map(({ page }) => page),
-    actions: items.filter(({ action }) => action).map(({ page, action }) => [page, action])
+    pages,
+    actions
   };
 }
 
@@ -162,5 +262,5 @@ export function inlineStep(step, language) {
     parts.push(...tokens.map((token) => (typeof token === "string" ? token.replace(/\.$/u, "") : token)));
   }
   const record = step.cmd.find((token) => typeof token === "object");
-  return mergeText(phrase(language, "repeat.inline", { record, instructions: parts }));
+  return mergeText(phrase(language, step.dialog ? "dialog.inline" : "repeat.inline", { record, page: record, instructions: parts }));
 }

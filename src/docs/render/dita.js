@@ -27,14 +27,15 @@ function nestedList(items) {
 
 function substep(item) {
   const nested = item.items?.length ? nestedList(item.items) : "";
-  return `<substep><cmd>${dita(item.cmd)}</cmd>${info(item)}${nested}</substep>`;
+  const outcome = item.outcome ? `<stepresult><p>${dita(item.outcome)}</p></stepresult>` : "";
+  return `<substep><cmd>${dita(item.cmd)}</cmd>${info(item)}${nested}${outcome}</substep>`;
 }
 
 function step(item, language) {
   const substeps = item.items?.length ? `\n        <substeps>${item.items.map(substep).join("")}</substeps>` : "";
   const result = item.result?.length
     ? `\n        <stepresult><p>${escapeXml(item.result.join(" "))}</p></stepresult>`
-    : "";
+    : item.outcome ? `\n        <stepresult><p>${dita(item.outcome)}</p></stepresult>` : "";
   return `      <step>
         <cmd>${dita(item.cmd)}</cmd>${info(item)}${substeps}${result}
       </step>`;

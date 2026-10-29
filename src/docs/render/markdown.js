@@ -46,7 +46,7 @@ function mdTokens(tokens) {
 }
 
 function withInfo(step) {
-  return `${md(step.cmd)}${step.info ? ` _${escapeMarkdown(step.info)}_` : ""}`;
+  return `${md(step.cmd)}${step.outcome ? ` ${md(step.outcome)}` : ""}${step.info ? ` _${escapeMarkdown(step.info)}_` : ""}`;
 }
 
 function stepLines(step, indent) {
@@ -108,7 +108,10 @@ export function testCaseRows(task) {
     });
   }
   for (const step of task.steps) {
-    if (step.items?.length) {
+    // A loop or a dialog is one row, so its context ("For each ...", "If the ... page opens") stays.
+    if (step.items?.length && !step.phase) {
+      rows.push({ action: inlineStep(step, language), expected: step.expected ?? [] });
+    } else if (step.items?.length) {
       for (const item of step.items) {
         rows.push({
           action: item.items?.length ? inlineStep(item, language) : item.cmd,

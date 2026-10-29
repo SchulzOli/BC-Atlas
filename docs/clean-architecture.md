@@ -21,51 +21,65 @@ bca export ./app -o architecture.html                                    # 4. sh
 ## 1. Find a suitable architecture
 
 Without an `architecture` section in `.bca.json`, `bca architecture` proposes
-one from today's dependencies:
+one from today's dependencies. The **relations** between the objects decide,
+not their names: the proposal works the same for code with namespaces,
+without any (NAV-style apps with `Tables/`, `Pages/`, `Codeunits/` folders and
+ID blocks), and for a mix of both.
 
-1. **Group** the objects into candidate components. By default (`auto`) every
-   module (nested `app.json`) or app is a component, and any that is too large
-   is split by namespace (see below). `--group-by coupling` forms components
-   from namespaces that are tightly coupled to each other instead (see
-   [Group by coupling](#group-by-coupling)). `--group-by namespace`, `folder`,
-   `module`, or `app` chooses one grouping; `--depth` fixes the number of
-   namespace or folder segments.
-2. **Order** the components so that as little coupling as possible points
-   against the order (a weighted feedback arc set, see
-   [Coupling weights](#coupling-weights)). Permission sets are left out of this
-   step: they grant access to everything and follow the components instead of
-   shaping them.
-3. **Layer** them: layer 0 is the core, every other component sits one layer
-   above the deepest component it may use.
+1. **Type and weigh** every relation by what it would take to cut it (see
+   [Relation types and weights](#relation-types-and-weights)).
+2. **Find components** inside each app or module: objects that are coupled
+   more to each other than to the rest
+   ([How components are found](#how-components-are-found)).
+3. **Find app candidates**: components coupled more to each other than to the
+   rest could become one app together; a component on its own could become an
+   app by itself.
+4. **Suggest a namespace** for every component
+   ([Namespaces](#namespaces)).
+5. **Order** the components so that as little coupling as possible points
+   against the order (a weighted feedback arc set), and **layer** them: layer 0
+   is the core, every other component sits one layer above the deepest
+   component it may use.
 
-### When a component is split by namespace
+```text
+$ bca architecture ./legacy --propose
+  12 components in 7 layers, 200 objects assigned.
+  86% of the coupling stays inside components (modularity 0.76).
 
-| Step | Rule |
-| --- | --- |
-| Too large | More than 15% of the analyzed objects, and at least 40: `max(40, 15% × objects)`. For the Base Application run below (8,347 objects) that is 1,253. |
-| First cut | One namespace segment below the prefix the objects share, e.g. `Microsoft.Sales`, `Microsoft.Finance`. |
-| Deeper | A part with more than 15% (and at least 40) of the split objects goes one segment deeper, for at most 8 rounds. |
-| Leftovers | Objects directly in a namespace that was split deeper stay together as a component of their own. |
-| Context | Objects outside the analyzed path (`--paths`, a focus folder) are not split; each of their apps stays one component. |
-| Small groups | `--min-objects N` merges groups with fewer than N objects into the component they depend on most. Default: 1 (no merging). |
-| Overrides | `--depth N` uses N segments and never splits further; `--group-by namespace` splits every object by namespace, not only large modules. |
+App candidates and namespaces
+  Sales
+    Sales                          Contoso.Sales
+    Finance Post                   Contoso.Sales.FinancePost
+  Purchase
+    Purchase                       Contoso.Purchase
+    Purchase Calc                  Contoso.Purchase.Calc
+  ...
+```
 
-### Coupling weights
+`--group-by namespace` or `folder` lets the code structure decide instead
+(objects without a namespace or a functional folder still follow their
+relations), `module` or `app` makes each module or app one component; see
+[Compare groupings](#compare-groupings).
 
-Not every dependency is equally hard to cut. BC Atlas weighs each one by what
-it takes to remove it, and uses the weights to order the components, to merge
-small groups, to find objects that belong elsewhere, to rank objects
-(PageRank), to detect communities, and to score an architecture:
+### Relation types and weights
 
-| Relation | Weight | Why |
-| --- | ---: | --- |
-| `writes` | 5 | Data owned elsewhere; the writes must move behind the owner's codeunit, or the table must move. |
-| `extends` | 4 | A table, page, or enum extension belongs next to what it extends. |
-| `relates`, `implements` | 3 | Schema (`TableRelation`) and contracts. |
-| `calls`, `runs`, `part`, `reads` | 2 | Can go behind an interface, an event, or a codeunit. |
-| `selects` | 1.5 | An enum value that selects an implementation. |
-| `uses`, `subscribes` | 1 | A variable or an event subscriber is already loose. |
-| `permits`, `includes` | 0.1 | Permission grants move with the components. |
+Not every dependency is equally hard to cut. BC Atlas types each relation and
+weighs it by what it takes to remove it. The weights find the components,
+order them, find objects that belong elsewhere, rank objects (PageRank), and
+score an architecture:
+
+| Type | Relation | Weight | Why |
+| --- | --- | ---: | --- |
+| data | `writes` | 5 | Data owned elsewhere; the writes must move behind the owner's codeunit, or the table must move. |
+| structural | `extends` | 4 | A table, page, or enum extension belongs next to what it extends. |
+| structural | `source` | 4 | A page or query and its source table (`SourceTable`, `DataItemTable`) belong together. |
+| structural | `relates`, `implements` | 3 | Schema (`TableRelation`) and contracts. |
+| behavioral | `calls`, `runs` | 2 | Can go behind an interface, an event, or a codeunit. |
+| structural | `part` | 2 | A page and its parts. |
+| data | `reads` | 2 | Reading another component's data binds less than writing it. |
+| loose | `selects` | 1.5 | An enum value that selects an implementation. |
+| loose | `uses`, `subscribes` | 1 | A variable or an event subscriber is already loose. |
+| administrative | `permits`, `includes` | 0.1 | Permission grants move with the objects; they never decide where an object belongs. |
 
 Repeated uses of one kind count logarithmically: ten calls bind more than
 one, but not ten times as much. Change a weight in `.bca.json`:
@@ -74,15 +88,48 @@ one, but not ten times as much. Change a weight in `.bca.json`:
 { "architecture": { "couplingWeights": { "reads": 3, "subscribes": 0.5 } } }
 ```
 
-### Group by coupling
+### How components are found
 
-`--group-by coupling` starts from the namespaces (without one, the folders) of
-each module or app and puts the ones whose objects are tightly coupled to each
-other into one component (Louvain communities on the coupling weights, at
-object level; a namespace joins the community most of its objects belong to).
-The components keep `namespace:` selectors, so `.bca.json` stays readable.
-Use it when the namespaces of a monolith do not match how the code is
-actually used.
+Inside each app or module (apps and modules are boundaries that exist
+already):
+
+| Step | Rule |
+| --- | --- |
+| Communities | Weighted modularity on the relations: several Louvain runs, each refined by moving single objects, and the best one wins. Today's namespaces and functional folders compete as candidates too, so they survive exactly where the relations confirm them. |
+| Shared core | Objects that at least three communities use heavily but none owns (setup tables, master data, utility codeunits) form the **shared core** instead of gluing the communities together; the rest is clustered again without them. |
+| Small groups | Communities with fewer than 3 objects (or 1% of the app) join the one they are most coupled to. |
+| Loose objects | Objects without any relation (besides permission grants) join the component of their namespace, functional folder, or nearest object ID (within 50); otherwise they are listed as *Unconnected* to place by hand. |
+| App candidates | The same relations at a coarser resolution; each component goes to the app candidate most of its objects land in, so an app candidate always holds whole components. One with fewer than 10 objects (or 5% of the app) joins the candidate it is most coupled to. |
+| Names | The deepest namespace most of a component's objects share (below what the whole app shares), else the folder, else the words their names share most (`Sales Post`). |
+| Selectors | A namespace or functional folder whose objects (80% or more) belong to one component becomes its selector, then object ID ranges (`id:50100..50149`), then single objects for what is left; the result is checked so every object lands where the relations put it. |
+| Context | Objects outside the analyzed path (`--paths`, a focus folder) keep their app as one component. |
+| `--min-objects N` | Merges components with fewer than N objects into the one they depend on most. Default: 1 (no merging). |
+
+Type folders such as `Tables`, `Pages`, `Codeunits`, `src`, or `app` say
+nothing about what objects do and are skipped: `src/Sales/Tables` is the
+functional folder `src/Sales`.
+
+### Namespaces
+
+Every component of a proposal gets a role and a namespace (JSON
+`proposal.recommendations`, the Markdown report, the **App candidates and
+namespaces** card on the Architecture page, and the component's
+`description` in `.bca.json`):
+
+| Role | Meaning |
+| --- | --- |
+| app | Can become an app of its own. |
+| component | Part of an app candidate with other components (or of the app it is in, when that app stays one app candidate). |
+| shared | The shared core: the base the other components depend on. |
+| review | Objects without relations; place them by hand. |
+
+- A component whose objects (80% or more) share one namespace keeps it.
+- Otherwise the namespace follows the app candidate: the namespace most of the
+  candidate's objects share already, else the root and the candidate's name
+  (`Contoso.Sales`), and below it the component's own name
+  (`Contoso.Sales.Post`).
+- The root is the first segment most namespaced objects start with, else the
+  publisher in `app.json`.
 
 ### Compare groupings
 
@@ -98,10 +145,17 @@ Every architecture, configured or proposed, gets a score:
 $ bca architecture ./app --propose --group-by namespace
   32 components in 17 layers, 1,200 objects assigned.
   56% of the coupling stays inside components (modularity 0.53).
-$ bca architecture ./app --propose --group-by coupling
-  12 components in 8 layers, 1,200 objects assigned.
-  68% of the coupling stays inside components (modularity 0.56).
+$ bca architecture ./app --propose
+  67 components in 25 layers, 1,200 objects assigned.
+  64% of the coupling stays inside components (modularity 0.62).
 ```
+
+| `--group-by` | Components |
+| --- | --- |
+| `auto` (default) | From the relations, as described above. `coupling` is the same. |
+| `namespace` | One segment below the prefix the objects share; a part with more than 15% of the objects (at least 40) goes one segment deeper, for at most 8 rounds. `--depth N` fixes the segments. Objects without a namespace follow their relations. |
+| `folder` | Functional folders, split like namespaces. Objects in type folders only follow their relations. |
+| `module`, `app` | One component per module (nested `app.json`) or app. |
 
 The proposal lists the components with their layers and allowed dependencies,
 the dependencies that still point the wrong way, which components can become
@@ -143,7 +197,7 @@ For the whole architecture:
 | `allowSameLayer` | Allow dependencies between different components of the same layer. Default: `false`, because siblings that use each other cannot become separate apps. |
 | `strictLayers` | A component without `dependsOn` may use only the layer directly below it, not deeper ones. Default: `false`. |
 | `maxObjects` | Most objects per component (a component's own `maxObjects` wins). |
-| `couplingWeights` | Weight per relation kind; see [Coupling weights](#coupling-weights). |
+| `couplingWeights` | Weight per relation kind; see [Relation types and weights](#relation-types-and-weights). |
 | `rules` | Dependency rules of your own, see [Rules of your own](#rules-of-your-own). |
 | `severity` | Severity of a violation in `bca check`: `error` (default), `warning`, or `info`. |
 | `severities` | Severity per rule, `off` turns a rule off: `{ "internal-access": "warning", "unstable-dependency": "off" }`. Accepts the violation rules (`outward-dependency`, `internal-access`, ...) and the [checks of the architecture](#checks-of-the-architecture). |
@@ -160,6 +214,7 @@ Selectors:
 | `module:Job Queue` | A module (nested `app.json`) by name or ID. |
 | `type:table,tableextension` | Object types. |
 | `object:codeunit:Sales-Post` | One object by type and name or ID. |
+| `id:50100..50199` | Objects whose ID lies in the range (any type), or `id:50100`. A narrower range wins over a wider one; a namespace or folder wins over any range. |
 | `*` | Everything no other selector matches. |
 | `component:Sales` | The objects of a component. Only in `exposes` and `rules`. |
 | `layer:0,1` | The objects of the components in these layers. Only in `exposes` and `rules`. |
@@ -171,8 +226,8 @@ Selectors joined with `&` must all match: `namespace:Contoso.Sales & type:table`
 Every dependency that breaks a rule is a **violation**.
 
 **What is checked.** Only dependencies between two different components. All
-13 relation kinds count (extends, implements, calls, uses, reads, writes,
-relates, selects, runs, part, subscribes, permits, includes). Not checked:
+14 relation kinds count (extends, source, implements, calls, uses, reads,
+writes, relates, selects, runs, part, subscribes, permits, includes). Not checked:
 dependencies inside one component, and dependencies to objects that belong to
 no component, such as platform objects (`Integer`, `Date`), unresolved
 references, and package symbols no selector matches.
@@ -356,20 +411,22 @@ defines one, or with `--propose`:
 
 On the W1 Base Application in [BCApps](https://github.com/microsoft/BCApps),
 analyzed together with its declared dependencies (System Application and
-Business Foundation, about 8,300 objects), the proposal keeps every module
-(Job Queue, Power BI, User Task, ...) as a component and splits the root
-module by namespace: 72 components in 29 layers, from System Application and
-Foundation at the core up to Sales, Purchases, and Service.
+Business Foundation, about 8,300 objects), the relations give 78 components
+in 28 layers and 46 app candidates. 65% of the coupling stays inside
+components (modularity 0.57); splitting the root module by namespace keeps
+56% (modularity 0.49).
 
-- 37 components could become apps right away, mostly modules that already
+- The relations cut across namespaces where the code does: sales and purchase
+  documents share their posting code and form one component; costing,
+  items, counting, and manufacturing documents another; general ledger, bank
+  reconciliation, payments, and reminders a third.
+- The shared core holds the objects that many components use but none owns,
+  such as employees, the base calendar, and role centers.
+- 41 components could become apps right away, mostly modules that already
   follow their manifests.
-- 19,485 dependencies point the wrong way, grouped into 4,924 work items;
-  11,576 of them are permission grants (D365 READ, D365 AUTOMATION, ...) that
-  each future app would bring along in a permission set of its own.
-- The largest structural work items are objects in the wrong place, such as
-  `Mfg. Experience Tier` and `Service Experience Tier`: they live in the
-  `System` namespace but subscribe to 49 Manufacturing and 44 Service tables,
-  so they move to those components.
+- 23,094 dependencies point the wrong way, grouped into 4,763 work items;
+  16,423 of them are permission grants that each future app would bring along
+  in a permission set of its own.
 
 ```sh
 bca architecture ./BCApps/src/Layers/W1/BaseApp --project-root ./BCApps/src \

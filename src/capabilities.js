@@ -190,12 +190,12 @@ const blueprintOptions = {
   format: string("Report format.", { group: OUTPUT, short: "f", enum: ["text", "markdown", "json"], default: "text" }),
   output: string("Write the report to a file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
   propose: flag("Propose an architecture from today's dependencies, even when .bca.json defines one.", { group: "Proposal" }),
-  groupBy: string("How the proposal groups objects into components; auto: modules or apps, too large ones split by namespace; coupling: namespaces that are tightly coupled to each other.", {
+  groupBy: string("How the proposal groups objects into components; auto: the typed, weighted relations decide (coupling is the same); namespace or folder: the code structure decides, objects without it follow their relations; module or app: one component each.", {
     group: "Proposal",
     enum: ["auto", "coupling", "namespace", "folder", "module", "app"],
     default: "auto"
   }),
-  depth: string("Namespace or folder segments per component; default: split until no component is too large.", { group: "Proposal", value: "n" }),
+  depth: string("With --group-by namespace or folder: segments per component; default: split until no component is too large.", { group: "Proposal", value: "n" }),
   minObjects: string("Merge smaller groups into the component they depend on most.", { group: "Proposal", value: "n", default: "1" }),
   extract: string("Plan extracting this component as an app of its own: blockers, dependencies, app.json, table moves, and steps.", { group: "Extraction", value: "component" }),
   write: flag("Save the architecture to .bca.json (architecture section).", { group: "Enforcement" }),
@@ -348,7 +348,7 @@ export function createCapabilities(version) {
         options: blueprintOptions,
         output: { type: "json", when: "--format json", schema: "ArchitectureReport" },
         rules: [
-          "Without an architecture section in .bca.json, the command proposes one from today's dependencies.",
+          "Without an architecture section in .bca.json, the command proposes one from today's dependencies: components from the typed, weighted relations (with or without namespaces), a shared core, app candidates, and a namespace for each component.",
           "Exit code 1 when the configured architecture has violations that are not in the baseline.",
           "bca check enforces the same rules in CI; the baseline only shrinks."
         ],
