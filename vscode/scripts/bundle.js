@@ -19,9 +19,9 @@ const esbuild = require("esbuild");
 const ENGINE_ENTRIES = ["src/cli.js", "src/mcp.js", "src/app/worker.js", "src/app/page.js", "src/update-worker.js"];
 // Browser scripts and styles the engine inlines into pages; they are read, not imported.
 const ENGINE_ASSETS = ["src/app/ui/", "src/graph/viewer/", "src/ui/"];
-// Load files relative to themselves (D2's worker and wasm, tree-sitter's wasm,
-// the 3D explorer's browser bundle), so they stay as they are.
-const EXTERNAL = ["@terrastruct/d2", "web-tree-sitter", "3d-force-graph"];
+// Load files relative to themselves (D2's worker and wasm, tree-sitter's wasm),
+// so they stay as they are. The 3D explorer's browser bundle is in vendor/.
+const EXTERNAL = ["@terrastruct/d2", "web-tree-sitter"];
 
 const toPosix = (value) => value.split(path.sep).join("/");
 
@@ -115,7 +115,7 @@ function pruneDependencies(modules) {
     ...manifest,
     dependencies: Object.fromEntries(Object.entries(manifest.dependencies ?? {}).filter(([name]) => EXTERNAL.includes(name)))
   }));
-  // The engine uses only 3d-force-graph's prebuilt browser bundle, which contains its dependencies.
+  // The external packages load their own prebuilt files; their dependencies are not needed.
   for (const name of EXTERNAL) {
     rewriteManifest(path.join(modules, name, "package.json"), ({ dependencies: _dependencies, peerDependencies: _peers, optionalDependencies: _optional, ...manifest }) => manifest);
   }

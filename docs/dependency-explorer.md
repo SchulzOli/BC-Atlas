@@ -55,8 +55,17 @@ seeing them as unresolved.
   [large-graph example](https://vasturiano.github.io/3d-force-graph/example/large-graph/)
   of 3d-force-graph: small nodes, hairline links colored by dependency class,
   and groups that drift together, so there is room to fly through the graph.
-  The groups follow **Color**: apps, components, communities, object types,
-  or build layers. Tightly coupled objects (one writes or extends the other)
+  The groups follow **Color**: clusters, apps, components, communities, object
+  types, or build layers. Without an architecture, the default is
+  **Cluster**: the workspace objects grouped by their typed, weighted
+  relations, the same clustering as the
+  [architecture proposal](./clean-architecture.md#how-components-are-found).
+  Clusters float like galaxies around their app candidate, and app
+  candidates around their app; clusters that could become one app share a
+  family of colors, and the shared core is gold. Each cluster carries its
+  name at its center; links inside a cluster take its color, links between
+  groups are faint arcs. On a dark background the graph glows (**Glow** in
+  Display turns it off). Tightly coupled objects (one writes or extends the other)
   sit closer together than loosely coupled ones (events, permission grants);
   see [Relation types and weights](./clean-architecture.md#relation-types-and-weights). **App clusters** pulls each app into a tight cluster
   instead; cross-app dependencies then span the space between clusters.
@@ -180,7 +189,7 @@ objects are placed from left to right by the commit that introduced them.
 | Search (`/`) | Highlights matches by name, ID, type, namespace, file, or app; **Enter** flies to the first match. |
 | Min. links, hide unconnected | Remove weakly connected nodes. The slider runs from 0 to the number of links that 95% of the nodes stay under (at least 10, at most 200), so it also thins out large graphs. |
 | Spacing | Room between nodes, from 50 % to 500 %: longer links (longest between large nodes), stronger repulsion, and more distance between clusters and floors. The explorer remembers it. |
-| Color | App, object type, community (Louvain clustering on coupling weights), build layer, age (first commit), or cross-app coupling. In open space, also what drifts together. |
+| Color | Cluster (relations, the default without an architecture), component, app, object type, community (Louvain clustering on coupling weights), build layer, age (first commit), or cross-app coupling. In open space, also what drifts together. |
 | Size | PageRank on coupling weights (default), used by, depends on, cross-app links, or uniform. |
 | Layout | Open space (default), app or component clusters, free force, architecture layers as floors, apps as floors, build order as floors, commit timeline axis, or flat 2D. |
 

@@ -1,18 +1,13 @@
 import { readFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
-import { createRequire } from "node:module";
-import path from "node:path";
 
 const read = (name) => readFileSync(new URL(`./viewer/${name}`, import.meta.url), "utf8");
 const theme = () => readFileSync(new URL("../ui/theme.css", import.meta.url), "utf8");
 
 let library;
-/** The 3d-force-graph browser bundle (MIT, includes three.js). */
+/** 3d-force-graph with three.js and its bloom pass (MIT), built by scripts/build-graph-vendor.js. */
 function forceGraphLibrary() {
-  if (!library) {
-    const entry = createRequire(import.meta.url).resolve("3d-force-graph");
-    library = readFileSync(path.join(path.dirname(entry), "3d-force-graph.min.js"), "utf8");
-  }
+  library ??= readFileSync(new URL("../../vendor/graph-viewer.js", import.meta.url), "utf8");
   return library;
 }
 

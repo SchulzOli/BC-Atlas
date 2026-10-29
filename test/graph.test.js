@@ -292,10 +292,22 @@ test("explorer HTML is self-contained and embeds the graph safely", async () => 
   const html = renderExplorerHtml(document);
   assert.match(html, /<title>Workspace &lt;\/script&gt;&lt;b&gt;<\/title>/u);
   assert.match(html, /ForceGraph3D/u);
+  assert.match(html, /window\.BCA_THREE=/u, "three.js and the bloom pass come with the explorer");
   assert.doesNotMatch(html, /<script[^>]+src=/u, "no external scripts");
   const data = html.match(/<script id="bca-graph-data">window\.BCA_GRAPH = (.*?);<\/script>/su)[1];
   assert.doesNotMatch(data, /<\/script/iu);
   assert.equal(JSON.parse(data).title, "Workspace </script><b>");
+});
+
+test("the explorer groups workspace objects into named clusters from their relations", async () => {
+  const document = await createGraphDocument(path.join(root, "examples", "monolith"));
+  const workspaceNodes = document.levels.object.nodes.filter(({ origin }) => origin === "workspace");
+  assert.ok(workspaceNodes.every(({ cluster }) => document.clusters[cluster]), "every workspace object has a cluster");
+  const labels = Object.values(document.clusters).map(({ label }) => label);
+  assert.equal(new Set(labels).size, labels.length, "cluster names are unique");
+  assert.ok(Object.values(document.clusters).every(({ size }) => size > 0));
+  const sizes = Object.values(document.clusters).reduce((total, { size }) => total + size, 0);
+  assert.equal(sizes, workspaceNodes.length);
 });
 
 test("explorer HTML compresses large graphs", async () => {

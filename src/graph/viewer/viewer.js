@@ -67,6 +67,30 @@
   }]));
   const componentColor = (name) => components.get(name)?.color ?? "#8a8f98";
 
+  // Clusters of the workspace objects, found from their relations. Clusters
+  // that could become one app together get neighboring hues, so the app
+  // candidates show as families of color.
+  const CLUSTERS = DOC.clusters ?? {};
+  const clusterFamilies = new Map();
+  for (const [key, cluster] of Object.entries(CLUSTERS).sort((a, b) => b[1].size - a[1].size)) {
+    const family = cluster.shared ? "shared" : cluster.group ?? key;
+    if (!clusterFamilies.has(family)) clusterFamilies.set(family, []);
+    clusterFamilies.get(family).push(key);
+  }
+  const clusterHue = new Map();
+  [...clusterFamilies].filter(([family]) => family !== "shared").forEach(([, keys], index) => {
+    const hue = (212 + index * 137.508) % 360;
+    keys.forEach((key, position) => clusterHue.set(key, { hue: (hue + (position % 2 ? 1 : -1) * Math.ceil(position / 2) * 14 + 360) % 360, shade: position }));
+  });
+  function clusterColor(key) {
+    const cluster = CLUSTERS[key];
+    if (!cluster) return "#8a8f98";
+    const light = state.theme === "light";
+    if (cluster.shared) return light ? "#a8862a" : "#f2cf6b";
+    const { hue, shade } = clusterHue.get(key) ?? { hue: 210, shade: 0 };
+    return `hsl(${hue.toFixed(0)}, ${light ? 62 : 78}%, ${(light ? 46 : 64) - (shade % 3) * 5}%)`;
+  }
+
   const levels = {};
   for (const [name, level] of Object.entries(DOC.levels)) {
     const byId = new Map(level.nodes.map((node) => [node.id, node]));
@@ -116,7 +140,8 @@
     // Distance between nodes: 1 is the default; links, repulsion, clusters, and floors scale with it.
     spacing: Number.isFinite(stored.spacing) ? Math.min(SPACING.max, Math.max(SPACING.min, stored.spacing)) : 1,
     search: "",
-    colorBy: ARCHITECTURE ? "component" : "app",
+    colorBy: ARCHITECTURE ? "component" : Object.keys(CLUSTERS).length > 1 ? "cluster" : "app",
+    glow: true,
     violationsOnly: false,
     component: undefined,
     sizeBy: "pagerank",
@@ -318,6 +343,7 @@
     switch (state.colorBy) {
       case "type": return TYPE_COLORS[node.type] ?? "#9aa3ad";
       case "community": return PALETTE[node.metrics.community % PALETTE.length];
+      case "cluster": return node.cluster ? clusterColor(node.cluster) : apps.get(node.app)?.color ?? "#9aa3ad";
       case "layer": return sequential(node.metrics.buildLayer / Math.max(1, level.maxLayer));
       case "age": return sequential(node.firstFrame / Math.max(1, LAST_FRAME));
       case "cross-app": {
@@ -364,7 +390,12 @@
       (link.edge.source === state.selected || link.edge.target === state.selected))) return dim();
     if (link.edge.violation) return VIOLATION_COLOR;
     if (link.edge.inCycle && link.edge.dependency === "intra-app") return "#c678dd";
-    return DEPENDENCIES[link.edge.dependency]?.color ?? "#7b8ba6";
+    // Inside a cluster or component, links take its color; between groups, the dependency class.
+    const grouped = state.layout === "space" && state.level === "object" && ["cluster", "component", "community"].includes(state.colorBy);
+    if (grouped && sameGroup(link)) return baseColor(endNode(link.source));
+    const color = DEPENDENCIES[link.edge.dependency]?.color ?? "#7b8ba6";
+    // Links between groups stay in the background.
+    return grouped ? `${color}55` : color;
   }
 
   const crossesApps = (link) => link.edge.scope === "inter-app";
@@ -423,11 +454,12 @@
     .nodeId("id")
     .nodeVal(nodeSize)
     .nodeColor(nodeColor)
-    .nodeOpacity(0.92)
-    .nodeResolution(12)
+    .nodeOpacity(0.95)
+    .nodeResolution(16)
     .nodeLabel(nodeTooltip)
     .linkColor(linkColor)
     .linkWidth(linkWidth)
+    .linkCurvature(linkCurve)
     .linkOpacity(0.55)
     .linkLabel(linkTooltip)
     .linkDirectionalArrowLength((link) => state.level !== "object" ? 5 : crossesApps(link) ? 4 : 2.5)
@@ -457,9 +489,37 @@
   // Inside VS Code the app passes the editor theme's colors as tokens.
   let themeTokens;
 
+  // Glow: a bloom pass makes nodes and links shine on a dark background, like
+  // the bloom example of 3d-force-graph. On a light background it only blurs.
+  let bloom;
+  try {
+    const THREE = window.BCA_THREE;
+    if (THREE?.UnrealBloomPass) {
+      bloom = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.85, 0.55, 0.12);
+      // The passes work in linear color and one last pass encodes sRGB for the
+      // screen; otherwise the colors are encoded twice and the background turns gray.
+      graph.renderer().outputColorSpace = THREE.LinearSRGBColorSpace;
+      const composer = graph.postProcessingComposer();
+      composer.addPass(bloom);
+      composer.addPass(new THREE.ShaderPass({
+        uniforms: { tDiffuse: { value: null } },
+        vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+        fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+          void main() {
+            vec4 color = texture2D(tDiffuse, vUv);
+            vec3 encoded = mix(color.rgb * 12.92, 1.055 * pow(max(color.rgb, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(0.0031308, color.rgb));
+            gl_FragColor = vec4(encoded, color.a);
+          }`
+      }));
+    }
+  } catch (error) {
+    console.warn("Glow is not available", error);
+  }
+
   function applyBackground() {
     document.documentElement.dataset.theme = state.theme;
-    graph.backgroundColor(themeTokens?.["--bg"] || (state.theme === "light" ? "#f4f6fb" : "#0b1020"));
+    graph.backgroundColor(themeTokens?.["--bg"] || (state.theme === "light" ? "#f4f6fb" : "#070b16"));
+    if (bloom) bloom.enabled = state.glow && state.theme === "dark";
   }
 
   // ----------------------------------------------------------------- layout
@@ -468,6 +528,7 @@
   function groupKey(node) {
     switch (state.colorBy) {
       case "community": return `community:${node.metrics.community}`;
+      case "cluster": return node.cluster ? `cluster:${node.cluster}` : `app:${node.app}`;
       case "type": return `type:${node.type}`;
       case "layer": return `layer:${node.metrics.buildLayer}`;
       case "app": return `app:${node.app}`;
@@ -475,27 +536,65 @@
       default: return ARCHITECTURE && node.component ? `component:${node.component}` : `app:${node.app}`;
     }
   }
-  let groupIndex = new Map();
+  // Places on a sphere (Fibonacci), in golden-ratio order so consecutive
+  // (large) groups land far apart.
+  const fraction = (value) => value - Math.floor(value);
+  function spherePoint(index, total, radius) {
+    const y = total === 1 ? 0 : 1 - (index / (total - 1)) * 2;
+    const ring = Math.sqrt(1 - y * y);
+    const theta = Math.PI * (3 - Math.sqrt(5)) * index;
+    return { x: Math.cos(theta) * ring * radius, y: y * radius * 0.6, z: Math.sin(theta) * ring * radius };
+  }
+  const goldenOrder = (total) => [...Array(total).keys()].sort((a, b) => fraction(a * 0.6180339887) - fraction(b * 0.6180339887));
+
+  let anchors = new Map();
   let groupCount = 1;
   function refreshGroups() {
     const sizes = new Map();
     for (const node of levels[state.level].nodes) sizes.set(groupKey(node), (sizes.get(groupKey(node)) ?? 0) + 1);
     // Groups of one or two (loose objects) share a place instead of scattering the space.
     const ranked = [...sizes].filter(([, size]) => size > 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([key]) => key);
-    groupCount = Math.max(1, ranked.length + (ranked.length < sizes.size ? 1 : 0));
-    // Places on the sphere in golden-ratio order, so consecutive (large) groups land far apart.
-    const fraction = (value) => value - Math.floor(value);
-    const places = [...Array(groupCount).keys()].sort((a, b) => fraction(a * 0.6180339887) - fraction(b * 0.6180339887));
-    groupIndex = new Map([...sizes.keys()].map((key) => [key, places[ranked.includes(key) ? ranked.indexOf(key) : groupCount - 1]]));
+    const loose = [...sizes.keys()].filter((key) => !ranked.includes(key));
+    groupCount = Math.max(1, ranked.length + (loose.length ? 1 : 0));
+    anchors = new Map();
+    // Clusters gather around their app candidate and app candidates around
+    // their app, like galaxies in clusters of galaxies.
+    const path = (key) => {
+      if (!key.startsWith("cluster:")) return [key];
+      const id = key.slice(8);
+      const cluster = CLUSTERS[id];
+      const owner = id.split("|")[0];
+      return [`owner:${owner}`, cluster?.shared ? `shared:${owner}` : `family:${cluster?.group ?? id}`, key];
+    };
+    const root = { children: new Map(), keys: [] };
+    for (const key of ranked) {
+      let branch = root;
+      for (const step of path(key)) {
+        if (!branch.children.has(step)) branch.children.set(step, { children: new Map(), keys: [] });
+        branch = branch.children.get(step);
+      }
+      branch.keys.push(key);
+    }
+    const RADII = [(n) => 150 + 46 * Math.sqrt(n), (n) => 70 + 26 * Math.sqrt(n), (n) => 34 + 16 * Math.sqrt(n)];
+    const place = (branch, center, depth) => {
+      for (const key of branch.keys) anchors.set(key, center);
+      const children = [...branch.children.values()];
+      // A level with one child adds nothing: it keeps the parent's center.
+      const radius = children.length > 1 ? (RADII[depth] ?? RADII[2])(children.length) : 0;
+      const order = goldenOrder(children.length);
+      children.forEach((child, index) => {
+        const offset = spherePoint(order[index], children.length, radius);
+        place(child, { x: center.x + offset.x, y: center.y + offset.y, z: center.z + offset.z }, depth + (children.length > 1 ? 1 : 0));
+      });
+    };
+    place(root, { x: 0, y: 0, z: 0 }, 0);
+    // Loose objects share one place at the edge.
+    const edge = (RADII[0](Math.max(1, root.children.size)) + 60);
+    for (const key of loose) anchors.set(key, { x: 0, y: -edge * 0.6, z: 0 });
   }
   function groupAnchor(node) {
-    const total = groupCount;
-    const index = groupIndex.get(groupKey(node)) ?? 0;
-    const radius = (90 + 30 * Math.sqrt(total)) * state.spacing;
-    const y = total === 1 ? 0 : 1 - (index / (total - 1)) * 2;
-    const ring = Math.sqrt(1 - y * y);
-    const theta = Math.PI * (3 - Math.sqrt(5)) * index;
-    return { x: Math.cos(theta) * ring * radius, y: y * radius * 0.6, z: Math.sin(theta) * ring * radius };
+    const anchor = anchors.get(groupKey(node)) ?? { x: 0, y: 0, z: 0 };
+    return { x: anchor.x * state.spacing, y: anchor.y * state.spacing, z: anchor.z * state.spacing };
   }
 
   function appAnchor(appId) {
@@ -520,12 +619,25 @@
     return { x: Math.cos(theta) * ring * radius, y: y * radius * 0.6, z: Math.sin(theta) * ring * radius };
   }
 
+  function endNode(end) {
+    return typeof end === "object" ? end : levels[state.level].byId.get(end);
+  }
+  function sameGroup(link) {
+    const source = endNode(link.source);
+    const target = endNode(link.target);
+    return Boolean(source && target) && groupKey(source) === groupKey(target);
+  }
+  // Links between groups arc, so they read apart from the links inside a group.
+  function linkCurve(link) {
+    return state.layout === "space" && state.level === "object" && visible.links.length < LARGE_EDGES && !sameGroup(link) ? 0.22 : 0;
+  }
+
   // Open space spreads the cluster centers with the size of the graph.
   const spread = () => state.layout === "space" ? 2.4 * Math.max(1, Math.cbrt(visible.nodes.length / 120)) : 1;
 
   function clusterForce(alpha) {
     if (["app", "component"].includes(state.level) || !["space", "clusters", "app-layers", "component-layers"].includes(state.layout)) return;
-    const strength = { space: 0.04, clusters: 0.12 }[state.layout] ?? 0.05;
+    const strength = { space: 0.1, clusters: 0.12 }[state.layout] ?? 0.05;
     const scale = spread();
     for (const node of visible.nodes) {
       const anchor = state.layout === "space" ? groupAnchor(node) : ARCHITECTURE && node.component ? componentAnchor(node.component) : appAnchor(node.app);
@@ -545,9 +657,19 @@
     const tight = levels[state.level].tightCoupling;
     const closeness = (link) => open ? 1.35 - 0.7 * Math.min(1, Math.sqrt((link.edge?.coupling ?? 1) / tight)) : 1;
     graph.d3Force("link")?.distance((link) => state.spacing * ((open ? 34 : 20) + nodeRadius(link.source) + nodeRadius(link.target)) * closeness(link));
+    // Links between groups pull only lightly, so groups keep their own place
+    // instead of collapsing into one ball (d3's default strength otherwise).
+    graph.d3Force("link")?.strength((link) => {
+      const links = (end) => (visible.out.get(end.id ?? end)?.length ?? 0) + (visible.in.get(end.id ?? end)?.length ?? 0);
+      const base = 1 / Math.max(1, Math.min(links(link.source), links(link.target)));
+      return open && !sameGroup(link) ? base * 0.05 : base;
+    });
     // Repulsion reaches only so far, so unconnected objects do not drift off into the distance.
     graph.d3Force("charge")?.strength((open ? -70 : -30) * state.spacing * state.spacing).distanceMax(open ? 320 * state.spacing : Infinity);
-    graph.linkOpacity(open ? 0.32 : 0.55);
+    // Dense graphs get fainter links, so their structure does not drown in lines.
+    const dense = Math.min(1, visible.links.length / 3000);
+    graph.linkOpacity(open ? 0.34 - 0.18 * dense : 0.55);
+    if (bloom) bloom.strength = 0.85 - 0.4 * dense;
   }
   applySpacing();
 
@@ -634,6 +756,7 @@
       .nodeVal(nodeSize)
       .linkColor(linkColor)
       .linkWidth(linkWidth)
+      .linkCurvature(linkCurve)
       .linkDirectionalArrowColor(linkColor)
       .linkDirectionalParticleColor(linkColor)
       .linkDirectionalParticles(linkParticles);
@@ -648,48 +771,120 @@
   }
 
   // ----------------------------------------------------------------- labels
+  // Groups (clusters, components) carry one label each at their center; objects
+  // get labels when they matter (hubs, the selection, search hits). Labels that
+  // would overlap a more important one are hidden.
   let labelNodes = [];
+  let groupLabels = [];
   const labelLayer = $("#labels");
+  function groupName(key) {
+    const [kind, ...rest] = key.split(":");
+    const value = rest.join(":");
+    // In the scene, the app or module a repeated name carries is clear from where the group floats.
+    if (kind === "cluster") return CLUSTERS[value]?.label.replace(/ \([^)]*\)$/u, "");
+    if (kind === "component") return value;
+    if (kind === "app") return apps.get(value)?.label;
+    return undefined;
+  }
   function updateLabelNodes() {
     labelLayer.textContent = "";
-    if (state.labels === "off") {
-      labelNodes = [];
-      return;
+    labelNodes = [];
+    groupLabels = [];
+    if (state.labels === "off") return;
+    const grouped = state.level === "object" && ["cluster", "component", "app"].includes(state.colorBy) && ["space", "clusters"].includes(state.layout);
+    if (grouped) {
+      const members = new Map();
+      for (const node of visible.nodes) {
+        const key = groupKey(node);
+        if (!members.has(key)) members.set(key, []);
+        members.get(key).push(node);
+      }
+      groupLabels = [...members].filter(([key, nodes]) => nodes.length >= 3 && groupName(key))
+        .sort((a, b) => b[1].length - a[1].length)
+        .slice(0, 60)
+        .map(([key, nodes]) => {
+          const element = document.createElement("div");
+          element.className = "group-label";
+          element.textContent = groupName(key);
+          element.style.color = baseColor(nodes[0]);
+          element.style.fontSize = `${Math.round(12 + 4 * Math.log10(nodes.length))}px`;
+          labelLayer.append(element);
+          return { nodes, element, priority: 1 };
+        });
     }
     let candidates;
     if (state.labels === "all" || state.level === "app") candidates = visible.nodes.slice(0, 600);
     else {
       const chosen = new Set();
-      [...visible.nodes].sort((a, b) => nodeSize(b) - nodeSize(a)).slice(0, state.layout === "space" ? 10 : 18).forEach(({ id }) => chosen.add(id));
+      const hubs = state.layout === "space" ? (groupLabels.length ? 6 : 10) : 18;
+      [...visible.nodes].sort((a, b) => nodeSize(b) - nodeSize(a)).slice(0, hubs).forEach(({ id }) => chosen.add(id));
       highlightIds?.forEach((id) => chosen.add(id));
       if (searchIds && searchIds.size <= 60) searchIds.forEach((id) => chosen.add(id));
       candidates = visible.nodes.filter(({ id }) => chosen.has(id));
     }
     labelNodes = candidates.map((node) => {
       const element = document.createElement("div");
-      element.className = `node-label${node.id === state.selected || state.level === "app" ? " strong" : ""}`;
+      const strong = node.id === state.selected || state.level === "app";
+      element.className = `node-label${strong ? " strong" : ""}`;
       element.textContent = node.label;
       labelLayer.append(element);
-      return { node, element };
+      // The selection and its neighbors come first, then groups, then hubs.
+      return { node, element, priority: strong ? 0 : highlightIds?.has(node.id) || searchIds?.has(node.id) ? 0.5 : 2 };
     });
   }
+
+  let labelFrame = 0;
   function drawLabels() {
-    if (labelNodes.length) {
+    if (labelNodes.length || groupLabels.length) {
       const camera = graph.camera();
       const matrix = camera.matrixWorld.elements;
       const forward = [-matrix[8], -matrix[9], -matrix[10]];
-      for (const { node, element } of labelNodes) {
-        if (node.x === undefined) continue;
-        const dx = node.x - camera.position.x;
-        const dy = node.y - camera.position.y;
-        const dz = (node.z ?? 0) - camera.position.z;
-        if (dx * forward[0] + dy * forward[1] + dz * forward[2] <= 0) {
+      const inFront = (x, y, z) => (x - camera.position.x) * forward[0] + (y - camera.position.y) * forward[1] + (z - camera.position.z) * forward[2] > 0;
+      const placed = [];
+      const items = [];
+      // Group centers move slowly; every other frame is enough.
+      if (labelFrame++ % 2 === 0) {
+        for (const label of groupLabels) {
+          let x = 0;
+          let y = 0;
+          let z = 0;
+          let total = 0;
+          for (const node of label.nodes) {
+            if (node.x === undefined) continue;
+            x += node.x;
+            y += node.y;
+            z += node.z ?? 0;
+            total++;
+          }
+          label.center = total ? { x: x / total, y: y / total, z: z / total } : undefined;
+        }
+      }
+      for (const label of groupLabels) if (label.center) items.push({ label, point: label.center, above: false });
+      for (const label of labelNodes) {
+        if (label.node.x !== undefined) items.push({ label, point: { x: label.node.x, y: label.node.y, z: label.node.z ?? 0 }, above: true });
+      }
+      items.sort((a, b) => a.label.priority - b.label.priority);
+      const cull = items.length <= 200;
+      for (const { label, point, above } of items) {
+        const { element } = label;
+        if (!inFront(point.x, point.y, point.z)) {
           element.style.display = "none";
           continue;
         }
-        const point = graph.graph2ScreenCoords(node.x, node.y, node.z ?? 0);
+        const screen = graph.graph2ScreenCoords(point.x, point.y, point.z);
         element.style.display = "";
-        element.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -160%)`;
+        element.style.transform = `translate(${screen.x}px, ${screen.y}px) ${above ? "translate(-50%, -160%)" : "translate(-50%, -50%)"}`;
+        if (!cull || label.priority === 0) continue;
+        label.width ??= element.offsetWidth;
+        label.height ??= element.offsetHeight;
+        const { width, height } = label;
+        const top = above ? screen.y - height * 1.6 : screen.y - height / 2;
+        const box = { left: screen.x - width / 2, top, right: screen.x + width / 2, bottom: top + height };
+        if (placed.some((other) => box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top)) {
+          element.style.display = "none";
+          continue;
+        }
+        placed.push(box);
       }
     }
     requestAnimationFrame(drawLabels);
@@ -808,6 +1003,7 @@
           ["Used by", `${metrics.inDegree} (${metrics.crossAppIn} across apps)`],
           ["PageRank", metrics.pagerank.toFixed(4)],
           ["Build layer", metrics.buildLayer],
+          ...(node.cluster && CLUSTERS[node.cluster] ? [["Cluster", `<span class="swatch" style="display:inline-block;background:${clusterColor(node.cluster)}"></span> ${escapeHtml(CLUSTERS[node.cluster].label)}`]] : []),
           ["Community", metrics.community],
           ["Cycle", metrics.cycle === undefined ? "no" : `yes (#${metrics.cycle + 1})`]
         ];
@@ -988,13 +1184,14 @@
         : "",
       section("kinds", "Relation kinds", checkList("kinds", kindItems, state.kinds), { open: isOpen("kinds", false), bulk: true }),
       section("display", "Display", [
-        select_("colorBy", "Color", [...(ARCHITECTURE ? [["component", "Component"]] : []), ["app", "App"], ["type", "Object type"], ["community", "Community (Louvain)"], ["layer", "Build layer"], ["age", "Age (first commit)"], ["cross-app", "Cross-app coupling"]], state.colorBy),
+        select_("colorBy", "Color", [...(ARCHITECTURE ? [["component", "Component"]] : []), ...(Object.keys(CLUSTERS).length ? [["cluster", "Cluster (relations)"]] : []), ["app", "App"], ["type", "Object type"], ["community", "Community (Louvain)"], ["layer", "Build layer"], ["age", "Age (first commit)"], ["cross-app", "Cross-app coupling"]], state.colorBy),
         state.level === "object" ? select_("sizeBy", "Size", [["pagerank", "PageRank"], ["in", "Used by"], ["out", "Depends on"], ["cross-app", "Cross-app links"], ["uniform", "Uniform"]], state.sizeBy) : "",
         select_("layout", "Layout", [["space", "Open space (3D)"], ["clusters", ARCHITECTURE ? "Component clusters (3D)" : "App clusters (3D)"], ...(ARCHITECTURE ? [["component-layers", "Architecture layers as floors"]] : []), ["force", "Free force (3D)"], ["app-layers", "Apps as floors"], ["build-layers", "Build order as floors"], ["time", "Commit timeline axis (4D)"], ["flat", "Flat (2D)"]], state.layout),
         select_("labels", "Labels", [["auto", "Important"], ["all", "All"], ["off", "Off"]], state.labels),
         `<div class="field wide"><label for="option-minDegree">Min. links <output id="min-degree-value">${state.minDegree}</output></label><input id="option-minDegree" data-setting="minDegree" type="range" min="0" max="${levels[state.level].maxLinks}" value="${Math.min(state.minDegree, levels[state.level].maxLinks)}"></div>`,
         `<div class="field wide"><label for="option-spacing" title="Longer links and more room between nodes; large nodes get the most">Spacing <output id="spacing-value">${spacingText()}</output></label><input id="option-spacing" data-setting="spacing" type="range" min="${SPACING.min}" max="${SPACING.max}" step="${SPACING.step}" value="${state.spacing}"></div>`,
         `<label class="check"><input type="checkbox" data-setting="hideIsolated" ${state.hideIsolated ? "checked" : ""}><span class="name">Hide unconnected nodes</span></label>`,
+        bloom ? `<label class="check"><input type="checkbox" data-setting="glow" ${state.glow ? "checked" : ""}><span class="name">Glow (dark theme)</span></label>` : "",
         `<label class="check"><input type="checkbox" data-setting="particles" ${state.particles ? "checked" : ""}><span class="name">Animate cross-app flow</span></label>`,
         `<label class="check"><input type="checkbox" data-setting="highlight" ${state.highlight ? "checked" : ""}><span class="name">Highlight added and changed</span></label>`,
         `<label class="check"><input type="checkbox" data-setting="ghosts" ${state.ghosts ? "checked" : ""}><span class="name">Show removed as ghosts</span></label>`,
@@ -1008,12 +1205,12 @@
   // constants, so nothing typed into the DOM ever reaches innerHTML.
   const LISTS = ["dependencies", "apps", "types", "kinds"];
   const CHOICES = {
-    colorBy: ["component", "app", "type", "community", "layer", "age", "cross-app"],
+    colorBy: ["component", "cluster", "app", "type", "community", "layer", "age", "cross-app"],
     sizeBy: ["pagerank", "in", "out", "cross-app", "uniform"],
     layout: ["space", "clusters", "force", "component-layers", "app-layers", "build-layers", "time", "flat"],
     labels: ["auto", "all", "off"]
   };
-  const FLAGS = ["appContext", "hideIsolated", "particles", "highlight", "ghosts", "violationsOnly"];
+  const FLAGS = ["appContext", "hideIsolated", "particles", "highlight", "ghosts", "violationsOnly", "glow"];
   const known = (values, value) => values[values.indexOf(value)];
   const listValues = (list) => {
     const name = known(LISTS, list);
@@ -1060,6 +1257,7 @@
       state[name] = value;
     }
     if (setting === "layout") return render({ layout: true });
+    if (setting === "glow") return applyBackground();
     // In open space, the color decides what drifts together.
     if (setting === "colorBy" && state.layout === "space") {
       refreshGroups();
@@ -1068,6 +1266,7 @@
     }
     if (["colorBy", "sizeBy", "particles", "highlight"].includes(setting)) {
       refreshStyles();
+      updateLabelNodes();
       return renderLegend();
     }
     if (setting === "labels") return updateLabelNodes();
@@ -1399,6 +1598,7 @@
     remember();
     applyBackground();
     refreshStyles();
+    updateLabelNodes();
     renderSpark();
   };
   $("#theme").addEventListener("click", () => setTheme(state.theme === "light" ? "dark" : "light"));

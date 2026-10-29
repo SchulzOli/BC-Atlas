@@ -138,6 +138,26 @@
       "layers": 3
     }
   },
+  "clusters": {
+    "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01|cl0": {
+      "label": "Items",
+      "size": 3,
+      "group": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01|al0"
+    },
+    "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01|cl1": {
+      "label": "Pricing",
+      "size": 4,
+      "group": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01|al0"
+    },
+    "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02|all": {
+      "label": "Contoso Sales",
+      "size": 4
+    },
+    "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03|all": {
+      "label": "Contoso Integration",
+      "size": 2
+    }
+  },
   "vocabulary": {
     "types": [
       "codeunit",
@@ -280,7 +300,8 @@
             "pagerank": 0.212106,
             "community": 0,
             "buildLayer": 1
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01|cl0"
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
@@ -309,7 +330,8 @@
             "pagerank": 0.230855,
             "community": 1,
             "buildLayer": 0
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01|cl1"
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::page::50000",
@@ -338,7 +360,8 @@
             "pagerank": 0.03001,
             "community": 0,
             "buildLayer": 2
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01|cl0"
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::interface::con price calculation",
@@ -366,7 +389,8 @@
             "pagerank": 0.050564,
             "community": 1,
             "buildLayer": 0
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01|cl1"
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010",
@@ -395,7 +419,8 @@
             "pagerank": 0.072546,
             "community": 1,
             "buildLayer": 2
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01|cl1"
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50011",
@@ -424,7 +449,8 @@
             "pagerank": 0.050042,
             "community": 1,
             "buildLayer": 3
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01|cl1"
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50019",
@@ -453,7 +479,8 @@
             "pagerank": 0.03001,
             "community": 0,
             "buildLayer": 2
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01|cl0"
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
@@ -482,7 +509,8 @@
             "pagerank": 0.10002,
             "community": 2,
             "buildLayer": 2
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02|all"
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
@@ -511,7 +539,8 @@
             "pagerank": 0.058919,
             "community": 2,
             "buildLayer": 4
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02|all"
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100",
@@ -540,7 +569,8 @@
             "pagerank": 0.038512,
             "community": 2,
             "buildLayer": 5
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02|all"
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100",
@@ -569,7 +599,8 @@
             "pagerank": 0.03001,
             "community": 2,
             "buildLayer": 6
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02|all"
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200",
@@ -598,7 +629,8 @@
             "pagerank": 0.03001,
             "community": 2,
             "buildLayer": 5
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03|all"
         },
         {
           "id": "unresolved::table::customer",
@@ -652,7 +684,8 @@
             "pagerank": 0.03001,
             "community": 0,
             "buildLayer": 2
-          }
+          },
+          "cluster": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03|all"
         }
       ],
       "edges": [

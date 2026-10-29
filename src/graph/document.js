@@ -13,6 +13,7 @@ import { replayHistory } from "./history.js";
 import { createTemporalGraph, frameStatistics } from "./temporal.js";
 import { annotateLevels } from "../blueprint/annotate.js";
 import { proposeArchitecture } from "../blueprint/propose.js";
+import { clusterByRelations } from "../blueprint/cluster.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
@@ -29,6 +30,58 @@ function vocabulary(levels) {
     dependencies: collect(edges, ({ dependency }) => [dependency]),
     origins: collect(nodes, ({ origin }) => [origin])
   };
+}
+
+/**
+ * Named clusters of the workspace objects from their typed, weighted relations
+ * (the same clustering as the architecture proposal), one set per app or
+ * module, so the explorer can color, group, and label what belongs together.
+ */
+function addClusters(levels, weights) {
+  const owners = new Map([...(levels.app?.nodes ?? []), ...(levels.module?.nodes ?? [])].map((node) => [node.id, node.label]));
+  const groups = new Map();
+  for (const node of levels.object.nodes) {
+    if (node.origin !== "workspace") continue;
+    const owner = node.module ?? node.app;
+    if (!groups.has(owner)) groups.set(owner, []);
+    groups.get(owner).push(node);
+  }
+  const clusters = new Map();
+  for (const [owner, nodes] of groups) {
+    const label = owners.get(owner) ?? "(no app)";
+    if (nodes.length < 6) {
+      for (const node of nodes) node.cluster = `${owner}|all`;
+      clusters.set(`${owner}|all`, { label, alternatives: [], owner: label, size: nodes.length });
+      continue;
+    }
+    for (const [id, cluster] of clusterByRelations(nodes, levels, weights, { prefix: `${owner}|` })) {
+      const node = nodes.find((candidate) => candidate.id === id);
+      node.cluster = cluster.key;
+      const entry = clusters.get(cluster.key) ?? {
+        label: cluster.label,
+        alternatives: cluster.alternatives ?? [],
+        owner: label,
+        group: cluster.app?.key,
+        size: 0,
+        ...(cluster.shared ? { shared: true } : {})
+      };
+      entry.size++;
+      clusters.set(cluster.key, entry);
+    }
+  }
+  // Larger clusters keep the plain name; the others take a more precise one
+  // ("Sales Post"), the name of their app or module, or a number.
+  const used = new Map();
+  for (const cluster of [...clusters.values()].sort((a, b) => b.size - a.size)) {
+    const base = cluster.label;
+    const elsewhere = used.has(base) && used.get(base) !== cluster.owner;
+    const candidates = elsewhere ? [`${base} (${cluster.owner})`, ...cluster.alternatives] : [base, ...cluster.alternatives, `${base} (${cluster.owner})`];
+    let name = candidates.find((candidate) => !used.has(candidate));
+    for (let index = 2; !name; index++) if (!used.has(`${base} ${index}`)) name = `${base} ${index}`;
+    used.set(name, cluster.owner);
+    cluster.label = name;
+  }
+  return Object.fromEntries([...clusters].map(([key, { label, size, group, shared }]) => [key, { label, size, ...(group ? { group } : {}), ...(shared ? { shared } : {}) }]));
 }
 
 /**
@@ -107,6 +160,7 @@ export async function createGraphDocument(input, values = {}, { onFrame, parseCa
   const levels = temporal.result();
   const weights = couplingWeights(options.architecture?.couplingWeights);
   const summary = Object.fromEntries(Object.entries(levels).map(([name, level]) => [name, addMetrics(level, { weights })]));
+  const clusters = addClusters(levels, weights);
   if (!levels.object.nodes.length) {
     throw new Error(`no AL objects found in ${path.resolve(input)}; check the path and the --include, --exclude, --namespace, and --type filters`);
   }
@@ -130,6 +184,7 @@ export async function createGraphDocument(input, values = {}, { onFrame, parseCa
       }))
     },
     summary,
+    clusters,
     vocabulary: vocabulary(levels),
     ...(architecture ? {
       architecture: {

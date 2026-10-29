@@ -25,6 +25,18 @@ button, select, input { font: inherit; color: inherit; }
   will-change: transform;
 }
 .node-label.strong { font-weight: 600; font-size: 12px; }
+.group-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  pointer-events: none;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 6px var(--bg, #070b16), 0 0 2px var(--bg, #070b16);
+  opacity: 0.92;
+  will-change: transform;
+}
 
 .panel {
   position: fixed;
