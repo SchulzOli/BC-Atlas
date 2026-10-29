@@ -134,6 +134,7 @@
     apps: new Set(apps.keys()),
     types: new Set(DOC.vocabulary.types),
     kinds: new Set(DOC.vocabulary.kinds),
+    clusters: new Set(Object.keys(CLUSTERS)),
     appContext: true,
     hideIsolated: false,
     minDegree: 0,
@@ -161,6 +162,7 @@
     theme: ["light", "dark"].includes(requestedTheme) ? requestedTheme
       : stored.theme ?? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
   };
+  const clusterFiltered = () => state.level === "object" && state.clusters.size < Object.keys(CLUSTERS).length;
   const remember = () => {
     try { localStorage.setItem("bca-explorer", JSON.stringify({ theme: state.theme, spacing: state.spacing, filters: !document.body.classList.contains("filters-hidden") })); } catch { /* optional */ }
   };
@@ -212,7 +214,8 @@
     const inSelection = (node) => state.level === "component" || (
       state.apps.has(state.level === "app" ? node.id : node.app) &&
       !(state.level === "object" && state.module && node.module !== state.module) &&
-      !(state.level === "object" && state.component && node.component !== state.component));
+      !(state.level === "object" && state.component && node.component !== state.component) &&
+      !(clusterFiltered() && !state.clusters.has(node.cluster)));
 
     const candidateEdges = [];
     for (const edge of level.edges) {
@@ -229,7 +232,7 @@
 
     let ids = new Set([...nodeState.keys()].filter((id) => inSelection(level.byId.get(id))));
     const context = new Set();
-    if (state.appContext && state.apps.size < apps.size) {
+    if (state.appContext && (state.apps.size < apps.size || clusterFiltered())) {
       for (const { edge } of candidateEdges) {
         if (ids.has(edge.source) && !ids.has(edge.target)) context.add(edge.target);
         if (ids.has(edge.target) && !ids.has(edge.source)) context.add(edge.source);
@@ -492,6 +495,18 @@
   // Glow: a bloom pass makes nodes and links shine on a dark background, like
   // the bloom example of 3d-force-graph. On a light background it only blurs.
   let bloom;
+  // Glow for the overview; close up, large spheres would bloom into white
+  // discs, so it fades as the typical node grows on screen.
+  let bloomStrength = 0.85;
+  let typicalRadius = 4;
+  function updateBloom() {
+    if (!bloom?.enabled) return;
+    const camera = graph.camera();
+    const target = graph.controls()?.target;
+    const distance = target ? camera.position.distanceTo(target) : camera.position.length();
+    const pixels = (typicalRadius / Math.max(1, distance)) * innerHeight / (2 * Math.tan((camera.fov * Math.PI) / 360));
+    bloom.strength = bloomStrength * Math.max(0.15, Math.min(1, 5 / Math.max(pixels, 1e-6)));
+  }
   try {
     const THREE = window.BCA_THREE;
     if (THREE?.UnrealBloomPass) {
@@ -669,7 +684,7 @@
     // Dense graphs get fainter links, so their structure does not drown in lines.
     const dense = Math.min(1, visible.links.length / 3000);
     graph.linkOpacity(open ? 0.34 - 0.18 * dense : 0.55);
-    if (bloom) bloom.strength = 0.85 - 0.4 * dense;
+    bloomStrength = 0.85 - 0.4 * dense;
   }
   applySpacing();
 
@@ -751,6 +766,9 @@
 
   function refreshStyles() {
     highlightIds = neighborhood();
+    // Spheres are sized by the cube root of their value (nodeRelSize 4).
+    const sizes = visible.nodes.map(nodeSize).sort((a, b) => a - b);
+    typicalRadius = 4 * Math.cbrt(sizes[Math.floor(sizes.length / 2)] ?? 1);
     graph
       .nodeColor(nodeColor)
       .nodeVal(nodeSize)
@@ -794,7 +812,9 @@
     const grouped = state.level === "object" && ["cluster", "component", "app"].includes(state.colorBy) && ["space", "clusters"].includes(state.layout);
     if (grouped) {
       const members = new Map();
+      // Neighbors shown for context belong to groups that are filtered out.
       for (const node of visible.nodes) {
+        if (node.__context) continue;
         const key = groupKey(node);
         if (!members.has(key)) members.set(key, []);
         members.get(key).push(node);
@@ -806,6 +826,8 @@
           const element = document.createElement("div");
           element.className = "group-label";
           element.textContent = groupName(key);
+          element.dataset.group = key;
+          element.title = "Show only this group; click again to show all";
           element.style.color = baseColor(nodes[0]);
           element.style.fontSize = `${Math.round(12 + 4 * Math.log10(nodes.length))}px`;
           labelLayer.append(element);
@@ -817,7 +839,7 @@
     else {
       const chosen = new Set();
       const hubs = state.layout === "space" ? (groupLabels.length ? 6 : 10) : 18;
-      [...visible.nodes].sort((a, b) => nodeSize(b) - nodeSize(a)).slice(0, hubs).forEach(({ id }) => chosen.add(id));
+      visible.nodes.filter((node) => !node.__context).sort((a, b) => nodeSize(b) - nodeSize(a)).slice(0, hubs).forEach(({ id }) => chosen.add(id));
       highlightIds?.forEach((id) => chosen.add(id));
       if (searchIds && searchIds.size <= 60) searchIds.forEach((id) => chosen.add(id));
       candidates = visible.nodes.filter(({ id }) => chosen.has(id));
@@ -834,6 +856,7 @@
   }
 
   let labelFrame = 0;
+  let bloomFrame = 0;
   function drawLabels() {
     if (labelNodes.length || groupLabels.length) {
       const camera = graph.camera();
@@ -887,6 +910,7 @@
         placed.push(box);
       }
     }
+    if (bloomFrame++ % 4 === 0) updateBloom();
     requestAnimationFrame(drawLabels);
   }
   requestAnimationFrame(drawLabels);
@@ -1095,14 +1119,27 @@
   });
 
   // ---------------------------------------------------------------- filters
-  function checkList(id, items, selected, { swatch, line } = {}) {
+  function checkList(id, items, selected, { swatch, line, only = false } = {}) {
     return items.map(([value, label, total]) => `
       <label class="check">
         <input type="checkbox" data-list="${id}" value="${escapeHtml(value)}" ${selected.has(value) ? "checked" : ""}>
         ${swatch ? `<span class="swatch${line ? " line" : ""}" style="background:${swatch(value)}"></span>` : ""}
         <span class="name" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+        ${only ? `<button class="only" data-only="${id}" value="${escapeHtml(value)}" title="Show only ${escapeHtml(label)}; again shows all">only</button>` : ""}
         <span class="count">${total ?? ""}</span>
       </label>`).join("");
+  }
+
+  /** Clusters of one app candidate together, larger candidates and clusters first. */
+  function clusterItems() {
+    const keys = Object.keys(CLUSTERS);
+    const familyOf = (key) => CLUSTERS[key].shared ? `shared:${key.split("|")[0]}` : CLUSTERS[key].group ?? key;
+    const familySize = new Map();
+    for (const key of keys) familySize.set(familyOf(key), (familySize.get(familyOf(key)) ?? 0) + CLUSTERS[key].size);
+    return keys
+      .sort((a, b) => familySize.get(familyOf(b)) - familySize.get(familyOf(a)) || familyOf(a).localeCompare(familyOf(b)) ||
+        CLUSTERS[b].size - CLUSTERS[a].size || a.localeCompare(b))
+      .map((key) => [key, CLUSTERS[key].label, CLUSTERS[key].size]);
   }
 
   const EFFORT = { S: "small", M: "medium", L: "large" };
@@ -1168,6 +1205,7 @@
       .map((app) => [app.id, app.label, appCounts.get(app.id)]);
     const typeItems = DOC.vocabulary.types.map((type) => [type, type, typeCounts.get(type)]);
     const kindItems = DOC.vocabulary.kinds.filter((kind) => kindCounts.has(kind)).map((kind) => [kind, kind, kindCounts.get(kind)]);
+    const clusterCount = Object.keys(CLUSTERS).length;
 
     $("#filters").innerHTML = [
       ARCHITECTURE ? section("architecture", ARCHITECTURE.mode === "proposal" ? "Proposed architecture" : "Architecture", architectureHtml(), { open: isOpen("architecture") }) : "",
@@ -1176,9 +1214,15 @@
       }) + (ARCHITECTURE ? `<label class="check"><input type="checkbox" data-setting="violationsOnly" ${state.violationsOnly ? "checked" : ""}><span class="swatch line" style="background:${VIOLATION_COLOR}"></span><span class="name">Only dependencies against the architecture</span></label>` : "") +
         `<p class="hint">Inside one app vs. across app boundaries (app.json).</p>`, { open: isOpen("dependencies") }),
       state.level === "component" ? "" : section("apps", `Apps (${appItems.length})`, checkList("apps", appItems, state.apps, {
-        swatch: (value) => apps.get(value)?.color
+        swatch: (value) => apps.get(value)?.color,
+        only: appItems.length > 1
       }) + (state.level === "object" ? `<label class="check"><input type="checkbox" data-setting="appContext" ${state.appContext ? "checked" : ""}><span class="name">Show neighbors in other apps</span></label>` : ""),
       { open: isOpen("apps"), bulk: true }),
+      state.level === "object" && clusterCount > 1 ? section("clusters", `Clusters (${clusterCount})`, checkList("clusters", clusterItems(), state.clusters, {
+        swatch: clusterColor, only: true
+      }) + `<label class="check"><input type="checkbox" data-setting="appContext" ${state.appContext ? "checked" : ""}><span class="name">Show neighbors in other clusters</span></label>` +
+        `<p class="hint">Objects that change together, found from their relations; one family of colors per app candidate. Click a cluster name in the graph to show only it.</p>`,
+      { open: isOpen("clusters", clusterCount <= 40), bulk: true }) : "",
       state.level === "object"
         ? section("types", "Object types", checkList("types", typeItems, state.types, { swatch: (value) => TYPE_COLORS[value] ?? "#9aa3ad" }), { open: isOpen("types", false), bulk: true })
         : "",
@@ -1203,7 +1247,7 @@
 
   // Values read back from the page are only accepted as one of these
   // constants, so nothing typed into the DOM ever reaches innerHTML.
-  const LISTS = ["dependencies", "apps", "types", "kinds"];
+  const LISTS = ["dependencies", "apps", "types", "kinds", "clusters"];
   const CHOICES = {
     colorBy: ["component", "cluster", "app", "type", "community", "layer", "age", "cross-app"],
     sizeBy: ["pagerank", "in", "out", "cross-app", "uniform"],
@@ -1217,7 +1261,8 @@
     if (!name) return undefined;
     const universe = name === "apps" ? [...apps.keys()]
       : name === "dependencies" ? Object.keys(DEPENDENCIES)
-        : DOC.vocabulary[name];
+        : name === "clusters" ? Object.keys(CLUSTERS)
+          : DOC.vocabulary[name];
     return { name, universe };
   };
   const toCount = (value) => Math.max(0, Math.min(levels[state.level].maxLinks, Math.trunc(Number(value)) || 0));
@@ -1258,6 +1303,7 @@
     }
     if (setting === "layout") return render({ layout: true });
     if (setting === "glow") return applyBackground();
+    if (setting === "appContext") buildFilters();
     // In open space, the color decides what drifts together.
     if (setting === "colorBy" && state.layout === "space") {
       refreshGroups();
@@ -1291,6 +1337,14 @@
       state.focusDepth = 1;
       return chooseResult(item.source);
     }
+    const only = event.target.closest("[data-only]");
+    if (only) {
+      event.preventDefault();
+      const list = listValues(only.dataset.only);
+      const value = list && known(list.universe, only.value);
+      if (value !== undefined) isolate(list.name, value);
+      return;
+    }
     const bulk = event.target.closest("[data-bulk]");
     if (bulk) {
       event.preventDefault();
@@ -1309,6 +1363,7 @@
         apps: new Set(apps.keys()),
         types: new Set(DOC.vocabulary.types),
         kinds: new Set(DOC.vocabulary.kinds),
+        clusters: new Set(Object.keys(CLUSTERS)),
         minDegree: 0,
         hideIsolated: false,
         focusDepth: 0,
@@ -1321,13 +1376,74 @@
     }
   });
 
+  // Shows one app, cluster, or component on its own and frames it; asking
+  // again for the one already shown brings the others back.
+  function isolate(list, value) {
+    const universe = list === "clusters" ? Object.keys(CLUSTERS) : [...apps.keys()];
+    const alone = state[list].size === 1 && state[list].has(value);
+    state[list] = alone ? new Set(universe) : new Set([value]);
+    if (!alone && list === "clusters" && state.level !== "object") setLevel("object");
+    buildFilters();
+    render();
+    fitWhenSettled();
+    if (!alone) {
+      const name = list === "clusters" ? CLUSTERS[value]?.label : apps.get(value)?.label;
+      toast(`Only ${list === "clusters" ? "cluster" : "app"} ${name}; click it again or press Esc to show all`);
+    }
+  }
+  function isolateComponent(name) {
+    state.component = state.component === name ? undefined : name;
+    buildFilters();
+    render();
+    fitWhenSettled();
+    if (state.component) toast(`Objects of component ${name}; click it again or press Esc to show all`);
+  }
+  function isolateGroup(key) {
+    const [kind, ...rest] = key.split(":");
+    const value = rest.join(":");
+    if (kind === "cluster" && CLUSTERS[value]) isolate("clusters", value);
+    else if (kind === "app" && apps.has(value)) isolate("apps", value);
+    else if (kind === "component" && components.has(value)) isolateComponent(value);
+  }
+  /** Esc without a selection: show every cluster, app, and component again. */
+  function showAllGroups() {
+    if (state.clusters.size === Object.keys(CLUSTERS).length && state.apps.size === apps.size && !state.component) return false;
+    state.clusters = new Set(Object.keys(CLUSTERS));
+    state.apps = new Set(apps.keys());
+    state.component = undefined;
+    buildFilters();
+    render();
+    fitWhenSettled();
+    return true;
+  }
+  labelLayer.addEventListener("click", (event) => {
+    const label = event.target.closest("[data-group]");
+    if (label) isolateGroup(label.dataset.group);
+  });
+  $("#legend").addEventListener("click", (event) => {
+    const row = event.target.closest("[data-group]");
+    if (row) isolateGroup(row.dataset.group);
+    else if (event.target.closest("[data-action=all-groups]")) showAllGroups();
+  });
+
   // ----------------------------------------------------------------- legend
+  /** The largest clusters on screen, so the colors can be read without the filters. */
+  function clusterLegend() {
+    if (state.level !== "object" || state.colorBy !== "cluster" || !Object.keys(CLUSTERS).length) return [];
+    const shown = count(visible.nodes.filter((node) => !node.__context), (node) => node.cluster ? [node.cluster] : []);
+    const largest = [...shown].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const rows = largest.slice(0, 8).map(([key, total]) => `<button class="row group" data-group="cluster:${escapeHtml(key)}" title="Show only this cluster; again shows all"><span class="swatch" style="background:${clusterColor(key)}"></span><span class="name">${escapeHtml(CLUSTERS[key].label)}</span><span class="count">${total}</span></button>`);
+    if (largest.length > 8) rows.push(`<div class="row muted">+${largest.length - 8} more clusters (filters)</div>`);
+    if (clusterFiltered()) rows.push(`<button class="row group" data-action="all-groups">Show all clusters</button>`);
+    return rows.length ? [...rows, `<div class="rule"></div>`] : [];
+  }
+
   function renderLegend() {
     const used = new Set(visible.links.map((link) => link.edge.dependency));
     if (visible.links.some((link) => link.edge.violation)) used.add("violation");
-    const rows = Object.entries(DEPENDENCIES)
+    const rows = [...clusterLegend(), ...Object.entries(DEPENDENCIES)
       .filter(([key]) => used.has(key))
-      .map(([, { label, color }]) => `<div class="row"><span class="swatch line" style="background:${color}"></span>${label}</div>`);
+      .map(([, { label, color }]) => `<div class="row"><span class="swatch line" style="background:${color}"></span>${label}</div>`)];
     if (state.highlight) {
       rows.push(`<div class="row"><span class="swatch" style="background:${STATUS_COLORS.added}"></span>added in this frame</div>`);
       if (state.timeline === "git") {
@@ -1636,7 +1752,9 @@
     else if (event.key === "/") {
       event.preventDefault();
       searchInput.focus();
-    } else if (event.key === "Escape") select(undefined);
+    } else if (event.key === "Escape") {
+      if (state.selected || !showAllGroups()) select(undefined);
+    }
     else if (event.key === "1") setLevel("object");
     else if (event.key === "2" && levels.module) setLevel("module");
     else if (event.key === "3" || (event.key === "2" && !levels.module)) setLevel("app");

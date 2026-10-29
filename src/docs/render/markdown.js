@@ -1,7 +1,7 @@
 import { label, phrase } from "../phrases.js";
 import { inlineStep } from "../steps.js";
 import { humanizeFeature, sameAsTitle } from "../task.js";
-import { escapeMarkdown, markdown as md } from "./format.js";
+import { escapeMarkdown, markdown } from "./format.js";
 
 const LINK_HEADINGS = { next: "heading.next", related: "heading.related", alternative: "heading.alternative" };
 
@@ -9,8 +9,18 @@ function link(target, extension = ".md") {
   return target.exists ? `[${escapeMarkdown(target.title)}](./${target.id}${extension})` : `**${escapeMarkdown(target.id)}**`;
 }
 
+// Tag text is author prose: escape it so `<Posted>`, `*now*` or `a | b` render as written.
+function md(value) {
+  return markdown(value, { escape: true });
+}
+
+// Pipes that md() or escapeMarkdown() already escaped stay as they are.
 function cell(value) {
-  return String(value ?? "").replaceAll("|", "\\|").replace(/\r?\n/gu, " ");
+  return String(value ?? "").replace(/(?<!\\)\|/gu, "\\|").replace(/\r?\n/gu, " ");
+}
+
+function textCell(value) {
+  return cell(escapeMarkdown(value));
 }
 
 function header(task) {
@@ -68,7 +78,7 @@ function flowSection(task, flowImage) {
 /** User guide in the shape of a DITA task: prerequisites, steps, result, links. */
 export function renderGuide(task, { flowImage } = {}) {
   const { language } = task;
-  const lines = [...header(task), `# ${task.title}`, "", md(task.shortdesc), "", ...flowSection(task, flowImage)];
+  const lines = [...header(task), `# ${escapeMarkdown(task.title)}`, "", md(task.shortdesc), "", ...flowSection(task, flowImage)];
   if (task.prereqs.length) {
     lines.push(`## ${label(language, "heading.prereq")}`, "",
       ...task.prereqs.map((item) => `- ${mdTokens(prereqLine(item, language))}`), "");
@@ -84,7 +94,7 @@ export function renderGuide(task, { flowImage } = {}) {
     }
     lines.push("");
   }
-  lines.push(`## ${label(language, "heading.result")}`, "", ...task.result.map((item) => `- ${item}`), "");
+  lines.push(`## ${label(language, "heading.result")}`, "", ...task.result.map((item) => `- ${escapeMarkdown(item)}`), "");
   for (const [kind, heading] of Object.entries(LINK_HEADINGS)) {
     if (task.links[kind].length) {
       lines.push(`## ${label(language, heading)}`, "", ...task.links[kind].map((target) => `- ${link(target)}`), "");
@@ -132,15 +142,15 @@ export function testCaseRows(task) {
 export function renderTestCase(task, { flowImage } = {}) {
   const { language } = task;
   const t = (key, values) => label(language, key, values);
-  const lines = [...header(task), `# ${t("testcase.title", { id: task.id })}: ${task.title}`, ""];
+  const lines = [...header(task), `# ${t("testcase.title", { id: task.id })}: ${escapeMarkdown(task.title)}`, ""];
   lines.push(
     "| | |",
     "| --- | --- |",
     `| ${t("testcase.id")} | \`${task.id}\` |`,
-    `| ${t("testcase.objective")} | ${cell(task.goal)} |`
+    `| ${t("testcase.objective")} | ${textCell(task.goal)} |`
   );
-  if (task.features.length) lines.push(`| ${t("label.use-case")} | ${cell(task.features.map(humanizeFeature).join(", "))} |`);
-  if (task.permissions.length) lines.push(`| ${t("testcase.permissions")} | ${cell(task.permissions.join(", "))} |`);
+  if (task.features.length) lines.push(`| ${t("label.use-case")} | ${textCell(task.features.map(humanizeFeature).join(", "))} |`);
+  if (task.permissions.length) lines.push(`| ${t("testcase.permissions")} | ${textCell(task.permissions.join(", "))} |`);
   lines.push(`| ${t("testcase.source")} | \`${task.source.file}#${task.source.procedure}\` |`, "");
   lines.push(...flowSection(task, flowImage));
 
@@ -159,7 +169,7 @@ export function renderTestCase(task, { flowImage } = {}) {
     "",
     `## ${t("testcase.final")}`,
     "",
-    ...task.result.map((item) => `- ${item}`),
+    ...task.result.map((item) => `- ${escapeMarkdown(item)}`),
     "",
     `## ${t("testcase.signoff")}`,
     "",
@@ -223,11 +233,11 @@ export function renderIndex(catalog, { journeyImage } = {}) {
   if (journeyImage) lines.push(`## ${t("heading.journey")}`, "", `![${t("heading.journey")}](./${journeyImage})`, "");
   if (catalog.byPage.length) {
     lines.push(`## ${t("heading.by-page")}`, "", `| ${t("column.page")} | ${t("column.scenarios")} |`, "| --- | --- |",
-      ...catalog.byPage.map(({ name, tasks }) => `| ${cell(name)} | ${tasks.map(taskLink).join(", ")} |`), "");
+      ...catalog.byPage.map(({ name, tasks }) => `| ${textCell(name)} | ${tasks.map(taskLink).join(", ")} |`), "");
   }
   if (catalog.byPermission.length) {
     lines.push(`## ${t("heading.by-permission")}`, "", `| ${t("column.permission-set")} | ${t("column.scenarios")} |`, "| --- | --- |",
-      ...catalog.byPermission.map(({ name, tasks }) => `| ${cell(name)} | ${tasks.map(taskLink).join(", ")} |`), "");
+      ...catalog.byPermission.map(({ name, tasks }) => `| ${textCell(name)} | ${tasks.map(taskLink).join(", ")} |`), "");
   }
   if (catalog.coverage) {
     const { coverage } = catalog;

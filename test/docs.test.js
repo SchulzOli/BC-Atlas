@@ -709,3 +709,67 @@ test("filters, navigation, drill-downs, and pages opened by code become steps", 
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("edits Microsoft-style metadata in place: work items, feature lists, and single lines", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "UTPageDeposit.Codeunit.al");
+  try {
+    writeFileSync(filename, MICROSOFT_UI_TEST);
+    const id = (await loadCorpus(directory)).scenarios[0].value.id;
+
+    // SCENARIO is one value: it replaces both lines and keeps the work item.
+    const scenario = await planMetadataEdit(directory, id, { tag: "SCENARIO", value: "Post a deposit" });
+    assert.match(scenario.after, /\/\/ \[SCENARIO 218101\] Post a deposit\r?\n/u);
+    assert.doesNotMatch(scenario.after, /with its lines/u);
+    assert.equal(scenario.after.match(/\[SCENARIO/gu).length, 1, "one line, no duplicate");
+
+    // One feature of a [FEATURE] [A] [B] list goes, the others stay.
+    writeFileSync(filename, MICROSOFT_UI_TEST.replace("// [FEATURE] [Posting]", "// [FEATURE] [Posting] [Deposits]"));
+    const feature = await planMetadataEdit(directory, id, { tag: "FEATURE", value: "Posting", remove: true });
+    assert.match(feature.after, /\/\/ \[FEATURE\] \[Deposits\]\r?\n/u);
+    assert.match(feature.content, /\/\/ \[FEATURE\] \[Bank Deposit\] \[UI\]/u, "the codeunit features are untouched");
+
+    // A feature of the whole codeunit is changed in OnRun, not in the test.
+    await assert.rejects(planMetadataEdit(directory, id, { tag: "FEATURE", value: "Bank Deposit", remove: true }),
+      /whole codeunit in its OnRun trigger/u);
+    // A line break would turn the rest of the value into AL code.
+    await assert.rejects(planMetadataEdit(directory, id, { tag: "PERMISSIONS", value: "D365 BASIC\nError('x');" }),
+      /must be a single line/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("Markdown keeps the author's text literal", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "Deposit.Codeunit.al");
+  try {
+    writeFileSync(filename, `codeunit 50100 "Deposit UI"
+{
+    Subtype = Test;
+
+    [Test]
+    procedure PostDeposit()
+    var
+        Deposit: TestPage "Bank Deposit";
+    begin
+        // [SCENARIO] Post a <b>deposit</b> *now*
+        // [WHEN] Post it
+        Deposit.OpenEdit();
+        Deposit.Post.Invoke();
+        // [THEN] Status is <Posted> | _done_
+    end;
+}
+`);
+    const corpus = await loadCorpus(directory);
+    const guide = renderDocumentation(corpus.scenarios[0]);
+    assert.match(guide, /^# Post a \\<b\\>deposit\\<\/b\\> \\\*now\\\*$/mu);
+    assert.match(guide, /^- Status is \\<Posted\\> \\\| \\_done\\_$/mu);
+    assert.match(guide, /Choose the \*\*Post\*\* action\./u, "UI names stay bold");
+
+    const testcase = renderDocumentation(corpus.scenarios[0], { mode: "testcase" });
+    assert.match(testcase, /\| Status is \\<Posted\\> \\\| \\_done\\_ \| ☐ \| \|/u, "one escaped pipe inside a table cell");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

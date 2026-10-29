@@ -17,12 +17,35 @@ follows [Semantic Versioning](https://semver.org/).
   Labels that would overlap a more important one are hidden. On a dark
   background the graph glows (**Glow** turns it off); dense graphs get
   fainter links and less glow.
+- Dependency explorer: a **Clusters** filter lists the clusters by app
+  candidate; **only** shows one cluster (or one app) and frames it, and so
+  does a click on a cluster name in the graph or in the legend, which lists
+  the largest clusters on screen. A second click or `Esc` shows all again.
+  Neighbors in other clusters stay visible in gray.
+- Dependency explorer: the glow fades when you zoom in close, so large
+  spheres no longer bloom into white discs.
 - The graph document (`bca export --view explorer --format json`) carries
   the clusters: `clusters` with name, size, and app candidate, and `cluster`
   on every workspace object.
+- Clustering by relations is about twice as fast (4.5 instead of 9 seconds for
+  the Base Application) with the same result, and the explorer and the
+  architecture proposal share it: after a saved file, only the apps and
+  modules whose objects or relations changed are clustered again.
 - The explorer's browser bundle (3d-force-graph with three.js and its bloom
   pass) is built into `vendor/graph-viewer.js` (`npm run update:graph-vendor`);
   3d-force-graph is no longer installed with the package.
+
+### Fixed
+
+- `bca docs set` and `unset` understand Microsoft's tags: `[SCENARIO 218101]`
+  and `[FEATURE] [A] [B]` are edited in place (the work item stays, one
+  feature of a list can be removed), setting `SCENARIO` again replaces the
+  line instead of adding a second one, and a value with a line break is
+  rejected instead of being written as AL code. Removing a feature that is
+  set for the whole codeunit says to change it in `OnRun`.
+- Markdown guides and test cases show the author's text as written: `<Posted>`,
+  `<b>`, `*now*`, `_done_`, and `|` are escaped instead of disappearing or
+  turning into formatting.
 
 ## 0.10.0 - 2026-10-29
 
