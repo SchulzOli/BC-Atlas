@@ -48,6 +48,7 @@ export async function writeKnowledgeGraph(input, values = {}) {
       model,
       assessment,
       baseIri: values.baseIri,
+      evidence: !values.noEvidence,
       title: values.title ?? projection.options?.title ?? `${path.basename(path.resolve(input))} knowledge graph`,
       version: pkg.version,
       // SOURCE_DATE_EPOCH (reproducible builds) fixes the date, so the same source gives the same file.

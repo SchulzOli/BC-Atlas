@@ -13,6 +13,7 @@ export const PREFIXES = Object.freeze({
   owl: "http://www.w3.org/2002/07/owl#",
   xsd: "http://www.w3.org/2001/XMLSchema#",
   dcterms: "http://purl.org/dc/terms/",
+  vann: "http://purl.org/vocab/vann/",
   bca: BCA
 });
 
@@ -158,7 +159,9 @@ export function* vocabulary({ version, kinds = [], header = true } = {}) {
       [LABEL, literal("BC Atlas ontology for Business Central AL")],
       [COMMENT, literal("Apps, namespaces, architecture components, AL objects, their members, and their relations, as found by BC Atlas in AL source.")],
       [`${PREFIXES.owl}versionInfo`, literal(version)],
-      [`${PREFIXES.dcterms}license`, iri("https://opensource.org/licenses/MIT")]
+      [`${PREFIXES.dcterms}license`, iri("https://opensource.org/licenses/MIT")],
+      [`${PREFIXES.vann}preferredNamespacePrefix`, literal("bca")],
+      [`${PREFIXES.vann}preferredNamespaceUri`, literal(BCA)]
     ]
   };
   const klass = (name, label, parent, comment) => ({

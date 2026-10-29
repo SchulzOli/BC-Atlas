@@ -341,6 +341,7 @@ bca export ./app --view knowledge-graph -o atlas.owl
 | `-o`, `--output` | path | Output file or folder (defaults above). `-` writes JSON to stdout. |
 | `-f`, `--format` | format | `html`, `d2`, `json`, `svg`, `png`, or `pdf`, as the view allows; `ttl`, `rdf`, `owl`, `nt`, or `jsonld` for the knowledge graph. Inferred from the output extension when omitted. |
 | `--base-iri` | IRI | Knowledge graph: base IRI of the exported resources. Default: `urn:bc-atlas:`. |
+| `--no-evidence` | flag | Knowledge graph: leave out the `bca:Relation` resources with each relation's file, line, and operations; the direct relation triples stay. |
 | `--title` | text | Title of the report, explorer, or diagram. |
 | `--watch` | flag | Write again whenever AL source, `app.json`, or `.bca.json` changes. Stop with `Ctrl+C`. |
 | `--debounce` | milliseconds | Delay before writing again with `--watch`. Default: `250`. |

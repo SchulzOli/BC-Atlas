@@ -8,6 +8,16 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Knowledge graph: `--no-evidence` writes only the direct relation triples,
+  without a `bca:Relation` per relation; the Base Application's graph drops
+  from 4.4 million triples (270 MB of Turtle) to 1.1 million (78 MB).
+- The BC Atlas ontology is published at its IRI,
+  `https://schulzoli.github.io/BC-Atlas/ontology`: a page with every class
+  and property (each term's IRI opens its row), and the ontology as
+  `ontology.ttl`, `.owl`, `.rdf`, `.nt`, and `.jsonld` next to it, for
+  Protégé and other tools that resolve IRIs. Exports point to it with
+  `rdfs:seeAlso`.
+
 - `bca export --view knowledge-graph` writes the project as RDF with the BC
   Atlas OWL ontology, for triple stores, graph databases, and ontology
   editors: Turtle (`.ttl`), RDF/XML (`.rdf`, `.owl`), N-Triples (`.nt`), or

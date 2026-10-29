@@ -1,0 +1,518 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix vann: <http://purl.org/vocab/vann/> .
+@prefix bca: <https://schulzoli.github.io/BC-Atlas/ontology#> .
+
+<https://schulzoli.github.io/BC-Atlas/ontology> a owl:Ontology ;
+    rdfs:label "BC Atlas ontology for Business Central AL" ;
+    rdfs:comment "Apps, namespaces, architecture components, AL objects, their members, and their relations, as found by BC Atlas in AL source." ;
+    owl:versionInfo "0.11.0" ;
+    dcterms:license <https://opensource.org/licenses/MIT> ;
+    vann:preferredNamespacePrefix "bca" ;
+    vann:preferredNamespaceUri "https://schulzoli.github.io/BC-Atlas/ontology#" .
+
+bca:App a owl:Class ;
+    rdfs:label "AL app" ;
+    rdfs:comment "An extension or app with its own app.json." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Namespace a owl:Class ;
+    rdfs:label "AL namespace" ;
+    rdfs:comment "A namespace declared by AL objects." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Component a owl:Class ;
+    rdfs:label "Architecture component" ;
+    rdfs:comment "A component of the target architecture in .bca.json, or of a proposal." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Object a owl:Class ;
+    rdfs:label "AL object" ;
+    rdfs:comment "An application object such as a table, page, or codeunit." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ExtensionObject a owl:Class ;
+    rdfs:label "AL extension object" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:comment "An object that extends another object: a table, page, report, enum, profile, or permission set extension, or a page customization." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ExternalObject a owl:Class ;
+    rdfs:label "External AL object" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:comment "An object referenced by the workspace but declared elsewhere, for example in the Base Application." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Field a owl:Class ;
+    rdfs:label "Field" ;
+    rdfs:comment "A field of a table or table extension." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Key a owl:Class ;
+    rdfs:label "Key" ;
+    rdfs:comment "A key of a table." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Procedure a owl:Class ;
+    rdfs:label "Procedure" ;
+    rdfs:comment "A procedure of an object." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Trigger a owl:Class ;
+    rdfs:label "Trigger" ;
+    rdfs:subClassOf bca:Procedure ;
+    rdfs:comment "A trigger of an object, such as OnRun or OnValidate." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:EventPublisher a owl:Class ;
+    rdfs:label "Event publisher" ;
+    rdfs:subClassOf bca:Procedure ;
+    rdfs:comment "A procedure with an integration or business event attribute." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Relation a owl:Class ;
+    rdfs:label "Relation" ;
+    rdfs:comment "One relation found in the source, with its kind, confidence, and location (a qualified form of the direct relation property)." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ArchitectureViolation a owl:Class ;
+    rdfs:label "Architecture violation" ;
+    rdfs:comment "A dependency between two objects that points against the architecture." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Table a owl:Class ;
+    rdfs:label "Table" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:TableExtension a owl:Class ;
+    rdfs:label "Table extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Page a owl:Class ;
+    rdfs:label "Page" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:PageExtension a owl:Class ;
+    rdfs:label "Page extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:PageCustomization a owl:Class ;
+    rdfs:label "Page customization" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Codeunit a owl:Class ;
+    rdfs:label "Codeunit" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Report a owl:Class ;
+    rdfs:label "Report" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ReportExtension a owl:Class ;
+    rdfs:label "Report extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Query a owl:Class ;
+    rdfs:label "Query" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:XmlPort a owl:Class ;
+    rdfs:label "XMLport" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Enum a owl:Class ;
+    rdfs:label "Enum" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:EnumExtension a owl:Class ;
+    rdfs:label "Enum extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Interface a owl:Class ;
+    rdfs:label "Interface" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ControlAddIn a owl:Class ;
+    rdfs:label "Control add-in" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Profile a owl:Class ;
+    rdfs:label "Profile" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ProfileExtension a owl:Class ;
+    rdfs:label "Profile extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:PermissionSet a owl:Class ;
+    rdfs:label "Permission set" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:PermissionSetExtension a owl:Class ;
+    rdfs:label "Permission set extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Entitlement a owl:Class ;
+    rdfs:label "Entitlement" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:inApp a owl:ObjectProperty ;
+    rdfs:label "in app" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:App ;
+    rdfs:comment "The app that declares the object." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:inNamespace a owl:ObjectProperty ;
+    rdfs:label "in namespace" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Namespace ;
+    rdfs:comment "The namespace of the object." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:inComponent a owl:ObjectProperty ;
+    rdfs:label "in component" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Component ;
+    rdfs:comment "The architecture component the object belongs to." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dependsOnApp a owl:ObjectProperty ;
+    rdfs:label "depends on app" ;
+    rdfs:domain bca:App ;
+    rdfs:range bca:App ;
+    rdfs:comment "A dependency declared in app.json." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:mayDependOn a owl:ObjectProperty ;
+    rdfs:label "may depend on" ;
+    rdfs:domain bca:Component ;
+    rdfs:range bca:Component ;
+    rdfs:comment "A dependency the architecture allows." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dependsOnComponent a owl:ObjectProperty ;
+    rdfs:label "depends on component" ;
+    rdfs:domain bca:Component ;
+    rdfs:range bca:Component ;
+    rdfs:comment "A dependency between components that the source has today." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:hasField a owl:ObjectProperty ;
+    rdfs:label "has field" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Field ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:hasKey a owl:ObjectProperty ;
+    rdfs:label "has key" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Key ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:hasProcedure a owl:ObjectProperty ;
+    rdfs:label "has procedure" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Procedure ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:keyField a owl:ObjectProperty ;
+    rdfs:label "key field" ;
+    rdfs:domain bca:Key ;
+    rdfs:range bca:Field ;
+    rdfs:comment "A field of the key, in order of declaration." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dependsOn a owl:ObjectProperty ;
+    rdfs:label "depends on" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Object ;
+    rdfs:comment "Any relation from one object to another; every relation property below is a kind of it." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:relationSource a owl:ObjectProperty ;
+    rdfs:label "relation source" ;
+    rdfs:domain bca:Relation ;
+    rdfs:range bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:relationTarget a owl:ObjectProperty ;
+    rdfs:label "relation target" ;
+    rdfs:domain bca:Relation ;
+    rdfs:range bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:violationSource a owl:ObjectProperty ;
+    rdfs:label "violation source" ;
+    rdfs:domain bca:ArchitectureViolation ;
+    rdfs:range bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:violationTarget a owl:ObjectProperty ;
+    rdfs:label "violation target" ;
+    rdfs:domain bca:ArchitectureViolation ;
+    rdfs:range bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:sourceComponent a owl:ObjectProperty ;
+    rdfs:label "source component" ;
+    rdfs:domain bca:ArchitectureViolation ;
+    rdfs:range bca:Component ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:targetComponent a owl:ObjectProperty ;
+    rdfs:label "target component" ;
+    rdfs:domain bca:ArchitectureViolation ;
+    rdfs:range bca:Component ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:calls a owl:ObjectProperty ;
+    rdfs:label "calls" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Calls a procedure of the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:reads a owl:ObjectProperty ;
+    rdfs:label "reads" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Reads records of the target table." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:writes a owl:ObjectProperty ;
+    rdfs:label "writes" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Inserts, modifies, or deletes records of the target table." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:relatesTo a owl:ObjectProperty ;
+    rdfs:label "relates to" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "A table relation to the target table." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:uses a owl:ObjectProperty ;
+    rdfs:label "uses" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Declares a variable or parameter of the target type." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:extends a owl:ObjectProperty ;
+    rdfs:label "extends" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Extends the target object." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:implements a owl:ObjectProperty ;
+    rdfs:label "implements" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Implements the target interface." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:selects a owl:ObjectProperty ;
+    rdfs:label "selects" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Selects an implementation through an enum value." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:publishes a owl:ObjectProperty ;
+    rdfs:label "publishes" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Publishes an event of the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:subscribesTo a owl:ObjectProperty ;
+    rdfs:label "subscribes to" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Subscribes to an event of the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:runs a owl:ObjectProperty ;
+    rdfs:label "runs" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Runs the target page, report, or codeunit." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:hasPart a owl:ObjectProperty ;
+    rdfs:label "has part" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Shows the target page as a part." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:contains a owl:ObjectProperty ;
+    rdfs:label "contains" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Contains the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:permits a owl:ObjectProperty ;
+    rdfs:label "permits" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "A permission set grants access to the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:includes a owl:ObjectProperty ;
+    rdfs:label "includes" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "A permission set includes the target permission set." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:starts a owl:ObjectProperty ;
+    rdfs:label "starts" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Starts the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:raisesEvent a owl:ObjectProperty ;
+    rdfs:label "raises event" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Raises an event of the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:objectType a owl:DatatypeProperty ;
+    rdfs:label "object type" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The AL object type, such as table or codeunit." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:objectId a owl:DatatypeProperty ;
+    rdfs:label "object ID" ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:appId a owl:DatatypeProperty ;
+    rdfs:label "app ID" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The id of app.json." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:publisher a owl:DatatypeProperty ;
+    rdfs:label "publisher" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:version a owl:DatatypeProperty ;
+    rdfs:label "version" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:sourceFile a owl:DatatypeProperty ;
+    rdfs:label "source file" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Path of the AL file, relative to the project." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:sourceLine a owl:DatatypeProperty ;
+    rdfs:label "source line" ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:caption a owl:DatatypeProperty ;
+    rdfs:label "caption" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:access a owl:DatatypeProperty ;
+    rdfs:label "access" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The Access property of an object (public or internal)." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:fieldNumber a owl:DatatypeProperty ;
+    rdfs:label "field number" ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dataType a owl:DatatypeProperty ;
+    rdfs:label "data type" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:signature a owl:DatatypeProperty ;
+    rdfs:label "signature" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:visibility a owl:DatatypeProperty ;
+    rdfs:label "visibility" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "local, internal, protected, or public." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:layer a owl:DatatypeProperty ;
+    rdfs:label "layer" ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "The layer of a component; lower layers may not depend on higher ones." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:relationKind a owl:DatatypeProperty ;
+    rdfs:label "relation kind" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:confidence a owl:DatatypeProperty ;
+    rdfs:label "confidence" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "How the relation was resolved: resolved, syntactic, or ambiguous." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:relationClass a owl:DatatypeProperty ;
+    rdfs:label "relation class" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "schema or runtime for data relations." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:cardinality a owl:DatatypeProperty ;
+    rdfs:label "cardinality" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dataAccess a owl:DatatypeProperty ;
+    rdfs:label "data access" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "read, write, or read-write." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:operation a owl:DatatypeProperty ;
+    rdfs:label "operation" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "A data operation such as Get, Insert, or Modify." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:sourceProcedure a owl:DatatypeProperty ;
+    rdfs:label "source procedure" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The procedure the relation is written in." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:rule a owl:DatatypeProperty ;
+    rdfs:label "rule" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:weight a owl:DatatypeProperty ;
+    rdfs:label "weight" ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "How many relations a violation stands for." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .

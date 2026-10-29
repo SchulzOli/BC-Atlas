@@ -13,6 +13,7 @@ bca export ./app --view knowledge-graph -o atlas.rdf     # RDF/XML
 bca export ./app --view knowledge-graph -o atlas.nt      # N-Triples, one triple per line
 bca export ./app --view knowledge-graph -o atlas.jsonld  # JSON-LD
 bca export ./app --view knowledge-graph --base-iri https://example.com/bc/ -o atlas.ttl
+bca export ./app --view knowledge-graph --no-evidence    # only the direct relations: smaller
 ```
 
 | Format | Extension | Syntax | Good for |
@@ -30,7 +31,10 @@ extension of `-o`.
 
 Every file starts with the ontology: OWL classes and properties with labels
 and comments, so a tool needs nothing else to load it. Its terms live in the
-namespace `https://schulzoli.github.io/BC-Atlas/ontology#` (prefix `bca:`).
+namespace `https://schulzoli.github.io/BC-Atlas/ontology#` (prefix `bca:`),
+and every term's IRI opens its description on the
+[ontology page](./reference/ontology.md), which also has the ontology alone
+as Turtle, OWL, RDF/XML, N-Triples, and JSON-LD.
 
 | Resource | Class | Properties |
 | --- | --- | --- |
@@ -105,3 +109,8 @@ one `bca:Relation` with its evidence. The [warehouse example](../examples/knowle
 has about 840 triples; the Base Application (8,083 objects, 381,301
 relations) has 4.4 million triples, 270 MB of Turtle, written in about 20
 seconds after its analysis.
+
+`--no-evidence` leaves out the `bca:Relation` resources and keeps one triple
+per relation (`bca:writes` and so on). For the Base Application that is 1.1
+million triples and 78 MB, under a third of the size. The queries above work
+on it except the last one, which needs the file and line of each relation.

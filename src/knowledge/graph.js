@@ -49,8 +49,9 @@ const shortHash = (value) => createHash("sha1").update(value).digest("hex").slic
  * @param model the resolved model of the project view (createArchitectureModel)
  * @param assessment optional architecture assessment (assessArchitecture)
  * @param baseIri base of the resources' IRIs
+ * @param evidence false leaves out the bca:Relation resources; the direct relation triples stay
  */
-export function* knowledgeGraph({ model, assessment, baseIri, title, version, generatedAt = new Date().toISOString() }) {
+export function* knowledgeGraph({ model, assessment, baseIri, title, version, evidence = true, generatedAt = new Date().toISOString() }) {
   const ids = resourceIris(baseIri);
   const kinds = [...new Set(model.edges.map(({ kind }) => kind))].sort();
   const objects = model.objects.filter(({ key }) => key);
@@ -63,7 +64,8 @@ export function* knowledgeGraph({ model, assessment, baseIri, title, version, ge
     [`${PREFIXES.dcterms}created`, literal(generatedAt, DATETIME)],
     [`${PREFIXES.dcterms}creator`, literal(`BC Atlas ${version}`)],
     [`${PREFIXES.dcterms}conformsTo`, iri(ONTOLOGY)],
-    [`${PREFIXES.rdfs}seeAlso`, iri(ONTOLOGY)]
+    // The ontology's IRI is its documentation page; the Turtle file next to it is the RDF.
+    [`${PREFIXES.rdfs}seeAlso`, iri(`${ONTOLOGY}.ttl`)]
   ]);
   yield* vocabulary({ version, kinds, header: false });
 
@@ -173,7 +175,7 @@ export function* knowledgeGraph({ model, assessment, baseIri, title, version, ge
   }
 
   // Every relation once more as a resource of its own, with its evidence.
-  for (const [from, list] of outgoing) {
+  for (const [from, list] of evidence ? outgoing : []) {
     for (const { edge, target } of list) {
       const location = { ...edge.location, file: sourcePath(edge.location?.file) };
       const subject = ids.relation(shortHash(`${from}\u0000${target}\u0000${edge.kind}\u0000${location.file ?? ""}:${location.line ?? ""}:${location.column ?? ""}\u0000${edge.id ?? ""}`));
