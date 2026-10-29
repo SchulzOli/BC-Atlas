@@ -13,6 +13,7 @@
 //   4. the same relations at a coarser resolution say which components
 //      belong together in one app: each component goes to the app candidate
 //      most of its objects land in, so apps always hold whole components
+import { createHash } from "node:crypto";
 import Graph from "graphology";
 import louvain from "graphology-communities-louvain";
 import { coupling } from "../graph/coupling.js";
@@ -51,7 +52,8 @@ function seededRandom(seed) {
   };
 }
 
-function louvainOn(nodes, edges, resolution = 1, seed = 7) {
+/** The coupling graph for Louvain, merged per pair of objects, without self-loops. */
+function couplingGraph(nodes, edges) {
   const graph = new Graph({ type: "undirected", allowSelfLoops: false });
   for (const id of nodes) graph.addNode(id);
   for (const { source, target, weight } of edges) {
@@ -59,62 +61,101 @@ function louvainOn(nodes, edges, resolution = 1, seed = 7) {
     if (graph.hasEdge(source, target)) graph.updateEdgeAttribute(source, target, "weight", (value) => value + weight);
     else graph.addEdge(source, target, { weight });
   }
-  return graph.size ? louvain(graph, { getEdgeWeight: "weight", rng: seededRandom(seed), resolution }) : {};
+  return graph;
 }
 
-/** Undirected weighted adjacency without self-loops. */
+/**
+ * The same graph as compact arrays (compressed sparse rows) for refining and
+ * scoring: objects in sorted order, and per object its neighbors and weights.
+ */
 function adjacency(nodes, edges) {
-  const neighbors = new Map([...nodes].map((id) => [id, new Map()]));
+  const order = [...nodes].sort();
+  const index = new Map(order.map((id, position) => [id, position]));
+  const lists = order.map(() => new Map());
   for (const { source, target, weight } of edges) {
-    if (!neighbors.has(source) || !neighbors.has(target) || source === target || !weight) continue;
-    neighbors.get(source).set(target, (neighbors.get(source).get(target) ?? 0) + weight);
-    neighbors.get(target).set(source, (neighbors.get(target).get(source) ?? 0) + weight);
+    const from = index.get(source);
+    const to = index.get(target);
+    if (from === undefined || to === undefined || from === to || !weight) continue;
+    lists[from].set(to, (lists[from].get(to) ?? 0) + weight);
+    lists[to].set(from, (lists[to].get(from) ?? 0) + weight);
   }
-  return neighbors;
+  const offsets = new Int32Array(order.length + 1);
+  for (let node = 0; node < order.length; node++) offsets[node + 1] = offsets[node] + lists[node].size;
+  const neighbors = new Int32Array(offsets[order.length]);
+  const weights = new Float64Array(offsets[order.length]);
+  const strength = new Float64Array(order.length);
+  let total = 0;
+  for (let node = 0; node < order.length; node++) {
+    let position = offsets[node];
+    for (const [other, weight] of lists[node]) {
+      neighbors[position] = other;
+      weights[position++] = weight;
+      strength[node] += weight;
+    }
+    total += strength[node];
+  }
+  return { order, index, offsets, neighbors, weights, strength, total };
 }
 
-function modularity(neighbors, partition, resolution) {
-  let total = 0;
-  const inside = new Map();
-  const degree = new Map();
-  for (const [id, links] of neighbors) {
-    const community = partition.get(id);
-    for (const [other, weight] of links) {
-      total += weight;
-      degree.set(community, (degree.get(community) ?? 0) + weight);
-      if (partition.get(other) === community) inside.set(community, (inside.get(community) ?? 0) + weight);
+/** Partition labels as consecutive integers, ordered like the labels themselves (ties break the same way). */
+function numbered(labels) {
+  const distinct = [...new Set(labels)].sort();
+  const number = new Map(distinct.map((label, position) => [label, position]));
+  return { partition: Int32Array.from(labels, (label) => number.get(label)), count: distinct.length };
+}
+
+function modularity({ offsets, neighbors, weights, strength, total }, partition, count, resolution) {
+  if (!total) return 0;
+  const inside = new Float64Array(count);
+  const degree = new Float64Array(count);
+  for (let node = 0; node < partition.length; node++) {
+    const community = partition[node];
+    degree[community] += strength[node];
+    for (let position = offsets[node]; position < offsets[node + 1]; position++) {
+      if (partition[neighbors[position]] === community) inside[community] += weights[position];
     }
   }
-  if (!total) return 0;
   let score = 0;
-  for (const [community, sum] of degree) score += (inside.get(community) ?? 0) / total - resolution * (sum / total) ** 2;
+  for (let community = 0; community < count; community++) score += inside[community] / total - resolution * (degree[community] / total) ** 2;
   return score;
 }
 
 /** Moves single objects to the neighboring community that raises modularity most, until none does. */
-function refine(neighbors, start, resolution) {
-  const partition = new Map(start);
-  const strength = new Map([...neighbors].map(([id, links]) => [id, [...links.values()].reduce((sum, weight) => sum + weight, 0)]));
-  const total = [...strength.values()].reduce((sum, value) => sum + value, 0);
+function refine({ offsets, neighbors, weights, strength, total }, start, count, resolution) {
+  const partition = Int32Array.from(start);
   if (!total) return partition;
-  const sums = new Map();
-  for (const [id, community] of partition) sums.set(community, (sums.get(community) ?? 0) + strength.get(id));
-  const order = [...neighbors.keys()].sort();
+  const sums = new Float64Array(count);
+  for (let node = 0; node < partition.length; node++) sums[partition[node]] += strength[node];
+  const links = new Float64Array(count);
+  const touched = [];
   for (let pass = 0; pass < 20; pass++) {
     let moved = false;
-    for (const id of order) {
-      const own = partition.get(id);
-      const degree = strength.get(id);
+    for (let node = 0; node < partition.length; node++) {
+      const degree = strength[node];
       if (!degree) continue;
-      const links = new Map();
-      for (const [other, weight] of neighbors.get(id)) links.set(partition.get(other), (links.get(partition.get(other)) ?? 0) + weight);
-      sums.set(own, sums.get(own) - degree);
-      const gain = (community) => (links.get(community) ?? 0) - resolution * (sums.get(community) ?? 0) * degree / total;
+      const own = partition[node];
+      for (let position = offsets[node]; position < offsets[node + 1]; position++) {
+        const community = partition[neighbors[position]];
+        if (!links[community]) touched.push(community);
+        links[community] += weights[position];
+      }
+      sums[own] -= degree;
+      const gain = (community) => links[community] - resolution * sums[community] * degree / total;
       let best = own;
-      for (const community of [...links.keys()].sort()) if (gain(community) > gain(best) + 1e-9) best = community;
-      sums.set(best, (sums.get(best) ?? 0) + degree);
+      let bestGain = gain(own);
+      touched.sort((a, b) => a - b);
+      for (const community of touched) {
+        const value = gain(community);
+        if (value > bestGain + 1e-9) {
+          best = community;
+          bestGain = value;
+        }
+      }
+      sums[best] += degree;
+      for (const community of touched) links[community] = 0;
+      touched.length = 0;
       if (best !== own) {
-        partition.set(id, best);
+        partition[node] = best;
         moved = true;
       }
     }
@@ -130,18 +171,20 @@ function refine(neighbors, start, resolution) {
  * relations confirm it.
  */
 function communities(nodes, edges, { resolution = 1, candidates = [] } = {}) {
-  const neighbors = adjacency(nodes, edges);
+  const csr = adjacency(nodes, edges);
+  const graph = couplingGraph(nodes, edges);
   const starts = [];
   for (const seed of [7, 11, 13, 17, 19]) {
-    const result = louvainOn(nodes, edges, resolution, seed);
-    starts.push(new Map([...nodes].map((id) => [id, result[id] === undefined ? `s${id}` : `l${result[id]}`])));
+    const result = graph.size ? louvain(graph, { getEdgeWeight: "weight", rng: seededRandom(seed), resolution }) : {};
+    starts.push(csr.order.map((id) => result[id] === undefined ? `s${id}` : `l${result[id]}`));
   }
-  for (const read of candidates) starts.push(new Map([...nodes].map((id) => [id, read(id) === undefined ? `s${id}` : `k${read(id)}`])));
+  for (const read of candidates) starts.push(csr.order.map((id) => read(id) === undefined ? `s${id}` : `k${read(id)}`));
   let best;
   let bestScore = -Infinity;
-  for (const start of starts) {
-    const partition = refine(neighbors, start, resolution);
-    const score = modularity(neighbors, partition, resolution);
+  for (const labels of starts) {
+    const { partition: start, count } = numbered(labels);
+    const partition = refine(csr, start, count, resolution);
+    const score = modularity(csr, partition, count, resolution);
     if (score > bestScore + 1e-9) {
       best = partition;
       bestScore = score;
@@ -149,7 +192,9 @@ function communities(nodes, edges, { resolution = 1, candidates = [] } = {}) {
   }
   // Objects without coupling stay unassigned; the callers place them.
   const result = {};
-  for (const [id, community] of best ?? []) if (neighbors.get(id).size) result[id] = community;
+  if (best) csr.order.forEach((id, node) => {
+    if (csr.offsets[node + 1] > csr.offsets[node]) result[id] = best[node];
+  });
   return result;
 }
 
@@ -233,15 +278,44 @@ const APP_RESOLUTION = 0.3;
  * Clusters the objects of one app or module by coupling.
  * @returns Map of object id to { key, shared?, label, fullName, alternatives, app: { key, label, fullName } }
  */
+// The explorer and the architecture proposal cluster the same apps, and after
+// a saved file most apps and modules are unchanged: results are kept by a
+// fingerprint of everything they depend on.
+const clusterCache = new Map();
+const CLUSTER_CACHE_SIZE = 64;
+
 export function clusterByRelations(nodes, levels, weights, { prefix = "" } = {}) {
   const ids = new Set(nodes.map(({ id }) => id));
-  const byId = new Map(nodes.map((node) => [node.id, node]));
   const edges = [];
   for (const edge of levels.object.edges) {
     if (!ids.has(edge.source) || !ids.has(edge.target) || edge.source === edge.target || !shapes(edge)) continue;
     const weight = coupling(edge.kinds, weights);
     if (weight) edges.push({ source: edge.source, target: edge.target, weight });
   }
+  const fingerprint = createHash("sha1");
+  for (const { id, label, namespace, file, objectId } of nodes) fingerprint.update(`\u0000${id}\u0001${label}\u0001${namespace}\u0001${file}\u0001${objectId}`);
+  for (const { source, target, weight } of edges) fingerprint.update(`\u0002${source}\u0001${target}\u0001${weight}`);
+  const key = fingerprint.digest("hex");
+  let result = clusterCache.get(key);
+  if (result) clusterCache.delete(key);
+  else result = clusterFresh(nodes, edges);
+  clusterCache.set(key, result);
+  if (clusterCache.size > CLUSTER_CACHE_SIZE) clusterCache.delete(clusterCache.keys().next().value);
+  if (!prefix) return result;
+  // Keys are local to the call; the caller's prefix makes them unique across apps.
+  const apps = new Map();
+  const prefixed = new Map();
+  for (const [id, cluster] of result) {
+    if (!apps.has(cluster.app)) apps.set(cluster.app, { ...cluster.app, key: `${prefix}${cluster.app.key}` });
+    prefixed.set(id, { ...cluster, key: `${prefix}${cluster.key}`, app: apps.get(cluster.app) });
+  }
+  return prefixed;
+}
+
+function clusterFresh(nodes, edges) {
+  const prefix = "";
+  const ids = new Set(nodes.map(({ id }) => id));
+  const byId = new Map(nodes.map((node) => [node.id, node]));
 
   // Today's namespaces and functional folders compete with Louvain; the relations decide.
   const candidates = [

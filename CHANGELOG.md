@@ -20,6 +20,10 @@ follows [Semantic Versioning](https://semver.org/).
 - The graph document (`bca export --view explorer --format json`) carries
   the clusters: `clusters` with name, size, and app candidate, and `cluster`
   on every workspace object.
+- Clustering by relations is about twice as fast (4.5 instead of 9 seconds for
+  the Base Application) with the same result, and the explorer and the
+  architecture proposal share it: after a saved file, only the apps and
+  modules whose objects or relations changed are clustered again.
 - The explorer's browser bundle (3d-force-graph with three.js and its bloom
   pass) is built into `vendor/graph-viewer.js` (`npm run update:graph-vendor`);
   3d-force-graph is no longer installed with the package.

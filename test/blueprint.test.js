@@ -523,3 +523,25 @@ test("namespaces on some objects do not change what the relations decide", async
     rmSync(mixed, { recursive: true, force: true });
   }
 });
+
+test("clustering the same objects twice reuses the result under each caller's prefix", async () => {
+  const { clusterByRelations } = await import("../src/blueprint/cluster.js");
+  const { COUPLING_WEIGHTS } = await import("../src/graph/coupling.js");
+  const directory = legacyWorkspace();
+  try {
+    const { levels } = await assessArchitecture(directory, { propose: true });
+    const nodes = levels.object.nodes.filter(({ origin }) => origin === "workspace");
+    const plain = clusterByRelations(nodes, levels, COUPLING_WEIGHTS);
+    const started = performance.now();
+    const prefixed = clusterByRelations(nodes, levels, COUPLING_WEIGHTS, { prefix: "app|" });
+    assert.ok(performance.now() - started < 50, "the second call comes from the cache");
+    for (const [id, cluster] of plain) {
+      const other = prefixed.get(id);
+      assert.equal(other.key, `app|${cluster.key}`);
+      assert.equal(other.app.key, `app|${cluster.app.key}`);
+      assert.equal(other.label, cluster.label);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
