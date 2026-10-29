@@ -184,7 +184,8 @@ objects are placed from left to right by the commit that introduced them.
 | Control | What it does |
 | --- | --- |
 | Dependency scope | Show or hide each class, for example only cross-app dependencies. |
-| Apps | Restrict to apps. **Show neighbors in other apps** keeps the direct dependencies of the selected apps visible in gray. |
+| Apps | Restrict to apps; **only** (on hover) shows one app, again shows all. **Show neighbors in other apps** keeps the direct dependencies of the selected apps visible in gray. |
+| Clusters | Restrict to relation clusters, listed by app candidate. **only** shows one cluster and frames it, as does a click on a cluster's name in the graph or in the legend; a second click or `Esc` shows all again. Neighbors in other clusters stay visible in gray. |
 | Object types, relation kinds | Restrict nodes and edges. An edge stays visible while at least one of its kinds is selected. |
 | Search (`/`) | Highlights matches by name, ID, type, namespace, file, or app; **Enter** flies to the first match. |
 | Min. links, hide unconnected | Remove weakly connected nodes. The slider runs from 0 to the number of links that 95% of the nodes stay under (at least 10, at most 200), so it also thins out large graphs. |
@@ -199,11 +200,15 @@ apps, and its history. **Isolate neighborhood** hides everything else; **+1
 level** widens the neighborhood. Right-click a node to fly to it, drag it to
 pin it. **PNG** saves the current view and **JSON** the visible subgraph.
 
+When the graph is colored by cluster, the legend lists the largest clusters on
+screen with their object counts; click one to show only that cluster.
+
 The graph has the whole window: the filters open with **☰** or `F`, and the
 explorer remembers whether they are open. **Fit** frames the connected
 objects. Drag to rotate, scroll to zoom into the graph, right-drag to pan.
 
-Keyboard: `Space` play, `←` `→` step, `/` search, `Esc` clear selection, `1`
+Keyboard: `Space` play, `←` `→` step, `/` search, `Esc` clear the selection
+(without one, show all clusters, apps, and components again), `1`
 objects, `2` modules, `3` apps, `F` filters.
 
 ## Metrics

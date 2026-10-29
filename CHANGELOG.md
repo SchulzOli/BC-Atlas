@@ -17,6 +17,13 @@ follows [Semantic Versioning](https://semver.org/).
   Labels that would overlap a more important one are hidden. On a dark
   background the graph glows (**Glow** turns it off); dense graphs get
   fainter links and less glow.
+- Dependency explorer: a **Clusters** filter lists the clusters by app
+  candidate; **only** shows one cluster (or one app) and frames it, and so
+  does a click on a cluster name in the graph or in the legend, which lists
+  the largest clusters on screen. A second click or `Esc` shows all again.
+  Neighbors in other clusters stay visible in gray.
+- Dependency explorer: the glow fades when you zoom in close, so large
+  spheres no longer bloom into white discs.
 - The graph document (`bca export --view explorer --format json`) carries
   the clusters: `clusters` with name, size, and app candidate, and `cluster`
   on every workspace object.

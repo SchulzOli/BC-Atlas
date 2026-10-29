@@ -30,7 +30,8 @@ button, select, input { font: inherit; color: inherit; }
   left: 0;
   top: 0;
   white-space: nowrap;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   font-weight: 650;
   letter-spacing: 0.02em;
   text-shadow: 0 0 6px var(--bg, #070b16), 0 0 2px var(--bg, #070b16);
@@ -123,6 +124,11 @@ details.section > summary .summary-actions button:hover { color: var(--text); }
 .check input { margin: 0; accent-color: var(--accent); }
 .check .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .check .count { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.check .only {
+  border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; padding: 0 2px; visibility: hidden;
+}
+.check:hover .only, .check .only:focus-visible { visibility: visible; }
+.check .only:hover { color: var(--text); }
 .swatch { width: 10px; height: 10px; border-radius: 50%; flex: none; }
 .swatch.line { height: 3px; width: 16px; border-radius: 2px; }
 
@@ -187,6 +193,14 @@ details.section > summary .summary-actions button:hover { color: var(--text); }
   right: 12px; bottom: 112px; padding: 8px 10px; font-size: 11px; display: grid; gap: 3px;
 }
 #legend .row { display: flex; align-items: center; gap: 6px; }
+#legend button.row {
+  border: 0; background: transparent; color: inherit; font: inherit; padding: 1px 2px; margin: 0 -2px; border-radius: 4px; cursor: pointer; text-align: left;
+}
+#legend button.row:hover { background: var(--hover); }
+#legend .row .name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#legend .row .count { margin-left: auto; padding-left: 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#legend .muted { color: var(--muted); }
+#legend .rule { border-top: 1px solid var(--border); margin: 3px 0; }
 
 #toast {
   position: fixed; left: 50%; top: 76px; transform: translateX(-50%);
