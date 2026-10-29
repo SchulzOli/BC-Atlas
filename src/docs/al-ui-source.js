@@ -532,8 +532,13 @@ function whenBlocks(source) {
   });
 }
 
-// Operations after which Business Central can open a dialog.
-const TRIGGERS = new Set(["open", "invoke", "button", "lookup", "drilldown", "assist-edit", "set", "new-line", "close"]);
+// Operations after which Business Central can open a dialog, most likely first:
+// actions, then entering values, then opening and closing pages.
+const TRIGGERS = [
+  new Set(["invoke", "button", "lookup", "drilldown", "assist-edit"]),
+  new Set(["set", "new-line"]),
+  new Set(["open", "close"])
+];
 
 /**
  * Pages and confirmations the test answers in handler procedures
@@ -565,8 +570,8 @@ function handlerOperations(attributes, structure) {
 /**
  * Inserts handler steps where a dialog most likely appears: before a page
  * that code opens (posting asks first, then shows the posted document),
- * after an action that opens a page, else after the first operation that
- * can open a dialog.
+ * after an action that opens a page, else after the first action (or the
+ * first entry, or the first page opened) that can open a dialog.
  */
 function placeHandlers(sections, operations, handlers) {
   if (!handlers.length) return;
@@ -577,9 +582,11 @@ function placeHandlers(sections, operations, handlers) {
     const opener = list.findIndex((op) => op.opens);
     if (opener >= 0) return void list.splice(opener + 1, 0, ...handlers);
   }
-  for (const list of lists) {
-    const index = list.findIndex((op) => TRIGGERS.has(op.kind));
-    if (index >= 0) return void list.splice(index + 1, 0, ...handlers);
+  for (const kinds of TRIGGERS) {
+    for (const list of lists) {
+      const index = list.findIndex((op) => kinds.has(op.kind));
+      if (index >= 0) return void list.splice(index + 1, 0, ...handlers);
+    }
   }
 }
 

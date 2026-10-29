@@ -131,8 +131,8 @@ Expansion is cycle-safe and limited to eight helper levels.
 
 Calls may span several lines. Handler steps are placed after the action that
 opens a page (or before a page that code opens), otherwise after the first
-step that can open a dialog; the “If ...” wording keeps them correct wherever
-the dialog appears.
+action of the phase (or the first value entered, or the first page opened);
+the “If ...” wording keeps them correct wherever the dialog appears.
 
 `[PERMISSIONS]` is optional and may be repeated for multiple permission sets.
 `[PERMISSION]` is accepted as an alias. When neither tag is present, no
