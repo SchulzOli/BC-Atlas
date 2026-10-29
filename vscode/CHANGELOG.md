@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.10.0
+
+The extension and the BC Atlas npm package now share one version number;
+this release follows 0.9.0 of the extension and 0.8.0 of the package.
+
+- Faster: parse results stay on disk and across changes, so reopening a
+  project or saving a file parses only what changed. On a 2,931-object app
+  the overview opens in about 8 seconds instead of 15, and the Docs page in
+  about 11 instead of 25.
+- Architecture: the proposal comes from the relations between the objects,
+  so apps without namespaces (type folders, ID blocks) and apps with a mix get
+  real components too. It shows a shared core, app candidates (components
+  that could become one app together), and a suggested namespace per
+  component.
+- Architecture: click a component for a page of its own, with its groups,
+  a graph of its objects, its links to other components (green allowed, red
+  wrong way), should vs. is per other component, and its work items. A map
+  and a matrix show the dependencies between all components.
+- Docs: guides come from AL tests written the way Microsoft writes the
+  Business Central tests too (`[SCENARIO 218101]`, `[FEATURE] [A] [B]`,
+  handlers, `Page.Trap()`, `asserterror`, filters, lookups, and more), and
+  tests without UI steps are left out.
+- Docs: opening a scenario or use case no longer leaves the page blank.
+
 ## 0.9.0
 
 - Smaller and faster to load: the extension and the BC Atlas engine are

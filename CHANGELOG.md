@@ -4,21 +4,10 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.10.0 - 2026-10-29
 
-### Changed
-
-- The architecture proposal comes from the relations, not from namespaces.
-  Relations are typed (structural, data, behavioral, loose, administrative)
-  and weighted; inside each app or module, the objects that are coupled more
-  to each other than to the rest form a component (the best of several
-  Louvain runs, refined object by object, with today's namespaces and
-  folders competing as candidates). It works the same for apps without
-  namespaces (type folders, ID blocks) and for a mix. `--group-by coupling`
-  is now the same as `auto`; `namespace` and `folder` let the structure
-  decide and place objects without one by their relations.
-- A page or query and its source table are a relation of their own
-  (`source`, weight 4) instead of a read.
+The npm package skips 0.9.0 so it shares its version with the VS Code
+extension, whose previous release was 0.9.0.
 
 ### Added
 
@@ -44,15 +33,38 @@ follows [Semantic Versioning](https://semver.org/).
   their layers with green arrows for allowed and red arrows for wrong-way
   dependencies, and a matrix that tints every pair by the rules and counts
   today's object links in it.
+- `bca docs` turns more TestPage code into steps: `Field.Value :=`,
+  `Filter.SetFilter`, `GoToKey`, the `OK`, `Cancel`, `Yes`, and `No` buttons,
+  `First`/`Last`/`Next`/`Previous`, `Lookup`, `Drilldown`, `AssistEdit`,
+  `Page.Trap()` ("The ... page opens."), `asserterror` ("Business Central
+  shows an error message."), calls over several lines, and the pages and
+  confirmations a test answers in `[ModalPageHandler]`, `[PageHandler]`,
+  `[RequestPageHandler]`, and `[ConfirmHandler]` procedures ("If the ... page
+  opens, ...").
 
 ### Changed
 
+- The architecture proposal comes from the relations, not from namespaces.
+  Relations are typed (structural, data, behavioral, loose, administrative)
+  and weighted; inside each app or module, the objects that are coupled more
+  to each other than to the rest form a component (the best of several
+  Louvain runs, refined object by object, with today's namespaces and
+  folders competing as candidates). It works the same for apps without
+  namespaces (type folders, ID blocks) and for a mix. `--group-by coupling`
+  is now the same as `auto`; `namespace` and `folder` let the structure
+  decide and place objects without one by their relations.
+- A page or query and its source table are a relation of their own
+  (`source`, weight 4) instead of a read.
 - VS Code and `bca export --view app` keep the parse results of every AL file
   on disk (`BCA_CACHE_DIR`, default `<temp>/bc-atlas/parse`) and across
   changes, so reopening a project or saving a file parses only what changed.
   The Docs page and the explorer reuse them instead of parsing the app again.
   On a 2,931-object app the overview opens in about 8 seconds instead of 15,
   and the Docs page in about 11 instead of 25.
+- The npm package and the VS Code extension are released under one version
+  number from now on, starting with 0.10.0; `npm run version:set -- <version>`
+  sets both, and the tests and publish workflows refuse a mismatch.
+- Dependencies: zod 4.6.7, web-tree-sitter 0.27.1, and the MCP SDK 2.4.0.
 
 ### Fixed
 
@@ -64,6 +76,21 @@ follows [Semantic Versioning](https://semver.org/).
   blank in VS Code (or loads the whole app into the frame in an exported
   app): the guide is embedded through `srcdoc`, where `#links` resolve
   against the host page, so it now scrolls to the target itself.
+- `bca docs` reads AL tests written the way Microsoft writes the Business
+  Central tests: `[SCENARIO 218101]` with a work item number (kept as a
+  reference), `[FEATURE] [Sales] [Invoice]` lists (`[UI]` and `[UT]` are left
+  out), the codeunit's `[FEATURE]` in its `OnRun` trigger, and `[VERIFY]` as
+  an expected result. Such test codeunits used to give no scenarios at all.
+- A documented test ends where its procedure ends: tags and TestPage calls of
+  helper procedures after it (and, for the last test, the codeunit's global
+  variables) no longer leak into its guide and its fingerprint.
+- Directory runs of `bca docs` leave out `[SCENARIO]` tests without any UI
+  step (unless they have a `[DOC-ID]`) and report how many; they used to
+  become empty guides.
+- Guides for descriptive scenarios ("Users can post ...") no longer read
+  "Use this guide to users can ...", empty values no longer show as `****`,
+  the note about example values only appears when the steps show any, and
+  test case tables keep the context of loops and dialogs in one row.
 
 ## 0.8.0 - 2026-10-29
 

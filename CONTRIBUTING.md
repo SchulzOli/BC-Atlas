@@ -95,3 +95,18 @@ Use clear, imperative commit subjects. Pull requests should remain reviewable;
 large changes are easier to merge when split into independently useful steps.
 By contributing, you agree that your contributions are licensed under the
 project's [MIT License](./LICENSE).
+
+## Releasing
+
+The npm package and the VS Code extension are released together, under one
+version number.
+
+1. Set the version of both, with their lock files:
+   `npm run version:set -- 0.11.0`. The tests and both publish workflows
+   refuse a mismatch.
+2. In `CHANGELOG.md` and `vscode/CHANGELOG.md`, turn the changes since the
+   last release into a section for the new version; update the version in
+   the GitHub Action example and the update-notice examples, then run
+   `npm run docs` and `npm run examples`.
+3. Merge the release pull request, then run the **Publish npm package** and
+   **Publish VS Code extension** workflows on `main` with the same version.

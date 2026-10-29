@@ -1,6 +1,6 @@
 {
   "name": "bc-atlas",
-  "version": "0.8.0",
+  "version": "0.10.0",
   "description": "BC Atlas maps Microsoft Dynamics 365 Business Central AL projects: architecture diagrams, health checks, reports, and documentation generated from source.",
   "homepage": "https://github.com/SchulzOli/BC-Atlas#readme",
   "bugs": {
@@ -36,7 +36,8 @@
     "update:grammar": "node ./scripts/update-grammar.js",
     "site:dev": "vitepress dev website",
     "site:build": "vitepress build website && node ./scripts/site-assets.js",
-    "site:preview": "vitepress preview website"
+    "site:preview": "vitepress preview website",
+    "version:set": "node ./scripts/set-version.js"
   },
   "keywords": [
     "al",

@@ -1,7 +1,7 @@
 {
   "schema": "bc-atlas.graph",
   "schemaVersion": 1,
-  "generator": "bc-atlas 0.8.0",
+  "generator": "bc-atlas 0.10.0",
   "title": "Contoso workspace: dependencies",
   "lens": {
     "id": "dependency",
