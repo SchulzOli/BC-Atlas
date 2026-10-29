@@ -12,7 +12,7 @@ import { planExtraction } from "../blueprint/extract.js";
 import { VIEWS } from "../capabilities.js";
 import { runHealthCheck } from "../commands/check.js";
 import { writeArchitectureConfig } from "../commands/blueprint.js";
-import { buildScene, sceneToD2 } from "../d2.js";
+import { sceneToD2 } from "../d2.js";
 import { findGitRoot } from "../automation/git.js";
 import { findUiTests } from "../automation/setup.js";
 import { documentationBrowser, documentationHtml } from "../docs/export.js";
@@ -20,7 +20,7 @@ import { loadCorpus } from "../docs/model.js";
 import { createGraphDocument } from "../graph/document.js";
 import { renderExplorerHtml } from "../graph/html.js";
 import { openParseCache } from "../parse-cache.js";
-import { MAX_DIAGRAM_NODES, sceneToSvg } from "../diagram/index.js";
+import { MAX_DIAGRAM_NODES, prepareScene, sceneToSvg } from "../diagram/index.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
@@ -311,28 +311,28 @@ export class Workspace {
     for (const name of ["namespace", "scope", "entry"]) {
       if (typeof options[name] === "string") options[name] = [options[name]];
     }
-    const key = `diagram:${JSON.stringify(options)}`;
+    const expand = typeof request.expand === "string" ? request.expand : undefined;
+    const key = `diagram:${JSON.stringify(options)}:${expand ?? ""}`;
     return this.remember(key, async () => {
       const projection = await createArchitectureModel(this.input, { ...this.values, ...options }, { cache: this.cache, parseCache: await this.parseCache() });
       const nodes = projection.model.objects.length;
       if (!nodes) {
         return { view: projection.view, nodes: 0, edges: 0, empty: projection.model.emptyMessage ?? "No matching objects." };
       }
-      if (nodes > MAX_DIAGRAM_NODES) {
-        return {
-          view: projection.view, nodes, edges: projection.model.edges.length,
-          empty: `${nodes.toLocaleString("en-US")} nodes are too many to draw (at most ${MAX_DIAGRAM_NODES.toLocaleString("en-US")}). Filter by namespace, or choose a focused view such as module, object, boundary, or workflow.`
-        };
-      }
-      const scene = buildScene(projection.model, projection.renderOptions);
-      return {
+      const prepared = prepareScene(projection.model, projection.renderOptions, { expand });
+      const result = {
         view: projection.view,
-        nodes: projection.model.objects.length,
+        nodes,
         edges: projection.model.edges.length,
-        d2: sceneToD2(scene),
-        // Every box names its object (data-object), every route its ends (data-from, data-to).
-        svg: await sceneToSvg(scene)
+        d2: sceneToD2(prepared.full),
+        groups: prepared.groups,
+        collapsed: prepared.collapsed
       };
+      if (prepared.objects > MAX_DIAGRAM_NODES) {
+        return { ...result, empty: `${prepared.objects.toLocaleString("en-US")} objects in the open groups are too many to draw (at most ${MAX_DIAGRAM_NODES.toLocaleString("en-US")}). Close some groups, filter by namespace, or choose a focused view.` };
+      }
+      // Every box names its object (data-object) or its closed group (data-collapsed), every route its ends.
+      return { ...result, svg: await sceneToSvg(prepared.scene) };
     });
   }
 

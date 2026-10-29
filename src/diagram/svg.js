@@ -44,7 +44,7 @@ function edgeSvg(edge) {
 function nodeSvg(node) {
   const box = `<rect x="${round(node.x)}" y="${round(node.y)}" width="${node.width}" height="${node.height}" rx="6" fill="${node.fill}" stroke="${node.stroke}" stroke-width="${node.strokeWidth ?? 1.4}"${dashAttribute(node.dash, 1)}/>`;
   const body = `${node.tooltip ? `<title>${escapeXml(node.tooltip)}</title>` : ""}${box}${textLines(node.lines, node.x + STYLE.pad.x, node.y + STYLE.pad.y)}`;
-  const attributes = `class="node" data-node="${escapeXml(node.path)}"${node.object ? ` data-object="${escapeXml(node.object)}"` : ""}${node.type ? ` data-type="${escapeXml(node.type)}"` : ""}`;
+  const attributes = `class="node${node.collapsed ? " collapsed" : ""}" data-node="${escapeXml(node.path)}"${node.object ? ` data-object="${escapeXml(node.object)}"` : ""}${node.type ? ` data-type="${escapeXml(node.type)}"` : ""}${node.collapsed ? ` data-collapsed="${escapeXml(node.collapsed)}"` : ""}`;
   return node.link
     ? `<a href="${escapeXml(node.link)}" ${attributes}>${body}</a>`
     : `<g ${attributes}>${body}</g>`;

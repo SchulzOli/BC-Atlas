@@ -6,8 +6,13 @@ import { testCaseRows } from "./markdown.js";
 
 const COLUMNS = ["ID", "Work Item Type", "Title", "Test Step", "Step Action", "Step Expected", "Area Path", "Assigned To", "State", "Tags"];
 
+// Excel and Google Sheets run a cell that starts with =, +, -, or @ as a
+// formula (CSV injection); an apostrophe keeps it text.
+const FORMULA = /^[=+\-@\t\r]/u;
+
 function field(value) {
-  const text = String(value ?? "").replace(/\r?\n/gu, " ");
+  const plainText = String(value ?? "").replace(/\r?\n/gu, " ");
+  const text = FORMULA.test(plainText) ? `'${plainText}` : plainText;
   return /[",;\n]/u.test(text) || text !== text.trim() ? `"${text.replaceAll("\"", "\"\"")}"` : text;
 }
 

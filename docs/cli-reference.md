@@ -345,8 +345,9 @@ bca export ./app --view catalog -o docs/codegraph
 - A diagram view with `--format json` and no `--output` prints the resolved
   model to stdout (progress goes to stderr), for scripts.
 - BC Atlas draws SVG, PNG, and PDF itself (ELK layout; no browser and no `d2`
-  executable). Views with more than 1,500 objects are written as D2 source
-  only.
+  executable). A view with more than 1,500 objects is drawn as an overview:
+  every group is one box, and the relations between them are bundled with a
+  count. The `.d2` file next to it always has every object.
 - If `--format` conflicts with the extension, the format wins:
   `-o calls.d2 --format svg` writes `calls.svg` and keeps `calls.d2`.
 - Rendered diagrams always keep the generated `.d2` source next to them.

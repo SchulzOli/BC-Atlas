@@ -339,7 +339,7 @@ test("the report export writes an overview, health summary, and one diagram per 
   }
 });
 
-test("the report keeps a view too large to draw as D2 and links it relative to the README", () => {
+test("the report draws a view too large for every object as an overview of its groups", () => {
   const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-large-"));
   const app = path.join(directory, "app");
@@ -359,13 +359,16 @@ test("the report keeps a view too large to draw as D2 and links it relative to t
       cli, "export", app, "--view", "report", "-o", output, "--views", "project"
     ], { encoding: "utf8", timeout: 120_000 });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stderr + result.stdout, /0 diagram\(s\) in the report, 1 as D2 source only/u);
+    assert.match(result.stderr + result.stdout, /1 diagram\(s\) in the report, 1 as an overview of their groups/u);
     const readme = readFileSync(path.join(output, "README.md"), "utf8");
-    assert.match(readme, /Not drawn: 1501 nodes are too many .*D2 source \[project\.d2\]\(project\.d2\)/u);
+    assert.match(readme, /Overview: 1501 objects are too many to draw one by one \(at most 1500\), so each group is one box/u);
+    assert.match(readme, /!\[Project overview\]\(project\.svg\)/u);
     const section = readme.slice(readme.indexOf("## Project overview"), readme.indexOf("## Architecture health"));
     assert.ok(!section.includes(directory), "the diagram section must not contain absolute paths");
     assert.ok(existsSync(path.join(output, "project.d2")));
-    assert.ok(!existsSync(path.join(output, "project.svg")));
+    const svg = readFileSync(path.join(output, "project.svg"), "utf8");
+    assert.match(svg, /data-collapsed="g0"/u, "the group is one box");
+    assert.match(svg, /1501 objects/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

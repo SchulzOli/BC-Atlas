@@ -58,6 +58,15 @@ for (const [name, options] of diagrams) {
   ]);
 }
 
+// The README shows these diagrams as PNG, rendered from the SVG files.
+const { svgToPng } = await import("../src/diagram/png.js");
+const images = path.join(root, "docs", "generated", "images");
+for (const [name, image] of [["project", "project-view"], ["workflow", "workflow-view"], ["ui", "ui-view"]]) {
+  const svg = await fs.readFile(path.join(output, `${name}.svg`), "utf8");
+  const width = Number(/viewBox="0 0 (\d+)/u.exec(svg)[1]);
+  await fs.writeFile(path.join(images, `${image}.png`), await svgToPng(svg, { scale: Math.min(1.5, 2400 / width) }));
+}
+
 await run(["export", input, "--view", "report", "-o", path.join("examples", "report"), "--codegraph"]);
 await run([
   "docs", "generate", input,

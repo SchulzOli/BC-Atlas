@@ -37,6 +37,28 @@ follows [Semantic Versioning](https://semver.org/).
   at its procedure; **Markdown**, **DITA**, **BPMN**, and **SVG** save the
   page, **All as HTML** the whole documentation. Links between guides and
   from a use case's process to its scenarios stay on the page.
+- Large diagrams as an overview of their groups: every closed group is one
+  box with its object count and main object types, and the relations into,
+  out of, and between closed groups are bundled (one route per pair of groups
+  with the number of relations, per kind towards single objects). On the
+  Diagrams page, views with more than 120 objects or 250 relations start this
+  way; click a box to open its group, a group's name to close it, or use
+  **Open groups** and **Close groups**. Files of views with more than 1,500
+  objects are drawn as the overview instead of only writing the D2 source, so
+  the Base Application's project view (8,083 objects) now has a diagram.
+- Diagrams page and the flows on the Docs page: on a dark theme the diagrams
+  turn dark too (saved files stay light).
+- PDF diagrams with text outside Windows-1252 (Polish, Czech, Greek,
+  Cyrillic, ...) embed Liberation Sans, so the text shows and can be copied
+  and searched; other PDFs keep using Helvetica and stay small.
+- The README's diagram images are rendered from the example SVGs by
+  `npm run examples`, and CI checks them with the other generated examples.
+
+### Security
+
+- The Azure DevOps test-case CSV (`--export ado-csv`) writes cells that start
+  with `=`, `+`, `-`, or `@` with a leading apostrophe, so Excel and Google
+  Sheets do not run them as formulas.
 
 ## 0.11.0 - 2026-10-29
 

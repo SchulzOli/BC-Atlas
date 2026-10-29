@@ -9,7 +9,8 @@ import { inflateSync } from "node:zlib";
 
 import { createArchitectureModel } from "../src/architecture.js";
 import { buildScene, renderD2, sceneToD2 } from "../src/d2.js";
-import { layoutScene, renderScene, sceneToSvg } from "../src/diagram/index.js";
+import { layoutScene, prepareScene, renderScene, sceneToSvg } from "../src/diagram/index.js";
+import { collapseScene, startsCollapsed } from "../src/diagram/collapse.js";
 import { svgToPng } from "../src/diagram/png.js";
 import { textWidth, wrap } from "../src/diagram/text.js";
 
@@ -106,4 +107,55 @@ test("bca export writes SVG, PNG, and PDF with the D2 source next to them", () =
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("a PDF embeds its font only for text Helvetica cannot show", async () => {
+  const scene = (name) => ({ direction: "right", title: "Fonts", groups: [{ key: "g0", label: "Group", dash: 3, nodes: [{ key: "n0", path: "g0.n0", label: `codeunit 1\n${name}`, fill: "#FFF0D6", stroke: "#A96300" }] }], edges: [], omitted: 0 });
+  const plainPdf = (await renderScene(scene("Größe – €"), "pdf")).toString("latin1");
+  assert.match(plainPdf, /\/BaseFont \/Helvetica /u, "Windows-1252 text needs no embedded font");
+  assert.doesNotMatch(plainPdf, /FontFile2/u);
+  const pdf = await renderScene(scene("Łódź Ελληνικά Кириллица"), "pdf");
+  const text = pdf.toString("latin1");
+  assert.match(text, /\/Subtype \/Type0 \/BaseFont \/BCAtlas\+LiberationSans /u);
+  assert.match(text, /\/FontFile2 \d+ 0 R/u);
+  assert.match(text, /\/ToUnicode \d+ 0 R/u, "copy and search see the real characters");
+  assert.match(text, /startxref\n\d+\n%%EOF\n$/u);
+});
+
+test("a closed group is one box, and its relations are bundled per kind with a count", async () => {
+  const { projection, scene: project } = await scene("project");
+  const services = project.groups.find(({ label }) => label === "Services");
+  const overview = collapseScene(project, new Set(project.groups.filter(({ key }) => key !== services.key).map(({ key }) => key)));
+  const box = overview.groups.find(({ bare }) => bare).nodes[0];
+  assert.equal(box.collapsed, services.key);
+  assert.match(box.label, new RegExp(`^Services\\n${services.nodes.length} objects\\n${services.nodes.length} codeunit$`, "u"));
+  const inner = new Set(services.nodes.map(({ path }) => path));
+  assert.ok(!overview.edges.some(({ from, to }) => inner.has(from) || inner.has(to)), "no route ends inside the closed group");
+  assert.ok(!overview.edges.some(({ from, to }) => from === box.path && to === box.path), "relations inside the group are not drawn");
+  const outgoing = project.edges.filter(({ from, to }) => inner.has(from) && !inner.has(to));
+  const bundled = overview.edges.filter(({ from }) => from === box.path);
+  assert.ok(bundled.length < outgoing.length || outgoing.length <= 1);
+  assert.equal(new Set(bundled.map(({ to, kind }) => `${to}|${kind}`)).size, bundled.length, "one route per target and kind");
+
+  const svg = await sceneToSvg(overview);
+  assert.match(svg, new RegExp(`class="node collapsed" data-node="collapsed\\.${services.key}" data-collapsed="${services.key}"`, "u"));
+
+  // Small views start open, large ones as the overview; files ask for every object.
+  assert.equal(startsCollapsed(project), false);
+  const all = prepareScene(projection.model, projection.renderOptions, { expand: "all" });
+  assert.equal(all.collapsed, false);
+  const none = prepareScene(projection.model, projection.renderOptions, { expand: "none" });
+  assert.equal(none.collapsed, true);
+  assert.equal(none.objects, 0);
+  assert.ok(none.groups.every(({ open }) => !open));
+  const one = prepareScene(projection.model, projection.renderOptions, { expand: `${services.key},unknown` });
+  assert.deepEqual(one.groups.filter(({ open }) => open).map(({ key }) => key), [services.key]);
+  assert.equal(one.objects, services.nodes.length);
+  assert.equal(sceneToD2(none.full), sceneToD2(all.full), "the D2 source always has every object");
+});
+
+test("a view with more than 120 objects starts as the overview of its groups", () => {
+  const groups = [0, 1].map((group) => ({ key: `g${group}`, label: `Group ${group}`, nodes: Array.from({ length: 61 }, (_, index) => ({ key: `n${index}`, path: `g${group}.n${index}`, type: "table", label: "table\nT", fill: "#fff", stroke: "#000" })) }));
+  assert.equal(startsCollapsed({ groups, edges: [] }), true);
+  assert.equal(startsCollapsed({ groups: [groups[0]], edges: [] }), false, "one group has nothing to close");
 });
