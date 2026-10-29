@@ -510,3 +510,166 @@ test("docs validate fails with exit code 1 on broken links", () => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+// Microsoft's convention: [FEATURE] list in OnRun, work item numbers in
+// [SCENARIO], [VERIFY], handlers, traps, asserterror, and helpers after the test.
+const MICROSOFT_UI_TEST = `codeunit 139768 "UT Page Deposit"
+{
+    Subtype = Test;
+
+    trigger OnRun()
+    begin
+        // [FEATURE] [Bank Deposit] [UI]
+    end;
+
+    [Test]
+    [HandlerFunctions('BatchesPageHandler,ConfirmYesHandler')]
+    procedure PostDepositOpensPostedDeposit()
+    var
+        Deposit: TestPage "Bank Deposit";
+        PostedDeposit: TestPage "Posted Bank Deposit";
+        Deposits: TestPage "Bank Deposits";
+    begin
+        // [FEATURE] [Posting]
+        // [SCENARIO 218101] Posting a deposit opens the posted deposit
+        // [SCENARIO 218101] with its lines
+        Initialize();
+
+        // [GIVEN] An open deposit
+        Deposits.OpenView();
+        Deposits.Filter.SetFilter("No.", 'D-001');
+        Deposits.First();
+
+        // [WHEN] Post the deposit
+        Deposit.OpenEdit();
+        Deposit.Subform."Credit Amount".SetValue(
+            100);
+        Deposit."Posting Date".Value := '';
+        asserterror Deposit."Document Date".SetValue('');
+        Deposit."Bank Account No.".Lookup();
+        PostedDeposit.Trap();
+        Deposit.Post.Invoke();
+
+        // [VERIFY] The posted deposit shows the lines
+        PostedDeposit.Subform.First();
+    end;
+
+    local procedure Initialize()
+    var
+        Leaked: TestPage "Leaked Page";
+    begin
+        // [THEN] This tag belongs to a helper, not to the test.
+        Leaked.OpenView();
+        Leaked.Close();
+    end;
+
+    [ModalPageHandler]
+    procedure BatchesPageHandler(var Batches: TestPage "General Journal Batches")
+    begin
+        Batches.OK().Invoke();
+    end;
+
+    [ConfirmHandler]
+    procedure ConfirmYesHandler(Question: Text; var Reply: Boolean)
+    begin
+        Reply := true;
+    end;
+
+    [Test]
+    procedure PostingDateIsRequired()
+    begin
+        // [SCENARIO 317751] A deposit cannot be posted without a posting date
+        // [THEN] An error is shown
+        Assert.ExpectedError('Posting Date must have a value.');
+    end;
+}
+`;
+
+test("reads Microsoft's test convention: work items, feature lists, handlers, traps, and attempts", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "UTPageDeposit.Codeunit.al");
+  try {
+    writeFileSync(filename, MICROSOFT_UI_TEST);
+    const corpus = await loadCorpus(directory);
+    // The test without UI steps is not a user guide.
+    assert.deepEqual(corpus.scenarios.map(({ value }) => value.procedure), ["PostDepositOpensPostedDeposit"]);
+    assert.deepEqual(corpus.skipped.map(({ procedure }) => procedure), ["PostingDateIsRequired"]);
+
+    const { value } = corpus.scenarios[0];
+    assert.equal(value.goal, "Posting a deposit opens the posted deposit with its lines");
+    assert.deepEqual(value.references, ["218101"]);
+    assert.deepEqual(value.features, ["Bank Deposit", "Posting"], "[UI] marks the test kind, not a feature");
+    assert.deepEqual(value.expected, ["The posted deposit shows the lines"], "[VERIFY] is an expected result");
+    // The helper after the test neither adds steps nor tags.
+    assert.ok(!value.sourceText.includes("Leaked"));
+    assert.ok(!value.expected.some((item) => item.includes("helper")));
+
+    const [section] = value.guideSections;
+    // Dialogs follow the action that opens a page (posting asks, then shows the posted document).
+    assert.deepEqual(section.operations.map((op) => op.kind), ["open", "set", "set", "set", "lookup", "invoke", "dialog", "confirm"]);
+    const [, amount, posting, documentDate, , post, dialog] = section.operations;
+    assert.equal(amount.value.value, "100", "a call spread over two lines");
+    assert.deepEqual(posting.value, { kind: "text", value: "" }, "Field.Value := sets a field");
+    assert.equal(documentDate.attempt, true, "asserterror marks an attempt that fails");
+    assert.equal(post.opens.name, "Posted Bank Deposit", "the trapped page opens after the action");
+    assert.equal(dialog.page.name, "General Journal Batches");
+    assert.deepEqual(dialog.steps.map((op) => op.kind), ["button"]);
+
+    // [GIVEN] stays a prerequisite; its filter and navigation are understood.
+    const markdown = renderDocumentation(corpus.scenarios[0]);
+    assert.match(markdown, /Posting a deposit opens the posted deposit with its lines\./u);
+    assert.doesNotMatch(markdown, /Use this guide to posting/u);
+    assert.match(markdown, /If the \*\*General Journal Batches\*\* page opens, do the following:\n {3}- Choose \*\*OK\*\*\./u);
+    assert.match(markdown, /If Business Central asks you to confirm, choose \*\*Yes\*\*\./u);
+    assert.match(markdown, /Clear the \*\*Posting Date\*\* field\./u);
+    assert.match(markdown, /Clear the \*\*Document Date\*\* field\. Business Central shows an error message\./u);
+    assert.match(markdown, /In the \*\*Bank Account No\.\*\* field, choose the lookup button/u);
+    assert.match(markdown, /Choose the \*\*Post\*\* action\. The \*\*Posted Bank Deposit\*\* page opens\./u);
+    assert.doesNotMatch(markdown, /\*\*\*\*/u, "no empty example values");
+
+    const testcase = renderDocumentation(corpus.scenarios[0], { mode: "testcase" });
+    assert.match(testcase, /\| If the \*\*General Journal Batches\*\* page opens, choose \*\*OK\*\*\. \|/u, "a dialog keeps its context in one row");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("filters, navigation, drill-downs, and pages opened by code become steps", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  const filename = path.join(directory, "Entries.Codeunit.al");
+  try {
+    writeFileSync(filename, `codeunit 50110 EntriesUITest
+{
+    Subtype = Test;
+
+    [Test]
+    procedure ReviewEntries()
+    var
+        Entries: TestPage "Ledger Entries";
+        Card: TestPage "Customer Card";
+    begin
+        // [SCENARIO] Review the ledger entries of a customer.
+        // [WHEN] The user filters and opens the entries.
+        Entries.Trap();
+        Page.Run(Page::"Ledger Entries");
+        Entries.Filter.SetFilter("Customer No.", 'C-10000');
+        Entries.Last();
+        Entries.Amount.Drilldown();
+        Card.OpenView();
+        Card."Search Name".AssistEdit();
+        Card.Cancel().Invoke();
+    end;
+}
+`);
+    const source = await loadAlUiTest(filename);
+    assert.deepEqual(source.value.guideOperations.map((op) => op.kind), ["opened", "filter", "navigate", "drilldown", "open", "assist-edit", "button"]);
+    const markdown = renderDocumentation(source);
+    assert.match(markdown, /1\. The \*\*Ledger Entries\*\* page opens\./u);
+    assert.match(markdown, /Filter the list: in the \*\*Customer No\.\*\* column, enter \*\*C-10000\*\*\./u);
+    assert.match(markdown, /Select the last line\./u);
+    assert.match(markdown, /Choose the value in the \*\*Amount\*\* field to see the underlying entries\./u);
+    assert.match(markdown, /Choose \*\*Cancel\*\*\./u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

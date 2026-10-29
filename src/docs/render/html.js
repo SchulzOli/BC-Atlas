@@ -58,7 +58,8 @@ function link(target) {
 function stepItem(step) {
   const info = step.info ? `<span class="info">${escapeXml(step.info)}</span>` : "";
   const nested = step.items?.length ? `<ol type="a">${step.items.map(stepItem).join("")}</ol>` : "";
-  return `<li>${html(step.cmd)}${info}${nested}</li>`;
+  const outcome = step.outcome ? ` ${html(step.outcome)}` : "";
+  return `<li>${html(step.cmd)}${outcome}${info}${nested}</li>`;
 }
 
 function prereqItem(item, language) {

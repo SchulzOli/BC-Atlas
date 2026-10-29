@@ -36,7 +36,8 @@ export const DOCUMENTATION_TAGS = Object.freeze({
   THEN: {
     cardinality: "many",
     value: "sentence",
-    description: "States the observable result that confirms the workflow completed successfully."
+    description: "States the observable result that confirms the workflow completed successfully.",
+    aliases: ["VERIFY"]
   },
   TEARDOWN: {
     cardinality: "many",

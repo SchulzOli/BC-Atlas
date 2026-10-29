@@ -16,6 +16,10 @@ import { operationStep } from "./steps.js";
 
 export const LINK_KINDS = ["next", "related", "alternative"];
 
+// Sentences that start like an instruction ("Create a sales order").
+const IMPERATIVE = /^(?:add|apply|approve|archive|assign|block|calculate|cancel|change|check|close|complete|configure|confirm|convert|copy|correct|create|define|delete|edit|enable|disable|enter|export|fill|filter|find|generate|get|import|insert|invoice|issue|link|look|make|manage|mark|modify|move|navigate|open|pick|post|preview|print|process|put|receive|record|register|release|remove|rename|reopen|replace|request|reverse|review|run|save|schedule|select|send|set|ship|show|sign|split|start|submit|suggest|transfer|unblock|update|use|validate|verify|view)\b/iu;
+const imperative = (sentence) => IMPERATIVE.test(String(sentence).trim());
+
 function isEnglish(language) {
   return String(language ?? "en").toLowerCase().startsWith("en");
 }
@@ -115,13 +119,18 @@ export function buildTask(scenario, context = {}) {
     language,
     title,
     goal,
-    shortdesc: phrase(language, "label.goal", {
-      goal: (english ? goal.replace(/^\p{Lu}(?!\p{Lu})/u, (letter) => letter.toLowerCase()) : goal).replace(/\.$/u, "")
-    }),
+    // "Use this guide to create ..." needs an instruction; a statement such
+    // as "Users can post ..." (Microsoft's style) stands as it is.
+    shortdesc: english && !imperative(goal)
+      ? [goal.replace(/[.\s]*$/u, ".")]
+      : phrase(language, "label.goal", {
+        goal: (english ? goal.replace(/^\p{Lu}(?!\p{Lu})/u, (letter) => letter.toLowerCase()) : goal).replace(/\.$/u, "")
+      }),
     features: value.features ?? [],
     permissions: value.permissions,
     prereqs,
-    examples: steps.some((step) => step.example || step.items?.some((item) => item.example)) || value.hasExampleValues,
+    // Only the documented steps count: example values in [GIVEN] setup are never shown.
+    examples: steps.some((step) => step.example || step.items?.some((item) => item.example || item.items?.some((nested) => nested.example))),
     steps,
     result: expected,
     links: Object.fromEntries(LINK_KINDS.map((kind) => [kind, (value.links?.[kind] ?? []).map((id) => linkTarget(id, { ...context, language }))])),
