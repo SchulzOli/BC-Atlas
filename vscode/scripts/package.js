@@ -42,8 +42,7 @@ writeFileSync(path.join(stage, "package.json"), `${JSON.stringify({ ...staged, d
 const bundled = (dependencies) => ({ ...staged, main: "./dist/extension.js", dependencies });
 
 // 3. Production dependencies, bundled into the engine entries; what stays in
-// node_modules loads files relative to itself. The explorer inlines
-// 3d-force-graph's prebuilt browser bundle, and D2 needs only its Node ESM build.
+// node_modules loads files relative to itself. D2 needs only its Node ESM build.
 run(npm, ["install", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund"], stage);
 
 async function main() {
@@ -55,8 +54,6 @@ async function main() {
     "**/*.map",
     "**/*.d.ts",
     "**/*.d.cts",
-    "node_modules/3d-force-graph/example/**",
-    "node_modules/3d-force-graph/dist/3d-force-graph.js",
     "node_modules/@terrastruct/d2/dist/browser/**",
     "node_modules/@terrastruct/d2/dist/node-cjs/**",
     "node_modules/web-tree-sitter/debug/**",

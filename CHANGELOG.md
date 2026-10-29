@@ -4,6 +4,26 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- Dependency explorer: without an architecture, objects are colored and
+  grouped by their relation clusters (the clustering of the architecture
+  proposal) instead of one color per app. Clusters float like galaxies
+  around their app candidate and their app, clusters of one app candidate
+  share a family of colors, each cluster shows its name at its center, links
+  inside a cluster take its color, and links between groups are faint arcs.
+  Labels that would overlap a more important one are hidden. On a dark
+  background the graph glows (**Glow** turns it off); dense graphs get
+  fainter links and less glow.
+- The graph document (`bca export --view explorer --format json`) carries
+  the clusters: `clusters` with name, size, and app candidate, and `cluster`
+  on every workspace object.
+- The explorer's browser bundle (3d-force-graph with three.js and its bloom
+  pass) is built into `vendor/graph-viewer.js` (`npm run update:graph-vendor`);
+  3d-force-graph is no longer installed with the package.
+
 ## 0.10.0 - 2026-10-29
 
 The npm package skips 0.9.0 so it shares its version with the VS Code

@@ -28,8 +28,9 @@ executable for PNG and PDF output.
 authors. Both licensed under the MIT License. Sources:
 <https://github.com/vasturiano/3d-force-graph>, <https://github.com/mrdoob/three.js>
 
-The 3d-force-graph browser bundle, which includes three.js, is embedded in the
-explorer HTML files written by `bca export` and shown by the VS Code extension.
+A browser bundle of 3d-force-graph and three.js (including its bloom pass),
+`vendor/graph-viewer.js`, is embedded in the explorer HTML files written by
+`bca export` and shown by the VS Code extension.
 
 ## graphology
 
