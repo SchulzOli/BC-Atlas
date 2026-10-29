@@ -1,10 +1,12 @@
 // A laid-out diagram (layout.js) as a one-page vector PDF: boxes, routes,
 // and text drawn with Helvetica, whose widths match the layout's metrics
-// (Liberation Sans). No fonts are embedded; text outside Windows-1252 shows
-// as "?". Source links become clickable areas.
+// (Liberation Sans). Text outside Windows-1252 (Greek, Cyrillic, Polish, ...)
+// makes the PDF embed Liberation Sans instead. Source links become
+// clickable areas.
 import { deflateSync } from "node:zlib";
 import { STYLE } from "./layout.js";
 import { arrowHead, dashPattern, routeCommands } from "./geometry.js";
+import { embeddedFont } from "./pdf-font.js";
 import { textWidth } from "./text.js";
 
 // Most PDF viewers refuse pages larger than 200 inches.
@@ -25,6 +27,8 @@ const CP1252 = new Map([[0x20ac, 0x80], [0x201a, 0x82], [0x192, 0x83], [0x201e, 
   [0x201c, 0x93], [0x201d, 0x94], [0x2022, 0x95], [0x2013, 0x96], [0x2014, 0x97], [0x2dc, 0x98], [0x2122, 0x99], [0x161, 0x9a],
   [0x203a, 0x9b], [0x153, 0x9c], [0x17e, 0x9e], [0x178, 0x9f]]);
 
+const encodable = (code) => code < 0x80 || (code >= 0xa0 && code <= 0xff) || CP1252.has(code);
+
 function pdfString(text) {
   let out = "";
   for (const character of String(text)) {
@@ -37,7 +41,10 @@ function pdfString(text) {
 }
 
 class Canvas {
-  constructor() { this.ops = []; }
+  constructor(encode) {
+    this.ops = [];
+    this.encode = encode;
+  }
   fill(color) { this.ops.push(`${rgb(color)} rg`); return this; }
   stroke(color, width = 1, dash) {
     this.ops.push(`${rgb(color)} RG ${number(width)} w ${dash ? `[${dash.map(number).join(" ")}] 0 d` : "[] 0 d"}`);
@@ -84,7 +91,7 @@ class Canvas {
   // The page is flipped (y grows downward), so text is flipped back.
   text(value, x, y, size, { bold = false, color = STYLE.text, anchor = "start" } = {}) {
     const left = anchor === "middle" ? x - textWidth(value, size, { bold }) / 2 : x;
-    this.ops.push(`BT ${rgb(color)} rg /${bold ? "F2" : "F1"} ${number(size)} Tf 1 0 0 -1 ${number(left)} ${number(y)} Tm ${pdfString(value)} Tj ET`);
+    this.ops.push(`BT ${rgb(color)} rg /${bold ? "F2" : "F1"} ${number(size)} Tf 1 0 0 -1 ${number(left)} ${number(y)} Tm ${this.encode(value, bold)} Tj ET`);
     return this;
   }
 }
@@ -98,8 +105,21 @@ function drawNodeText(canvas, node) {
 }
 
 /** The drawing as PDF bytes. */
+/** Every text the drawing shows, to decide whether Helvetica can show it. */
+function texts(drawing) {
+  return [
+    drawing.title?.text, drawing.empty?.text,
+    ...drawing.groups.map(({ label }) => label),
+    ...drawing.edges.filter(({ labelBox }) => labelBox).map(({ label }) => label),
+    ...drawing.nodes.flatMap(({ lines }) => lines.map(({ text }) => text)),
+    ...(drawing.legend ? [...drawing.legend.rows.flat().map(({ kind }) => kind), ...drawing.legend.notes] : [])
+  ].filter(Boolean);
+}
+
 export function drawingToPdf(drawing, { title } = {}) {
-  const canvas = new Canvas();
+  const embed = texts(drawing).some((text) => [...text].some((character) => !encodable(character.codePointAt(0))));
+  const fonts = embed ? { regular: embeddedFont("regular"), bold: embeddedFont("bold") } : undefined;
+  const canvas = new Canvas(embed ? (text, bold) => fonts[bold ? "bold" : "regular"].encode(text) : (text) => pdfString(text));
   const scale = Math.min(1, MAX_PAGE / Math.max(drawing.width, drawing.height));
   const pageWidth = drawing.width * scale;
   const pageHeight = drawing.height * scale;
@@ -152,23 +172,29 @@ export function drawingToPdf(drawing, { title } = {}) {
     const [y1, y2] = [pageHeight - (node.y + node.height) * scale, pageHeight - node.y * scale];
     return `<< /Type /Annot /Subtype /Link /Rect [${[x1, y1, x2, y2].map(number).join(" ")}] /Border [0 0 0] /A << /S /URI /URI ${pdfString(node.link)} >> >>`;
   });
+  // Objects 5 and 6 are the fonts; an embedded font brings four more objects each, after the annotations.
+  const next = 8 + annotations.length;
+  const fontObjects = embed
+    ? [...fonts.regular.objects([5, next, next + 1, next + 2, next + 3], "LiberationSans"), ...fonts.bold.objects([6, next + 4, next + 5, next + 6, next + 7], "LiberationSans-Bold")]
+    : [];
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
     `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${number(pageWidth)} ${number(pageHeight)}] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R${annotations.length ? ` /Annots [${annotations.map((_, index) => `${8 + index} 0 R`).join(" ")}]` : ""} >>`,
-    content,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
+    { stream: content },
+    embed ? fontObjects[0] : "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+    embed ? fontObjects[5] : "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
     `<< /Producer (BC Atlas)${title ?? drawing.title ? ` /Title ${pdfString(title ?? drawing.title.text)}` : ""} >>`,
-    ...annotations
+    ...annotations,
+    ...(embed ? [...fontObjects.slice(1, 5), ...fontObjects.slice(6, 10)] : [])
   ];
   const chunks = [Buffer.from("%PDF-1.4\n%\xe2\xe3\xcf\xd3\n", "latin1")];
   const offsets = [];
   let length = chunks[0].length;
   objects.forEach((object, index) => {
     offsets.push(length);
-    const body = Buffer.isBuffer(object)
-      ? Buffer.concat([Buffer.from(`${index + 1} 0 obj\n<< /Length ${object.length} /Filter /FlateDecode >>\nstream\n`, "latin1"), object, Buffer.from("\nendstream\nendobj\n", "latin1")])
+    const body = typeof object === "object"
+      ? Buffer.concat([Buffer.from(`${index + 1} 0 obj\n<< /Length ${object.stream.length} /Filter /FlateDecode${object.extra ? ` ${object.extra}` : ""} >>\nstream\n`, "latin1"), object.stream, Buffer.from("\nendstream\nendobj\n", "latin1")])
       : Buffer.from(`${index + 1} 0 obj\n${object}\nendobj\n`, "latin1");
     chunks.push(body);
     length += body.length;

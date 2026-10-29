@@ -57,6 +57,5 @@ The documentation website hosts both examples as exported apps:
 [warehouse](https://schulzoli.github.io/BC-Atlas/examples/app/html/warehouse-app.html)
 and [multi-app](https://schulzoli.github.io/BC-Atlas/examples/app/html/multi-app.html).
 
-The PNG images in `docs/generated/images` are browser captures of these SVG
-outputs at a consistent viewport. Regenerate the SVG files first whenever view
-rendering changes.
+The diagram images in `docs/generated/images` are PNG renderings of these SVG
+files; `npm run examples` writes both.

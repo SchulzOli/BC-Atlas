@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadCaptionIndex, parseXliff } from "../src/docs/captions.js";
 import { exportDocumentation } from "../src/docs/export.js";
+import { renderAzureDevOpsCsv } from "../src/docs/render/csv.js";
 import { loadCorpus } from "../src/docs/model.js";
 
 const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
@@ -321,4 +322,11 @@ test("docs generate validates export options", () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("the test-case CSV keeps cells that look like formulas as text", () => {
+  const task = { title: "=HYPERLINK(\"http://x\")", features: ["+tag"], prereqs: [], steps: [{ cmd: ["@SUM(A1)"], expected: ["-1"] }], result: [], language: "en-US" };
+  const lines = renderAzureDevOpsCsv({ tasks: [task] }).replace(/^\uFEFF/u, "").trim().split("\r\n");
+  assert.equal(lines[1], `,Test Case,"'=HYPERLINK(""http://x"")",,,,,,Design,'+tag`);
+  assert.equal(lines[2], ",,,1,'@SUM(A1),'-1,,,,");
 });

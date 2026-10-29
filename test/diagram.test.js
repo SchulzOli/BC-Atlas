@@ -107,3 +107,16 @@ test("bca export writes SVG, PNG, and PDF with the D2 source next to them", () =
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("a PDF embeds its font only for text Helvetica cannot show", async () => {
+  const scene = (name) => ({ direction: "right", title: "Fonts", groups: [{ key: "g0", label: "Group", dash: 3, nodes: [{ key: "n0", path: "g0.n0", label: `codeunit 1\n${name}`, fill: "#FFF0D6", stroke: "#A96300" }] }], edges: [], omitted: 0 });
+  const plainPdf = (await renderScene(scene("Größe – €"), "pdf")).toString("latin1");
+  assert.match(plainPdf, /\/BaseFont \/Helvetica /u, "Windows-1252 text needs no embedded font");
+  assert.doesNotMatch(plainPdf, /FontFile2/u);
+  const pdf = await renderScene(scene("Łódź Ελληνικά Кириллица"), "pdf");
+  const text = pdf.toString("latin1");
+  assert.match(text, /\/Subtype \/Type0 \/BaseFont \/BCAtlas\+LiberationSans /u);
+  assert.match(text, /\/FontFile2 \d+ 0 R/u);
+  assert.match(text, /\/ToUnicode \d+ 0 R/u, "copy and search see the real characters");
+  assert.match(text, /startxref\n\d+\n%%EOF\n$/u);
+});
