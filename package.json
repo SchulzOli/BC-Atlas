@@ -38,7 +38,8 @@
     "site:build": "vitepress build website && node ./scripts/site-assets.js",
     "site:preview": "vitepress preview website",
     "version:set": "node ./scripts/set-version.js",
-    "update:graph-vendor": "node ./scripts/build-graph-vendor.js"
+    "update:graph-vendor": "node ./scripts/build-graph-vendor.js",
+    "update:font-metrics": "node ./scripts/build-font-metrics.js"
   },
   "keywords": [
     "al",
@@ -62,7 +63,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.4.0",
-    "@terrastruct/d2": "^0.1.33",
+    "@resvg/resvg-wasm": "^2.6.2",
+    "elkjs": "^0.12.1",
     "fflate": "^0.8.3",
     "graphology": "^0.26.0",
     "graphology-communities-louvain": "^2.0.2",
@@ -71,10 +73,11 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "3d-force-graph": "^1.80.0",
     "@modelcontextprotocol/client": "^2.4.0",
+    "3d-force-graph": "^1.80.0",
     "bpmn-moddle": "^10.3.1",
     "esbuild": "^0.28.2",
+    "opentype.js": "^2.0.0",
     "three": "^0.186.1",
     "vitepress": "2.0.0-alpha.20"
   }

@@ -129,19 +129,31 @@ function diagram(svg) {
   return svg ? `<div class="diagram">${svg}</div>` : "";
 }
 
-function article(task, mode, flow) {
+/** One scenario as a guide or test case, with its flow. */
+export function articleHtml(task, mode, flow, { heading = true } = {}) {
   const { language } = task;
   const search = [task.id, task.title, task.goal, ...task.features, ...task.permissions].join(" ").toLowerCase();
   const chips = task.features.length ? `<p class="chips">${task.features.map((feature) => `<span>${escapeXml(humanizeFeature(feature))}</span>`).join("")}</p>` : "";
   return `<article id="${escapeXml(task.id)}" data-search="${escapeXml(search)}">
-<h2>${mode === "testcase" ? `${escapeXml(label(language, "testcase.title", { id: task.id }))}: ` : ""}${escapeXml(task.title)}</h2>
-${chips}${mode === "testcase" ? "" : `<p class="short">${html(task.shortdesc)}</p>`}
+${heading ? `<h2>${mode === "testcase" ? `${escapeXml(label(language, "testcase.title", { id: task.id }))}: ` : ""}${escapeXml(task.title)}</h2>\n` : ""}${chips}${mode === "testcase" ? "" : `<p class="short">${html(task.shortdesc)}</p>`}
 ${diagram(flow)}
 ${mode === "testcase" ? testCaseBody(task) : guideBody(task)}
 <details><summary>${label(language, "heading.source")}</summary>
 ${label(language, "label.file")}: <code>${escapeXml(task.source.file)}</code> · ${label(language, "label.function")}: <code>${escapeXml(task.source.procedure)}</code> · ${label(language, "label.hash")}: <code>${escapeXml(task.source.hash)}</code>
 </details>
 </article>`;
+}
+
+/** A use case: its process, main scenarios, and alternatives; heading is the tag of its title. */
+export function useCaseHtml(useCase, catalog, processSvg, { heading = "h3" } = {}) {
+  const t = (key, values) => label(catalog.language, key, values);
+  const parts = [`${heading ? `<${heading} id="${escapeXml(useCase.id)}">${escapeXml(useCase.title)}</${heading}>` : ""}${diagram(processSvg)}<ol>${useCase.main.map((task) =>
+    `<li>${link({ ...task, exists: true })}${sameAsTitle(task) ? "" : ` <span class="muted">${escapeXml(task.goal)}</span>`}</li>`).join("")}</ol>`];
+  if (useCase.alternatives.length) {
+    parts.push(`<p class="muted">${t("heading.alternatives")}</p><ul>${useCase.alternatives.map((task) =>
+      `<li>${link({ ...task, exists: true })}</li>`).join("")}</ul>`);
+  }
+  return parts.join("\n");
 }
 
 function overview(catalog, journeySvg, processes) {
@@ -151,15 +163,18 @@ function overview(catalog, journeySvg, processes) {
   const named = catalog.useCases.filter(({ feature }) => feature);
   if (named.length) {
     parts.push(`<h2>${t("heading.use-cases")}</h2>`);
-    for (const useCase of catalog.useCases) {
-      parts.push(`<h3 id="${escapeXml(useCase.id)}">${escapeXml(useCase.title)}</h3>${diagram(processes?.get(useCase.id))}<ol>${useCase.main.map((task) =>
-        `<li>${link({ ...task, exists: true })}${sameAsTitle(task) ? "" : ` <span class="muted">${escapeXml(task.goal)}</span>`}</li>`).join("")}</ol>`);
-      if (useCase.alternatives.length) {
-        parts.push(`<p class="muted">${t("heading.alternatives")}</p><ul>${useCase.alternatives.map((task) =>
-          `<li>${link({ ...task, exists: true })}</li>`).join("")}</ul>`);
-      }
-    }
+    for (const useCase of catalog.useCases) parts.push(useCaseHtml(useCase, catalog, processes?.get(useCase.id)));
   }
+  parts.push(indexHtml(catalog, journeySvg));
+  parts.push("</section>");
+  return parts.join("\n");
+}
+
+/** The journey across use cases, the scenarios by page and permission set, and the page coverage. */
+export function indexHtml(catalog, journeySvg) {
+  const { language } = catalog;
+  const t = (key, values) => label(language, key, values);
+  const parts = [];
   if (journeySvg) parts.push(`<h2>${t("heading.journey")}</h2><div class="journey">${journeySvg}</div>`);
   const table = (heading, rows) => rows.length
     ? `<h2>${heading}</h2><table><tbody>${rows.map(({ name, tasks }) =>
@@ -178,7 +193,6 @@ function overview(catalog, journeySvg, processes) {
         `<li>${escapeXml(page)}: ${escapeXml(action)}</li>`).join("")}</ul>`);
     }
   }
-  parts.push("</section>");
   return parts.join("\n");
 }
 
@@ -209,7 +223,7 @@ ${navUseCases.length ? `<h2>${t("heading.use-cases")}</h2><ul>${catalog.useCases
 <main>
 <p class="muted">${escapeXml(t("label.generated"))}</p>
 ${overview(catalog, svg, processes)}
-${catalog.tasks.map((task) => article(task, mode, flows?.get(task.id))).join("\n")}
+${catalog.tasks.map((task) => articleHtml(task, mode, flows?.get(task.id))).join("\n")}
 </main>
 </div>
 <script>${SCRIPT}</script>

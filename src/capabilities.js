@@ -425,7 +425,7 @@ export function createCapabilities(version) {
           "object view requires --object; boundary view requires at least one --scope; workflow view requires --entry",
           "A diagram view with --format json and no --output prints the resolved model to stdout",
           "--history needs Git; without it the explorer replays the build order (dependencies first)",
-          "PNG and PDF need the d2 executable on PATH; SVG uses the bundled renderer"
+          "SVG, PNG, and PDF are drawn by BC Atlas itself; every drawing writes its D2 source next to it"
         ],
         examples: [
           "bca export ./app -o atlas.html",

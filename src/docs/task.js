@@ -269,6 +269,47 @@ export function clickCount(task) {
   return task.steps.reduce((count, step) => count + (step.phase ? step.items.length : 1), 0);
 }
 
+// The journey between scenarios, grouped by use case: [NEXT] and [REQUIRES]
+// read as one flow, alternatives and related guides as their own links.
+function journeyGraph(catalog) {
+  const { language } = catalog;
+  const linked = new Set(catalog.journey.flatMap(({ from, to }) => [from, to]));
+  const owner = new Map();
+  const useCases = [];
+  for (const useCase of catalog.useCases) {
+    const members = [...useCase.main, ...useCase.alternatives].filter(({ id }) => linked.has(id) && !owner.has(id));
+    if (!members.length) continue;
+    useCases.push({
+      id: useCase.id,
+      title: useCase.title,
+      tasks: members.map((task) => {
+        owner.set(task.id, useCase.id);
+        const count = clickCount(task);
+        const details = [
+          task.permissions.join(", ") || label(language, "process.user"),
+          count === 1 ? label(language, "process.step") : label(language, "process.steps", { count: String(count) })
+        ].join(" · ");
+        return { id: task.id, title: task.title, details };
+      })
+    });
+  }
+  const seen = new Set();
+  const edges = [];
+  const edge = (from, to, kind, text) => {
+    const key = kind === "flow" ? `${from}\u0000${to}` : [from, to].sort().join("\u0000");
+    if (seen.has(`${kind}\u0000${key}`)) return;
+    seen.add(`${kind}\u0000${key}`);
+    edges.push({ from, to, kind, text });
+  };
+  for (const { from, to, kind } of catalog.journey) {
+    if (kind === "next") edge(from, to, "flow");
+    else if (kind === "requires") edge(to, from, "flow");
+    else if (kind === "alternative") edge(from, to, "alternative", label(language, "journey.alternative"));
+    else edge(from, to, "related", label(language, "journey.related"));
+  }
+  return { useCases, owner, edges };
+}
+
 /**
  * D2 source for the journey between scenarios, grouped by use case. Every
  * scenario is a card with its permission set and number of steps; [NEXT] and
@@ -277,9 +318,7 @@ export function clickCount(task) {
  */
 export function journeyD2(catalog) {
   if (!catalog.journey.length) return undefined;
-  const { language } = catalog;
   const quote = (value) => `"${String(value).replaceAll("\\", "\\\\").replaceAll("\"", "\\\"").replace(/\r?\n/gu, "\\n")}"`;
-  const linked = new Set(catalog.journey.flatMap(({ from, to }) => [from, to]));
   const lines = [
     "direction: right",
     "classes: {",
@@ -291,36 +330,39 @@ export function journeyD2(catalog) {
     "}",
     ""
   ];
-  const owner = new Map();
-  for (const useCase of catalog.useCases) {
-    const members = [...useCase.main, ...useCase.alternatives].filter(({ id }) => linked.has(id) && !owner.has(id));
-    if (!members.length) continue;
+  const { useCases, owner, edges } = journeyGraph(catalog);
+  for (const useCase of useCases) {
     lines.push(`${quote(useCase.id)}: ${quote(useCase.title)} {`, "  class: use-case");
-    for (const task of members) {
-      owner.set(task.id, useCase.id);
-      const count = clickCount(task);
-      const details = [
-        task.permissions.join(", ") || label(language, "process.user"),
-        count === 1 ? label(language, "process.step") : label(language, "process.steps", { count: String(count) })
-      ].join(" · ");
-      lines.push(`  ${quote(task.id)}: ${quote(`${task.title}\n${details}`)} { class: scenario }`);
-    }
+    for (const task of useCase.tasks) lines.push(`  ${quote(task.id)}: ${quote(`${task.title}\n${task.details}`)} { class: scenario }`);
     lines.push("}", "");
   }
   const ref = (id) => (owner.has(id) ? `${quote(owner.get(id))}.${quote(id)}` : quote(id));
-  const seen = new Set();
-  const edge = (from, to, kind, text) => {
-    const key = kind === "flow" ? `${from}\u0000${to}` : [from, to].sort().join("\u0000");
-    if (seen.has(`${kind}\u0000${key}`)) return;
-    seen.add(`${kind}\u0000${key}`);
-    const arrow = kind === "flow" ? "->" : "--";
-    lines.push(`${ref(from)} ${arrow} ${ref(to)}${text ? `: ${quote(text)}` : ""} { class: ${kind} }`);
-  };
-  for (const { from, to, kind } of catalog.journey) {
-    if (kind === "next") edge(from, to, "flow");
-    else if (kind === "requires") edge(to, from, "flow");
-    else if (kind === "alternative") edge(from, to, "alternative", label(language, "journey.alternative"));
-    else edge(from, to, "related", label(language, "journey.related"));
+  for (const { from, to, kind, text } of edges) {
+    lines.push(`${ref(from)} ${kind === "flow" ? "->" : "--"} ${ref(to)}${text ? `: ${quote(text)}` : ""} { class: ${kind} }`);
   }
   return `${lines.join("\n")}\n`;
+}
+
+const JOURNEY_EDGES = {
+  flow: { color: "#0b62d6", width: 2, arrow: "->" },
+  alternative: { color: "#e09400", width: 2, dash: 5, arrow: "none" },
+  related: { color: "#9aa4b0", dash: 3, arrow: "none" }
+};
+
+/** The journey as a diagram scene (see buildScene in ../d2.js), for the SVG renderer. */
+export function journeyScene(catalog) {
+  if (!catalog.journey.length) return undefined;
+  const { useCases, owner, edges } = journeyGraph(catalog);
+  const tasks = new Map(catalog.tasks.map((task) => [task.id, task]));
+  const path = (id) => (owner.has(id) ? `${owner.get(id)}.${id}` : `loose.${id}`);
+  const node = (id, title, details) => ({ key: id, path: path(id), label: details ? `${title}\n${details}` : title, titleFirst: true, fill: "#eef4fd", stroke: "#0b62d6", strokeWidth: 2 });
+  const groups = useCases.map((useCase) => ({ key: useCase.id, label: useCase.title, nodes: useCase.tasks.map((task) => node(task.id, task.title, task.details)) }));
+  const loose = [...new Set(edges.flatMap(({ from, to }) => [from, to]))].filter((id) => !owner.has(id));
+  if (loose.length) groups.push({ key: "loose", label: "", bare: true, nodes: loose.map((id) => node(id, tasks.get(id)?.title ?? id)) });
+  return {
+    direction: "right",
+    groups,
+    edges: edges.map(({ from, to, kind, text }) => ({ from: path(from), to: path(to), kind, label: text, ...JOURNEY_EDGES[kind] })),
+    omitted: 0
+  };
 }

@@ -23,10 +23,18 @@ itself has no second navigation.
 | Health | Every finding, filterable by severity, linked to its object. | `bca check` |
 | Architecture | The configured architecture or a proposal: components in layers, work items with the steps to resolve them, data ownership, checks, the plan to extract a component as an app, components with Martin metrics, and objects that belong elsewhere. | `bca architecture` |
 | Dependencies | The 3D dependency explorer: objects, modules, apps, and components; inside one app vs. across apps; a timeline by commit, pull request, or release. | `bca export --view explorer` |
-| Diagrams | Every diagram view with zoom and pan; **SVG** and **D2** save the file. | `bca export --view <view>` |
+| Diagrams | Every diagram view with zoom and pan: hover an object to light up its relations, click it to open its page, find objects by name, and click the legend to hide a kind of relation; **SVG**, **PNG**, and **D2** save the file. | `bca export --view <view>` |
 | Objects | Every AL object, searchable and sortable, filtered by type, app, component, or violations. | |
 | Object | One object: what it uses and what uses it, its wrong-way dependencies with steps to resolve them, fields, procedures, actions, and properties. **Open source** opens the file at the declaration; a procedure opens at its line. | `bca export --view object --object <selector>` |
-| Docs | The guides from your AL UI tests, when the project has documented UI tests. | `bca docs generate --export html` |
+| Docs | The guides from your AL UI tests, when the project has documented UI tests: the overview, every use case with its process, and every scenario, as a user guide or a test case, in English or German. **Open test** opens the AL test; **Markdown**, **DITA**, **BPMN**, and **SVG** save the page, **All as HTML** the whole documentation. | `bca docs generate` |
+
+Diagrams and Docs work the same way: on the left, a list of the views or of
+the use cases and scenarios, with a filter and the settings below it; on the
+right, the selected one with its tools. `J` and `K` (or `Alt+↓` and `Alt+↑`)
+step through the list, **‹** and **›** too, and **Enter** in the filter opens
+the first match. Settings apply at once; a typed value (an object, a scope, an
+entry point) with **Apply** or **Enter**. The address keeps the selection and
+the settings, so the back button and a copied link return to the same view.
 
 The panel takes its design from your VS Code color theme: background,
 text, borders, accent, selection, error and warning colors, and the editor's
@@ -179,9 +187,10 @@ npm run package      # bc-atlas-<version>.vsix with the engine inside
 extension, and bundles both with esbuild: the extension becomes
 `dist/extension.js`, and each engine entry it starts (the analysis worker, the
 panel page, the CLI, the MCP server) becomes one file with its dependencies.
-Only D2, web-tree-sitter, and the 3D explorer's browser bundle stay packages,
-because they load their WebAssembly and worker files from next to themselves.
-The `.vsix` holds about 50 files.
+Only resvg and web-tree-sitter stay packages, because they load their
+WebAssembly from next to themselves; the 3D explorer's browser bundle and the
+diagram font are in the engine's `vendor/` folder. The `.vsix` holds about 45
+files.
 
 ```sh
 unzip -q bc-atlas-<version>.vsix -d .packaged

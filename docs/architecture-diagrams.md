@@ -3,8 +3,8 @@
 Use a view that answers one question. Large all-purpose diagrams become difficult to read.
 
 The fastest way to look at every view is the Diagrams page of the BC Atlas
-panel in [VS Code](./vscode.md): pick a view, set its options, zoom, and save
-the SVG. The
+panel in [VS Code](./vscode.md): pick a view from the list, set its options,
+zoom, click an object to open its page, and save the SVG, PNG, or D2 source. The
 commands below write the same diagrams as files. For a first overview in your
 repository, `bca export --view report` renders the project, module, data,
 contracts, events, and UI views into one Markdown page. See
@@ -47,7 +47,7 @@ boundaries on procedures and owning objects. Runtime access occurrences include
 their transaction segment. This is static evidence about explicit commits; it
 does not claim to model implicit runtime transaction starts, ends, or rollbacks.
 
-In D2 and SVG output, hover an access edge to see its operation names, source
+In SVG output and on the Diagrams page, hover an access edge to see its operation names, source
 procedures, relation class, transaction segments, and cardinality evidence.
 
 ## Read permissions

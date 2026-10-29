@@ -79,7 +79,7 @@ outgoing dependencies, and parser diagnostics.
 | Health | Every finding of `bca check`: cycles, forbidden dependencies, architecture violations, hot spots, diagnostics. |
 | Architecture | The configured architecture or a proposal: components in layers, wrong-way dependencies as work items, metrics per component. |
 | Dependencies | The 3D explorer: objects, modules, apps, and components; inside one app vs. across apps; replayed by commit, pull request, or release. |
-| Diagrams | Ten diagram views (project, module, object, data, call, boundary, contracts, events, ui, workflow) with zoom and pan; save as SVG or D2. |
+| Diagrams | Ten diagram views (project, module, object, data, call, boundary, contracts, events, ui, workflow) with zoom and pan; hover an object for its relations, click it to open it, find objects by name; save as SVG, PNG, or D2. |
 | Objects | Every AL object, searchable, with a page per object. |
 | Docs | User guides from your AL UI tests, when the project has them. |
 
@@ -155,5 +155,6 @@ from BCApps, with an architecture proposed by folder.
 
 ## License
 
-MIT. BC Atlas bundles `tree-sitter-al` and `web-tree-sitter` (MIT), D2
-(MPL-2.0), and 3d-force-graph with three.js (MIT).
+MIT. BC Atlas bundles `tree-sitter-al` and `web-tree-sitter` (MIT), elkjs
+(EPL-2.0), resvg (MPL-2.0), Liberation Sans (OFL-1.1), and 3d-force-graph with
+three.js (MIT).

@@ -19,9 +19,10 @@ const esbuild = require("esbuild");
 const ENGINE_ENTRIES = ["src/cli.js", "src/mcp.js", "src/app/worker.js", "src/app/page.js", "src/update-worker.js"];
 // Browser scripts and styles the engine inlines into pages; they are read, not imported.
 const ENGINE_ASSETS = ["src/app/ui/", "src/graph/viewer/", "src/ui/"];
-// Load files relative to themselves (D2's worker and wasm, tree-sitter's wasm),
-// so they stay as they are. The 3D explorer's browser bundle is in vendor/.
-const EXTERNAL = ["@terrastruct/d2", "web-tree-sitter"];
+// Load files relative to themselves (the wasm of resvg and tree-sitter), so
+// they stay as they are. The 3D explorer's browser bundle and the diagram
+// font are in vendor/.
+const EXTERNAL = ["@resvg/resvg-wasm", "web-tree-sitter"];
 
 const toPosix = (value) => value.split(path.sep).join("/");
 

@@ -344,8 +344,9 @@ bca export ./app --view catalog -o docs/codegraph
 
 - A diagram view with `--format json` and no `--output` prints the resolved
   model to stdout (progress goes to stderr), for scripts.
-- D2, JSON, and SVG use bundled functionality; PNG and PDF require the `d2`
-  executable on `PATH`.
+- BC Atlas draws SVG, PNG, and PDF itself (ELK layout; no browser and no `d2`
+  executable). Views with more than 1,500 objects are written as D2 source
+  only.
 - If `--format` conflicts with the extension, the format wins:
   `-o calls.d2 --format svg` writes `calls.svg` and keeps `calls.d2`.
 - Rendered diagrams always keep the generated `.d2` source next to them.
@@ -635,8 +636,6 @@ Configuration-only settings:
 | Property | Description |
 | --- | --- |
 | `roleMappings` | Maps a role label to object globs (type, `type:name`, `namespace:type:name`, or file path). First match wins. |
-| `layout` | D2 layout engine: `dagre` or `elk` for SVG; any D2 layout for PNG/PDF. |
-| `theme` | D2 theme ID. |
 | `forbiddenDependencies` | Dependency policy rules; see [Configuration](./configuration.md#check-dependency-rules). |
 | `workflow` | Workflow defaults: `entries`, `depth`, `maxNodes`, `maxEdges`, `edgeTypes`, `phases`, `stop`, `collapse`. |
 | `check` | Health-check defaults: `failOn`, `cycles` (`error`, `warning`, `info`, `off`), `maxFanIn`, `maxFanOut`. |

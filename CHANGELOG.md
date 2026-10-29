@@ -4,6 +4,40 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- App and VS Code panel: Diagrams and Docs work the same way. On the left, a
+  filterable list (the views; the overview, use cases, and scenarios) with
+  the settings below it; on the right, the selected item with its tools.
+  `J`/`K` and **‹**/**›** step through the list, **Enter** in the filter opens
+  the first match, and the address keeps the selection and the settings.
+- Diagrams: views are listed with what they show, choices apply at once,
+  **PNG** saves the diagram besides **SVG** and **D2**, and a click on an
+  object opens its page.
+- Diagrams are drawn by BC Atlas itself instead of D2: an ELK layered layout
+  with groups, right-angled routes (curves beyond 120 relations), labels, and
+  a legend, as SVG, PNG, or vector PDF. `--format png` and `--format pdf` no
+  longer need the `d2` executable, and every drawing still writes its D2
+  source next to it. Text is sized with the metrics of the bundled Liberation
+  Sans (Arial and Helvetica widths), so boxes fit in all three formats. Large
+  views are faster and far less tall (a 200-object project view: 5 instead of
+  19 seconds, 7499 × 6811 instead of 6112 × 25030 pixels).
+- Diagrams page: hover an object to light up its relations and neighbors,
+  click it to open its page, find objects by name (**Enter** jumps to the next
+  match), and click a legend entry to hide that kind of relation.
+- The npm package no longer installs `@terrastruct/d2` (58 MB); it uses
+  `elkjs` and `@resvg/resvg-wasm`. The VS Code extension shrinks from about 9
+  to 4.5 MB. The `layout` and `theme` settings of `.bca.json` (D2 options)
+  have no effect any more.
+- Docs: the guides are part of the page instead of a page in a frame, one
+  overview, use case, or scenario at a time. Switch between user guide and
+  test case and between English and German; **Open test** opens the AL test
+  at its procedure; **Markdown**, **DITA**, **BPMN**, and **SVG** save the
+  page, **All as HTML** the whole documentation. Links between guides and
+  from a use case's process to its scenarios stay on the page.
+
 ## 0.11.0 - 2026-10-29
 
 ### Changed

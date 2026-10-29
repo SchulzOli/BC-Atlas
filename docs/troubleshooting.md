@@ -52,18 +52,13 @@ bca export ./app --view object --object codeunit:50100 -o object.svg
 The boundary view requires at least one `--scope` value. Prefix the value with
 `namespace:`, `folder:`, `app:`, or `object:`.
 
-## PNG or PDF rendering fails
-
-Install the [D2 executable](https://d2lang.com) and add it to `PATH`. Use SVG
-when you do not need raster or PDF output.
-
 ## A diagram is too large
 
 Use the BC Atlas panel in VS Code or `bca export --view report` for an overview, then select a
-focused view. Add filters. The bundled SVG renderer draws at most 1,500 nodes;
-larger views (the project view of the Base Application has about 9,500) stop
-with a message and keep the `.d2` file, which the `d2` executable can render
-with more memory. In VS Code, the Diagrams page has a namespace filter.
+focused view. Add filters. Diagrams have at most 1,500 nodes; larger views
+(the project view of the Base Application has about 9,500) stop with a message
+and keep the `.d2` file for D2 tooling. In VS Code, the Diagrams page has a
+namespace filter, and hovering an object highlights its relations.
 Reduce `--max-edges` only after you select the required scope.
 
 ## Many unresolved references

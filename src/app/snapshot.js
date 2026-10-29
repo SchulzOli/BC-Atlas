@@ -39,11 +39,12 @@ function compactDetails(index) {
 
 export async function createSnapshot(workspace, { log = () => {}, history = false, last, title } = {}) {
   const overview = { ...await workspace.overview(), ...(title ? { title } : {}) };
-  const [health, architecture, components, index, docsHtml] = await Promise.all([
+  const [health, architecture, components, index, docs, docsHtml] = await Promise.all([
     workspace.healthReport(),
     workspace.architecture(),
     workspace.components(),
     workspace.objectIndex(),
+    workspace.docsBrowser(),
     workspace.docsHtml()
   ]);
   const { nodes, details } = compactDetails(index);
@@ -73,6 +74,8 @@ export async function createSnapshot(workspace, { log = () => {}, history = fals
     details,
     views,
     diagrams,
+    // The Docs page in the settings of .bca.json; the whole page for download.
+    docs: docs ? { ...docs, languages: [docs.language] } : undefined,
     explorerHtml,
     docsHtml
   };

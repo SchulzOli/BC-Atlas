@@ -116,21 +116,18 @@ function selectedMembers(object, category) {
   return (object.procedures ?? []).filter((procedure) => procedure.kind === kind);
 }
 
-function relationStyle(kind, sequence, isCycle, confidence, relationClass, tooltip) {
+function relationStyle(kind, sequence, isCycle, confidence, relationClass) {
   const style = RELATION_STYLES[kind] ?? { color: "#64748B" };
   const confidenceColor = confidence === "ambiguous"
     ? "#B45309"
     : confidence === "syntactic" ? "#6B7280" : style.color;
-  const properties = [`style.stroke: ${quote(isCycle ? "#B91C1C" : confidenceColor)}`];
-  if (
-    style.dash || relationClass === "schema" || sequence === "inferred" ||
-    confidence === "ambiguous" || confidence === "syntactic"
-  ) {
-    properties.push(`style.stroke-dash: ${style.dash ?? 4}`);
-  }
-  if (isCycle) properties.push("style.stroke-width: 3");
-  if (tooltip) properties.push(`tooltip: ${quote(tooltip)}`);
-  return ` {${properties.join("; ")}}`;
+  const dashed = style.dash || relationClass === "schema" || sequence === "inferred" ||
+    confidence === "ambiguous" || confidence === "syntactic";
+  return {
+    color: isCycle ? "#B91C1C" : confidenceColor,
+    ...(dashed ? { dash: style.dash ?? 4 } : {}),
+    ...(isCycle ? { width: 3 } : {})
+  };
 }
 
 function edgeTooltip(edge) {
@@ -151,38 +148,42 @@ function edgeTooltip(edge) {
   ].filter(Boolean).join("\n");
 }
 
-export function renderD2(model, options = {}) {
+export const LEGEND_NOTES = Object.freeze([
+  "Confidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; " +
+    "ambiguous = dashed amber #B45309; cycle = red #B91C1C",
+  "Data: schema = dashed; runtime access = solid"
+]);
+
+/**
+ * What a diagram shows, independent of how it is drawn: the title, groups of
+ * objects with their labels and colors, the relations between them, and the
+ * legend. The D2 source (renderD2) and the SVG, PNG, and PDF renderers
+ * (src/diagram) are both made from it.
+ */
+export function buildScene(model, options = {}) {
   if (!model.edges) model = resolveModel(model);
-  const direction = options.direction ?? "right";
   const includeExternal = options.includeExternal ?? true;
   const maxEdges = Number(options.maxEdges ?? 500);
   const memberCategories = new Set(options.members ?? [
     "fields", "actions", "triggers", "events", "procedures"
   ]);
-  const lines = [
-    `direction: ${direction}`,
-    `title: ${quote(options.title ?? "AL architecture")} {`,
-    "  shape: text",
-    "  near: top-center",
-    "  style.font-size: 28",
-    "}",
-    ""
-  ];
+  const scene = {
+    direction: options.direction ?? "right",
+    title: options.title ?? "AL architecture",
+    empty: !model.objects.length && model.emptyMessage ? model.emptyMessage : undefined,
+    groups: [],
+    edges: [],
+    legend: undefined,
+    omitted: Math.max(0, model.edges.length - maxEdges),
+    maxEdges
+  };
   const nodes = new Map();
   const keyIndex = new Map();
 
   model.objects.forEach((object, index) => {
-    const key = `n${index}`;
-    nodes.set(object, key);
+    nodes.set(object, `n${index}`);
     keyIndex.set(object.key, object);
   });
-
-  if (!model.objects.length && model.emptyMessage) {
-    lines.push(`empty: ${quote(model.emptyMessage)} {`);
-    lines.push("  shape: text");
-    lines.push('  style.font-color: "#666666"');
-    lines.push("}", "");
-  }
 
   const namespaces = new Map();
   for (const object of model.objects) {
@@ -194,9 +195,7 @@ export function renderD2(model, options = {}) {
 
   let groupIndex = 0;
   for (const [namespace, objects] of [...namespaces].sort(([a], [b]) => a.localeCompare(b))) {
-    const group = `g${groupIndex++}`;
-    lines.push(`${group}: ${quote(namespace)} {`);
-    lines.push("  style.stroke-dash: 3");
+    const group = { key: `g${groupIndex++}`, label: namespace, dash: 3, nodes: [] };
     for (const object of objects.sort((a, b) => a.name.localeCompare(b.name))) {
       const key = nodes.get(object);
       const label = object.id
@@ -229,32 +228,37 @@ export function renderD2(model, options = {}) {
         object.objectAccess === "internal" ? "access: internal" : undefined
       ].filter(Boolean);
       const fullDetails = [...details, ...annotations];
-      const fullLabel = fullDetails.length ? `${label}\n${fullDetails.join(" • ")}` : label;
       const [fill, stroke] = TYPE_STYLES[object.type] ?? ["#F5F5F5", "#666666"];
-      lines.push(`  ${key}: ${quote(fullLabel)} {`);
-      lines.push("    shape: rectangle");
       const source = object.location?.line
         ? `${object.file}:${object.location.line}`
         : object.file;
-      if (source) lines.push(`    tooltip: ${quote(source)}`);
+      let link;
       if (options.sourceUrlTemplate && object.file) {
         const sourceFile = [options.sourcePathPrefix, object.file.replaceAll("\\", "/")]
           .filter(Boolean)
           .join("/")
           .replaceAll(/\/+/gu, "/");
-        const link = options.sourceUrlTemplate
+        link = options.sourceUrlTemplate
           .replaceAll("{file}", sourceFile)
           .replaceAll("{line}", String(object.location?.line ?? 1))
           .replaceAll("{ref}", options.sourceRef ?? "main");
-        lines.push(`    link: ${quote(link)}`);
       }
-      lines.push(`    style.fill: ${quote(fill)}`);
-      lines.push(`    style.stroke: ${quote(stroke)}`);
-      if (object.type.endsWith("extension")) lines.push("    style.stroke-dash: 4");
-      lines.push("  }");
+      group.nodes.push({
+        key,
+        path: `${group.key}.${key}`,
+        object: object.key,
+        type: object.type,
+        // The first two lines name the object (type and ID, name); the rest are details.
+        label: fullDetails.length ? `${label}\n${fullDetails.join(" • ")}` : label,
+        fill,
+        stroke,
+        ...(object.type.endsWith("extension") ? { dash: 4 } : {}),
+        ...(source ? { tooltip: source } : {}),
+        ...(link ? { link } : {})
+      });
     }
-    lines.push("}", "");
-    for (const object of objects) nodes.set(object, `${group}.${nodes.get(object)}`);
+    scene.groups.push(group);
+    for (const object of objects) nodes.set(object, `${group.key}.${nodes.get(object)}`);
   }
 
   const external = new Map();
@@ -299,21 +303,19 @@ export function renderD2(model, options = {}) {
   }
 
   if (external.size) {
-    lines.push(`external: ${quote("External / unresolved")} {`);
-    lines.push("  style.stroke-dash: 5");
-    for (const [lookup, key] of external) {
-      const [type, ...nameParts] = lookup.split(":");
-      const localKey = key.split(".")[1];
-      lines.push(`  ${localKey}: ${quote(`${type}\n${nameParts.join(":")}`)} {`);
-      lines.push(`    style.fill: ${quote("#FAFAFA")}`);
-      lines.push(`    style.stroke: ${quote("#999999")}`);
-      lines.push("  }");
-    }
-    lines.push("}", "");
+    scene.groups.push({
+      key: "external",
+      label: "External / unresolved",
+      dash: 5,
+      external: true,
+      nodes: [...external].map(([lookup, path]) => {
+        const [type, ...nameParts] = lookup.split(":");
+        return { key: path.split(".")[1], path, type, label: `${type}\n${nameParts.join(":")}`, fill: "#FAFAFA", stroke: "#999999" };
+      })
+    });
   }
 
   for (const edge of uniqueRelations(edges)) {
-    const arrow = edge.kind === "extends" || edge.kind === "implements" ? "-->" : "->";
     const permissionLabel = permissionRelationLabel(edge.permissionKind);
     const relationLabel = edge.label ?? permissionLabel ??
       (edge.temporary ? `${edge.kind} (temporary)` : edge.kind);
@@ -326,40 +328,84 @@ export function renderD2(model, options = {}) {
     const baseLabel =
       `${edge.access ? `${relationLabel} [${edge.access}]` : relationLabel}` +
       `${cardinality}${certainty}${confidence}${cycle}`;
-    const label = edge.weight && edge.weight > 1
-      ? `${baseLabel} (${edge.weight})`
-      : baseLabel;
-    lines.push(
-      `${edge.from} ${arrow} ${edge.to}: ${quote(label)}${relationStyle(
-        edge.kind,
-        edge.sequence,
-        edge.isCycle,
-        edge.confidence,
-        edge.relationClass,
-        edgeTooltip(edge)
-      )}`
-    );
+    const tooltip = edgeTooltip(edge);
+    scene.edges.push({
+      from: edge.from,
+      to: edge.to,
+      kind: edge.kind,
+      // Extensions and implementations point at what they build on.
+      arrow: edge.kind === "extends" || edge.kind === "implements" ? "-->" : "->",
+      label: edge.weight && edge.weight > 1 ? `${baseLabel} (${edge.weight})` : baseLabel,
+      ...relationStyle(edge.kind, edge.sequence, edge.isCycle, edge.confidence, edge.relationClass),
+      ...(tooltip ? { tooltip } : {})
+    });
   }
 
   if (options.showLegend !== false) {
     const kinds = [...new Set(edges.map(({ kind }) => kind))].sort();
-    const edgeLegend = kinds.map((kind) =>
-      `${kind} ${RELATION_STYLES[kind]?.color ?? "#64748B"}`
-    ).join(", ");
+    scene.legend = {
+      kinds: kinds.map((kind) => ({ kind, color: RELATION_STYLES[kind]?.color ?? "#64748B", ...(RELATION_STYLES[kind]?.dash ? { dash: RELATION_STYLES[kind].dash } : {}) })),
+      notes: LEGEND_NOTES
+    };
+  }
+  return scene;
+}
+
+/** The scene as D2 source, for D2 tooling such as the d2 executable. */
+export function sceneToD2(scene) {
+  const lines = [
+    `direction: ${scene.direction}`,
+    `title: ${quote(scene.title)} {`,
+    "  shape: text",
+    "  near: top-center",
+    "  style.font-size: 28",
+    "}",
+    ""
+  ];
+  if (scene.empty) {
+    lines.push(`empty: ${quote(scene.empty)} {`);
+    lines.push("  shape: text");
+    lines.push('  style.font-color: "#666666"');
+    lines.push("}", "");
+  }
+  for (const group of scene.groups) {
+    lines.push(`${group.key}: ${quote(group.label)} {`);
+    lines.push(`  style.stroke-dash: ${group.dash}`);
+    for (const node of group.nodes) {
+      lines.push(`  ${node.key}: ${quote(node.label)} {`);
+      if (!group.external) lines.push("    shape: rectangle");
+      if (node.tooltip) lines.push(`    tooltip: ${quote(node.tooltip)}`);
+      if (node.link) lines.push(`    link: ${quote(node.link)}`);
+      lines.push(`    style.fill: ${quote(node.fill)}`);
+      lines.push(`    style.stroke: ${quote(node.stroke)}`);
+      if (node.dash) lines.push(`    style.stroke-dash: ${node.dash}`);
+      lines.push("  }");
+    }
+    lines.push("}", "");
+  }
+  for (const edge of scene.edges) {
+    const properties = [`style.stroke: ${quote(edge.color)}`];
+    if (edge.dash) properties.push(`style.stroke-dash: ${edge.dash}`);
+    if (edge.width) properties.push(`style.stroke-width: ${edge.width}`);
+    if (edge.tooltip) properties.push(`tooltip: ${quote(edge.tooltip)}`);
+    lines.push(`${edge.from} ${edge.arrow} ${edge.to}: ${quote(edge.label)} {${properties.join("; ")}}`);
+  }
+  if (scene.legend) {
+    const edgeLegend = scene.legend.kinds.map(({ kind, color }) => `${kind} ${color}`).join(", ");
     lines.push("", `legend: ${quote(
-      `Legend\nEdges: ${edgeLegend || "none"}\n` +
-      "Confidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; " +
-      "ambiguous = dashed amber #B45309; cycle = red #B91C1C\n" +
-      "Data: schema = dashed; runtime access = solid"
+      `Legend\nEdges: ${edgeLegend || "none"}\n${scene.legend.notes.join("\n")}`
     )} {`);
     lines.push("  shape: text");
     lines.push("  near: bottom-right");
     lines.push("}");
   }
-
-  if (model.edges.length > maxEdges) {
-    lines.push("", `# ${model.edges.length - maxEdges} edges omitted by maxEdges=${maxEdges}`);
+  if (scene.omitted) {
+    lines.push("", `# ${scene.omitted} edges omitted by maxEdges=${scene.maxEdges}`);
   }
   lines.push("");
   return lines.join("\n");
+}
+
+export function renderD2(model, options = {}) {
+  return sceneToD2(buildScene(model, options));
 }
