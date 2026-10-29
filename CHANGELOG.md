@@ -33,6 +33,13 @@ follows [Semantic Versioning](https://semver.org/).
 - `id:50100..50199` selects objects by ID range; proposals use it for code
   without namespaces or functional folders.
 
+### Fixed
+
+- The report no longer writes an absolute path into README.md when a view has
+  too many nodes for the bundled SVG renderer: it keeps the view as D2, links
+  it relative to the README, removes an SVG left by an earlier run, and the
+  MCP report tool marks it `d2Only`.
+
 ## 0.8.0 - 2026-10-29
 
 ### Added

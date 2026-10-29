@@ -5,6 +5,7 @@ import { createArchitectureModel } from "../architecture.js";
 import { generateCodeGraph } from "../codegraph.js";
 import { formatHealthMarkdown, healthResultLine } from "../health.js";
 import { displayPath, resolveOutput, writeArchitecture } from "../output.js";
+import { MAX_DIAGRAM_NODES } from "../svg.js";
 import { runHealthCheck } from "./check.js";
 
 const VIEW_SUMMARIES = new Map(VIEWS);
@@ -80,6 +81,16 @@ function renderReadme({ title, health, diagrams, codegraph, model, json, format,
       lines.push(`_Not rendered: ${diagram.skipped}_`, "");
       continue;
     }
+    if (diagram.tooLarge) {
+      lines.push(
+        `_Not rendered as SVG: ${diagram.nodes} nodes are too many for the bundled renderer (at most ${MAX_DIAGRAM_NODES}). ` +
+          `Render [${diagram.d2}](${relativeLink(diagram.d2)}) with the d2 executable, or filter with --namespace or --paths._`,
+        "",
+        `${diagram.nodes} nodes, ${diagram.edges} edges.`,
+        ""
+      );
+      continue;
+    }
     if (format === "svg") lines.push(`![${diagram.title}](${relativeLink(diagram.svg)})`, "");
     lines.push(
       `${diagram.nodes} nodes, ${diagram.edges} edges. Source: [${diagram.d2}](${relativeLink(diagram.d2)})`,
@@ -141,10 +152,18 @@ export async function generateReport(input, values = {}, { log = () => {} } = {}
         await fs.rm(path.join(outputDirectory, diagram.svg), { force: true });
         continue;
       }
-      const target = resolveOutput({ output: path.join(outputDirectory, `${view}.${format}`), format });
-      await writeArchitecture(projection, target);
       diagram.nodes = projection.model.objects.length;
       diagram.edges = projection.model.edges.length;
+      // Too large for the bundled renderer: keep the D2 source and drop an SVG left by an earlier run.
+      diagram.tooLarge = format === "svg" && diagram.nodes > MAX_DIAGRAM_NODES;
+      const targetFormat = diagram.tooLarge ? "d2" : format;
+      const target = resolveOutput({ output: path.join(outputDirectory, `${view}.${targetFormat}`), format: targetFormat });
+      await writeArchitecture(projection, target);
+      if (diagram.tooLarge) {
+        await fs.rm(path.join(outputDirectory, diagram.svg), { force: true });
+        log(`Wrote ${view} view as D2 only: ${diagram.nodes} nodes are too many for the bundled SVG renderer (at most ${MAX_DIAGRAM_NODES})`);
+        continue;
+      }
       log(`Rendered ${view} view (${diagram.nodes} nodes, ${diagram.edges} edges)`);
     } catch (error) {
       diagram.skipped = error.message;

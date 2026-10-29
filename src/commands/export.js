@@ -74,9 +74,10 @@ async function exportExplorer(input, values, log) {
 
 async function exportReport(input, values, log) {
   const result = await generateReport(input, { ...values, outputDir: values.output }, { log });
-  const rendered = result.diagrams.filter(({ skipped }) => !skipped).length;
+  const rendered = result.diagrams.filter(({ skipped, tooLarge }) => !skipped && !tooLarge).length;
+  const d2Only = result.diagrams.filter(({ tooLarge }) => tooLarge).length;
   log(healthResultLine(result.health));
-  log(`${rendered} diagram(s) in the report`);
+  log(`${rendered} diagram(s) in the report${d2Only ? `, ${d2Only} as D2 source only` : ""}`);
   return [result.readme];
 }
 
