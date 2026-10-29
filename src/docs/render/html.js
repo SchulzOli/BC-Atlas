@@ -49,6 +49,12 @@ const SCRIPT = `
 const input=document.getElementById("filter");
 input&&input.addEventListener("input",()=>{const q=input.value.trim().toLowerCase();
 for(const el of document.querySelectorAll("[data-search]")){el.hidden=q&&!el.dataset.search.includes(q);}});
+// Embedded through srcdoc (the BC Atlas app, VS Code), #links resolve against
+// the host page and would load it into the frame: scroll to the target instead.
+location.protocol==="about:"&&document.addEventListener("click",(event)=>{
+const a=event.target.closest&&event.target.closest('a[href^="#"]');if(!a)return;
+const target=document.getElementById(decodeURIComponent(a.getAttribute("href").slice(1)));
+if(target){event.preventDefault();target.scrollIntoView();}});
 `;
 
 function link(target) {

@@ -39,6 +39,10 @@ follows [Semantic Versioning](https://semver.org/).
   too many nodes for the bundled SVG renderer: it keeps the view as D2, links
   it relative to the README, removes an SVG left by an earlier run, and the
   MCP report tool marks it `d2Only`.
+- Opening a scenario or use case on the Docs page no longer leaves the page
+  blank in VS Code (or loads the whole app into the frame in an exported
+  app): the guide is embedded through `srcdoc`, where `#links` resolve
+  against the host page, so it now scrolls to the target itself.
 
 ## 0.8.0 - 2026-10-29
 
