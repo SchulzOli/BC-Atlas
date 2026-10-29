@@ -87,7 +87,7 @@ const TEST_KINDS = new Set(["UI", "UT"]);
  * One tag comment: "[SCENARIO 218101] Text" (Microsoft's work item number),
  * "[WHEN]/[THEN] Text", "[GIVEN] [SETUP] Text", "[FEATURE] [Sales] [Invoice]".
  */
-function tagLine(text) {
+export function tagLine(text) {
   const head = text.match(/^\[([A-Z][A-Z-]*)(?:\s+([^\]]*?))?\](?:\/\[([A-Z][A-Z-]*)\])?\s*(.*)$/u);
   if (!head) return undefined;
   let rest = head[4];

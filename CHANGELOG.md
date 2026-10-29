@@ -28,6 +28,18 @@ follows [Semantic Versioning](https://semver.org/).
   pass) is built into `vendor/graph-viewer.js` (`npm run update:graph-vendor`);
   3d-force-graph is no longer installed with the package.
 
+### Fixed
+
+- `bca docs set` and `unset` understand Microsoft's tags: `[SCENARIO 218101]`
+  and `[FEATURE] [A] [B]` are edited in place (the work item stays, one
+  feature of a list can be removed), setting `SCENARIO` again replaces the
+  line instead of adding a second one, and a value with a line break is
+  rejected instead of being written as AL code. Removing a feature that is
+  set for the whole codeunit says to change it in `OnRun`.
+- Markdown guides and test cases show the author's text as written: `<Posted>`,
+  `<b>`, `*now*`, `_done_`, and `|` are escaped instead of disappearing or
+  turning into formatting.
+
 ## 0.10.0 - 2026-10-29
 
 The npm package skips 0.9.0 so it shares its version with the VS Code
