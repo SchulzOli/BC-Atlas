@@ -50,6 +50,28 @@ On the Architecture page:
   `bca architecture --update-baseline`. Afterwards `bca check` fails only on
   new violations.
 
+**Dependencies between components** shows where dependencies should be and
+where they are, in two colors: green for dependencies the rules allow, red for
+dependencies that point against the architecture today. **Map** draws the
+components in their layers with an arrow per dependency (hover a component to
+see only its arrows); **Matrix** tints every pair of components by the rules
+and counts today's object links in it.
+
+Click a component for its own page:
+
+- what it is: role (app of its own, component, shared core), layer, which
+  components it may use, the suggested namespace, its app candidate, and the
+  selectors that pick its objects
+- **groups inside** (sub-domains): its objects clustered by how tightly they
+  are coupled, named after their namespace, folder, or the words their names
+  share; objects without links inside follow their folder
+- a graph of its objects, one island per group; **With dependencies** adds
+  the other components around it with green and red links
+- per other component: may it be used (should) and how often it is used,
+  allowed and wrong way (is)
+- every object with its group and its links, and the work items that
+  involve the component
+
 See [Clean architecture](./clean-architecture.md) for the rules behind it.
 
 ## In the editor
@@ -135,7 +157,10 @@ change files. Add `--history` (or `--history-by prs` or
 
 The first analysis of the Base Application with the System Application and
 Business Foundation (about 9,500 objects) takes about two minutes; afterwards
-every page opens in under a second. The first rendering of a large diagram
+every page opens in under a second. BC Atlas keeps the parse results of every
+file on disk (in `BCA_CACHE_DIR`, default `<temp>/bc-atlas`, next to the AL
+compiler's results), so reopening a project or saving a file parses only the
+files that changed. The first rendering of a large diagram
 view can take 20 seconds; it is cached until the source changes. Views with
 more than 1,500 nodes are not drawn: filter them by namespace or pick a
 focused view. Use `bcAtlas.paths` to analyze only some folders of a large

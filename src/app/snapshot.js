@@ -39,9 +39,10 @@ function compactDetails(index) {
 
 export async function createSnapshot(workspace, { log = () => {}, history = false, last, title } = {}) {
   const overview = { ...await workspace.overview(), ...(title ? { title } : {}) };
-  const [health, architecture, index, docsHtml] = await Promise.all([
+  const [health, architecture, components, index, docsHtml] = await Promise.all([
     workspace.healthReport(),
     workspace.architecture(),
+    workspace.components(),
     workspace.objectIndex(),
     workspace.docsHtml()
   ]);
@@ -66,6 +67,7 @@ export async function createSnapshot(workspace, { log = () => {}, history = fals
     overview: { ...overview, live: false, root: undefined, projectRoot: undefined },
     health,
     architecture,
+    components,
     objects: index.list,
     nodes,
     details,

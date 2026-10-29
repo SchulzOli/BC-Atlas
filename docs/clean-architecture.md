@@ -393,7 +393,10 @@ architecture cannot erode silently. Commit `.bca.json` and the baseline.
 
 In VS Code, the BC Atlas panel has an Architecture page with the layers, the work items,
 and the components, and buttons to adopt a proposal and to accept today's
-violations. Its Dependencies page, the 3D explorer (also
+violations. A map and a matrix show where dependencies between components
+should be (green) and where they point against the architecture (red); each
+component has a page of its own with its groups (sub-domains by coupling), a
+graph of its objects, and its dependencies, allowed and wrong way. Its Dependencies page, the 3D explorer (also
 `bca export --view explorer`), shows the architecture as soon as `.bca.json`
 defines one, or with `--propose`:
 

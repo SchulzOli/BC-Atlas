@@ -32,6 +32,38 @@ follows [Semantic Versioning](https://semver.org/).
   component's description, and the Architecture page.
 - `id:50100..50199` selects objects by ID range; proposals use it for code
   without namespaces or functional folders.
+- A page per component (click it on the Architecture page): its role, layer,
+  the components it may use, suggested namespace, app candidate, and
+  selectors; the groups inside it (sub-domains clustered by coupling and
+  named after their namespace, folder, or shared words); a graph of its
+  objects with one island per group and, on request, its links to other
+  components in green (allowed) and red (wrong way); per other component
+  whether it may be used and how often it is; every object; and its work
+  items. Also in the exported app.
+- Dependencies between components, should vs. is: a map of the components in
+  their layers with green arrows for allowed and red arrows for wrong-way
+  dependencies, and a matrix that tints every pair by the rules and counts
+  today's object links in it.
+
+### Changed
+
+- VS Code and `bca export --view app` keep the parse results of every AL file
+  on disk (`BCA_CACHE_DIR`, default `<temp>/bc-atlas/parse`) and across
+  changes, so reopening a project or saving a file parses only what changed.
+  The Docs page and the explorer reuse them instead of parsing the app again.
+  On a 2,931-object app the overview opens in about 8 seconds instead of 15,
+  and the Docs page in about 11 instead of 25.
+
+### Fixed
+
+- The report no longer writes an absolute path into README.md when a view has
+  too many nodes for the bundled SVG renderer: it keeps the view as D2, links
+  it relative to the README, removes an SVG left by an earlier run, and the
+  MCP report tool marks it `d2Only`.
+- Opening a scenario or use case on the Docs page no longer leaves the page
+  blank in VS Code (or loads the whole app into the frame in an exported
+  app): the guide is embedded through `srcdoc`, where `#links` resolve
+  against the host page, so it now scrolls to the target itself.
 
 ## 0.8.0 - 2026-10-29
 

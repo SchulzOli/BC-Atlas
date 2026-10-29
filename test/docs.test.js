@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { renderDocumentation, writeDocumentation } from "../src/docs/markdown.js";
 import { loadAlUiTest } from "../src/docs/al-ui-source.js";
 import { loadCorpus } from "../src/docs/model.js";
+import { documentationHtml } from "../src/docs/export.js";
 import { createAutomationPlan } from "../src/docs/automation.js";
 import { planMetadataEdit, writeMetadataEdit } from "../src/docs/al-ui-writer.js";
 
@@ -115,6 +116,41 @@ test("derives documentation from a selected AL UI test", async () => {
     assert.deepEqual(source.value.guideOperations.map(({ kind }) => kind), ["open", "set", "set", "close"]);
     assert.match(source.reference, /WidgetUITest\.Codeunit\.al#WidgetsList_NewWidget/u);
     assert.match(source.value.sourceHash, /^[a-f0-9]{64}$/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("the HTML guide scrolls to a scenario in place when it is embedded through srcdoc", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-docs-"));
+  try {
+    writeFileSync(path.join(directory, "WidgetUITest.Codeunit.al"), AL_UI_TEST);
+    const page = await documentationHtml(await loadCorpus(directory));
+    const id = "widgets-list-new-widget-persists-general-fields";
+    assert.match(page, new RegExp(`<a href="#${id}">`, "u"));
+    // The renderer writes exactly one inline script; take its body as written.
+    const start = page.indexOf("<script>") + "<script>".length;
+    const script = page.slice(start, page.indexOf("</script>", start));
+
+    // A srcdoc document resolves #links against the host page: the click must not navigate.
+    const run = (protocol) => {
+      const scrolled = [];
+      const listeners = [];
+      const document = {
+        getElementById: (name) => (name === id ? { scrollIntoView: () => scrolled.push(name) } : null),
+        querySelectorAll: () => [],
+        addEventListener: (type, listener) => listeners.push(listener)
+      };
+      new Function("document", "location", script)(document, { protocol });
+      let prevented = false;
+      const link = { getAttribute: () => `#${id}` };
+      const event = { target: { closest: () => link }, preventDefault: () => { prevented = true; } };
+      for (const listener of listeners) listener(event);
+      return { prevented, scrolled };
+    };
+    assert.deepEqual(run("about:"), { prevented: true, scrolled: [id] });
+    // Opened as a file of its own, the browser follows the link (and keeps the address).
+    assert.deepEqual(run("file:"), { prevented: false, scrolled: [] });
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

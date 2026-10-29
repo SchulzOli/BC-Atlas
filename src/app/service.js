@@ -25,6 +25,11 @@ export function createService(workspace) {
     overview: () => workspace.overview(),
     health: () => workspace.healthReport(),
     architecture: (params) => workspace.architecture(architectureSettings(params)),
+    component: async ({ name, ...params } = {}) => {
+      const component = await workspace.component(String(name ?? ""), architectureSettings(params));
+      if (!component) throw new Error("component not found");
+      return component;
+    },
     objects: () => workspace.objects(),
     object: async ({ id } = {}) => {
       const object = await workspace.object(String(id ?? ""));

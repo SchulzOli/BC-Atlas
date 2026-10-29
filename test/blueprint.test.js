@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { assessArchitecture, evaluateArchitecture, proposeArchitecture } from "../src/blueprint/index.js";
 import { compareWithBaseline, createBaseline } from "../src/blueprint/baseline.js";
+import { subgroups } from "../src/blueprint/cluster.js";
 import { componentMatcher } from "../src/blueprint/components.js";
 import { createGraphDocument } from "../src/graph/document.js";
 
@@ -135,6 +136,31 @@ test("proposes components and layers that follow today's dependencies", async ()
   assert.deepEqual(backwards.feedback, [{ source: "Core", target: "Sales", objectEdges: 1, coupling: 2 }]);
   const checked = evaluateArchitecture(cyclic, backwards.architecture);
   assert.deepEqual(checked.violations.map(({ source, target }) => `${source.label} -> ${target.label}`), ["CON Item -> CON Quote Mgt."]);
+});
+
+test("a component's groups follow its coupling; objects without links follow their folder", () => {
+  const node = (id, label, folder) => ({ id, label, type: "codeunit", file: `src/${folder}/${id}.al` });
+  const nodes = [
+    ...["A1", "A2", "A3", "A4"].map((id) => node(id, `PRC Price ${id}`, "pricing")),
+    ...["B1", "B2", "B3", "B4"].map((id) => node(id, `PRC Discount ${id}`, "discounts")),
+    // No links inside the component, but in the folder of group A.
+    node("A5", "PRC Price Page Ext", "pricing"),
+    // No links and a folder of their own.
+    ...["C1", "C2", "C3"].map((id) => node(id, `PRC Label ${id}`, "labels")),
+    node("D1", "PRC Lonely", "misc")
+  ];
+  const clique = (ids) => ids.flatMap((source, index) => ids.slice(index + 1).map((target) => ({ source, target, weight: 4 })));
+  const edges = [...clique(["A1", "A2", "A3", "A4"]), ...clique(["B1", "B2", "B3", "B4"]), { source: "A1", target: "B1", weight: 1 }];
+  const groups = subgroups(nodes, edges);
+  const members = (key) => nodes.filter(({ id }) => groups.get(id).key === key).map(({ id }) => id);
+  const keyOf = (id) => groups.get(id).key;
+  assert.deepEqual(members(keyOf("A1")), ["A1", "A2", "A3", "A4", "A5"]);
+  assert.deepEqual(members(keyOf("B1")), ["B1", "B2", "B3", "B4"]);
+  assert.deepEqual(members(keyOf("C1")), ["C1", "C2", "C3"]);
+  assert.equal(keyOf("D1"), "loose");
+  assert.equal(groups.get("A1").label, "pricing", "named after the folder most members share");
+  assert.equal(groups.get("C1").basis, "folder");
+  assert.equal(new Set([...groups.values()].map(({ label }) => label)).size, 4, "every group has its own name");
 });
 
 test("the most specific selector assigns an object", () => {

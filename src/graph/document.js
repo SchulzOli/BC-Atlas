@@ -35,7 +35,7 @@ function vocabulary(levels) {
  * Creates a temporal graph document for one lens: object and app levels with
  * metrics, plus one frame per sampled commit when `history` is set.
  */
-export async function createGraphDocument(input, values = {}, { onFrame } = {}) {
+export async function createGraphDocument(input, values = {}, { onFrame, parseCache: snapshotCache } = {}) {
   const config = await loadConfig(values.projectRoot ?? input, values.config);
   const options = mergeArchitectureOptions(config.values, values);
   // A single AL file is analyzed as the focus of its folder.
@@ -55,7 +55,7 @@ export async function createGraphDocument(input, values = {}, { onFrame } = {}) 
   // stays source-level throughout so frames compare like with like.
   const compiled = !(options.history || options.historyBy);
   const graph = async (root) => lens.build(compiled && root === projectRoot
-    ? await analyzeProject(projectRoot, options, { fileFilter })
+    ? await analyzeProject(projectRoot, options, { fileFilter, parseCache: snapshotCache })
     : resolveModel(await analyze(root, { parseCache, symbols, fileFilter })), { filter });
 
   // The target architecture: from .bca.json, or proposed from the current

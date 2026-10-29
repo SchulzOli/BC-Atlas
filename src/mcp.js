@@ -279,7 +279,7 @@ export function createMcpServer(version = pkg.version) {
       outputDirectory: result.outputDirectory,
       passed: result.health.passed,
       counts: result.health.counts,
-      diagrams: result.diagrams.map(({ view, skipped, nodes, edges }) => ({ view, skipped, nodes, edges }))
+      diagrams: result.diagrams.map(({ view, skipped, tooLarge, nodes, edges }) => ({ view, skipped, d2Only: tooLarge || undefined, nodes, edges }))
     };
   }));
 
