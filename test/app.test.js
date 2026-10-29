@@ -122,7 +122,7 @@ test("the Docs page reads the documentation page by page, as a guide or test cas
     // Each box of a diagram names the object behind it, so a click opens its page.
     const diagram = await service.call("diagram", { view: "project" });
     const objects = new Set((await service.call("objects")).map(({ id }) => id));
-    const named = [...diagram.svg.matchAll(/data-object="([^"]+)"/gu)].map(([, value]) => value.replaceAll("&amp;", "&").replaceAll("&quot;", "\""));
+    const named = [...diagram.svg.matchAll(/data-object="([^"]+)"/gu)].map(([, value]) => value.replaceAll("&quot;", "\"").replaceAll("&amp;", "&"));
     assert.equal(named.length, diagram.nodes);
     assert.ok(named.every((id) => objects.has(id)));
     assert.ok(diagram.svg.includes('class="edge" data-from="'), "each route names its ends for highlighting");
