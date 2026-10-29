@@ -318,6 +318,7 @@ Writes what the VS Code extension shows as files. `--view` selects what:
 | `report` | Markdown report: `README.md` with an at-a-glance table, one section and diagram per view, the health summary, and a regeneration command. See [Architecture reports](./reports.md). | `docs/atlas` | `svg` or `d2` diagrams |
 | `explorer` | The interactive 3D dependency explorer, or its graph document. See [Dependency explorer](./dependency-explorer.md). | `bc-atlas-explorer.html` | `html` or `json` |
 | `catalog` | One linked Markdown page per AL object. See [Code Graph](./code-graph-markdown-design.md). | `docs/codegraph` | Markdown |
+| `knowledge-graph` | The project as RDF with the BC Atlas OWL ontology, for triple stores, graph databases, and ontology editors. See [Knowledge graph](./knowledge-graph.md). | `bc-atlas.ttl` | `ttl`, `rdf`, `owl` (RDF/XML), `nt`, `jsonld` |
 | `project`, `module`, `object`, `data`, `call`, `boundary`, `contracts`, `events`, `ui`, `workflow` | One diagram view, or its resolved model as JSON. See [Architecture diagrams](./architecture-diagrams.md). | `bc-atlas-<view>.svg` | `svg`, `d2`, `json`, `png`, `pdf` |
 
 ```text
@@ -329,15 +330,17 @@ bca export ./app --view module -o modules.svg
 bca export ./app --view workflow --entry ProcessDocument -o workflow.svg --watch
 bca export ./app --view project --format json > model.json
 bca export ./app --view catalog -o docs/codegraph
+bca export ./app --view knowledge-graph -o atlas.owl
 ```
 
 #### Output
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--view` | what | `app`, `report`, `explorer`, `catalog`, or a diagram view. Default: `app`. |
+| `--view` | what | `app`, `report`, `explorer`, `catalog`, `knowledge-graph`, or a diagram view. Default: `app`. |
 | `-o`, `--output` | path | Output file or folder (defaults above). `-` writes JSON to stdout. |
-| `-f`, `--format` | format | `html`, `d2`, `json`, `svg`, `png`, or `pdf`, as the view allows. Inferred from the output extension when omitted. |
+| `-f`, `--format` | format | `html`, `d2`, `json`, `svg`, `png`, or `pdf`, as the view allows; `ttl`, `rdf`, `owl`, `nt`, or `jsonld` for the knowledge graph. Inferred from the output extension when omitted. |
+| `--base-iri` | IRI | Knowledge graph: base IRI of the exported resources. Default: `urn:bc-atlas:`. |
 | `--title` | text | Title of the report, explorer, or diagram. |
 | `--watch` | flag | Write again whenever AL source, `app.json`, or `.bca.json` changes. Stop with `Ctrl+C`. |
 | `--debounce` | milliseconds | Delay before writing again with `--watch`. Default: `250`. |

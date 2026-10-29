@@ -77,4 +77,6 @@ test("builds page addresses and export arguments", () => {
   const app = logic.EXPORTS.find(({ view }) => view === "app");
   assert.deepEqual(logic.exportArgs(app, "/p", "/p/atlas.html"), ["export", "/p", "--view", "app", "-o", "/p/atlas.html"]);
   assert.ok(logic.EXPORTS.some(({ view, folder }) => view === "report" && folder));
+  const graph = logic.EXPORTS.find(({ view }) => view === "knowledge-graph");
+  assert.deepEqual(Object.values(graph.filters).flat(), ["ttl", "owl", "rdf", "nt", "jsonld"]);
 });

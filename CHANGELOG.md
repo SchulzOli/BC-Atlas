@@ -6,6 +6,18 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- `bca export --view knowledge-graph` writes the project as RDF with the BC
+  Atlas OWL ontology, for triple stores, graph databases, and ontology
+  editors: Turtle (`.ttl`), RDF/XML (`.rdf`, `.owl`), N-Triples (`.nt`), or
+  JSON-LD (`.jsonld`). Apps, namespaces, objects with fields, keys, and
+  procedures, every relation as a property (`bca:calls`, `bca:writes`, ...)
+  and as a `bca:Relation` with its evidence, objects outside the workspace,
+  architecture components, and violations. Stable IRIs (`urn:bc-atlas:...`, or
+  `--base-iri`), and `SOURCE_DATE_EPOCH` for reproducible files. See
+  [Knowledge graph](./docs/knowledge-graph.md).
+
 ### Changed
 
 - App and VS Code panel: Diagrams and Docs work the same way. On the left, a

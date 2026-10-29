@@ -1,0 +1,993 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rdf:RDF
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+    xmlns:owl="http://www.w3.org/2002/07/owl#"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+    xmlns:dcterms="http://purl.org/dc/terms/"
+    xmlns:bca="https://schulzoli.github.io/BC-Atlas/ontology#">
+  <owl:Ontology rdf:about="urn:bc-atlas:graph">
+    <rdfs:label>BC Atlas Warehouse Example</rdfs:label>
+    <rdfs:comment>AL source analyzed by BC Atlas: 9 objects, 26 relations.</rdfs:comment>
+    <dcterms:created rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2025-01-01T00:00:00.000Z</dcterms:created>
+    <dcterms:creator>BC Atlas 0.11.0</dcterms:creator>
+    <dcterms:conformsTo rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+    <rdfs:seeAlso rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Ontology>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#App">
+    <rdfs:label>AL app</rdfs:label>
+    <rdfs:comment>An extension or app with its own app.json.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Namespace">
+    <rdfs:label>AL namespace</rdfs:label>
+    <rdfs:comment>A namespace declared by AL objects.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Component">
+    <rdfs:label>Architecture component</rdfs:label>
+    <rdfs:comment>A component of the target architecture in .bca.json, or of a proposal.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Object">
+    <rdfs:label>AL object</rdfs:label>
+    <rdfs:comment>An application object such as a table, page, or codeunit.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#ExtensionObject">
+    <rdfs:label>AL extension object</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:comment>An object that extends another object: a table, page, report, enum, profile, or permission set extension, or a page customization.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#ExternalObject">
+    <rdfs:label>External AL object</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:comment>An object referenced by the workspace but declared elsewhere, for example in the Base Application.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Field">
+    <rdfs:label>Field</rdfs:label>
+    <rdfs:comment>A field of a table or table extension.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Key">
+    <rdfs:label>Key</rdfs:label>
+    <rdfs:comment>A key of a table.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Procedure">
+    <rdfs:label>Procedure</rdfs:label>
+    <rdfs:comment>A procedure of an object.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Trigger">
+    <rdfs:label>Trigger</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Procedure"/>
+    <rdfs:comment>A trigger of an object, such as OnRun or OnValidate.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#EventPublisher">
+    <rdfs:label>Event publisher</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Procedure"/>
+    <rdfs:comment>A procedure with an integration or business event attribute.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Relation">
+    <rdfs:label>Relation</rdfs:label>
+    <rdfs:comment>One relation found in the source, with its kind, confidence, and location (a qualified form of the direct relation property).</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#ArchitectureViolation">
+    <rdfs:label>Architecture violation</rdfs:label>
+    <rdfs:comment>A dependency between two objects that points against the architecture.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Table">
+    <rdfs:label>Table</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#TableExtension">
+    <rdfs:label>Table extension</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#ExtensionObject"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Page">
+    <rdfs:label>Page</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#PageExtension">
+    <rdfs:label>Page extension</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#ExtensionObject"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#PageCustomization">
+    <rdfs:label>Page customization</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#ExtensionObject"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Codeunit">
+    <rdfs:label>Codeunit</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Report">
+    <rdfs:label>Report</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#ReportExtension">
+    <rdfs:label>Report extension</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#ExtensionObject"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Query">
+    <rdfs:label>Query</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#XmlPort">
+    <rdfs:label>XMLport</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Enum">
+    <rdfs:label>Enum</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#EnumExtension">
+    <rdfs:label>Enum extension</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#ExtensionObject"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Interface">
+    <rdfs:label>Interface</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#ControlAddIn">
+    <rdfs:label>Control add-in</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Profile">
+    <rdfs:label>Profile</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#ProfileExtension">
+    <rdfs:label>Profile extension</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#ExtensionObject"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#PermissionSet">
+    <rdfs:label>Permission set</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#PermissionSetExtension">
+    <rdfs:label>Permission set extension</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#ExtensionObject"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:Class rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#Entitlement">
+    <rdfs:label>Entitlement</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:Class>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#inApp">
+    <rdfs:label>in app</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#App"/>
+    <rdfs:comment>The app that declares the object.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#inNamespace">
+    <rdfs:label>in namespace</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Namespace"/>
+    <rdfs:comment>The namespace of the object.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#inComponent">
+    <rdfs:label>in component</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Component"/>
+    <rdfs:comment>The architecture component the object belongs to.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#dependsOnApp">
+    <rdfs:label>depends on app</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#App"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#App"/>
+    <rdfs:comment>A dependency declared in app.json.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#mayDependOn">
+    <rdfs:label>may depend on</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Component"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Component"/>
+    <rdfs:comment>A dependency the architecture allows.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#dependsOnComponent">
+    <rdfs:label>depends on component</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Component"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Component"/>
+    <rdfs:comment>A dependency between components that the source has today.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#hasField">
+    <rdfs:label>has field</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Field"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#hasKey">
+    <rdfs:label>has key</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Key"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#hasProcedure">
+    <rdfs:label>has procedure</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Procedure"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#keyField">
+    <rdfs:label>key field</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Key"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Field"/>
+    <rdfs:comment>A field of the key, in order of declaration.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn">
+    <rdfs:label>depends on</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:comment>Any relation from one object to another; every relation property below is a kind of it.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#relationSource">
+    <rdfs:label>relation source</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Relation"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#relationTarget">
+    <rdfs:label>relation target</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Relation"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#violationSource">
+    <rdfs:label>violation source</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#ArchitectureViolation"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#violationTarget">
+    <rdfs:label>violation target</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#ArchitectureViolation"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Object"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#sourceComponent">
+    <rdfs:label>source component</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#ArchitectureViolation"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Component"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#targetComponent">
+    <rdfs:label>target component</rdfs:label>
+    <rdfs:domain rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#ArchitectureViolation"/>
+    <rdfs:range rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#Component"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#calls">
+    <rdfs:label>calls</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Calls a procedure of the target.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#reads">
+    <rdfs:label>reads</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Reads records of the target table.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#writes">
+    <rdfs:label>writes</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Inserts, modifies, or deletes records of the target table.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#relatesTo">
+    <rdfs:label>relates to</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>A table relation to the target table.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#uses">
+    <rdfs:label>uses</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Declares a variable or parameter of the target type.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#extends">
+    <rdfs:label>extends</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Extends the target object.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#implements">
+    <rdfs:label>implements</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Implements the target interface.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#selects">
+    <rdfs:label>selects</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Selects an implementation through an enum value.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#publishes">
+    <rdfs:label>publishes</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Publishes an event of the target.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#subscribesTo">
+    <rdfs:label>subscribes to</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Subscribes to an event of the target.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#runs">
+    <rdfs:label>runs</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Runs the target page, report, or codeunit.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#hasPart">
+    <rdfs:label>has part</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Shows the target page as a part.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#contains">
+    <rdfs:label>contains</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Contains the target.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#permits">
+    <rdfs:label>permits</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>A permission set grants access to the target.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#includes">
+    <rdfs:label>includes</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>A permission set includes the target permission set.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#starts">
+    <rdfs:label>starts</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Starts the target.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#raisesEvent">
+    <rdfs:label>raises event</rdfs:label>
+    <rdfs:subPropertyOf rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology#dependsOn"/>
+    <rdfs:comment>Raises an event of the target.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:ObjectProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#objectType">
+    <rdfs:label>object type</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>The AL object type, such as table or codeunit.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#objectId">
+    <rdfs:label>object ID</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#appId">
+    <rdfs:label>app ID</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>The id of app.json.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#publisher">
+    <rdfs:label>publisher</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#version">
+    <rdfs:label>version</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#sourceFile">
+    <rdfs:label>source file</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>Path of the AL file, relative to the project.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#sourceLine">
+    <rdfs:label>source line</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#caption">
+    <rdfs:label>caption</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#access">
+    <rdfs:label>access</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>The Access property of an object (public or internal).</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#fieldNumber">
+    <rdfs:label>field number</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#dataType">
+    <rdfs:label>data type</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#signature">
+    <rdfs:label>signature</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#visibility">
+    <rdfs:label>visibility</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>local, internal, protected, or public.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#layer">
+    <rdfs:label>layer</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    <rdfs:comment>The layer of a component; lower layers may not depend on higher ones.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#relationKind">
+    <rdfs:label>relation kind</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#confidence">
+    <rdfs:label>confidence</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>How the relation was resolved: resolved, syntactic, or ambiguous.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#relationClass">
+    <rdfs:label>relation class</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>schema or runtime for data relations.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#cardinality">
+    <rdfs:label>cardinality</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#dataAccess">
+    <rdfs:label>data access</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>read, write, or read-write.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#operation">
+    <rdfs:label>operation</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>A data operation such as Get, Insert, or Modify.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#sourceProcedure">
+    <rdfs:label>source procedure</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>The procedure the relation is written in.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#rule">
+    <rdfs:label>rule</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#weight">
+    <rdfs:label>weight</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    <rdfs:comment>How many relations a violation stands for.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <bca:App rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397">
+    <rdfs:label>BC Atlas Warehouse Example</rdfs:label>
+    <bca:appId>8ca2f385-ffba-4be3-94ad-84feaae0c397</bca:appId>
+    <bca:publisher>BC Atlas contributors</bca:publisher>
+    <bca:version>1.0.0.0</bca:version>
+  </bca:App>
+  <bca:Namespace rdf:about="urn:bc-atlas:namespace:BCA.Example.Automation">
+    <rdfs:label>BCA.Example.Automation</rdfs:label>
+  </bca:Namespace>
+  <bca:Namespace rdf:about="urn:bc-atlas:namespace:BCA.Example.Inventory">
+    <rdfs:label>BCA.Example.Inventory</rdfs:label>
+  </bca:Namespace>
+  <bca:Namespace rdf:about="urn:bc-atlas:namespace:BCA.Example.UI">
+    <rdfs:label>BCA.Example.UI</rdfs:label>
+  </bca:Namespace>
+  <bca:Codeunit rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120">
+    <rdfs:label>Warehouse Notifications</rdfs:label>
+    <bca:objectType>codeunit</bca:objectType>
+    <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50120</bca:objectId>
+    <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Automation::codeunit::50120</dcterms:identifier>
+    <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
+    <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Automation"/>
+    <bca:sourceFile>Automation.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">6</bca:sourceLine>
+    <bca:hasProcedure rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:NotifyRequestProcessed"/>
+    <bca:hasProcedure rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:SendNotification"/>
+  </bca:Codeunit>
+  <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:NotifyRequestProcessed">
+    <rdfs:label>NotifyRequestProcessed</rdfs:label>
+    <bca:signature>NotifyRequestProcessed()</bca:signature>
+    <bca:visibility>local</bca:visibility>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">9</bca:sourceLine>
+  </bca:Procedure>
+  <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:SendNotification">
+    <rdfs:label>SendNotification</rdfs:label>
+    <bca:signature>SendNotification()</bca:signature>
+    <bca:visibility>local</bca:visibility>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">14</bca:sourceLine>
+  </bca:Procedure>
+  <bca:PermissionSet rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121">
+    <rdfs:label>WAREHOUSE PROCESS</rdfs:label>
+    <bca:objectType>permissionset</bca:objectType>
+    <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50121</bca:objectId>
+    <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Automation::permissionset::50121</dcterms:identifier>
+    <bca:access>public</bca:access>
+    <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
+    <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Automation"/>
+    <bca:sourceFile>Automation.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">19</bca:sourceLine>
+    <bca:permits rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:permits rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:permits rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
+  </bca:PermissionSet>
+  <bca:Interface rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity">
+    <rdfs:label>Handles Warehouse Activity</rdfs:label>
+    <bca:objectType>interface</bca:objectType>
+    <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::interface::handles warehouse activity</dcterms:identifier>
+    <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
+    <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Inventory"/>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</bca:sourceLine>
+    <bca:hasProcedure rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity:procedure:Process"/>
+  </bca:Interface>
+  <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity:procedure:Process">
+    <rdfs:label>Process</rdfs:label>
+    <bca:signature>Process()</bca:signature>
+    <bca:visibility>public</bca:visibility>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">5</bca:sourceLine>
+  </bca:Procedure>
+  <bca:Table rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100">
+    <rdfs:label>Warehouse Request</rdfs:label>
+    <bca:objectType>table</bca:objectType>
+    <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50100</bca:objectId>
+    <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::table::50100</dcterms:identifier>
+    <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
+    <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Inventory"/>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">8</bca:sourceLine>
+    <bca:hasField rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:1"/>
+    <bca:hasField rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:2"/>
+    <bca:hasField rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:3"/>
+    <bca:hasKey rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:key:PK"/>
+  </bca:Table>
+  <bca:Field rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:1">
+    <rdfs:label>Entry No.</rdfs:label>
+    <bca:fieldNumber rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</bca:fieldNumber>
+    <bca:dataType>Integer</bca:dataType>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">14</bca:sourceLine>
+  </bca:Field>
+  <bca:Field rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:2">
+    <rdfs:label>Description</rdfs:label>
+    <bca:fieldNumber rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">2</bca:fieldNumber>
+    <bca:dataType>Text[100]</bca:dataType>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">15</bca:sourceLine>
+  </bca:Field>
+  <bca:Field rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:3">
+    <rdfs:label>Processed</rdfs:label>
+    <bca:fieldNumber rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</bca:fieldNumber>
+    <bca:dataType>Boolean</bca:dataType>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">16</bca:sourceLine>
+  </bca:Field>
+  <bca:Key rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:key:PK">
+    <rdfs:label>PK</rdfs:label>
+    <bca:keyField rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:1"/>
+  </bca:Key>
+  <bca:Codeunit rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101">
+    <rdfs:label>Warehouse Processor</rdfs:label>
+    <bca:objectType>codeunit</bca:objectType>
+    <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50101</bca:objectId>
+    <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::codeunit::50101</dcterms:identifier>
+    <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
+    <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Inventory"/>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">28</bca:sourceLine>
+    <bca:hasProcedure rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:Process"/>
+    <bca:hasProcedure rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:Process~2"/>
+    <bca:hasProcedure rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:ValidateRequest"/>
+    <bca:hasProcedure rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:OnRequestProcessed"/>
+    <bca:implements rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity"/>
+    <bca:permits rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:uses rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:reads rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:writes rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+  </bca:Codeunit>
+  <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:Process">
+    <rdfs:label>Process</rdfs:label>
+    <bca:signature>Process()</bca:signature>
+    <bca:visibility>public</bca:visibility>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">35</bca:sourceLine>
+  </bca:Procedure>
+  <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:Process~2">
+    <rdfs:label>Process</rdfs:label>
+    <bca:signature>Process(Record &quot;Warehouse Request&quot;)</bca:signature>
+    <bca:visibility>public</bca:visibility>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">43</bca:sourceLine>
+  </bca:Procedure>
+  <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:ValidateRequest">
+    <rdfs:label>ValidateRequest</rdfs:label>
+    <bca:signature>ValidateRequest(Record &quot;Warehouse Request&quot;)</bca:signature>
+    <bca:visibility>local</bca:visibility>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">51</bca:sourceLine>
+  </bca:Procedure>
+  <bca:EventPublisher rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:OnRequestProcessed">
+    <rdfs:label>OnRequestProcessed</rdfs:label>
+    <bca:signature>OnRequestProcessed()</bca:signature>
+    <bca:visibility>public</bca:visibility>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">56</bca:sourceLine>
+  </bca:EventPublisher>
+  <bca:Enum rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102">
+    <rdfs:label>Warehouse Handler</rdfs:label>
+    <bca:objectType>enum</bca:objectType>
+    <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50102</bca:objectId>
+    <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::enum::50102</dcterms:identifier>
+    <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
+    <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Inventory"/>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">61</bca:sourceLine>
+    <bca:implements rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity"/>
+    <bca:selects rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+  </bca:Enum>
+  <bca:Page rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110">
+    <rdfs:label>Warehouse Requests</rdfs:label>
+    <bca:objectType>page</bca:objectType>
+    <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50110</bca:objectId>
+    <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::page::50110</dcterms:identifier>
+    <bca:caption>Warehouse Requests</bca:caption>
+    <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
+    <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.UI"/>
+    <bca:sourceFile>WarehouseUI.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">5</bca:sourceLine>
+    <bca:hasField rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:EntryNo"/>
+    <bca:hasField rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Description"/>
+    <bca:hasField rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Processed"/>
+    <bca:hasProcedure rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:trigger:OnAction"/>
+    <bca:reads rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:uses rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+  </bca:Page>
+  <bca:Field rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:EntryNo">
+    <rdfs:label>EntryNo</rdfs:label>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">19</bca:sourceLine>
+  </bca:Field>
+  <bca:Field rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Description">
+    <rdfs:label>Description</rdfs:label>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">25</bca:sourceLine>
+  </bca:Field>
+  <bca:Field rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Processed">
+    <rdfs:label>Processed</rdfs:label>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">31</bca:sourceLine>
+  </bca:Field>
+  <bca:Trigger rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:trigger:OnAction">
+    <rdfs:label>OnAction</rdfs:label>
+    <bca:signature>OnAction()</bca:signature>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">52</bca:sourceLine>
+  </bca:Trigger>
+  <bca:PageExtension rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:pageextension:50111">
+    <rdfs:label>Warehouse Request Ext.</rdfs:label>
+    <bca:objectType>pageextension</bca:objectType>
+    <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50111</bca:objectId>
+    <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::pageextension::50111</dcterms:identifier>
+    <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
+    <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.UI"/>
+    <bca:sourceFile>WarehouseUI.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">64</bca:sourceLine>
+    <bca:extends rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
+  </bca:PageExtension>
+  <bca:Codeunit rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122">
+    <rdfs:label>WarehouseUITests</rdfs:label>
+    <bca:objectType>codeunit</bca:objectType>
+    <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50122</bca:objectId>
+    <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::codeunit::50122</dcterms:identifier>
+    <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
+    <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.UI"/>
+    <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">11</bca:sourceLine>
+    <bca:hasProcedure rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_CreateRequest_PersistsDescription"/>
+    <bca:hasProcedure rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_ProcessRequest_MarksRequestProcessed"/>
+    <bca:permits rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:uses rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:uses rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
+    <bca:writes rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:reads rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+  </bca:Codeunit>
+  <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_CreateRequest_PersistsDescription">
+    <rdfs:label>WarehouseRequests_CreateRequest_PersistsDescription</rdfs:label>
+    <bca:signature>WarehouseRequests_CreateRequest_PersistsDescription()</bca:signature>
+    <bca:visibility>public</bca:visibility>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">18</bca:sourceLine>
+  </bca:Procedure>
+  <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_ProcessRequest_MarksRequestProcessed">
+    <rdfs:label>WarehouseRequests_ProcessRequest_MarksRequestProcessed</rdfs:label>
+    <bca:signature>WarehouseRequests_ProcessRequest_MarksRequestProcessed()</bca:signature>
+    <bca:visibility>public</bca:visibility>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">46</bca:sourceLine>
+  </bca:Procedure>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:f7b2db3a8089b674">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>permits</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:dataAccess>RIMD</bca:dataAccess>
+    <bca:sourceFile>Automation.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">23</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:f37717d975fa0d2f">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:relationKind>permits</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:dataAccess>X</bca:dataAccess>
+    <bca:sourceFile>Automation.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">24</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:889cb083471a5261">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
+    <bca:relationKind>permits</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:dataAccess>X</bca:dataAccess>
+    <bca:sourceFile>Automation.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">25</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:7a6dc7fb88a0d064">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity"/>
+    <bca:relationKind>implements</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">28</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:e3af2139e5a6bfe8">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>permits</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:dataAccess>RM</bca:dataAccess>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">30</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:b485c76f254c8b8b">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>uses</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">33</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:65c970305208a45a">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>uses</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">43</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:401e37e915215d24">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>uses</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">51</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:96c7b98b6dd00089">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>reads</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:relationClass>runtime</bca:relationClass>
+    <bca:operation>FindFirst</bca:operation>
+    <bca:sourceProcedure>Process()</bca:sourceProcedure>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">37</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:5daa7a9acbc17f0a">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>writes</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:relationClass>runtime</bca:relationClass>
+    <bca:operation>Modify</bca:operation>
+    <bca:sourceProcedure>Process(Record &quot;Warehouse Request&quot;)</bca:sourceProcedure>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">47</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:1d803be072491fde">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>writes</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:relationClass>runtime</bca:relationClass>
+    <bca:operation>Modify</bca:operation>
+    <bca:sourceProcedure>Process(Record &quot;Warehouse Request&quot;)</bca:sourceProcedure>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">40</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:8c98eedcc752d1b1">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity"/>
+    <bca:relationKind>implements</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">61</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:6ed8795a2e93e96f">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:relationKind>selects</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceProcedure>Default</bca:sourceProcedure>
+    <bca:sourceFile>Inventory.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">65</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:b5416e9b22dde9a9">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>reads</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceFile>WarehouseUI.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">10</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:9bf76751bc0f2596">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:relationKind>uses</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceFile>WarehouseUI.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">54</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:314573fcb48626ef">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:pageextension:50111"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
+    <bca:relationKind>extends</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:relationClass>schema</bca:relationClass>
+    <bca:sourceFile>WarehouseUI.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">64</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:c45150a29cab4b13">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>permits</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:dataAccess>RIMD</bca:dataAccess>
+    <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">14</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:7ea4f482fe301a53">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>uses</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">20</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:95475dee34ec67be">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
+    <bca:relationKind>uses</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">21</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:1102826735aa8b5d">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>uses</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">48</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:557b78ba567c2e37">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
+    <bca:relationKind>uses</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">49</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:2fad63a61c2a1dec">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>writes</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:relationClass>runtime</bca:relationClass>
+    <bca:operation>DeleteAll</bca:operation>
+    <bca:sourceProcedure>WarehouseRequests_CreateRequest_PersistsDescription()</bca:sourceProcedure>
+    <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">29</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:68c13bcd1aebd5bb">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>reads</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:relationClass>runtime</bca:relationClass>
+    <bca:operation>Get</bca:operation>
+    <bca:sourceProcedure>WarehouseRequests_CreateRequest_PersistsDescription()</bca:sourceProcedure>
+    <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">38</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:28fee465b38849bb">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>writes</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:relationClass>runtime</bca:relationClass>
+    <bca:operation>DeleteAll</bca:operation>
+    <bca:sourceProcedure>WarehouseRequests_ProcessRequest_MarksRequestProcessed()</bca:sourceProcedure>
+    <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">57</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:303952d2d4bb0e1c">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>writes</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:relationClass>runtime</bca:relationClass>
+    <bca:operation>Insert</bca:operation>
+    <bca:sourceProcedure>WarehouseRequests_ProcessRequest_MarksRequestProcessed()</bca:sourceProcedure>
+    <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">60</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:d43c43d9e356babd">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
+    <bca:relationKind>reads</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:relationClass>runtime</bca:relationClass>
+    <bca:operation>Get</bca:operation>
+    <bca:sourceProcedure>WarehouseRequests_ProcessRequest_MarksRequestProcessed()</bca:sourceProcedure>
+    <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">69</bca:sourceLine>
+  </bca:Relation>
+</rdf:RDF>

@@ -75,6 +75,16 @@ await run([
   "--output-dir", path.join("examples", "docs")
 ]);
 
+// The knowledge graph of the warehouse example, with a fixed date so it only changes with the source.
+process.env.SOURCE_DATE_EPOCH = "1735689600";
+const { writeKnowledgeGraph } = await import("../src/knowledge/index.js");
+const knowledge = path.join(root, "examples", "knowledge-graph");
+for (const format of ["ttl", "owl"]) {
+  const result = await writeKnowledgeGraph(input, { output: path.join(knowledge, `warehouse-app.${format}`), title: "BC Atlas Warehouse Example" });
+  console.log(`Wrote examples/knowledge-graph/warehouse-app.${format} (${result.triples} triples)`);
+}
+delete process.env.SOURCE_DATE_EPOCH;
+
 const { createExplorerExample } = await import("./explorer-example.js");
 const explorer = await createExplorerExample(root);
 await fs.mkdir(path.join(root, "examples", "explorer"), { recursive: true });
