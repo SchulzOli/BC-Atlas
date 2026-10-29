@@ -40,6 +40,12 @@ jobs:
             console.error(`Requested ${process.env.EXPECTED_VERSION}, but vscode/package.json contains ${pkg.version}.`);
             process.exit(1);
           }
+          // The npm package and the VS Code extension share one version.
+          const engine = require("./package.json");
+          if (engine.version !== pkg.version) {
+            console.error(`package.json contains ${engine.version}; run npm run version:set -- ${pkg.version}.`);
+            process.exit(1);
+          }
           NODE
 
       - run: npm ci

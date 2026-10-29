@@ -52,6 +52,12 @@ jobs:
             console.error(`Requested ${process.env.EXPECTED_VERSION}, but package.json contains ${pkg.version}.`);
             process.exit(1);
           }
+          // The npm package and the VS Code extension share one version.
+          const extension = require("./vscode/package.json");
+          if (extension.version !== pkg.version) {
+            console.error(`vscode/package.json contains ${extension.version}; run npm run version:set -- ${pkg.version}.`);
+            process.exit(1);
+          }
           NODE
 
       - name: Confirm version is unpublished
