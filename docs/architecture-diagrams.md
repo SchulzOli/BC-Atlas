@@ -47,7 +47,7 @@ boundaries on procedures and owning objects. Runtime access occurrences include
 their transaction segment. This is static evidence about explicit commits; it
 does not claim to model implicit runtime transaction starts, ends, or rollbacks.
 
-In D2 and SVG output, hover an access edge to see its operation names, source
+In SVG output and on the Diagrams page, hover an access edge to see its operation names, source
 procedures, relation class, transaction segments, and cardinality evidence.
 
 ## Read permissions

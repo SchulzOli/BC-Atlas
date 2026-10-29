@@ -1221,8 +1221,88 @@
       apply();
     };
     canvas.onpointerup = () => { drag = undefined; canvas.classList.remove("dragging"); };
+    // Brings a box of the drawing (in its own coordinates) to the middle, zoomed in enough to read.
+    const show = ({ x: left, y: top, width: boxWidth, height: boxHeight }) => {
+      const box = canvas.getBoundingClientRect();
+      scale = Math.max(scale, Math.min(1.2, (box.width * 0.5) / boxWidth));
+      x = box.width / 2 - (left + boxWidth / 2) * scale;
+      y = box.height / 2 - (top + boxHeight / 2) * scale;
+      apply();
+    };
     fit();
-    return { fit, zoom: (factor) => { const box = canvas.getBoundingClientRect(); zoom(factor, box.width / 2, box.height / 2); } };
+    return { fit, show, zoom: (factor) => { const box = canvas.getBoundingClientRect(); zoom(factor, box.width / 2, box.height / 2); } };
+  }
+
+  // A drawn diagram as a map: hovering a box lights up its relations and
+  // neighbors, a click opens its object, the legend switches relation kinds
+  // on and off, and the search finds objects by name.
+  function interactiveDiagram(canvas, svg, controls, search) {
+    const nodes = [...svg.querySelectorAll(".node")];
+    const edges = [...svg.querySelectorAll(".edge")];
+    const byPath = new Map(nodes.map((node) => [node.dataset.node, node]));
+    const touching = new Map(nodes.map((node) => [node.dataset.node, []]));
+    for (const edge of edges) {
+      touching.get(edge.dataset.from)?.push(edge);
+      touching.get(edge.dataset.to)?.push(edge);
+    }
+    const hidden = new Set();
+    const at = (event) => document.elementFromPoint(event.clientX, event.clientY);
+    let focused;
+    const focus = (node) => {
+      if (node === focused) return;
+      focused = node;
+      for (const element of svg.querySelectorAll(".on")) element.classList.remove("on");
+      svg.classList.toggle("focused", Boolean(node));
+      if (!node) return;
+      node.classList.add("on");
+      for (const edge of touching.get(node.dataset.node) ?? []) {
+        if (hidden.has(edge.dataset.kind)) continue;
+        edge.classList.add("on");
+        byPath.get(edge.dataset.from === node.dataset.node ? edge.dataset.to : edge.dataset.from)?.classList.add("on");
+      }
+    };
+    canvas.addEventListener("pointermove", (event) => {
+      if (canvas.classList.contains("dragging")) return;
+      focus(at(event)?.closest?.(".node") ?? undefined);
+    });
+    canvas.addEventListener("pointerleave", () => focus(undefined));
+    // The canvas captures the pointer while dragging, so the click lands on it: look at what is under the pointer.
+    canvas.addEventListener("click", (event) => {
+      if (canvas.dataset.moved) return;
+      const target = at(event);
+      const kind = target?.closest?.(".legend-kind")?.dataset.kind;
+      if (kind) {
+        if (hidden.has(kind)) hidden.delete(kind);
+        else hidden.add(kind);
+        for (const edge of edges) edge.classList.toggle("off", hidden.has(edge.dataset.kind));
+        for (const item of svg.querySelectorAll(".legend-kind")) item.classList.toggle("off", hidden.has(item.dataset.kind));
+        return;
+      }
+      const object = target?.closest?.("[data-object]")?.dataset.object;
+      if (!object) return;
+      event.preventDefault();
+      location.hash = `#/object/${encodeURIComponent(object)}`;
+    }, true);
+    // Search: the matches stay lit, Enter steps through them.
+    let matches = [];
+    let current = -1;
+    const box = (node) => node.querySelector("rect").getBBox();
+    search.addEventListener("input", () => {
+      const query = search.value.trim().toLowerCase();
+      matches = query ? nodes.filter((node) => node.textContent.toLowerCase().includes(query)) : [];
+      current = -1;
+      for (const node of nodes) node.classList.toggle("match", matches.includes(node));
+      svg.classList.toggle("searching", Boolean(query));
+      search.classList.toggle("none", Boolean(query) && !matches.length);
+      search.title = query ? `${plural(matches.length, "match", "matches")}${matches.length ? "; Enter shows the next" : ""}` : "";
+    });
+    search.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || !matches.length) return;
+      event.preventDefault();
+      current = (current + 1) % matches.length;
+      controls.show(box(matches[current]));
+      focus(matches[current]);
+    });
   }
 
   // ------------------------------------------------------------ workbench
@@ -1425,27 +1505,11 @@
     bar.set(VIEW_TITLES[view] ?? view, `${esc(summary(view))} · ${plural(diagram.nodes, "object")}, ${plural(diagram.edges, "dependency", "dependencies")}`,
       `<span class="wb-tools"><button class="icon-button" data-zoom="out" title="Zoom out">−</button><button class="icon-button" data-zoom="in" title="Zoom in">+</button><button class="icon-button" data-zoom="fit" title="Fit the diagram">Fit</button></span>
        <span class="wb-tools"><button class="icon-button" data-download="svg" title="Save as SVG">SVG</button><button class="icon-button" data-download="png" title="Save as PNG">PNG</button>${diagram.d2 ? '<button class="icon-button" data-download="d2" title="Save the D2 source">D2</button>' : ""}</span>`);
-    bar.body.innerHTML = `<div class="canvas"><div class="stage"></div><div class="canvas-info">Scroll to zoom, drag to pan${diagram.objects ? ", click an object to open it" : ""}</div></div>`;
+    bar.body.innerHTML = `<div class="canvas"><div class="stage"></div><input type="search" class="canvas-search" placeholder="Find an object" aria-label="Find an object in the diagram"><div class="canvas-info">Hover an object for its relations, click it to open it; click the legend to hide a kind of relation</div></div>`;
     const canvas = $(".canvas", bar.body);
-    const controls = panZoom(canvas, safeSvg(diagram.svg));
-    // D2 names the nth object "n<index>" and writes the path of a shape, base64-encoded, as its class.
-    if (diagram.objects) {
-      canvas.addEventListener("click", (event) => {
-        if (canvas.dataset.moved) return;
-        // The canvas captures the pointer while dragging, so the click lands on it: look at what is under the pointer.
-        for (let element = document.elementFromPoint(event.clientX, event.clientY); element && element !== canvas; element = element.parentElement) {
-          const encoded = element.getAttribute?.("class");
-          if (!encoded || !/^[A-Za-z0-9+/]+=*$/u.test(encoded)) continue;
-          let key;
-          try { key = atob(encoded); } catch { continue; }
-          const index = /(?:^|\.)n(\d+)$/u.exec(key)?.[1];
-          const id = index === undefined ? undefined : diagram.objects[Number(index)];
-          if (id) location.hash = `#/object/${encodeURIComponent(id)}`;
-          return;
-        }
-      });
-      canvas.classList.add("linked");
-    }
+    const svg = safeSvg(diagram.svg);
+    const controls = panZoom(canvas, svg);
+    interactiveDiagram(canvas, svg, controls, $(".canvas-search", bar.body));
     bar.onAction(async (data) => {
       if (data.zoom === "fit") controls.fit();
       else if (data.zoom) controls.zoom(data.zoom === "in" ? 1.25 : 0.8);

@@ -208,7 +208,7 @@ and update-check tools. `bca setup agent --agent claude|copilot|cursor` adds a
   -> AL compiler: calls and diagnostics   (src/al, when the toolchain is installed)
   -> resolved model with evidence         (resolver, call analysis, semantics)
   -> view projection and insights         (views, workflow, health)
-  -> D2 / SVG / JSON / Markdown / HTML    (renderers)
+  -> SVG / PNG / PDF / D2 / JSON / Markdown / HTML    (renderers)
   -> the pages: one workspace, in VS Code (vscode/) or exported as one file
 ```
 
@@ -291,5 +291,6 @@ Release notes are in [CHANGELOG.md](./CHANGELOG.md).
 ## License
 
 [MIT](./LICENSE). Dependencies retain their own licenses: `tree-sitter-al` and
-`web-tree-sitter` are MIT, and D2 is MPL-2.0. See
+`web-tree-sitter` are MIT, elkjs is EPL-2.0, resvg is MPL-2.0, and the
+Liberation Sans font is OFL-1.1. See
 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
