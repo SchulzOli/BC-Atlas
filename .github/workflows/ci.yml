@@ -27,7 +27,7 @@ jobs:
       - name: Generated examples are current
         run: |
           npm run examples
-          git diff --exit-code -- examples/output examples/report examples/docs examples/explorer docs/generated/images
+          git diff --exit-code -- examples/output examples/report examples/docs examples/explorer examples/knowledge-graph docs/generated/images
       - run: npm pack --dry-run
       - name: Documentation website builds without dead links
         run: npm run site:build

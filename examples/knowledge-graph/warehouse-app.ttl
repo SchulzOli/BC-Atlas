@@ -1,0 +1,990 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix bca: <https://schulzoli.github.io/BC-Atlas/ontology#> .
+
+<urn:bc-atlas:graph> a owl:Ontology ;
+    rdfs:label "BC Atlas Warehouse Example" ;
+    rdfs:comment "AL source analyzed by BC Atlas: 9 objects, 26 relations." ;
+    dcterms:created "2025-01-01T00:00:00.000Z"^^xsd:dateTime ;
+    dcterms:creator "BC Atlas 0.11.0" ;
+    dcterms:conformsTo <https://schulzoli.github.io/BC-Atlas/ontology> ;
+    rdfs:seeAlso <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:App a owl:Class ;
+    rdfs:label "AL app" ;
+    rdfs:comment "An extension or app with its own app.json." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Namespace a owl:Class ;
+    rdfs:label "AL namespace" ;
+    rdfs:comment "A namespace declared by AL objects." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Component a owl:Class ;
+    rdfs:label "Architecture component" ;
+    rdfs:comment "A component of the target architecture in .bca.json, or of a proposal." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Object a owl:Class ;
+    rdfs:label "AL object" ;
+    rdfs:comment "An application object such as a table, page, or codeunit." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ExtensionObject a owl:Class ;
+    rdfs:label "AL extension object" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:comment "An object that extends another object: a table, page, report, enum, profile, or permission set extension, or a page customization." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ExternalObject a owl:Class ;
+    rdfs:label "External AL object" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:comment "An object referenced by the workspace but declared elsewhere, for example in the Base Application." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Field a owl:Class ;
+    rdfs:label "Field" ;
+    rdfs:comment "A field of a table or table extension." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Key a owl:Class ;
+    rdfs:label "Key" ;
+    rdfs:comment "A key of a table." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Procedure a owl:Class ;
+    rdfs:label "Procedure" ;
+    rdfs:comment "A procedure of an object." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Trigger a owl:Class ;
+    rdfs:label "Trigger" ;
+    rdfs:subClassOf bca:Procedure ;
+    rdfs:comment "A trigger of an object, such as OnRun or OnValidate." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:EventPublisher a owl:Class ;
+    rdfs:label "Event publisher" ;
+    rdfs:subClassOf bca:Procedure ;
+    rdfs:comment "A procedure with an integration or business event attribute." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Relation a owl:Class ;
+    rdfs:label "Relation" ;
+    rdfs:comment "One relation found in the source, with its kind, confidence, and location (a qualified form of the direct relation property)." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ArchitectureViolation a owl:Class ;
+    rdfs:label "Architecture violation" ;
+    rdfs:comment "A dependency between two objects that points against the architecture." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Table a owl:Class ;
+    rdfs:label "Table" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:TableExtension a owl:Class ;
+    rdfs:label "Table extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Page a owl:Class ;
+    rdfs:label "Page" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:PageExtension a owl:Class ;
+    rdfs:label "Page extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:PageCustomization a owl:Class ;
+    rdfs:label "Page customization" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Codeunit a owl:Class ;
+    rdfs:label "Codeunit" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Report a owl:Class ;
+    rdfs:label "Report" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ReportExtension a owl:Class ;
+    rdfs:label "Report extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Query a owl:Class ;
+    rdfs:label "Query" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:XmlPort a owl:Class ;
+    rdfs:label "XMLport" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Enum a owl:Class ;
+    rdfs:label "Enum" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:EnumExtension a owl:Class ;
+    rdfs:label "Enum extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Interface a owl:Class ;
+    rdfs:label "Interface" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ControlAddIn a owl:Class ;
+    rdfs:label "Control add-in" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Profile a owl:Class ;
+    rdfs:label "Profile" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:ProfileExtension a owl:Class ;
+    rdfs:label "Profile extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:PermissionSet a owl:Class ;
+    rdfs:label "Permission set" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:PermissionSetExtension a owl:Class ;
+    rdfs:label "Permission set extension" ;
+    rdfs:subClassOf bca:ExtensionObject ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:Entitlement a owl:Class ;
+    rdfs:label "Entitlement" ;
+    rdfs:subClassOf bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:inApp a owl:ObjectProperty ;
+    rdfs:label "in app" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:App ;
+    rdfs:comment "The app that declares the object." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:inNamespace a owl:ObjectProperty ;
+    rdfs:label "in namespace" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Namespace ;
+    rdfs:comment "The namespace of the object." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:inComponent a owl:ObjectProperty ;
+    rdfs:label "in component" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Component ;
+    rdfs:comment "The architecture component the object belongs to." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dependsOnApp a owl:ObjectProperty ;
+    rdfs:label "depends on app" ;
+    rdfs:domain bca:App ;
+    rdfs:range bca:App ;
+    rdfs:comment "A dependency declared in app.json." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:mayDependOn a owl:ObjectProperty ;
+    rdfs:label "may depend on" ;
+    rdfs:domain bca:Component ;
+    rdfs:range bca:Component ;
+    rdfs:comment "A dependency the architecture allows." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dependsOnComponent a owl:ObjectProperty ;
+    rdfs:label "depends on component" ;
+    rdfs:domain bca:Component ;
+    rdfs:range bca:Component ;
+    rdfs:comment "A dependency between components that the source has today." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:hasField a owl:ObjectProperty ;
+    rdfs:label "has field" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Field ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:hasKey a owl:ObjectProperty ;
+    rdfs:label "has key" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Key ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:hasProcedure a owl:ObjectProperty ;
+    rdfs:label "has procedure" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Procedure ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:keyField a owl:ObjectProperty ;
+    rdfs:label "key field" ;
+    rdfs:domain bca:Key ;
+    rdfs:range bca:Field ;
+    rdfs:comment "A field of the key, in order of declaration." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dependsOn a owl:ObjectProperty ;
+    rdfs:label "depends on" ;
+    rdfs:domain bca:Object ;
+    rdfs:range bca:Object ;
+    rdfs:comment "Any relation from one object to another; every relation property below is a kind of it." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:relationSource a owl:ObjectProperty ;
+    rdfs:label "relation source" ;
+    rdfs:domain bca:Relation ;
+    rdfs:range bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:relationTarget a owl:ObjectProperty ;
+    rdfs:label "relation target" ;
+    rdfs:domain bca:Relation ;
+    rdfs:range bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:violationSource a owl:ObjectProperty ;
+    rdfs:label "violation source" ;
+    rdfs:domain bca:ArchitectureViolation ;
+    rdfs:range bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:violationTarget a owl:ObjectProperty ;
+    rdfs:label "violation target" ;
+    rdfs:domain bca:ArchitectureViolation ;
+    rdfs:range bca:Object ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:sourceComponent a owl:ObjectProperty ;
+    rdfs:label "source component" ;
+    rdfs:domain bca:ArchitectureViolation ;
+    rdfs:range bca:Component ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:targetComponent a owl:ObjectProperty ;
+    rdfs:label "target component" ;
+    rdfs:domain bca:ArchitectureViolation ;
+    rdfs:range bca:Component ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:calls a owl:ObjectProperty ;
+    rdfs:label "calls" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Calls a procedure of the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:reads a owl:ObjectProperty ;
+    rdfs:label "reads" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Reads records of the target table." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:writes a owl:ObjectProperty ;
+    rdfs:label "writes" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Inserts, modifies, or deletes records of the target table." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:relatesTo a owl:ObjectProperty ;
+    rdfs:label "relates to" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "A table relation to the target table." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:uses a owl:ObjectProperty ;
+    rdfs:label "uses" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Declares a variable or parameter of the target type." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:extends a owl:ObjectProperty ;
+    rdfs:label "extends" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Extends the target object." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:implements a owl:ObjectProperty ;
+    rdfs:label "implements" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Implements the target interface." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:selects a owl:ObjectProperty ;
+    rdfs:label "selects" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Selects an implementation through an enum value." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:publishes a owl:ObjectProperty ;
+    rdfs:label "publishes" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Publishes an event of the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:subscribesTo a owl:ObjectProperty ;
+    rdfs:label "subscribes to" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Subscribes to an event of the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:runs a owl:ObjectProperty ;
+    rdfs:label "runs" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Runs the target page, report, or codeunit." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:hasPart a owl:ObjectProperty ;
+    rdfs:label "has part" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Shows the target page as a part." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:contains a owl:ObjectProperty ;
+    rdfs:label "contains" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Contains the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:permits a owl:ObjectProperty ;
+    rdfs:label "permits" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "A permission set grants access to the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:includes a owl:ObjectProperty ;
+    rdfs:label "includes" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "A permission set includes the target permission set." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:starts a owl:ObjectProperty ;
+    rdfs:label "starts" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Starts the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:raisesEvent a owl:ObjectProperty ;
+    rdfs:label "raises event" ;
+    rdfs:subPropertyOf bca:dependsOn ;
+    rdfs:comment "Raises an event of the target." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:objectType a owl:DatatypeProperty ;
+    rdfs:label "object type" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The AL object type, such as table or codeunit." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:objectId a owl:DatatypeProperty ;
+    rdfs:label "object ID" ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:appId a owl:DatatypeProperty ;
+    rdfs:label "app ID" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The id of app.json." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:publisher a owl:DatatypeProperty ;
+    rdfs:label "publisher" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:version a owl:DatatypeProperty ;
+    rdfs:label "version" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:sourceFile a owl:DatatypeProperty ;
+    rdfs:label "source file" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Path of the AL file, relative to the project." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:sourceLine a owl:DatatypeProperty ;
+    rdfs:label "source line" ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:caption a owl:DatatypeProperty ;
+    rdfs:label "caption" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:access a owl:DatatypeProperty ;
+    rdfs:label "access" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The Access property of an object (public or internal)." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:fieldNumber a owl:DatatypeProperty ;
+    rdfs:label "field number" ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dataType a owl:DatatypeProperty ;
+    rdfs:label "data type" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:signature a owl:DatatypeProperty ;
+    rdfs:label "signature" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:visibility a owl:DatatypeProperty ;
+    rdfs:label "visibility" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "local, internal, protected, or public." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:layer a owl:DatatypeProperty ;
+    rdfs:label "layer" ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "The layer of a component; lower layers may not depend on higher ones." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:relationKind a owl:DatatypeProperty ;
+    rdfs:label "relation kind" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:confidence a owl:DatatypeProperty ;
+    rdfs:label "confidence" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "How the relation was resolved: resolved, syntactic, or ambiguous." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:relationClass a owl:DatatypeProperty ;
+    rdfs:label "relation class" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "schema or runtime for data relations." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:cardinality a owl:DatatypeProperty ;
+    rdfs:label "cardinality" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dataAccess a owl:DatatypeProperty ;
+    rdfs:label "data access" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "read, write, or read-write." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:operation a owl:DatatypeProperty ;
+    rdfs:label "operation" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "A data operation such as Get, Insert, or Modify." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:sourceProcedure a owl:DatatypeProperty ;
+    rdfs:label "source procedure" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The procedure the relation is written in." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:rule a owl:DatatypeProperty ;
+    rdfs:label "rule" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:weight a owl:DatatypeProperty ;
+    rdfs:label "weight" ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "How many relations a violation stands for." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> a bca:App ;
+    rdfs:label "BC Atlas Warehouse Example" ;
+    bca:appId "8ca2f385-ffba-4be3-94ad-84feaae0c397" ;
+    bca:publisher "BC Atlas contributors" ;
+    bca:version "1.0.0.0" .
+
+<urn:bc-atlas:namespace:BCA.Example.Automation> a bca:Namespace ;
+    rdfs:label "BCA.Example.Automation" .
+
+<urn:bc-atlas:namespace:BCA.Example.Inventory> a bca:Namespace ;
+    rdfs:label "BCA.Example.Inventory" .
+
+<urn:bc-atlas:namespace:BCA.Example.UI> a bca:Namespace ;
+    rdfs:label "BCA.Example.UI" .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120> a bca:Codeunit ;
+    rdfs:label "Warehouse Notifications" ;
+    bca:objectType "codeunit" ;
+    bca:objectId "50120"^^xsd:integer ;
+    dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Automation::codeunit::50120" ;
+    bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
+    bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Automation> ;
+    bca:sourceFile "Automation.al" ;
+    bca:sourceLine "6"^^xsd:integer ;
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:NotifyRequestProcessed> ;
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:SendNotification> .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:NotifyRequestProcessed> a bca:Procedure ;
+    rdfs:label "NotifyRequestProcessed" ;
+    bca:signature "NotifyRequestProcessed()" ;
+    bca:visibility "local" ;
+    bca:sourceLine "9"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:SendNotification> a bca:Procedure ;
+    rdfs:label "SendNotification" ;
+    bca:signature "SendNotification()" ;
+    bca:visibility "local" ;
+    bca:sourceLine "14"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121> a bca:PermissionSet ;
+    rdfs:label "WAREHOUSE PROCESS" ;
+    bca:objectType "permissionset" ;
+    bca:objectId "50121"^^xsd:integer ;
+    dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Automation::permissionset::50121" ;
+    bca:access "public" ;
+    bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
+    bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Automation> ;
+    bca:sourceFile "Automation.al" ;
+    bca:sourceLine "19"^^xsd:integer ;
+    bca:permits <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:permits <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:permits <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity> a bca:Interface ;
+    rdfs:label "Handles Warehouse Activity" ;
+    bca:objectType "interface" ;
+    dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::interface::handles warehouse activity" ;
+    bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
+    bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Inventory> ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "3"^^xsd:integer ;
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity:procedure:Process> .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity:procedure:Process> a bca:Procedure ;
+    rdfs:label "Process" ;
+    bca:signature "Process()" ;
+    bca:visibility "public" ;
+    bca:sourceLine "5"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> a bca:Table ;
+    rdfs:label "Warehouse Request" ;
+    bca:objectType "table" ;
+    bca:objectId "50100"^^xsd:integer ;
+    dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::table::50100" ;
+    bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
+    bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Inventory> ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "8"^^xsd:integer ;
+    bca:hasField <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:1> ;
+    bca:hasField <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:2> ;
+    bca:hasField <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:3> ;
+    bca:hasKey <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:key:PK> .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:1> a bca:Field ;
+    rdfs:label "Entry No." ;
+    bca:fieldNumber "1"^^xsd:integer ;
+    bca:dataType "Integer" ;
+    bca:sourceLine "14"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:2> a bca:Field ;
+    rdfs:label "Description" ;
+    bca:fieldNumber "2"^^xsd:integer ;
+    bca:dataType "Text[100]" ;
+    bca:sourceLine "15"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:3> a bca:Field ;
+    rdfs:label "Processed" ;
+    bca:fieldNumber "3"^^xsd:integer ;
+    bca:dataType "Boolean" ;
+    bca:sourceLine "16"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:key:PK> a bca:Key ;
+    rdfs:label "PK" ;
+    bca:keyField <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100:field:1> .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> a bca:Codeunit ;
+    rdfs:label "Warehouse Processor" ;
+    bca:objectType "codeunit" ;
+    bca:objectId "50101"^^xsd:integer ;
+    dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::codeunit::50101" ;
+    bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
+    bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Inventory> ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "28"^^xsd:integer ;
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:Process> ;
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:Process~2> ;
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:ValidateRequest> ;
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:OnRequestProcessed> ;
+    bca:implements <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity> ;
+    bca:permits <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:uses <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:reads <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:writes <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:Process> a bca:Procedure ;
+    rdfs:label "Process" ;
+    bca:signature "Process()" ;
+    bca:visibility "public" ;
+    bca:sourceLine "35"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:Process~2> a bca:Procedure ;
+    rdfs:label "Process" ;
+    bca:signature "Process(Record \"Warehouse Request\")" ;
+    bca:visibility "public" ;
+    bca:sourceLine "43"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:ValidateRequest> a bca:Procedure ;
+    rdfs:label "ValidateRequest" ;
+    bca:signature "ValidateRequest(Record \"Warehouse Request\")" ;
+    bca:visibility "local" ;
+    bca:sourceLine "51"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:OnRequestProcessed> a bca:EventPublisher ;
+    rdfs:label "OnRequestProcessed" ;
+    bca:signature "OnRequestProcessed()" ;
+    bca:visibility "public" ;
+    bca:sourceLine "56"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102> a bca:Enum ;
+    rdfs:label "Warehouse Handler" ;
+    bca:objectType "enum" ;
+    bca:objectId "50102"^^xsd:integer ;
+    dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::enum::50102" ;
+    bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
+    bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Inventory> ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "61"^^xsd:integer ;
+    bca:implements <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity> ;
+    bca:selects <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> a bca:Page ;
+    rdfs:label "Warehouse Requests" ;
+    bca:objectType "page" ;
+    bca:objectId "50110"^^xsd:integer ;
+    dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::page::50110" ;
+    bca:caption "Warehouse Requests" ;
+    bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
+    bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.UI> ;
+    bca:sourceFile "WarehouseUI.al" ;
+    bca:sourceLine "5"^^xsd:integer ;
+    bca:hasField <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:EntryNo> ;
+    bca:hasField <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Description> ;
+    bca:hasField <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Processed> ;
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:trigger:OnAction> ;
+    bca:reads <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:uses <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:EntryNo> a bca:Field ;
+    rdfs:label "EntryNo" ;
+    bca:sourceLine "19"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Description> a bca:Field ;
+    rdfs:label "Description" ;
+    bca:sourceLine "25"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Processed> a bca:Field ;
+    rdfs:label "Processed" ;
+    bca:sourceLine "31"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:trigger:OnAction> a bca:Trigger ;
+    rdfs:label "OnAction" ;
+    bca:signature "OnAction()" ;
+    bca:sourceLine "52"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:pageextension:50111> a bca:PageExtension ;
+    rdfs:label "Warehouse Request Ext." ;
+    bca:objectType "pageextension" ;
+    bca:objectId "50111"^^xsd:integer ;
+    dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::pageextension::50111" ;
+    bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
+    bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.UI> ;
+    bca:sourceFile "WarehouseUI.al" ;
+    bca:sourceLine "64"^^xsd:integer ;
+    bca:extends <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> a bca:Codeunit ;
+    rdfs:label "WarehouseUITests" ;
+    bca:objectType "codeunit" ;
+    bca:objectId "50122"^^xsd:integer ;
+    dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::codeunit::50122" ;
+    bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
+    bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.UI> ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "11"^^xsd:integer ;
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_CreateRequest_PersistsDescription> ;
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_ProcessRequest_MarksRequestProcessed> ;
+    bca:permits <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:uses <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:uses <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
+    bca:writes <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:reads <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_CreateRequest_PersistsDescription> a bca:Procedure ;
+    rdfs:label "WarehouseRequests_CreateRequest_PersistsDescription" ;
+    bca:signature "WarehouseRequests_CreateRequest_PersistsDescription()" ;
+    bca:visibility "public" ;
+    bca:sourceLine "18"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_ProcessRequest_MarksRequestProcessed> a bca:Procedure ;
+    rdfs:label "WarehouseRequests_ProcessRequest_MarksRequestProcessed" ;
+    bca:signature "WarehouseRequests_ProcessRequest_MarksRequestProcessed()" ;
+    bca:visibility "public" ;
+    bca:sourceLine "46"^^xsd:integer .
+
+<urn:bc-atlas:relation:f7b2db3a8089b674> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "permits" ;
+    bca:confidence "resolved" ;
+    bca:dataAccess "RIMD" ;
+    bca:sourceFile "Automation.al" ;
+    bca:sourceLine "23"^^xsd:integer .
+
+<urn:bc-atlas:relation:f37717d975fa0d2f> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationKind "permits" ;
+    bca:confidence "resolved" ;
+    bca:dataAccess "X" ;
+    bca:sourceFile "Automation.al" ;
+    bca:sourceLine "24"^^xsd:integer .
+
+<urn:bc-atlas:relation:889cb083471a5261> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
+    bca:relationKind "permits" ;
+    bca:confidence "resolved" ;
+    bca:dataAccess "X" ;
+    bca:sourceFile "Automation.al" ;
+    bca:sourceLine "25"^^xsd:integer .
+
+<urn:bc-atlas:relation:7a6dc7fb88a0d064> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity> ;
+    bca:relationKind "implements" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "28"^^xsd:integer .
+
+<urn:bc-atlas:relation:e3af2139e5a6bfe8> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "permits" ;
+    bca:confidence "resolved" ;
+    bca:dataAccess "RM" ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "30"^^xsd:integer .
+
+<urn:bc-atlas:relation:b485c76f254c8b8b> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "uses" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "33"^^xsd:integer .
+
+<urn:bc-atlas:relation:65c970305208a45a> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "uses" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "43"^^xsd:integer .
+
+<urn:bc-atlas:relation:401e37e915215d24> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "uses" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "51"^^xsd:integer .
+
+<urn:bc-atlas:relation:96c7b98b6dd00089> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "reads" ;
+    bca:confidence "resolved" ;
+    bca:relationClass "runtime" ;
+    bca:operation "FindFirst" ;
+    bca:sourceProcedure "Process()" ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "37"^^xsd:integer .
+
+<urn:bc-atlas:relation:5daa7a9acbc17f0a> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "writes" ;
+    bca:confidence "resolved" ;
+    bca:relationClass "runtime" ;
+    bca:operation "Modify" ;
+    bca:sourceProcedure "Process(Record \"Warehouse Request\")" ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "47"^^xsd:integer .
+
+<urn:bc-atlas:relation:1d803be072491fde> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "writes" ;
+    bca:confidence "resolved" ;
+    bca:relationClass "runtime" ;
+    bca:operation "Modify" ;
+    bca:sourceProcedure "Process(Record \"Warehouse Request\")" ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "40"^^xsd:integer .
+
+<urn:bc-atlas:relation:8c98eedcc752d1b1> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity> ;
+    bca:relationKind "implements" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "61"^^xsd:integer .
+
+<urn:bc-atlas:relation:6ed8795a2e93e96f> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationKind "selects" ;
+    bca:confidence "resolved" ;
+    bca:sourceProcedure "Default" ;
+    bca:sourceFile "Inventory.al" ;
+    bca:sourceLine "65"^^xsd:integer .
+
+<urn:bc-atlas:relation:b5416e9b22dde9a9> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "reads" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "WarehouseUI.al" ;
+    bca:sourceLine "10"^^xsd:integer .
+
+<urn:bc-atlas:relation:9bf76751bc0f2596> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationKind "uses" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "WarehouseUI.al" ;
+    bca:sourceLine "54"^^xsd:integer .
+
+<urn:bc-atlas:relation:314573fcb48626ef> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:pageextension:50111> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
+    bca:relationKind "extends" ;
+    bca:confidence "resolved" ;
+    bca:relationClass "schema" ;
+    bca:sourceFile "WarehouseUI.al" ;
+    bca:sourceLine "64"^^xsd:integer .
+
+<urn:bc-atlas:relation:c45150a29cab4b13> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "permits" ;
+    bca:confidence "resolved" ;
+    bca:dataAccess "RIMD" ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "14"^^xsd:integer .
+
+<urn:bc-atlas:relation:7ea4f482fe301a53> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "uses" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "20"^^xsd:integer .
+
+<urn:bc-atlas:relation:95475dee34ec67be> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
+    bca:relationKind "uses" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "21"^^xsd:integer .
+
+<urn:bc-atlas:relation:1102826735aa8b5d> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "uses" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "48"^^xsd:integer .
+
+<urn:bc-atlas:relation:557b78ba567c2e37> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
+    bca:relationKind "uses" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "49"^^xsd:integer .
+
+<urn:bc-atlas:relation:2fad63a61c2a1dec> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "writes" ;
+    bca:confidence "resolved" ;
+    bca:relationClass "runtime" ;
+    bca:operation "DeleteAll" ;
+    bca:sourceProcedure "WarehouseRequests_CreateRequest_PersistsDescription()" ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "29"^^xsd:integer .
+
+<urn:bc-atlas:relation:68c13bcd1aebd5bb> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "reads" ;
+    bca:confidence "resolved" ;
+    bca:relationClass "runtime" ;
+    bca:operation "Get" ;
+    bca:sourceProcedure "WarehouseRequests_CreateRequest_PersistsDescription()" ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "38"^^xsd:integer .
+
+<urn:bc-atlas:relation:28fee465b38849bb> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "writes" ;
+    bca:confidence "resolved" ;
+    bca:relationClass "runtime" ;
+    bca:operation "DeleteAll" ;
+    bca:sourceProcedure "WarehouseRequests_ProcessRequest_MarksRequestProcessed()" ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "57"^^xsd:integer .
+
+<urn:bc-atlas:relation:303952d2d4bb0e1c> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "writes" ;
+    bca:confidence "resolved" ;
+    bca:relationClass "runtime" ;
+    bca:operation "Insert" ;
+    bca:sourceProcedure "WarehouseRequests_ProcessRequest_MarksRequestProcessed()" ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "60"^^xsd:integer .
+
+<urn:bc-atlas:relation:d43c43d9e356babd> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
+    bca:relationKind "reads" ;
+    bca:confidence "resolved" ;
+    bca:relationClass "runtime" ;
+    bca:operation "Get" ;
+    bca:sourceProcedure "WarehouseRequests_ProcessRequest_MarksRequestProcessed()" ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "69"^^xsd:integer .

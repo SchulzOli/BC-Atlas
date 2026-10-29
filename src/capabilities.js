@@ -21,8 +21,11 @@ export const EXPORTS = Object.freeze([
   ["app", "The BC Atlas pages as one offline HTML file to share: every page, the diagrams, the 3D explorer, and the docs"],
   ["report", "Markdown report (README.md) with health, diagrams, and an optional object catalog"],
   ["explorer", "Interactive 3D dependency explorer (HTML), replayable over Git history, or its graph as JSON"],
-  ["catalog", "One linked Markdown page per AL object"]
+  ["catalog", "One linked Markdown page per AL object"],
+  ["knowledge-graph", "The analyzed project as RDF with the BC Atlas OWL ontology, for knowledge graphs and triple stores: Turtle, RDF/XML (.rdf, .owl), N-Triples, or JSON-LD"]
 ]);
+// RDF syntaxes of the knowledge-graph export.
+export const KNOWLEDGE_FORMATS = Object.freeze(["ttl", "rdf", "owl", "nt", "jsonld"]);
 export const SEVERITIES = Object.freeze(["error", "warning", "info"]);
 export const FAIL_LEVELS = Object.freeze(["error", "warning", "info", "never"]);
 export const REPORT_VIEWS = Object.freeze(["project", "module", "data", "contracts", "events", "ui"]);
@@ -143,16 +146,17 @@ const exportOptions = {
     enum: [...EXPORTS.map(([id]) => id), ...VIEWS.map(([id]) => id)],
     default: "app"
   }),
-  output: string("Output file or folder (default: bc-atlas.html, docs/atlas, bc-atlas-explorer.html, docs/codegraph, or bc-atlas-<view>.svg); - writes JSON to stdout.", {
+  output: string("Output file or folder (default: bc-atlas.html, docs/atlas, bc-atlas-explorer.html, docs/codegraph, bc-atlas.ttl, or bc-atlas-<view>.svg); - writes JSON to stdout.", {
     group: OUTPUT,
     short: "o",
     value: "path"
   }),
-  format: string("app: html; explorer: html or json; report: svg or d2 diagrams; diagram views: svg, d2, json, png, or pdf. Inferred from the output extension when omitted.", {
+  format: string("app: html; explorer: html or json; report: svg or d2 diagrams; knowledge-graph: ttl, rdf, owl, nt, or jsonld; diagram views: svg, d2, json, png, or pdf. Inferred from the output extension when omitted.", {
     group: OUTPUT,
     short: "f",
-    enum: ["html", ...FORMATS]
+    enum: ["html", ...FORMATS, ...KNOWLEDGE_FORMATS]
   }),
+  baseIri: string("Knowledge graph: base IRI of the exported resources (default urn:bc-atlas:).", { group: OUTPUT, value: "iri" }),
   title: string("Title of the report, explorer, or diagram.", { group: OUTPUT, value: "text" }),
   watch: flag("Write again whenever AL source, app.json, or .bca.json changes.", { group: OUTPUT }),
   debounce: string("Delay before writing again with --watch, in milliseconds.", { group: OUTPUT, value: "ms", default: "250" }),

@@ -105,7 +105,7 @@ See [Clean architecture](./clean-architecture.md) for the rules behind it.
 | BC Atlas: Run Health Check | Analyzes again and fills the Problems panel. |
 | BC Atlas: Propose an Architecture | Opens a fresh proposal. |
 | BC Atlas: Accept Current Violations in the Baseline | Like `bca architecture --update-baseline`. |
-| BC Atlas: Export… | Writes the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or a diagram (`bca export`). |
+| BC Atlas: Export… | Writes the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, a diagram, or the knowledge graph in RDF and OWL (`bca export`). |
 | BC Atlas: Generate Documentation from UI Tests… | Markdown, HTML, DITA, Azure DevOps CSV, or BPMN (`bca docs generate`). |
 | BC Atlas: Set Up Automation | `.bca.json`, Git hooks, pipeline, and schedule, in a terminal (`bca setup`). |
 | BC Atlas: Run Tasks of a Trigger… | What a hook, the pipeline, or the schedule runs (`bca run`). |

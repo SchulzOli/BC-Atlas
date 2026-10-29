@@ -77,7 +77,10 @@
     "3d-force-graph": "^1.80.0",
     "bpmn-moddle": "^10.3.1",
     "esbuild": "^0.28.2",
+    "jsonld": "^9.0.0",
+    "n3": "^2.13.12",
     "opentype.js": "^2.0.0",
+    "rdfxml-streaming-parser": "^3.3.0",
     "three": "^0.186.1",
     "vitepress": "2.0.0-alpha.20"
   }

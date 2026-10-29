@@ -112,8 +112,9 @@ const EXPORTS = [
   { view: "report", label: "Markdown report", detail: "README.md with health, diagrams, and an optional object catalog", folder: "docs/atlas" },
   { view: "explorer", label: "3D dependency explorer (HTML)", detail: "One offline file, replayable over Git history", file: "bc-atlas-explorer.html", filters: { HTML: ["html"] } },
   { view: "catalog", label: "Object catalog (Markdown)", detail: "One linked page per AL object", folder: "docs/codegraph" },
+  { view: "knowledge-graph", label: "Knowledge graph (RDF, OWL)", detail: "For triple stores, graph databases, and Protégé: Turtle, RDF/XML, N-Triples, or JSON-LD", file: "bc-atlas.ttl", filters: { Turtle: ["ttl"], OWL: ["owl"], "RDF/XML": ["rdf"], "N-Triples": ["nt"], "JSON-LD": ["jsonld"] } },
   ...["project", "module", "data", "contracts", "events", "ui"].map((view) => ({
-    view, label: `Diagram: ${view} view (SVG)`, detail: "Rendered with the bundled D2", file: `${view}.svg`, filters: { SVG: ["svg"], D2: ["d2"] }
+    view, label: `Diagram: ${view} view`, detail: "SVG, PNG, PDF, or the D2 source", file: `${view}.svg`, filters: { SVG: ["svg"], PNG: ["png"], PDF: ["pdf"], D2: ["d2"] }
   }))
 ];
 

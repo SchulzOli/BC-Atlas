@@ -12,6 +12,7 @@ import { Workspace } from "../app/workspace.js";
 import { healthResultLine } from "../health.js";
 import { displayPath, resolveOutput, writeArchitecture } from "../output.js";
 import { UsageError } from "../cli/errors.js";
+import { writeKnowledgeGraph } from "../knowledge/index.js";
 import { writeExplorer } from "./explore.js";
 import { generateReport } from "./report.js";
 
@@ -23,6 +24,7 @@ const FORMATS = {
   explorer: ["html", "json"],
   report: ["svg", "d2"],
   catalog: ["md"],
+  "knowledge-graph": ["ttl", "rdf", "owl", "nt", "jsonld"],
   diagram: ["svg", "d2", "json", "png", "pdf"]
 };
 
@@ -30,7 +32,7 @@ const kindOf = (view) => (DIAGRAM_VIEWS.has(view) ? "diagram" : view);
 
 function checkFormat(view, format) {
   const kind = kindOf(view);
-  if (!FORMATS[kind]) throw new UsageError(`unknown view "${view}"; use app, report, explorer, catalog, or one of ${[...DIAGRAM_VIEWS].join(", ")}`);
+  if (!FORMATS[kind]) throw new UsageError(`unknown view "${view}"; use app, report, explorer, catalog, knowledge-graph, or one of ${[...DIAGRAM_VIEWS].join(", ")}`);
   if (format && !FORMATS[kind].includes(format)) {
     throw new UsageError(`--view ${view} writes ${FORMATS[kind].join(" or ")}, not ${format}`);
   }
@@ -103,7 +105,13 @@ async function exportDiagram(input, values, log) {
   return files;
 }
 
-const EXPORTERS = { app: exportApp, explorer: exportExplorer, report: exportReport, catalog: exportCatalog, diagram: exportDiagram };
+async function exportKnowledgeGraph(input, values, log) {
+  const result = await writeKnowledgeGraph(input, values);
+  log(`Knowledge graph: ${result.objects} object(s), ${result.relations} relation(s), ${result.triples} triple(s) as ${result.format}.`);
+  return [result.file];
+}
+
+const EXPORTERS = { app: exportApp, explorer: exportExplorer, report: exportReport, catalog: exportCatalog, "knowledge-graph": exportKnowledgeGraph, diagram: exportDiagram };
 
 /** Writes one export; returns the files written. */
 export async function runExport(input, values = {}, { log = () => {} } = {}) {
