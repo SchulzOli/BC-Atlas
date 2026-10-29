@@ -11,7 +11,7 @@
     <rdfs:label>BC Atlas Warehouse Example</rdfs:label>
     <rdfs:comment>AL source analyzed by BC Atlas: 9 objects, 26 relations.</rdfs:comment>
     <dcterms:created rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2025-01-01T00:00:00.000Z</dcterms:created>
-    <dcterms:creator>BC Atlas 0.11.0</dcterms:creator>
+    <dcterms:creator>BC Atlas 0.12.0</dcterms:creator>
     <dcterms:conformsTo rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
     <rdfs:seeAlso rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology.ttl"/>
   </owl:Ontology>

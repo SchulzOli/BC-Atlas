@@ -4,19 +4,9 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.12.0 - 2026-10-29
 
 ### Added
-
-- Knowledge graph: `--no-evidence` writes only the direct relation triples,
-  without a `bca:Relation` per relation; the Base Application's graph drops
-  from 4.4 million triples (270 MB of Turtle) to 1.1 million (78 MB).
-- The BC Atlas ontology is published at its IRI,
-  `https://schulzoli.github.io/BC-Atlas/ontology`: a page with every class
-  and property (each term's IRI opens its row), and the ontology as
-  `ontology.ttl`, `.owl`, `.rdf`, `.nt`, and `.jsonld` next to it, for
-  Protégé and other tools that resolve IRIs. Exports point to it with
-  `rdfs:seeAlso`.
 
 - `bca export --view knowledge-graph` writes the project as RDF with the BC
   Atlas OWL ontology, for triple stores, graph databases, and ontology
@@ -27,6 +17,15 @@ follows [Semantic Versioning](https://semver.org/).
   architecture components, and violations. Stable IRIs (`urn:bc-atlas:...`, or
   `--base-iri`), and `SOURCE_DATE_EPOCH` for reproducible files. See
   [Knowledge graph](./docs/knowledge-graph.md).
+- Knowledge graph: `--no-evidence` writes only the direct relation triples,
+  without a `bca:Relation` per relation; the Base Application's graph drops
+  from 4.4 million triples (270 MB of Turtle) to 1.1 million (78 MB).
+- The BC Atlas ontology is published at its IRI,
+  `https://schulzoli.github.io/BC-Atlas/ontology`: a page with every class
+  and property (each term's IRI opens its row), and the ontology as
+  `ontology.ttl`, `.owl`, `.rdf`, `.nt`, and `.jsonld` next to it, for
+  Protégé and other tools that resolve IRIs. Exports point to it with
+  `rdfs:seeAlso`.
 
 ### Changed
 
