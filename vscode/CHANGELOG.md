@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0
 
 - Smaller and faster to load: the extension and the BC Atlas engine are
   bundled with esbuild, so the package holds about 50 files instead of 1,200

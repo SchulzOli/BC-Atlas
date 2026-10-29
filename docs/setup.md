@@ -133,7 +133,7 @@ that one version. Without a `package.json`, hooks, tasks, and pipelines pin
 
 | How | What happens |
 | --- | --- |
-| Notice | In a terminal, any `bca` command prints `BC Atlas 0.8.0 is available (you have 0.7.0). Run "bca update" to see what's new.` once a newer version exists. |
+| Notice | In a terminal, any `bca` command prints `BC Atlas 0.9.0 is available (you have 0.8.0). Run "bca update" to see what's new.` once a newer version exists. |
 | `bca update` | Shows the release notes, asks "Update to 0.8.0 now?", installs it, and regenerates the setup files with `bca setup apply --from-config`. |
 | Dependabot (`--updates dependabot`) | Opens a pull request for each new `bc-atlas` version. The pipeline in that pull request shows whether everything still works with it. |
 
