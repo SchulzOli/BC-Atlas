@@ -98,7 +98,7 @@ table 50010 "Price Entry" { fields { field(1; Code; Code[20]) { TableRelation = 
     assert.equal(moduleEdge("Core", "Pricing").dependency, "cross-module");
     assert.equal(moduleEdge("Pricing", "Core").dependency, "undeclared", "a module must declare what it uses");
   } finally {
-    rmSync(directory, { recursive: true, force: true });
+    rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
@@ -127,7 +127,7 @@ codeunit 50000 "Series Subscriber"
     const edge = document.levels.object.edges.find(({ kinds }) => kinds.subscribes);
     assert.equal(edge.dependency, "intra-app");
   } finally {
-    rmSync(directory, { recursive: true, force: true });
+    rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
@@ -241,7 +241,8 @@ test("history replays one frame per pull request or per release", async () => {
     assert.deepEqual(last.timeline.frames.map(({ id }) => id).slice(0, 1), ["#3"]);
     assert.equal(last.timeline.frames.length, 2);
   } finally {
-    rmSync(directory, { recursive: true, force: true });
+    // On Windows, Git processes that just exited can hold files open for a moment.
+    rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
@@ -265,7 +266,7 @@ test("history replays commits that changed AL files and tracks additions and rem
     assert.equal(dirty.timeline.frames[0].label, "core", "sampling keeps the first commit");
     assert.ok(objectNamed(dirty, "CON Item").changes.includes(2));
   } finally {
-    rmSync(directory, { recursive: true, force: true });
+    rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
@@ -275,7 +276,7 @@ test("history requires a Git repository", async () => {
     cpSync(path.join(workspace, "core"), directory, { recursive: true });
     await assert.rejects(createGraphDocument(directory, { history: true }), /needs a Git repository/u);
   } finally {
-    rmSync(directory, { recursive: true, force: true });
+    rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
@@ -319,6 +320,6 @@ test("the explorer export writes HTML or JSON", () => {
     assert.equal(json.status, 0, json.stderr);
     assert.equal(JSON.parse(readFileSync(path.join(directory, "graph.json"), "utf8")).schemaVersion, 1);
   } finally {
-    rmSync(directory, { recursive: true, force: true });
+    rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
