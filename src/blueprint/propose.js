@@ -4,8 +4,90 @@
 // set, Eades-Lin-Smyth heuristic), and derive layers from the result. The
 // dependencies that still point the wrong way are what has to be resolved
 // before the components can become apps of their own.
+//
+// Dependencies weigh what it would take to cut them (see graph/coupling.js),
+// so the order, the merged groups, and the objects that belong elsewhere
+// follow how tightly objects are bound, not how often they mention each other.
+import Graph from "graphology";
+import louvain from "graphology-communities-louvain";
+import { coupling, COUPLING_WEIGHTS } from "../graph/coupling.js";
 
-const GROUPINGS = ["auto", "namespace", "folder", "module", "app"];
+const GROUPINGS = ["auto", "coupling", "namespace", "folder", "module", "app"];
+
+// Permission sets grant access to everything; they follow the components
+// instead of shaping them.
+const shapes = (edge) => Object.keys(edge.kinds ?? {}).some((kind) => !["permits", "includes"].includes(kind));
+
+// Louvain is randomized; a fixed seed keeps proposals stable.
+function seededRandom(seed) {
+  let state = seed;
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
+
+/**
+ * Coupling groups: every namespace (or, without one, folder) of a module or
+ * app is a unit; units that are tightly coupled to each other form one group
+ * (Louvain communities on the coupling weights, inside each module or app).
+ */
+function couplingGroups(nodes, levels, weights, coarse) {
+  const selected = new Set(nodes.map(({ id }) => id));
+  const several = new Set(nodes.map((node) => coarse(node).key)).size > 1;
+  const units = new Map();
+  const unitOf = new Map();
+  for (const node of nodes) {
+    const outer = coarse(node);
+    const namespace = node.namespace && node.namespace !== "(global)" ? node.namespace : undefined;
+    const folder = (node.file ?? "").split("/").slice(0, -1).join("/");
+    const local = namespace
+      ? { key: `ns:${namespace.toLowerCase()}`, label: namespace.split(".").at(-1), fullName: namespace, selector: `namespace:${namespace}` }
+      : { key: `folder:${folder}`, label: folder.split("/").at(-1) || "(root)", fullName: folder || "(root)", selector: folder ? `folder:${folder}` : "*" };
+    const key = `${outer.key}|${local.key}`;
+    if (!units.has(key)) {
+      units.set(key, { ...local, key, outer, objects: 0, selector: several && local.selector !== "*" ? `${outer.selector} & ${local.selector}` : local.selector === "*" ? outer.selector : local.selector });
+    }
+    units.get(key).objects++;
+    unitOf.set(node.id, key);
+  }
+  // Communities of objects (they see how cohesive a namespace is inside);
+  // a unit joins the community most of its objects belong to.
+  const graph = new Graph({ type: "undirected", allowSelfLoops: false });
+  for (const node of nodes) graph.addNode(node.id);
+  for (const edge of levels.object.edges) {
+    if (!selected.has(edge.source) || !selected.has(edge.target) || edge.source === edge.target || !shapes(edge)) continue;
+    if (units.get(unitOf.get(edge.source)).outer.key !== units.get(unitOf.get(edge.target)).outer.key) continue;
+    const weight = coupling(edge.kinds, weights);
+    if (graph.hasEdge(edge.source, edge.target)) graph.updateEdgeAttribute(edge.source, edge.target, "weight", (value) => value + weight);
+    else graph.addEdge(edge.source, edge.target, { weight });
+  }
+  const objectCommunity = graph.size ? louvain(graph, { getEdgeWeight: "weight", rng: seededRandom(7) }) : {};
+  const votes = new Map();
+  for (const node of nodes) {
+    const unit = unitOf.get(node.id);
+    if (!votes.has(unit)) votes.set(unit, new Map());
+    const vote = objectCommunity[node.id] ?? `alone:${node.id}`;
+    votes.get(unit).set(vote, (votes.get(unit).get(vote) ?? 0) + 1);
+  }
+  const community = Object.fromEntries([...votes].map(([unit, counts]) =>
+    [unit, [...counts].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))[0][0]]));
+  // Name a group after its largest unit; keep every unit's selector.
+  const groups = new Map();
+  for (const unit of units.values()) {
+    const key = `coupling:${unit.outer.key}:${community[unit.key] ?? unit.key}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(unit);
+  }
+  const groupOfUnit = new Map();
+  for (const [key, members] of groups) {
+    members.sort((a, b) => b.objects - a.objects || a.fullName.localeCompare(b.fullName));
+    const [largest] = members;
+    const group = { key, label: largest.label, fullName: largest.fullName, selector: largest.selector, selectors: members.map(({ selector }) => selector) };
+    for (const unit of members) groupOfUnit.set(unit.key, group);
+  }
+  return (node) => groupOfUnit.get(unitOf.get(node.id));
+}
 
 // Namespaces split until no candidate holds more than this share of objects.
 const MAX_SHARE = 0.15;
@@ -65,7 +147,7 @@ function namespaceGroups(nodes, depth) {
   };
 }
 
-function grouping(nodes, levels, { groupBy, depth }) {
+function grouping(nodes, levels, { groupBy, depth, weights }) {
   const modules = new Map((levels.module?.nodes ?? []).map((node) => [node.id, node]));
   const apps = new Map((levels.app?.nodes ?? []).map((node) => [node.id, node]));
   const byApp = (node) => {
@@ -103,6 +185,14 @@ function grouping(nodes, levels, { groupBy, depth }) {
       const part = fine(node);
       return { ...part, key: `${group.key}|${part.key}`, selector: part.selector === "*" ? group.selector : `${group.selector} & ${part.selector}` };
     };
+  } else if (groupBy === "coupling") {
+    const coarse = modules.size
+      ? (node) => {
+          const label = modules.get(node.module)?.label ?? apps.get(node.app)?.label ?? "(no app)";
+          return { key: `module:${label}`, label, selector: `module:${label}` };
+        }
+      : byApp;
+    inner = couplingGroups(nodes.filter(({ outsideSelection }) => !outsideSelection), levels, weights, coarse);
   } else if (groupBy === "app") {
     inner = byApp;
   } else if (groupBy === "folder") {
@@ -181,11 +271,11 @@ function uniqueNames(groups) {
  * objects of a dependency graph. Returns an `architecture` configuration that
  * evaluateArchitecture and .bca.json accept, plus the evidence behind it.
  */
-export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1 } = {}) {
+export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1, weights = COUPLING_WEIGHTS } = {}) {
   const nodes = levels.object.nodes.filter(({ origin }) => origin === "workspace");
   const mode = groupBy ?? "auto";
   if (!GROUPINGS.includes(mode)) throw new Error(`--group-by must be one of: ${GROUPINGS.join(", ")}`);
-  const groupOf = grouping(nodes, levels, { groupBy: mode, depth: depth === undefined ? undefined : Number(depth) });
+  const groupOf = grouping(nodes, levels, { groupBy: mode, depth: depth === undefined ? undefined : Number(depth), weights });
 
   const groups = new Map();
   const nodeGroup = new Map();
@@ -205,18 +295,17 @@ export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1 } =
       group.selector = `app:${appLabels.get([...group.apps][0])} & ${group.selector}`;
     }
   }
-  // Tiny groups join the group they depend on most.
-  // Permission sets grant access to everything; they follow the components
-  // instead of shaping them.
-  const shapes = (edge) => Object.keys(edge.kinds ?? {}).some((kind) => !["permits", "includes"].includes(kind));
+  // Tiny groups join the group they are most tightly coupled to.
   const counts = new Map();
+  const objectEdges = new Map();
   for (const edge of levels.object.edges) {
     if (!shapes(edge)) continue;
     const source = nodeGroup.get(edge.source);
     const target = nodeGroup.get(edge.target);
     if (!source || !target || source === target) continue;
     const id = `${source}\u0000${target}`;
-    counts.set(id, (counts.get(id) ?? 0) + 1);
+    counts.set(id, (counts.get(id) ?? 0) + coupling(edge.kinds, weights));
+    objectEdges.set(id, (objectEdges.get(id) ?? 0) + 1);
   }
   const merged = new Map();
   for (const group of groups.values()) {
@@ -233,7 +322,10 @@ export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1 } =
     target = merged.get(target) ?? target;
     if (source === target) continue;
     const key = `${source}\u0000${target}`;
-    edges.set(key, { source, target, weight: (edges.get(key)?.weight ?? 0) + count });
+    const edge = edges.get(key) ?? { source, target, weight: 0, objectEdges: 0 };
+    edge.weight += count;
+    edge.objectEdges += objectEdges.get(id);
+    edges.set(key, edge);
   }
   const keys = [...groups.keys()].filter((key) => !merged.has(key));
   const order = eadesLinSmyth(keys, [...edges.values()]);
@@ -260,21 +352,22 @@ export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1 } =
       name: group.name,
       ...(group.fixed ? { description: "Outside the analyzed path; kept as one component" } : {}),
       layer: layer.get(group.key),
-      match: [group.selector, ...(group.absorbed ?? []).map(({ selector }) => selector)],
+      match: [...new Set([...(group.selectors ?? [group.selector]), ...(group.absorbed ?? []).flatMap(({ selector, selectors }) => selectors ?? [selector])])],
       dependsOn: forward.filter(({ source }) => source === group.key).map(({ target }) => nameOf.get(target)).sort()
     }));
 
   // Objects that are more tightly bound to another component than to their
-  // own are cheap wins: moving them removes cross-component dependencies.
+  // own are cheap wins: moving them removes cross-component coupling.
   const affinity = new Map();
   for (const edge of levels.object.edges) {
     if (!shapes(edge)) continue;
     const source = nodeGroup.get(edge.source);
     const target = nodeGroup.get(edge.target);
     if (!source || !target) continue;
+    const weight = coupling(edge.kinds, weights);
     for (const [node, group] of [[edge.source, merged.get(target) ?? target], [edge.target, merged.get(source) ?? source]]) {
       if (!affinity.has(node)) affinity.set(node, new Map());
-      affinity.get(node).set(group, (affinity.get(node).get(group) ?? 0) + 1);
+      affinity.get(node).set(group, (affinity.get(node).get(group) ?? 0) + weight);
     }
   }
   const moves = [];
@@ -286,13 +379,14 @@ export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1 } =
     const [best, count] = [...links].filter(([group]) => group !== own).sort((a, b) => b[1] - a[1])[0] ?? [];
     const gain = (count ?? 0) - (links.get(own) ?? 0);
     if (best && gain >= 2) {
+      const round = (value) => Number(value.toFixed(1));
       moves.push({
         object: { id: node.id, label: node.label, type: node.type, objectId: node.objectId, file: node.file },
         from: nameOf.get(own),
         to: nameOf.get(best),
-        linksToTarget: count,
-        linksToOwn: links.get(own) ?? 0,
-        gain
+        linksToTarget: round(count),
+        linksToOwn: round(links.get(own) ?? 0),
+        gain: round(gain)
       });
     }
   }
@@ -301,7 +395,7 @@ export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1 } =
   return {
     groupBy: mode,
     architecture: { components, allowSameLayer: false },
-    feedback: feedback.map(({ source, target, weight }) => ({ source: nameOf.get(source), target: nameOf.get(target), objectEdges: weight })),
+    feedback: feedback.map(({ source, target, weight, objectEdges: count }) => ({ source: nameOf.get(source), target: nameOf.get(target), objectEdges: count, coupling: Number(weight.toFixed(1)) })),
     moves: moves.slice(0, 50)
   };
 }

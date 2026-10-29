@@ -4,7 +4,7 @@
 // for the explorer and the docs, an HTML page as a string.
 
 const HISTORY = ["commits", "prs", "releases"];
-const GROUPINGS = ["auto", "namespace", "folder", "module", "app"];
+const GROUPINGS = ["auto", "coupling", "namespace", "folder", "module", "app"];
 
 function positive(value, name) {
   if (value === undefined || value === null || value === "") return undefined;

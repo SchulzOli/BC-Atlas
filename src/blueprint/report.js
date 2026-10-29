@@ -77,6 +77,7 @@ function headline(assessment) {
       (summary.unassigned ? `, ${count(summary.unassigned, "object")} unassigned` : "") + ".",
     `${count(summary.dependencies, "object dependency", "object dependencies")} cross components; ${violationPhrase(summary)}` +
       (summary.workItems ? `, grouped into ${count(summary.workItems, "work item")}.` : "."),
+    ...(summary.coupling ? [`${Math.round(summary.coupling.share * 100)}% of the coupling stays inside components (modularity ${summary.coupling.modularity.toFixed(2)}).`] : []),
     summary.extractable === 1
       ? "1 component can become an app of its own today."
       : `${summary.extractable.toLocaleString("en-US")} components can each become an app of their own today.`
@@ -93,9 +94,10 @@ function headline(assessment) {
 export function formatArchitectureText(assessment, { limit = 15 } = {}) {
   const { result, baseline } = assessment;
   const lines = [`BC Atlas architecture - ${assessment.proposal ? "proposal" : "check"}`, "", ...headline(assessment).map((line) => `  ${line}`), ""];
-  lines.push("Components (layer, objects, instability, violations)");
+  lines.push("Components (layer, objects, cohesion, instability, violations)");
   for (const component of [...result.components].sort((a, b) => (a.layer ?? 0) - (b.layer ?? 0) || a.name.localeCompare(b.name))) {
-    lines.push(`  ${String(component.layer ?? "-").padStart(3)}  ${component.name.padEnd(32)} ${String(component.metrics.objects).padStart(6)}  I ${component.metrics.instability.toFixed(2)}  ${String(component.violations).padStart(5)}${component.extractable ? "  ready to extract" : ""}`);
+    const cohesion = component.metrics.cohesion === undefined ? "   -" : `${String(Math.round(component.metrics.cohesion * 100)).padStart(3)}%`;
+    lines.push(`  ${String(component.layer ?? "-").padStart(3)}  ${component.name.padEnd(32)} ${String(component.metrics.objects).padStart(6)}  ${cohesion}  I ${component.metrics.instability.toFixed(2)}  ${String(component.violations).padStart(5)}${component.extractable ? "  ready to extract" : ""}`);
   }
   const items = baseline.baselined ? result.workItems.filter((item) => baseline.new.some(({ source, targetComponent }) =>
     source.id === item.source.id && targetComponent === item.targetComponent)) : result.workItems;
@@ -140,14 +142,14 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
   lines.push("## Components", "");
   if (result.components.length <= 40) lines.push(...mermaid(result), "", "Solid arrows are allowed dependencies, dashed red arrows point the wrong way; labels count object dependencies.", "");
   lines.push(
-    "| Layer | Component | Objects | Depends on | Instability | Abstractness | Distance | Wrong-way | Ready to extract |",
-    "| ---: | --- | ---: | --- | ---: | ---: | ---: | ---: | --- |"
+    "| Layer | Component | Objects | Depends on | Cohesion | Instability | Abstractness | Distance | Wrong-way | Ready to extract |",
+    "| ---: | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- |"
   );
   for (const component of [...result.components].sort((a, b) => (a.layer ?? 0) - (b.layer ?? 0) || a.name.localeCompare(b.name))) {
     const metrics = component.metrics;
-    lines.push(`| ${component.layer ?? ""} | ${cell(component.name)} | ${metrics.objects} | ${cell((component.dependsOn ?? component.dependsOnActual).join(", ") || "-")} | ${metrics.instability.toFixed(2)} | ${metrics.abstractness.toFixed(2)} | ${metrics.distance.toFixed(2)} | ${component.violations} | ${component.extractable ? "yes" : "no"} |`);
+    lines.push(`| ${component.layer ?? ""} | ${cell(component.name)} | ${metrics.objects} | ${cell((component.dependsOn ?? component.dependsOnActual).join(", ") || "-")} | ${metrics.cohesion === undefined ? "-" : `${Math.round(metrics.cohesion * 100)}%`} | ${metrics.instability.toFixed(2)} | ${metrics.abstractness.toFixed(2)} | ${metrics.distance.toFixed(2)} | ${component.violations} | ${component.extractable ? "yes" : "no"} |`);
   }
-  lines.push("", "Layer 0 is the core. Instability is outgoing / (incoming + outgoing) coupling; components should depend on more stable ones. Distance measures how far a component is from the balance of abstractness and stability.", "");
+  lines.push("", "Layer 0 is the core. Cohesion is the share of a component's coupling that stays inside it. Instability is outgoing / (incoming + outgoing) coupling; components should depend on more stable ones. Distance measures how far a component is from the balance of abstractness and stability.", "");
 
   const items = baseline.baselined
     ? result.workItems.filter((item) => baseline.new.some(({ source, targetComponent }) => source.id === item.source.id && targetComponent === item.targetComponent))

@@ -2,13 +2,16 @@ import Graph from "graphology";
 import louvain from "graphology-communities-louvain";
 import pagerank from "graphology-metrics/centrality/pagerank.js";
 import { findCycles } from "../insights.js";
+import { coupling, COUPLING_WEIGHTS } from "./coupling.js";
 
+// PageRank and communities follow coupling, not the number of references: a
+// permission set that grants 500 objects does not make them a community.
 function toGraph(level) {
   const graph = new Graph({ type: "directed", allowSelfLoops: false });
   for (const node of level.nodes) graph.addNode(node.id);
   for (const edge of level.edges) {
-    if (graph.hasNode(edge.source) && graph.hasNode(edge.target) && edge.source !== edge.target) {
-      graph.mergeEdge(edge.source, edge.target, { weight: edge.weight || 1 });
+    if (graph.hasNode(edge.source) && graph.hasNode(edge.target) && edge.source !== edge.target && edge.coupling > 0) {
+      graph.mergeEdge(edge.source, edge.target, { weight: edge.coupling });
     }
   }
   return graph;
@@ -50,8 +53,13 @@ function buildLayers(graph, cycles) {
   return (key) => layer.get(groupOf(key)) ?? 0;
 }
 
-/** Adds degree, cross-app degree, PageRank, community, cycle, and build-layer metrics. */
-export function addMetrics(level) {
+/**
+ * Adds coupling to every edge, and degree, cross-app degree, PageRank,
+ * community, cycle, and build-layer metrics to every node.
+ * @param options { weights } coupling weights per relation kind
+ */
+export function addMetrics(level, { weights = COUPLING_WEIGHTS } = {}) {
+  for (const edge of level.edges) edge.coupling = edge.kinds && Object.keys(edge.kinds).length ? coupling(edge.kinds, weights) : edge.weight || 1;
   const graph = toGraph(level);
   const cycles = findCycles(
     level.nodes.map(({ id }) => ({ key: id })),
@@ -62,6 +70,16 @@ export function addMetrics(level) {
   const layerOf = buildLayers(graph, cycles);
   const rank = graph.size ? pagerank(graph, { getEdgeWeight: "weight" }) : {};
   const communities = graph.size ? louvain(graph, { getEdgeWeight: "weight", rng: seededRandom(7) }) : {};
+  // Degrees count every dependency, including the ones without coupling.
+  const degree = new Map();
+  for (const edge of level.edges) {
+    if (edge.source === edge.target) continue;
+    for (const [key, side] of [[edge.source, "out"], [edge.target, "in"]]) {
+      if (!degree.has(key)) degree.set(key, { in: new Set(), out: new Set() });
+      degree.get(key)[side].add(side === "out" ? edge.target : edge.source);
+    }
+  }
+  for (const [key, value] of degree) degree.set(key, { in: value.in.size, out: value.out.size });
   const inter = new Map();
   for (const edge of level.edges) {
     if (edge.scope !== "inter-app") continue;
@@ -74,8 +92,8 @@ export function addMetrics(level) {
   }
   for (const node of level.nodes) {
     node.metrics = {
-      inDegree: graph.inDegree(node.id),
-      outDegree: graph.outDegree(node.id),
+      inDegree: degree.get(node.id)?.in ?? 0,
+      outDegree: degree.get(node.id)?.out ?? 0,
       crossAppIn: inter.get(node.id)?.in ?? 0,
       crossAppOut: inter.get(node.id)?.out ?? 0,
       pagerank: Number((rank[node.id] ?? 0).toFixed(6)),

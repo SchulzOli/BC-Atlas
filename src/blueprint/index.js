@@ -6,6 +6,7 @@ import { objectFilter, pathMatcher } from "../views.js";
 import { dependencyLens } from "../graph/lenses/dependency.js";
 import { BASELINE_FILE, compareWithBaseline, readBaseline } from "./baseline.js";
 import { addCheck, evaluateArchitecture } from "./evaluate.js";
+import { couplingWeights } from "../graph/coupling.js";
 import { compareSurface, componentSurfaces, readSurface, SURFACE_FILE } from "./surface.js";
 import { proposeArchitecture } from "./propose.js";
 
@@ -55,9 +56,11 @@ export async function assessArchitecture(input, values = {}, { model } = {}) {
     proposal = proposeArchitecture(levels, {
       groupBy: values.groupBy,
       depth: values.depth,
-      minObjects: values.minObjects === undefined ? 1 : Number(values.minObjects)
+      minObjects: values.minObjects === undefined ? 1 : Number(values.minObjects),
+      weights: couplingWeights(context.options.architecture?.couplingWeights)
     });
-    architecture = proposal.architecture;
+    // Configured coupling weights also shape and score a proposal.
+    architecture = configured?.couplingWeights ? { ...proposal.architecture, couplingWeights: configured.couplingWeights } : proposal.architecture;
   }
   const result = evaluateArchitecture(levels, architecture);
   result.surface = componentSurfaces({ levels, componentOf: result.assignment, model: analyzed, components: result.components });

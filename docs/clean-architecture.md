@@ -25,13 +25,16 @@ one from today's dependencies:
 
 1. **Group** the objects into candidate components. By default (`auto`) every
    module (nested `app.json`) or app is a component, and any that is too large
-   is split by namespace (see below). `--group-by namespace`, `folder`,
+   is split by namespace (see below). `--group-by coupling` forms components
+   from namespaces that are tightly coupled to each other instead (see
+   [Group by coupling](#group-by-coupling)). `--group-by namespace`, `folder`,
    `module`, or `app` chooses one grouping; `--depth` fixes the number of
    namespace or folder segments.
-2. **Order** the components so that as few object dependencies as possible
-   point against the order (a weighted feedback arc set). Permission sets are
-   left out of this step: they grant access to everything and follow the
-   components instead of shaping them.
+2. **Order** the components so that as little coupling as possible points
+   against the order (a weighted feedback arc set, see
+   [Coupling weights](#coupling-weights)). Permission sets are left out of this
+   step: they grant access to everything and follow the components instead of
+   shaping them.
 3. **Layer** them: layer 0 is the core, every other component sits one layer
    above the deepest component it may use.
 
@@ -46,6 +49,59 @@ one from today's dependencies:
 | Context | Objects outside the analyzed path (`--paths`, a focus folder) are not split; each of their apps stays one component. |
 | Small groups | `--min-objects N` merges groups with fewer than N objects into the component they depend on most. Default: 1 (no merging). |
 | Overrides | `--depth N` uses N segments and never splits further; `--group-by namespace` splits every object by namespace, not only large modules. |
+
+### Coupling weights
+
+Not every dependency is equally hard to cut. BC Atlas weighs each one by what
+it takes to remove it, and uses the weights to order the components, to merge
+small groups, to find objects that belong elsewhere, to rank objects
+(PageRank), to detect communities, and to score an architecture:
+
+| Relation | Weight | Why |
+| --- | ---: | --- |
+| `writes` | 5 | Data owned elsewhere; the writes must move behind the owner's codeunit, or the table must move. |
+| `extends` | 4 | A table, page, or enum extension belongs next to what it extends. |
+| `relates`, `implements` | 3 | Schema (`TableRelation`) and contracts. |
+| `calls`, `runs`, `part`, `reads` | 2 | Can go behind an interface, an event, or a codeunit. |
+| `selects` | 1.5 | An enum value that selects an implementation. |
+| `uses`, `subscribes` | 1 | A variable or an event subscriber is already loose. |
+| `permits`, `includes` | 0.1 | Permission grants move with the components. |
+
+Repeated uses of one kind count logarithmically: ten calls bind more than
+one, but not ten times as much. Change a weight in `.bca.json`:
+
+```json
+{ "architecture": { "couplingWeights": { "reads": 3, "subscribes": 0.5 } } }
+```
+
+### Group by coupling
+
+`--group-by coupling` starts from the namespaces (without one, the folders) of
+each module or app and puts the ones whose objects are tightly coupled to each
+other into one component (Louvain communities on the coupling weights, at
+object level; a namespace joins the community most of its objects belong to).
+The components keep `namespace:` selectors, so `.bca.json` stays readable.
+Use it when the namespaces of a monolith do not match how the code is
+actually used.
+
+### Compare groupings
+
+Every architecture, configured or proposed, gets a score:
+
+| Score | Meaning |
+| --- | --- |
+| Cohesion (per component) | The share of a component's coupling that stays inside it. |
+| Coupling inside components | The share of all coupling that stays inside components. |
+| Modularity | Weighted modularity of the components (−0.5 to 1): coupling inside components compared with what random components of the same sizes would keep. Higher is better; one component holding everything scores 0. |
+
+```text
+$ bca architecture ./app --propose --group-by namespace
+  32 components in 17 layers, 1,200 objects assigned.
+  56% of the coupling stays inside components (modularity 0.53).
+$ bca architecture ./app --propose --group-by coupling
+  12 components in 8 layers, 1,200 objects assigned.
+  68% of the coupling stays inside components (modularity 0.56).
+```
 
 The proposal lists the components with their layers and allowed dependencies,
 the dependencies that still point the wrong way, which components can become
@@ -87,6 +143,7 @@ For the whole architecture:
 | `allowSameLayer` | Allow dependencies between different components of the same layer. Default: `false`, because siblings that use each other cannot become separate apps. |
 | `strictLayers` | A component without `dependsOn` may use only the layer directly below it, not deeper ones. Default: `false`. |
 | `maxObjects` | Most objects per component (a component's own `maxObjects` wins). |
+| `couplingWeights` | Weight per relation kind; see [Coupling weights](#coupling-weights). |
 | `rules` | Dependency rules of your own, see [Rules of your own](#rules-of-your-own). |
 | `severity` | Severity of a violation in `bca check`: `error` (default), `warning`, or `info`. |
 | `severities` | Severity per rule, `off` turns a rule off: `{ "internal-access": "warning", "unstable-dependency": "off" }`. Accepts the violation rules (`outward-dependency`, `internal-access`, ...) and the [checks of the architecture](#checks-of-the-architecture). |

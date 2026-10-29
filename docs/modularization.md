@@ -21,7 +21,11 @@ with Core, Sales, Warehouse, and permissions in folders of their own.
 ## 1. Agree on components and layers
 
 [Clean architecture](./clean-architecture.md) explains how BC Atlas proposes
-components and layers and how to write them down in `.bca.json`. In the
+components and layers and how to write them down in `.bca.json`. Compare
+groupings by their score: `--group-by coupling` puts namespaces that are
+tightly coupled into one component, which often keeps more coupling inside
+components than the namespaces alone
+([Compare groupings](./clean-architecture.md#compare-groupings)). In the
 example, every folder is a component:
 
 ```json
