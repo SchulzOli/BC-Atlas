@@ -1236,7 +1236,7 @@
   // A drawn diagram as a map: hovering a box lights up its relations and
   // neighbors, a click opens its object, the legend switches relation kinds
   // on and off, and the search finds objects by name.
-  function interactiveDiagram(canvas, svg, controls, search) {
+  function interactiveDiagram(canvas, svg, controls, search, { onGroup } = {}) {
     const nodes = [...svg.querySelectorAll(".node")];
     const edges = [...svg.querySelectorAll(".edge")];
     const byPath = new Map(nodes.map((node) => [node.dataset.node, node]));
@@ -1276,6 +1276,14 @@
         else hidden.add(kind);
         for (const edge of edges) edge.classList.toggle("off", hidden.has(edge.dataset.kind));
         for (const item of svg.querySelectorAll(".legend-kind")) item.classList.toggle("off", hidden.has(item.dataset.kind));
+        return;
+      }
+      // A closed group opens; the name of an open group closes it.
+      const closed = target?.closest?.("[data-collapsed]")?.dataset.collapsed;
+      const open = target?.localName === "text" ? target.closest(".group")?.dataset.group : undefined;
+      if ((closed || open) && onGroup) {
+        event.preventDefault();
+        onGroup(closed ?? open, Boolean(closed));
         return;
       }
       const object = target?.closest?.("[data-object]")?.dataset.object;
@@ -1437,7 +1445,7 @@
   };
   const FOCUSED_VIEWS = ["object", "boundary", "workflow"];
   // Settings that change the diagram; anything else in the address is ignored.
-  const DIAGRAM_SETTINGS = ["object", "scope", "entry", "focus", "namespace", "groupBy", "direction", "details", "noExternal"];
+  const DIAGRAM_SETTINGS = ["object", "scope", "entry", "focus", "namespace", "groupBy", "direction", "details", "noExternal", "expand"];
 
   async function diagramsPage(page, { params }) {
     $("#main").classList.add("full");
@@ -1499,18 +1507,31 @@
       return;
     }
     if (!diagram.svg) {
-      bar.body.innerHTML = `<div class="empty"><h2>Nothing to draw</h2><p>${esc(diagram.empty ?? "No matching objects.")}</p></div>`;
+      const closable = LIVE && diagram.groups?.length > 1;
+      bar.body.innerHTML = `<div class="empty"><h2>Nothing to draw</h2><p>${esc(diagram.empty ?? "No matching objects.")}</p>${closable ? '<button class="btn primary" data-close-groups>Show the groups as boxes</button>' : ""}</div>`;
+      $("[data-close-groups]", bar.body)?.addEventListener("click", () => go("diagrams", { view, ...settings, expand: "none" }));
       return;
     }
-    bar.set(VIEW_TITLES[view] ?? view, `${esc(summary(view))} · ${plural(diagram.nodes, "object")}, ${plural(diagram.edges, "dependency", "dependencies")}`,
-      `<span class="wb-tools"><button class="icon-button" data-zoom="out" title="Zoom out">−</button><button class="icon-button" data-zoom="in" title="Zoom in">+</button><button class="icon-button" data-zoom="fit" title="Fit the diagram">Fit</button></span>
+    const groups = diagram.groups ?? [];
+    const openGroups = groups.filter(({ open }) => open);
+    const grouping = groups.length > 1 && LIVE;
+    const overview = diagram.collapsed ? ` · ${openGroups.length} of ${plural(groups.length, "group")} open` : "";
+    bar.set(VIEW_TITLES[view] ?? view, `${esc(summary(view))} · ${plural(diagram.nodes, "object")}, ${plural(diagram.edges, "dependency", "dependencies")}${overview}`,
+      `${grouping ? `<span class="wb-tools"><button class="icon-button" data-groups="none" title="Show every group as one box"${openGroups.length ? "" : " disabled"}>Close groups</button><button class="icon-button" data-groups="all" title="Show every object"${diagram.collapsed ? "" : " disabled"}>Open groups</button></span>` : ""}<span class="wb-tools"><button class="icon-button" data-zoom="out" title="Zoom out">−</button><button class="icon-button" data-zoom="in" title="Zoom in">+</button><button class="icon-button" data-zoom="fit" title="Fit the diagram">Fit</button></span>
        <span class="wb-tools"><button class="icon-button" data-download="svg" title="Save as SVG">SVG</button><button class="icon-button" data-download="png" title="Save as PNG">PNG</button>${diagram.d2 ? '<button class="icon-button" data-download="d2" title="Save the D2 source">D2</button>' : ""}</span>`);
-    bar.body.innerHTML = `<div class="canvas"><div class="stage"></div><input type="search" class="canvas-search" placeholder="Find an object" aria-label="Find an object in the diagram"><div class="canvas-info">Hover an object for its relations, click it to open it; click the legend to hide a kind of relation</div></div>`;
+    bar.body.innerHTML = `<div class="canvas"><div class="stage"></div><input type="search" class="canvas-search" placeholder="Find an object" aria-label="Find an object in the diagram"><div class="canvas-info">Hover an object for its relations, click it to open it${grouping ? "; click a gray box to open its group, a group's name to close it" : ""}; click the legend to hide a kind of relation</div></div>`;
     const canvas = $(".canvas", bar.body);
     const svg = safeSvg(diagram.svg);
     const controls = panZoom(canvas, svg);
-    interactiveDiagram(canvas, svg, controls, $(".canvas-search", bar.body));
+    // Opening or closing a group draws the view again with the open groups in the address.
+    const showGroups = (keys) => go("diagrams", { view, ...settings, expand: keys.length === groups.length ? "all" : keys.length ? keys.join(",") : "none" });
+    interactiveDiagram(canvas, svg, controls, $(".canvas-search", bar.body), {
+      onGroup: grouping
+        ? (key, open) => showGroups(open ? [...openGroups.map((group) => group.key), key] : openGroups.map((group) => group.key).filter((other) => other !== key))
+        : LIVE ? undefined : () => toast("Open the project in VS Code with the BC Atlas extension to open the groups.")
+    });
     bar.onAction(async (data) => {
+      if (data.groups) return showGroups(data.groups === "all" ? groups.map((group) => group.key) : []);
       if (data.zoom === "fit") controls.fit();
       else if (data.zoom) controls.zoom(data.zoom === "in" ? 1.25 : 0.8);
       if (data.download === "svg") download(`${view}.svg`, diagram.svg, "image/svg+xml");

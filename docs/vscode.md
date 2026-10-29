@@ -23,7 +23,7 @@ itself has no second navigation.
 | Health | Every finding, filterable by severity, linked to its object. | `bca check` |
 | Architecture | The configured architecture or a proposal: components in layers, work items with the steps to resolve them, data ownership, checks, the plan to extract a component as an app, components with Martin metrics, and objects that belong elsewhere. | `bca architecture` |
 | Dependencies | The 3D dependency explorer: objects, modules, apps, and components; inside one app vs. across apps; a timeline by commit, pull request, or release. | `bca export --view explorer` |
-| Diagrams | Every diagram view with zoom and pan: hover an object to light up its relations, click it to open its page, find objects by name, and click the legend to hide a kind of relation; **SVG**, **PNG**, and **D2** save the file. | `bca export --view <view>` |
+| Diagrams | Every diagram view with zoom and pan: hover an object to light up its relations, click it to open its page, find objects by name, and click the legend to hide a kind of relation. Large views start with every group as one box: click a box to open the group, its name to close it, or **Open groups** and **Close groups**. **SVG**, **PNG**, and **D2** save the file. | `bca export --view <view>` |
 | Objects | Every AL object, searchable and sortable, filtered by type, app, component, or violations. | |
 | Object | One object: what it uses and what uses it, its wrong-way dependencies with steps to resolve them, fields, procedures, actions, and properties. **Open source** opens the file at the declaration; a procedure opens at its line. | `bca export --view object --object <selector>` |
 | Docs | The guides from your AL UI tests, when the project has documented UI tests: the overview, every use case with its process, and every scenario, as a user guide or a test case, in English or German. **Open test** opens the AL test; **Markdown**, **DITA**, **BPMN**, and **SVG** save the page, **All as HTML** the whole documentation. | `bca docs generate` |
@@ -170,8 +170,9 @@ file on disk (in `BCA_CACHE_DIR`, default `<temp>/bc-atlas`, next to the AL
 compiler's results), so reopening a project or saving a file parses only the
 files that changed. The first rendering of a large diagram
 view can take 20 seconds; it is cached until the source changes. Views with
-more than 1,500 nodes are not drawn: filter them by namespace or pick a
-focused view. Use `bcAtlas.paths` to analyze only some folders of a large
+more than 120 objects start as an overview of their groups (click a group to
+open it); open groups with more than 1,500 objects in all are not drawn:
+close some, filter by namespace, or pick a focused view. Use `bcAtlas.paths` to analyze only some folders of a large
 repository.
 
 ## Build the extension from source

@@ -309,7 +309,8 @@ table.matrix td.self { background: var(--surface-2); }
 .wb-body > .canvas { flex: 1; height: auto; border: 0; border-radius: 0 0 var(--radius) var(--radius); }
 .wb-body > .empty, .wb-body > .error-box { margin: 18px; }
 /* Interactive diagrams (src/diagram/svg.js): hover lights up an object's relations */
-.bca-diagram .node, .bca-diagram .legend-kind { cursor: pointer; }
+.bca-diagram .node, .bca-diagram .legend-kind, .bca-diagram .group text { cursor: pointer; }
+.bca-diagram .node.collapsed:hover rect { stroke-width: 2.4; }
 .bca-diagram .node, .bca-diagram .edge, .bca-diagram .group { transition: opacity 0.12s; }
 .bca-diagram.focused .node:not(.on), .bca-diagram.focused .edge:not(.on) { opacity: 0.14; }
 .bca-diagram.focused .edge.on path { stroke-width: 2.4; }

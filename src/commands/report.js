@@ -81,15 +81,12 @@ function renderReadme({ title, health, diagrams, codegraph, model, json, format,
       lines.push(`_Not rendered: ${diagram.skipped}_`, "");
       continue;
     }
-    if (diagram.tooLarge) {
+    if (diagram.overview) {
       lines.push(
-        `_Not drawn: ${diagram.nodes} nodes are too many (at most ${MAX_DIAGRAM_NODES}). ` +
-          `Filter with --namespace or --paths, or use the D2 source [${diagram.d2}](${relativeLink(diagram.d2)})._`,
-        "",
-        `${diagram.nodes} nodes, ${diagram.edges} edges.`,
+        `_Overview: ${diagram.nodes} objects are too many to draw one by one (at most ${MAX_DIAGRAM_NODES}), so each group is one box. ` +
+          "Open the groups on the Diagrams page of the BC Atlas panel, or filter with --namespace or --paths._",
         ""
       );
-      continue;
     }
     if (format === "svg") lines.push(`![${diagram.title}](${relativeLink(diagram.svg)})`, "");
     lines.push(
@@ -154,17 +151,10 @@ export async function generateReport(input, values = {}, { log = () => {} } = {}
       }
       diagram.nodes = projection.model.objects.length;
       diagram.edges = projection.model.edges.length;
-      // Too large to draw: keep the D2 source and drop an SVG left by an earlier run.
-      diagram.tooLarge = format === "svg" && diagram.nodes > MAX_DIAGRAM_NODES;
-      const targetFormat = diagram.tooLarge ? "d2" : format;
-      const target = resolveOutput({ output: path.join(outputDirectory, `${view}.${targetFormat}`), format: targetFormat });
-      await writeArchitecture(projection, target);
-      if (diagram.tooLarge) {
-        await fs.rm(path.join(outputDirectory, diagram.svg), { force: true });
-        log(`Wrote ${view} view as D2 only: ${diagram.nodes} nodes are too many to draw (at most ${MAX_DIAGRAM_NODES})`);
-        continue;
-      }
-      log(`Rendered ${view} view (${diagram.nodes} nodes, ${diagram.edges} edges)`);
+      const target = resolveOutput({ output: path.join(outputDirectory, `${view}.${format}`), format });
+      // A view too large to draw one by one is drawn as the overview of its groups.
+      diagram.overview = Boolean((await writeArchitecture(projection, target)).overview);
+      log(`Rendered ${view} view (${diagram.nodes} nodes, ${diagram.edges} edges${diagram.overview ? ", as an overview of its groups" : ""})`);
     } catch (error) {
       diagram.skipped = error.message;
       log(`Skipped ${view} view: ${error.message}`);

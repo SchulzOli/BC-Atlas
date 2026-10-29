@@ -82,6 +82,15 @@ test("the service answers every page from one analysis", async () => {
 
   const diagram = await service.call("diagram", { view: "module" });
   assert.match(diagram.svg, /<svg\b/u);
+  const project = await service.call("diagram", { view: "project" });
+  assert.equal(project.collapsed, false, "a small view shows every object");
+  assert.ok(project.groups.length > 1 && project.groups.every(({ open }) => open));
+  const closed = await service.call("diagram", { view: "project", expand: "none" });
+  assert.equal(closed.collapsed, true);
+  assert.equal([...closed.svg.matchAll(/data-collapsed="/gu)].length, project.groups.length, "every group is one box");
+  const [first] = project.groups;
+  const opened = await service.call("diagram", { view: "project", expand: first.key });
+  assert.deepEqual(opened.groups.filter(({ open }) => open).map(({ key }) => key), [first.key]);
   await assert.rejects(service.call("diagram", { view: "object" }), /--object is required/u);
   assert.match(await service.call("explorer"), /window\.BCA_GRAPH/u);
   await assert.rejects(service.call("explorer", { history: "nope" }), /history must be one of/u);

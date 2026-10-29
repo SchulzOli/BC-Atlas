@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { FORMATS } from "./capabilities.js";
-import { buildScene, sceneToD2 } from "./d2.js";
-import { MAX_DIAGRAM_NODES, renderScene } from "./diagram/index.js";
+import { sceneToD2 } from "./d2.js";
+import { MAX_DIAGRAM_NODES, prepareScene, renderScene } from "./diagram/index.js";
 
 /**
  * Resolves the final output path and format. When --format conflicts with the
@@ -53,13 +53,14 @@ export async function writeArchitecture(architecture, target) {
     return { files: [target.finalOutput] };
   }
 
-  // The D2 source comes along with every drawing, for D2 tooling.
-  const scene = buildScene(model, renderOptions);
-  await writeFile(target.d2Output, sceneToD2(scene));
+  // Files show every object; a view too large for that shows its groups as
+  // boxes. The D2 source, with every object, comes along for D2 tooling.
+  const prepared = prepareScene(model, renderOptions, { expand: model.objects.length > MAX_DIAGRAM_NODES ? "none" : "all" });
+  await writeFile(target.d2Output, sceneToD2(prepared.full));
   if (target.format === "d2") return { files: [target.d2Output] };
-  if (model.objects.length > MAX_DIAGRAM_NODES) {
-    throw new Error(`${model.objects.length} nodes are too many to draw (at most ${MAX_DIAGRAM_NODES}); wrote ${target.d2Output}. Filter with --namespace or --paths, or choose a focused view`);
-  }
+  const scene = prepared.collapsed
+    ? { ...prepared.scene, title: `${prepared.scene.title} (overview: ${model.objects.length} objects in ${prepared.groups.length} groups)` }
+    : prepared.scene;
   await writeFile(target.finalOutput, await renderScene(scene, target.format));
-  return { files: [target.finalOutput, target.d2Output] };
+  return { files: [target.finalOutput, target.d2Output], overview: prepared.collapsed };
 }

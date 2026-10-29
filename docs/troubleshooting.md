@@ -55,10 +55,12 @@ The boundary view requires at least one `--scope` value. Prefix the value with
 ## A diagram is too large
 
 Use the BC Atlas panel in VS Code or `bca export --view report` for an overview, then select a
-focused view. Add filters. Diagrams have at most 1,500 nodes; larger views
-(the project view of the Base Application has about 9,500) stop with a message
-and keep the `.d2` file for D2 tooling. In VS Code, the Diagrams page has a
-namespace filter, and hovering an object highlights its relations.
+focused view. Add filters. Files of views with more than 1,500 objects (the
+project view of the Base Application has about 8,000) show every group as one
+box with the relations between groups bundled; the `.d2` file keeps every
+object. On the Diagrams page, views with more than 120 objects start that way,
+and a click on a group opens it; the page also has a namespace filter, and
+hovering an object highlights its relations.
 Reduce `--max-edges` only after you select the required scope.
 
 ## Many unresolved references
