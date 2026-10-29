@@ -34,6 +34,8 @@ export function resourceIris(base = DEFAULT_BASE) {
 
 const integer = (value) => (/^-?\d+$/u.test(String(value ?? "")) ? literal(value, INTEGER) : undefined);
 const text = (value) => (value === undefined || value === null || value === "" ? undefined : literal(value));
+// Source paths with forward slashes, so the graph is the same on every platform.
+const sourcePath = (file) => (file ? String(file).replaceAll("\\", "/") : undefined);
 const unquote = (value) => String(value).replace(/^'(.*)'$/su, "$1").replace(/^"(.*)"$/su, "$1");
 
 /** Drops properties without a value. */
@@ -131,7 +133,7 @@ export function* knowledgeGraph({ model, assessment, baseIri, title, version, ge
       [term("inApp"), object.app?.id ? iri(ids.app(object.app.id)) : undefined],
       [term("inNamespace"), object.namespace ? iri(ids.namespace(object.namespace)) : undefined],
       [term("inComponent"), assignment.has(object.key) ? iri(ids.component(assignment.get(object.key))) : undefined],
-      [term("sourceFile"), text(object.file)],
+      [term("sourceFile"), text(sourcePath(object.file))],
       [term("sourceLine"), integer(object.location?.line)],
       ...fields.map(({ iri: value }) => [term("hasField"), iri(value)]),
       ...keys.map(({ iri: value }) => [term("hasKey"), iri(value)]),
@@ -173,7 +175,7 @@ export function* knowledgeGraph({ model, assessment, baseIri, title, version, ge
   // Every relation once more as a resource of its own, with its evidence.
   for (const [from, list] of outgoing) {
     for (const { edge, target } of list) {
-      const location = edge.location ?? {};
+      const location = { ...edge.location, file: sourcePath(edge.location?.file) };
       const subject = ids.relation(shortHash(`${from}\u0000${target}\u0000${edge.kind}\u0000${location.file ?? ""}:${location.line ?? ""}:${location.column ?? ""}\u0000${edge.id ?? ""}`));
       const operations = [...new Set([edge.operation, ...(edge.operations ?? [])].filter(Boolean))];
       const procedures = [...new Set([edge.sourceProcedure, ...(edge.sourceProcedures ?? [])].filter(Boolean))];
