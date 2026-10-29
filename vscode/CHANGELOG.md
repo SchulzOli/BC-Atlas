@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.0
+
+- 3D explorer: objects are grouped and colored by their relation clusters,
+  which float like galaxies around their app candidate and app, each with its
+  name at its center; on a dark theme the graph glows.
+- 3D explorer: a **Clusters** filter, and a click on a cluster name in the
+  graph or the legend shows only that cluster; a second click or `Esc`
+  shows all again.
+- Faster: clustering is about twice as fast (4.5 instead of 9 seconds for
+  the Base Application), and after a saved file only the changed apps and
+  modules are clustered again.
+- Docs: guides and test cases show tag text such as `<Posted>` or `*now*`
+  as written instead of turning it into formatting.
+
 ## 0.10.0
 
 The extension and the BC Atlas npm package now share one version number;
