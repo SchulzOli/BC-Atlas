@@ -13,14 +13,31 @@ project.
 Copyright Tree-sitter contributors. Licensed under the MIT License.
 Source: <https://github.com/tree-sitter/tree-sitter>
 
-## D2
+## ELK (elkjs)
 
-Copyright Terrastruct, Inc. and contributors. Licensed under the Mozilla Public
-License 2.0. Source: <https://github.com/terrastruct/d2>
+Copyright Kiel University and others. Licensed under the Eclipse Public License
+2.0 (or, at your option, GPL-3.0-or-later). Source: <https://github.com/kieler/elkjs>
 
-The official D2 WebAssembly package is redistributed as an npm dependency for
-SVG rendering. The CLI can optionally invoke a separately installed D2
-executable for PNG and PDF output.
+`elkjs` lays out the diagram views (layered layout, routes, and labels).
+
+## resvg (@resvg/resvg-wasm)
+
+Copyright the resvg authors. Licensed under the Mozilla Public License 2.0.
+Source: <https://github.com/yisibl/resvg-js>
+
+The resvg WebAssembly package is an npm dependency that turns diagrams into
+PNG files.
+
+## Liberation Sans
+
+Digitized data copyright (c) 2010 Google Corporation; copyright (c) 2012 Red
+Hat, Inc. Licensed under the SIL Open Font License 1.1. Source:
+<https://github.com/liberationfonts/liberation-fonts>
+
+`vendor/fonts/LiberationSans-Regular.ttf` and `LiberationSans-Bold.ttf` are
+redistributed (license in `vendor/fonts/LICENSE-LiberationSans.txt`): PNG files
+are rendered with them, and their glyph widths size the boxes of every
+diagram.
 
 ## 3d-force-graph and three.js
 

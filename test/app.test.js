@@ -119,13 +119,14 @@ test("the Docs page reads the documentation page by page, as a guide or test cas
     await assert.rejects(service.call("docsBrowser", { mode: "manual" }), /mode must be one of: guide, testcase/u);
     await assert.rejects(service.call("docsBrowser", { language: "<script>" }), /language must be a language tag/u);
 
-    // Each node of a diagram names the object behind it, so a click opens its page.
+    // Each box of a diagram names the object behind it, so a click opens its page.
     const diagram = await service.call("diagram", { view: "project" });
     const objects = new Set((await service.call("objects")).map(({ id }) => id));
-    assert.equal(diagram.objects.length, diagram.nodes);
-    assert.ok(diagram.objects.every((id) => objects.has(id)));
-    const keys = [...diagram.svg.matchAll(/<g class="([A-Za-z0-9+/]+=*)"/gu)].map(([, value]) => Buffer.from(value, "base64").toString());
-    assert.ok(keys.some((key) => /(?:^|\.)n0$/u.test(key)), "D2 writes each shape's name, base64-encoded, as its class");
+    const named = [...diagram.svg.matchAll(/data-object="([^"]+)"/gu)].map(([, value]) => value.replaceAll("&amp;", "&").replaceAll("&quot;", "\""));
+    assert.equal(named.length, diagram.nodes);
+    assert.ok(named.every((id) => objects.has(id)));
+    assert.ok(diagram.svg.includes('class="edge" data-from="'), "each route names its ends for highlighting");
+    assert.match(diagram.d2, /^direction: right/u, "the D2 source comes along");
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -267,7 +268,7 @@ test("bca export writes the app as one offline file with every page's data", () 
     assert.equal(snapshot.nodes[target[0]][1], "CON Item", "links point into the node table");
     assert.deepEqual(Object.keys(snapshot.diagrams).sort(), snapshot.views.map(({ id }) => id).sort());
     assert.ok(snapshot.diagrams.project.svg.startsWith("<"));
-    assert.ok(snapshot.diagrams.project.objects.length, "a click on a node opens its object page");
+    assert.match(snapshot.diagrams.project.svg, /data-object="/u, "a click on a box opens its object page");
     assert.equal(snapshot.docs, undefined, "without documented UI tests there is no Docs page");
     assert.deepEqual(Object.keys(snapshot.components).sort(), ["Core", "Integration", "Sales"], "every component page is in the export");
     assert.ok(snapshot.architecture.matrix.cells.length === 3);

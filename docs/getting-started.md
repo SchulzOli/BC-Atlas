@@ -14,10 +14,9 @@ search.
 
 - Node.js 22 or later.
 - An AL project that contains an `app.json` file.
-- Optional: the [D2 executable](https://d2lang.com) for PNG or PDF output.
-
-The AL parser and the SVG renderer are bundled as WebAssembly. D2, JSON, SVG,
-and Markdown output need no compiler or extra download.
+The AL parser is bundled as WebAssembly, and BC Atlas draws its diagrams
+itself (layout with ELK, PNG with resvg). D2, JSON, SVG, PNG, PDF, and
+Markdown output need no compiler, browser, or extra download.
 
 ## 1. Install
 

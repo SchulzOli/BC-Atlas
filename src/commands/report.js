@@ -5,7 +5,7 @@ import { createArchitectureModel } from "../architecture.js";
 import { generateCodeGraph } from "../codegraph.js";
 import { formatHealthMarkdown, healthResultLine } from "../health.js";
 import { displayPath, resolveOutput, writeArchitecture } from "../output.js";
-import { MAX_DIAGRAM_NODES } from "../svg.js";
+import { MAX_DIAGRAM_NODES } from "../diagram/index.js";
 import { runHealthCheck } from "./check.js";
 
 const VIEW_SUMMARIES = new Map(VIEWS);
@@ -83,8 +83,8 @@ function renderReadme({ title, health, diagrams, codegraph, model, json, format,
     }
     if (diagram.tooLarge) {
       lines.push(
-        `_Not rendered as SVG: ${diagram.nodes} nodes are too many for the bundled renderer (at most ${MAX_DIAGRAM_NODES}). ` +
-          `Render [${diagram.d2}](${relativeLink(diagram.d2)}) with the d2 executable, or filter with --namespace or --paths._`,
+        `_Not drawn: ${diagram.nodes} nodes are too many (at most ${MAX_DIAGRAM_NODES}). ` +
+          `Filter with --namespace or --paths, or use the D2 source [${diagram.d2}](${relativeLink(diagram.d2)})._`,
         "",
         `${diagram.nodes} nodes, ${diagram.edges} edges.`,
         ""
@@ -154,14 +154,14 @@ export async function generateReport(input, values = {}, { log = () => {} } = {}
       }
       diagram.nodes = projection.model.objects.length;
       diagram.edges = projection.model.edges.length;
-      // Too large for the bundled renderer: keep the D2 source and drop an SVG left by an earlier run.
+      // Too large to draw: keep the D2 source and drop an SVG left by an earlier run.
       diagram.tooLarge = format === "svg" && diagram.nodes > MAX_DIAGRAM_NODES;
       const targetFormat = diagram.tooLarge ? "d2" : format;
       const target = resolveOutput({ output: path.join(outputDirectory, `${view}.${targetFormat}`), format: targetFormat });
       await writeArchitecture(projection, target);
       if (diagram.tooLarge) {
         await fs.rm(path.join(outputDirectory, diagram.svg), { force: true });
-        log(`Wrote ${view} view as D2 only: ${diagram.nodes} nodes are too many for the bundled SVG renderer (at most ${MAX_DIAGRAM_NODES})`);
+        log(`Wrote ${view} view as D2 only: ${diagram.nodes} nodes are too many to draw (at most ${MAX_DIAGRAM_NODES})`);
         continue;
       }
       log(`Rendered ${view} view (${diagram.nodes} nodes, ${diagram.edges} edges)`);

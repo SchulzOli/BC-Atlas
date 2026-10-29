@@ -339,7 +339,7 @@ test("the report export writes an overview, health summary, and one diagram per 
   }
 });
 
-test("the report keeps a view too large for SVG as D2 and links it relative to the README", () => {
+test("the report keeps a view too large to draw as D2 and links it relative to the README", () => {
   const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-large-"));
   const app = path.join(directory, "app");
@@ -361,7 +361,7 @@ test("the report keeps a view too large for SVG as D2 and links it relative to t
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stderr + result.stdout, /0 diagram\(s\) in the report, 1 as D2 source only/u);
     const readme = readFileSync(path.join(output, "README.md"), "utf8");
-    assert.match(readme, /Not rendered as SVG: 1501 nodes are too many .*Render \[project\.d2\]\(project\.d2\)/u);
+    assert.match(readme, /Not drawn: 1501 nodes are too many .*D2 source \[project\.d2\]\(project\.d2\)/u);
     const section = readme.slice(readme.indexOf("## Project overview"), readme.indexOf("## Architecture health"));
     assert.ok(!section.includes(directory), "the diagram section must not contain absolute paths");
     assert.ok(existsSync(path.join(output, "project.d2")));

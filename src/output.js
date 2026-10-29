@@ -1,28 +1,8 @@
-import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { FORMATS } from "./capabilities.js";
-import { renderD2 } from "./d2.js";
-import { MAX_DIAGRAM_NODES, renderSvg } from "./svg.js";
-
-function runD2Executable(source, output, options) {
-  return new Promise((resolve, reject) => {
-    const args = [];
-    if (options.layout) args.push("--layout", options.layout);
-    if (options.theme !== undefined) args.push("--theme", String(options.theme));
-    args.push(source, output);
-    const child = spawn("d2", args, { stdio: "inherit", shell: false });
-    child.on("error", (error) => {
-      reject(error.code === "ENOENT"
-        ? new Error("PNG and PDF output need the d2 executable on PATH; use svg or install D2 from https://d2lang.com")
-        : error);
-    });
-    child.on("exit", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`d2 exited with code ${code}`));
-    });
-  });
-}
+import { buildScene, sceneToD2 } from "./d2.js";
+import { MAX_DIAGRAM_NODES, renderScene } from "./diagram/index.js";
 
 /**
  * Resolves the final output path and format. When --format conflicts with the
@@ -62,7 +42,7 @@ async function writeFile(file, content) {
 
 /** Writes an architecture model in the requested format; returns the files written. */
 export async function writeArchitecture(architecture, target) {
-  const { model, options, renderOptions } = architecture;
+  const { model, renderOptions } = architecture;
   if (target.format === "json") {
     const json = `${JSON.stringify(model, null, 2)}\n`;
     if (!target.finalOutput) {
@@ -73,17 +53,13 @@ export async function writeArchitecture(architecture, target) {
     return { files: [target.finalOutput] };
   }
 
-  const source = renderD2(model, renderOptions);
-  await writeFile(target.d2Output, source);
+  // The D2 source comes along with every drawing, for D2 tooling.
+  const scene = buildScene(model, renderOptions);
+  await writeFile(target.d2Output, sceneToD2(scene));
   if (target.format === "d2") return { files: [target.d2Output] };
-  if (target.format === "svg") {
-    if (model.objects.length > MAX_DIAGRAM_NODES) {
-      throw new Error(`${model.objects.length} nodes are too many for the bundled SVG renderer (at most ${MAX_DIAGRAM_NODES}); wrote ${target.d2Output}. Filter with --namespace or --paths, choose a focused view, or render the D2 file with the d2 executable`);
-    }
-    await writeFile(target.finalOutput, await renderSvg(source, options));
-  } else {
-    await fs.mkdir(path.dirname(target.finalOutput), { recursive: true });
-    await runD2Executable(target.d2Output, target.finalOutput, options);
+  if (model.objects.length > MAX_DIAGRAM_NODES) {
+    throw new Error(`${model.objects.length} nodes are too many to draw (at most ${MAX_DIAGRAM_NODES}); wrote ${target.d2Output}. Filter with --namespace or --paths, or choose a focused view`);
   }
+  await writeFile(target.finalOutput, await renderScene(scene, target.format));
   return { files: [target.finalOutput, target.d2Output] };
 }

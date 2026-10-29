@@ -12,7 +12,7 @@ import { planExtraction } from "../blueprint/extract.js";
 import { VIEWS } from "../capabilities.js";
 import { runHealthCheck } from "../commands/check.js";
 import { writeArchitectureConfig } from "../commands/blueprint.js";
-import { renderD2 } from "../d2.js";
+import { buildScene, sceneToD2 } from "../d2.js";
 import { findGitRoot } from "../automation/git.js";
 import { findUiTests } from "../automation/setup.js";
 import { documentationBrowser, documentationHtml } from "../docs/export.js";
@@ -20,7 +20,7 @@ import { loadCorpus } from "../docs/model.js";
 import { createGraphDocument } from "../graph/document.js";
 import { renderExplorerHtml } from "../graph/html.js";
 import { openParseCache } from "../parse-cache.js";
-import { MAX_DIAGRAM_NODES, renderSvg } from "../svg.js";
+import { MAX_DIAGRAM_NODES, sceneToSvg } from "../diagram/index.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
@@ -324,15 +324,14 @@ export class Workspace {
           empty: `${nodes.toLocaleString("en-US")} nodes are too many to draw (at most ${MAX_DIAGRAM_NODES.toLocaleString("en-US")}). Filter by namespace, or choose a focused view such as module, object, boundary, or workflow.`
         };
       }
-      const d2 = renderD2(projection.model, projection.renderOptions);
+      const scene = buildScene(projection.model, projection.renderOptions);
       return {
         view: projection.view,
         nodes: projection.model.objects.length,
         edges: projection.model.edges.length,
-        d2,
-        svg: await renderSvg(d2, projection.options),
-        // The object behind each node: D2 names the nth object "n<index>".
-        objects: projection.model.objects.map(({ key }) => key)
+        d2: sceneToD2(scene),
+        // Every box names its object (data-object), every route its ends (data-from, data-to).
+        svg: await sceneToSvg(scene)
       };
     });
   }

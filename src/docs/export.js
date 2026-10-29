@@ -11,7 +11,8 @@ import { articleHtml, indexHtml, renderHtml, useCaseHtml } from "./render/html.j
 import { renderGuide, renderIndex, renderTestCase, renderUseCase } from "./render/markdown.js";
 import { renderProcessSvg } from "./render/process-svg.js";
 import { escapeXml } from "./render/format.js";
-import { buildCatalog, humanizeFeature, journeyD2, sameAsTitle } from "./task.js";
+import { buildCatalog, humanizeFeature, journeyD2, journeyScene, sameAsTitle } from "./task.js";
+import { sceneToSvg } from "../diagram/index.js";
 
 export const EXPORT_FORMATS = Object.freeze(["markdown", "html", "dita", "ado-csv", "bpmn"]);
 export const DOCUMENT_MODES = Object.freeze(["guide", "testcase"]);
@@ -26,13 +27,9 @@ export function parseFormats(value) {
   return [...new Set(formats.length ? formats : ["markdown"])];
 }
 
-async function renderJourneySvg(source) {
-  try {
-    const { renderSvg } = await import("../svg.js");
-    return await renderSvg(source, { pad: 16 });
-  } catch {
-    return undefined;
-  }
+async function renderJourneySvg(catalog) {
+  const scene = journeyScene(catalog);
+  return scene ? sceneToSvg(scene) : undefined;
 }
 
 async function prepareCatalog(corpus, options) {
@@ -79,7 +76,7 @@ function renderHtmlPage({ catalog, mode, processes }, journeySvg) {
 /** The documentation as one self-contained HTML page, without writing files. */
 export async function documentationHtml(corpus, options = {}) {
   const prepared = await prepareCatalog(corpus, options);
-  const journeySvg = prepared.journey ? await renderJourneySvg(prepared.journey) : undefined;
+  const journeySvg = prepared.journey ? await renderJourneySvg(prepared.catalog) : undefined;
   return renderHtmlPage(prepared, journeySvg);
 }
 
@@ -93,7 +90,7 @@ export async function documentationBrowser(corpus, options = {}) {
   const { catalog, mode, named, processes, journey } = prepared;
   const { language } = catalog;
   const t = (key, values) => label(language, key, values);
-  const journeySvg = journey ? (await renderJourneySvg(journey))?.replace(/^<\?xml[^>]*>\s*/u, "") : undefined;
+  const journeySvg = journey ? await renderJourneySvg(catalog) : undefined;
   const items = {};
   const overview = [`<p class="muted">${escapeXml(t("label.generated"))}</p>`];
   if (named.length) {
@@ -170,7 +167,7 @@ export async function exportDocumentation(corpus, options = {}) {
   const visual = formats.includes("markdown") || formats.includes("html");
   let journeySvg;
   if (journey && visual) {
-    journeySvg = await renderJourneySvg(journey);
+    journeySvg = await renderJourneySvg(catalog);
   }
 
   if (formats.includes("markdown")) {
