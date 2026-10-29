@@ -65,7 +65,7 @@ options and examples.
 | `ui` | How do pages, actions, and source tables connect? | `bca export --view ui --focus "Sales Order" -o ui.svg` |
 | `workflow` | What happens after an action or entry point? | `bca export --view workflow --entry action:Release -o flow.svg` |
 
-In VS Code, the Diagrams page of the BC Atlas panel renders every view with zoom and pan.
+In VS Code, the Diagrams page of the BC Atlas panel renders every view with zoom and pan; click an object to open it.
 
 ### Clean architecture
 

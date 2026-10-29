@@ -3,6 +3,8 @@
 // call it directly. Every method takes one plain object and returns JSON or,
 // for the explorer and the docs, an HTML page as a string.
 
+import { DOCUMENT_MODES } from "../docs/export.js";
+
 const HISTORY = ["commits", "prs", "releases"];
 const GROUPINGS = ["auto", "coupling", "namespace", "folder", "module", "app"];
 
@@ -18,6 +20,13 @@ function architectureSettings(params = {}) {
   const groupBy = params.groupBy || "auto";
   if (!GROUPINGS.includes(groupBy)) throw new Error(`groupBy must be one of: ${GROUPINGS.join(", ")}`);
   return { propose: truthy(params.propose), groupBy, depth: positive(params.depth, "depth"), minObjects: positive(params.minObjects, "minObjects") };
+}
+
+// A guide or a test case, in a language; empty means the .bca.json setting.
+function docsSettings({ mode, language } = {}) {
+  if (mode && !DOCUMENT_MODES.includes(mode)) throw new Error(`mode must be one of: ${DOCUMENT_MODES.join(", ")}`);
+  if (language && !/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u.test(language)) throw new Error("language must be a language tag such as de-DE");
+  return { mode: mode || undefined, language: language || undefined };
 }
 
 export function createService(workspace) {
@@ -46,8 +55,13 @@ export function createService(workspace) {
       if (history && !HISTORY.includes(history)) throw new Error(`history must be one of: ${HISTORY.join(", ")}`);
       return workspace.explorer({ propose: truthy(propose), history: history || false, last: positive(last, "last") });
     },
-    docsHtml: async () => {
-      const html = await workspace.docsHtml();
+    docsBrowser: async (params = {}) => {
+      const browser = await workspace.docsBrowser(docsSettings(params));
+      if (!browser) throw new Error("no UI-test documentation found");
+      return browser;
+    },
+    docsHtml: async (params = {}) => {
+      const html = await workspace.docsHtml(docsSettings(params));
       if (!html) throw new Error("no UI-test documentation found");
       return html;
     },

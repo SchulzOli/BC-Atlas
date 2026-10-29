@@ -106,10 +106,15 @@
       return diagram;
     },
     explorer: (settings) => LIVE ? read("explorer", settings) : embeddedPage("explorer", window.BCA_EXPLORER_GZIP),
-    docsHtml: () => LIVE ? read("docsHtml") : embeddedPage("docs", window.BCA_DOCS_GZIP),
+    docs: async (settings = {}) => {
+      if (LIVE) return read("docsBrowser", settings);
+      if (!SNAPSHOT.docs) throw new Error("The docs are not part of the export.");
+      return SNAPSHOT.docs;
+    },
+    docsHtml: (settings = {}) => LIVE ? read("docsHtml", settings) : embeddedPage("docs", window.BCA_DOCS_GZIP),
     // Only in VS Code: the extension opens files and saves downloads.
     openFile: (file, line) => call("openFile", { file, line }),
-    saveFile: (name, content) => call("saveFile", { name, content })
+    saveFile: (name, content, encoding) => call("saveFile", { name, content, encoding })
   };
 
   // Embedded pages of an exported app load through srcdoc: hosts such as
@@ -127,8 +132,8 @@
   const editorTheme = () => document.body.classList.contains("vscode-light") || document.body.classList.contains("vscode-high-contrast-light") ? "light" : "dark";
   let theme = LIVE ? editorTheme() : storedTheme ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   // The design tokens as the editor's theme resolves them (src/ui/theme.css).
-  // Embedded pages (explorer, docs) are documents of their own without the
-  // --vscode-* variables, so they get the resolved values.
+  // The embedded explorer is a document of its own without the --vscode-*
+  // variables, so it gets the resolved values.
   const TOKENS = ["bg", "surface", "surface-2", "panel", "panel-solid", "border", "border-strong", "text", "muted", "accent", "accent-text",
     "accent-soft", "hover", "input", "label", "label-shadow", "shadow", "ok", "warn", "error", "info", "font", "font-size", "mono", "link", "focus",
     "selected", "selected-text"];
@@ -141,13 +146,6 @@
     document.documentElement.dataset.theme = theme;
     const tokens = themeTokens();
     for (const frame of $$("iframe[data-theme-sync]")) frame.contentWindow?.postMessage({ type: "bca-theme", theme, tokens }, "*");
-    for (const frame of $$("iframe[data-theme-document]")) {
-      try {
-        const root = frame.contentDocument.documentElement;
-        root.dataset.theme = theme;
-        for (const [name, value] of Object.entries(tokens ?? {})) root.style.setProperty(name, value);
-      } catch { /* another origin */ }
-    }
   };
   applyTheme();
   if (LIVE) {
@@ -1210,16 +1208,141 @@
     let drag;
     canvas.onpointerdown = (event) => {
       if (event.target.closest(".canvas-tools, a")) return;
-      drag = { x: event.clientX - x, y: event.clientY - y };
+      drag = { x: event.clientX - x, y: event.clientY - y, startX: event.clientX, startY: event.clientY };
+      delete canvas.dataset.moved;
       canvas.classList.add("dragging");
       canvas.setPointerCapture(event.pointerId);
     };
-    canvas.onpointermove = (event) => { if (drag) { x = event.clientX - drag.x; y = event.clientY - drag.y; apply(); } };
+    canvas.onpointermove = (event) => {
+      if (!drag) return;
+      x = event.clientX - drag.x;
+      y = event.clientY - drag.y;
+      if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4) canvas.dataset.moved = "1";
+      apply();
+    };
     canvas.onpointerup = () => { drag = undefined; canvas.classList.remove("dragging"); };
     fit();
     return { fit, zoom: (factor) => { const box = canvas.getBoundingClientRect(); zoom(factor, box.width / 2, box.height / 2); } };
   }
 
+  // ------------------------------------------------------------ workbench
+  // Diagrams and Docs share one layout: on the left, a filterable list of
+  // what there is to see and its settings; on the right, the selected item
+  // with its tools (previous and next, downloads, open the source).
+  const workbenchFilters = {};
+  function workbench(page, { name, placeholder, groups, settings = "" }) {
+    const item = ({ href, title, detail, count, current, search }) => `<a class="wb-item" href="${esc(href)}"${current ? ' aria-current="true"' : ""} data-search="${esc(String(search ?? `${title} ${detail ?? ""}`).toLowerCase())}">
+        <span class="wb-name">${esc(title)}</span>${count !== undefined ? `<span class="count">${esc(count)}</span>` : ""}${detail ? `<small>${esc(detail)}</small>` : ""}</a>`;
+    page.innerHTML = `<div class="workbench">
+      <aside class="wb-side">
+        <input type="search" class="wb-filter" placeholder="${esc(placeholder)}" aria-label="${esc(placeholder)}" value="${esc(workbenchFilters[name] ?? "")}">
+        <nav class="wb-list">${groups.filter(({ items }) => items.length).map(({ title, items }) => `<div class="wb-group"><h3>${esc(title)}</h3>${items.map(item).join("")}</div>`).join("")}
+          <p class="wb-none muted small" hidden>Nothing matches the filter.</p></nav>
+        ${settings ? `<div class="wb-settings">${settings}</div>` : ""}
+      </aside>
+      <section class="wb-main">
+        <header class="wb-bar"><div class="wb-heading"><h2 class="wb-title"></h2><p class="wb-subtitle"></p></div><div class="wb-actions"></div></header>
+        <div class="wb-body">${loading()}</div>
+      </section>
+    </div>`;
+    const filter = $(".wb-filter", page);
+    const items = $$(".wb-item", page);
+    const apply = () => {
+      const query = filter.value.trim().toLowerCase();
+      workbenchFilters[name] = filter.value;
+      for (const element of items) element.hidden = Boolean(query) && !element.dataset.search.includes(query);
+      for (const group of $$(".wb-group", page)) group.hidden = !$$(".wb-item:not([hidden])", group).length;
+      $(".wb-none", page).hidden = items.some((element) => !element.hidden);
+    };
+    filter.addEventListener("input", apply);
+    // Enter opens the first match.
+    filter.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") items.find((element) => !element.hidden)?.click();
+    });
+    apply();
+    $(".wb-item[aria-current]", page)?.scrollIntoView({ block: "nearest" });
+    const visible = () => items.filter((element) => !element.hidden);
+    const step = (offset) => {
+      const list = visible();
+      const index = list.findIndex((element) => element.hasAttribute("aria-current"));
+      list[index < 0 ? 0 : Math.max(0, Math.min(list.length - 1, index + offset))]?.click();
+    };
+    // J and K (or the arrow keys with Alt) step through the list, like a mail client.
+    const onKey = (event) => {
+      if (!page.isConnected) return removeEventListener("keydown", onKey);
+      if (event.ctrlKey || event.metaKey || (event.target.matches?.("input, select, textarea") && !event.altKey)) return;
+      if (event.key === "j" || (event.altKey && event.key === "ArrowDown")) { event.preventDefault(); step(1); }
+      if (event.key === "k" || (event.altKey && event.key === "ArrowUp")) { event.preventDefault(); step(-1); }
+    };
+    addEventListener("keydown", onKey);
+    const bar = {
+      body: $(".wb-body", page),
+      set(title, subtitle = "", actions = "") {
+        $(".wb-title", page).textContent = title;
+        $(".wb-subtitle", page).innerHTML = subtitle;
+        const list = visible();
+        const index = list.findIndex((element) => element.hasAttribute("aria-current"));
+        $(".wb-actions", page).innerHTML = `${actions}<span class="wb-step">
+          <button class="icon-button" data-step="-1" title="Previous (K)"${index <= 0 ? " disabled" : ""}>‹</button>
+          <button class="icon-button" data-step="1" title="Next (J)"${index < 0 || index >= list.length - 1 ? " disabled" : ""}>›</button></span>`;
+      },
+      onAction(handler) {
+        $(".wb-actions", page).onclick = (event) => {
+          const button = event.target.closest("button");
+          if (!button || button.disabled) return;
+          if (button.dataset.step) return step(Number(button.dataset.step));
+          handler(button.dataset, button);
+        };
+      }
+    };
+    return bar;
+  }
+
+  // Saves a file: through the editor in VS Code, as a browser download otherwise.
+  function download(name, content, type = "text/plain") {
+    if (LIVE) {
+      const binary = content instanceof Uint8Array;
+      const text = binary ? btoa(Array.from(content, (byte) => String.fromCharCode(byte)).join("")) : content;
+      return api.saveFile(name, text, binary ? "base64" : undefined).catch((error) => toast(error.message));
+    }
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([content], { type }));
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+
+  // An SVG as PNG at twice its size, on a white background like the canvas.
+  async function svgToPng(markup) {
+    const svg = new DOMParser().parseFromString(markup, "image/svg+xml").documentElement;
+    const width = svg.viewBox.baseVal?.width || Number.parseFloat(svg.getAttribute("width")) || 800;
+    const height = svg.viewBox.baseVal?.height || Number.parseFloat(svg.getAttribute("height")) || 600;
+    svg.setAttribute("width", width);
+    svg.setAttribute("height", height);
+    const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" }));
+    try {
+      const image = await new Promise((resolve, reject) => {
+        const element = new Image();
+        element.onload = () => resolve(element);
+        element.onerror = () => reject(new Error("the diagram could not be converted to PNG"));
+        element.src = url;
+      });
+      const scale = Math.min(2, 16000 / Math.max(width, height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      return new Uint8Array(await blob.arrayBuffer());
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  // ------------------------------------------------------------- diagrams
   const VIEW_INPUTS = {
     object: [["object", "Object", "codeunit:50100 or a name", true]],
     boundary: [["scope", "Scope", "namespace:Contoso.Sales", true]],
@@ -1228,73 +1351,114 @@
     events: [["focus", "Focus", "name fragment (optional)"]],
     ui: [["focus", "Focus", "name fragment (optional)"]]
   };
+  const VIEW_TITLES = {
+    project: "Project", module: "Modules", data: "Data", call: "Calls", ui: "Pages and navigation", contracts: "Contracts",
+    events: "Events", object: "One object", boundary: "Boundary", workflow: "Workflow"
+  };
+  const FOCUSED_VIEWS = ["object", "boundary", "workflow"];
+  // Settings that change the diagram; anything else in the address is ignored.
+  const DIAGRAM_SETTINGS = ["object", "scope", "entry", "focus", "namespace", "groupBy", "direction", "details", "noExternal"];
 
   async function diagramsPage(page, { params }) {
+    $("#main").classList.add("full");
     const views = await api.views();
-    const view = params.get("view") ?? views[0]?.id ?? "project";
-    const describe = (id) => views.find((item) => item.id === id)?.summary ?? "";
-    setHeader("Diagrams", "Focused architecture views of the AL source. The same views as <code>bca export --view &lt;view&gt;</code>.");
+    const view = views.some(({ id }) => id === params.get("view")) ? params.get("view") : views[0]?.id ?? "project";
+    const summary = (id) => views.find((item) => item.id === id)?.summary ?? "";
+    const settings = Object.fromEntries(DIAGRAM_SETTINGS.filter((name) => params.get(name)).map((name) => [name, params.get(name)]));
+    setHeader("Diagrams", "Focused architecture views of the AL source, the same as <code>bca export --view &lt;view&gt;</code>.");
     const inputs = VIEW_INPUTS[view] ?? [];
     const objects = LIVE && view === "object" ? await api.objects() : [];
-    page.innerHTML = `
-      <div class="diagram-layout">
-        <form class="card diagram-form" id="diagram-form">
-          <label class="field"><span>View</span><select name="view">${views.map((item) => `<option value="${esc(item.id)}"${item.id === view ? " selected" : ""}>${esc(item.id)}</option>`).join("")}</select></label>
-          <div class="view-hint">${esc(describe(view))}</div>
-          ${LIVE ? inputs.map(([name, label, placeholder, required]) => `<label class="field"><span>${esc(label)}${required ? "" : ""}</span><input type="text" name="${name}" placeholder="${esc(placeholder)}" value="${esc(params.get(name) ?? "")}"${name === "object" ? ' list="object-options"' : ""}${required ? " required" : ""}></label>`).join("") : ""}
-          ${objects.length ? `<datalist id="object-options">${objects.slice(0, 2000).map((object) => `<option value="${esc(`${object.type}:${object.objectId ?? object.label}`)}">${esc(object.label)}</option>`).join("")}</datalist>` : ""}
-          ${LIVE ? `
-            <label class="field"><span>Namespace filter</span><input type="text" name="namespace" placeholder="Microsoft.Sales.**" value="${esc(params.get("namespace") ?? "")}"></label>
-            ${["project", "module"].includes(view) ? `<label class="field"><span>Group by</span><select name="groupBy"><option value="">default</option>${(view === "module" ? ["namespace", "folder"] : ["role", "namespace", "folder", "type"]).map((value) => `<option${params.get("groupBy") === value ? " selected" : ""}>${value}</option>`).join("")}</select></label>` : ""}
-            <label class="field"><span>Direction</span><select name="direction">${["right", "down", "left", "up"].map((value) => `<option${(params.get("direction") ?? "right") === value ? " selected" : ""}>${value}</option>`).join("")}</select></label>
-            <label class="check"><input type="checkbox" name="details" value="1"${params.get("details") ? " checked" : ""}> Member counts</label>
-            <label class="check"><input type="checkbox" name="noExternal" value="1"${params.get("noExternal") ? " checked" : ""}> Hide external objects</label>
-            <button class="btn primary">Render</button>` : '<p class="muted small">Exported views use their default settings. Open the project in VS Code with the BC Atlas extension to change them.</p>'}
-        </form>
-        <div id="diagram-area">${loading("Rendering the diagram…")}</div>
-      </div>`;
-    const form = $("#diagram-form");
-    form.view.addEventListener("change", () => go("diagrams", { view: form.view.value }));
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const values = Object.fromEntries(new FormData(form));
-      go("diagrams", values);
+    const field = ([name, label, placeholder, required]) => `<label class="field"><span>${esc(label)}${required ? "" : " <i>(optional)</i>"}</span>
+      <input type="text" name="${name}" placeholder="${esc(placeholder)}" value="${esc(params.get(name) ?? "")}"${name === "object" ? ' list="object-options"' : ""}${required ? " required" : ""}></label>`;
+    const settingsHtml = LIVE ? `<form class="wb-form" id="diagram-form">
+        <h3>Settings</h3>
+        ${inputs.map(field).join("")}
+        ${objects.length ? `<datalist id="object-options">${objects.slice(0, 2000).map((object) => `<option value="${esc(`${object.type}:${object.objectId ?? object.label}`)}">${esc(object.label)}</option>`).join("")}</datalist>` : ""}
+        <label class="field"><span>Namespaces</span><input type="text" name="namespace" placeholder="Microsoft.Sales.**" value="${esc(params.get("namespace") ?? "")}"></label>
+        ${["project", "module"].includes(view) ? `<label class="field"><span>Group by</span><select name="groupBy"><option value="">default</option>${(view === "module" ? ["namespace", "folder"] : ["role", "namespace", "folder", "type"]).map((value) => `<option${params.get("groupBy") === value ? " selected" : ""}>${value}</option>`).join("")}</select></label>` : ""}
+        <label class="field"><span>Direction</span><select name="direction">${["right", "down", "left", "up"].map((value) => `<option${(params.get("direction") ?? "right") === value ? " selected" : ""}>${value}</option>`).join("")}</select></label>
+        <label class="check"><input type="checkbox" name="details" value="1"${params.get("details") ? " checked" : ""}> Member counts</label>
+        <label class="check"><input type="checkbox" name="noExternal" value="1"${params.get("noExternal") ? " checked" : ""}> Hide external objects</label>
+        <button class="btn primary">Apply</button>
+      </form>` : '<p class="muted small">Exported diagrams use their default settings. Open the project in VS Code with the BC Atlas extension to change them or to see the focused views.</p>';
+    const href = (id) => `#/diagrams?${new URLSearchParams({ view: id })}`;
+    const item = ({ id, summary: detail }) => ({ href: href(id), title: VIEW_TITLES[id] ?? id, detail, current: id === view, search: `${id} ${VIEW_TITLES[id] ?? ""} ${detail}` });
+    const bar = workbench(page, {
+      name: "diagrams",
+      placeholder: "Filter views",
+      groups: [
+        { title: "The whole app", items: views.filter(({ id }) => !FOCUSED_VIEWS.includes(id)).map(item) },
+        { title: "Focus on one part", items: views.filter(({ id }) => FOCUSED_VIEWS.includes(id)).map(item) }
+      ],
+      settings: settingsHtml
     });
+    const form = $("#diagram-form", page);
+    if (form) {
+      const submit = () => go("diagrams", { view, ...Object.fromEntries([...new FormData(form)].filter(([, value]) => value !== "")) });
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submit();
+      });
+      // Choices apply at once; typed values with Enter or Apply.
+      form.addEventListener("change", (event) => {
+        if (event.target.matches("select, input[type=checkbox]")) submit();
+      });
+    }
+    bar.set(VIEW_TITLES[view] ?? view, esc(summary(view)));
     const missing = inputs.find(([name, , , required]) => required && !params.get(name));
-    const area = $("#diagram-area");
     if (missing && LIVE) {
-      area.innerHTML = `<div class="card empty"><h2>${esc(missing[1])} needed</h2><p>The ${esc(view)} view needs ${esc(missing[1].toLowerCase())}: ${esc(missing[2])}.</p></div>`;
+      bar.body.innerHTML = `<div class="empty"><h2>${esc(missing[1])} needed</h2><p>The ${esc(VIEW_TITLES[view] ?? view)} view starts from ${esc(missing[2])}. Enter it in the settings on the left.</p></div>`;
+      $(`[name="${missing[0]}"]`, page)?.focus();
       return;
     }
-    const settings = Object.fromEntries([...params].filter(([name]) => name !== "view"));
+    let diagram;
     try {
-      const diagram = await api.diagram({ view, ...settings });
-      if (!diagram.svg) {
-        area.innerHTML = `<div class="card empty"><h2>Nothing to draw</h2><p>${esc(diagram.empty ?? "No matching objects.")}</p></div>`;
-        return;
-      }
-      area.innerHTML = `<div class="canvas"><div class="canvas-tools">
-          <button class="icon-button" data-zoom="in" title="Zoom in">+</button><button class="icon-button" data-zoom="out" title="Zoom out">−</button>
-          <button class="icon-button" data-zoom="fit">Fit</button><button class="icon-button" data-download="svg">SVG</button>${diagram.d2 ? '<button class="icon-button" data-download="d2">D2</button>' : ""}
-        </div><div class="stage"></div><div class="canvas-info">${plural(diagram.nodes, "node")} · ${plural(diagram.edges, "edge")} · scroll to zoom, drag to pan</div></div>`;
-      const controls = panZoom($(".canvas", area), safeSvg(diagram.svg));
-      $(".canvas-tools", area).onclick = (event) => {
-        const zoom = event.target.closest("[data-zoom]")?.dataset.zoom;
-        if (zoom === "fit") controls.fit();
-        else if (zoom) controls.zoom(zoom === "in" ? 1.25 : 0.8);
-        const format = event.target.closest("[data-download]")?.dataset.download;
-        if (format && LIVE) {
-          api.saveFile(`${view}.${format}`, format === "svg" ? diagram.svg : diagram.d2).catch((error) => toast(error.message));
-        } else if (format) {
-          const link = document.createElement("a");
-          link.href = URL.createObjectURL(new Blob([format === "svg" ? diagram.svg : diagram.d2], { type: format === "svg" ? "image/svg+xml" : "text/plain" }));
-          link.download = `${view}.${format}`;
-          link.click();
-        }
-      };
+      diagram = await api.diagram({ view, ...settings });
     } catch (error) {
-      area.innerHTML = `<div class="error-box">${esc(error.message)}</div>`;
+      bar.body.innerHTML = `<div class="error-box">${esc(error.message)}</div>`;
+      return;
     }
+    if (!diagram.svg) {
+      bar.body.innerHTML = `<div class="empty"><h2>Nothing to draw</h2><p>${esc(diagram.empty ?? "No matching objects.")}</p></div>`;
+      return;
+    }
+    bar.set(VIEW_TITLES[view] ?? view, `${esc(summary(view))} · ${plural(diagram.nodes, "object")}, ${plural(diagram.edges, "dependency", "dependencies")}`,
+      `<span class="wb-tools"><button class="icon-button" data-zoom="out" title="Zoom out">−</button><button class="icon-button" data-zoom="in" title="Zoom in">+</button><button class="icon-button" data-zoom="fit" title="Fit the diagram">Fit</button></span>
+       <span class="wb-tools"><button class="icon-button" data-download="svg" title="Save as SVG">SVG</button><button class="icon-button" data-download="png" title="Save as PNG">PNG</button>${diagram.d2 ? '<button class="icon-button" data-download="d2" title="Save the D2 source">D2</button>' : ""}</span>`);
+    bar.body.innerHTML = `<div class="canvas"><div class="stage"></div><div class="canvas-info">Scroll to zoom, drag to pan${diagram.objects ? ", click an object to open it" : ""}</div></div>`;
+    const canvas = $(".canvas", bar.body);
+    const controls = panZoom(canvas, safeSvg(diagram.svg));
+    // D2 names the nth object "n<index>" and writes the path of a shape, base64-encoded, as its class.
+    if (diagram.objects) {
+      canvas.addEventListener("click", (event) => {
+        if (canvas.dataset.moved) return;
+        // The canvas captures the pointer while dragging, so the click lands on it: look at what is under the pointer.
+        for (let element = document.elementFromPoint(event.clientX, event.clientY); element && element !== canvas; element = element.parentElement) {
+          const encoded = element.getAttribute?.("class");
+          if (!encoded || !/^[A-Za-z0-9+/]+=*$/u.test(encoded)) continue;
+          let key;
+          try { key = atob(encoded); } catch { continue; }
+          const index = /(?:^|\.)n(\d+)$/u.exec(key)?.[1];
+          const id = index === undefined ? undefined : diagram.objects[Number(index)];
+          if (id) location.hash = `#/object/${encodeURIComponent(id)}`;
+          return;
+        }
+      });
+      canvas.classList.add("linked");
+    }
+    bar.onAction(async (data) => {
+      if (data.zoom === "fit") controls.fit();
+      else if (data.zoom) controls.zoom(data.zoom === "in" ? 1.25 : 0.8);
+      if (data.download === "svg") download(`${view}.svg`, diagram.svg, "image/svg+xml");
+      if (data.download === "d2") download(`${view}.d2`, diagram.d2);
+      if (data.download === "png") {
+        try {
+          download(`${view}.png`, await svgToPng(diagram.svg), "image/png");
+        } catch (error) {
+          toast(error.message);
+        }
+      }
+    });
   }
 
   async function objectsPage(page, { params }) {
@@ -1405,26 +1569,123 @@
     });
   }
 
-  async function docsPage(page) {
+  // Inserts generated documentation HTML without anything that could run script.
+  function safeHtml(markup) {
+    const parsed = new DOMParser().parseFromString(`<body>${markup}</body>`, "text/html");
+    // Diagrams keep their own styles (D2 scopes them to the diagram); nothing else does.
+    for (const element of parsed.querySelectorAll("script, iframe, object, embed, foreignObject, link, meta, style")) {
+      if (element.localName !== "style" || !element.closest("svg")) element.remove();
+    }
+    for (const element of parsed.body.querySelectorAll("*")) {
+      for (const attribute of [...element.attributes]) {
+        const name = attribute.name.toLowerCase();
+        if (name.startsWith("on")) element.removeAttribute(attribute.name);
+        if ((name === "href" || name === "xlink:href" || name === "src") && !/^(https?:|#)/iu.test(attribute.value.trim())) element.removeAttribute(attribute.name);
+      }
+    }
+    for (const link of parsed.body.querySelectorAll("a[href^='http']")) link.setAttribute("target", "_blank");
+    return [...parsed.body.childNodes].map((node) => document.importNode(node, true));
+  }
+
+  const DOC_MODES = [["guide", "User guide"], ["testcase", "Test case"]];
+  const LANGUAGE_NAMES = { en: "English", de: "Deutsch" };
+  const languageName = (tag) => `${LANGUAGE_NAMES[tag.split("-")[0]] ?? tag} (${tag})`;
+
+  async function docsPage(page, { params }) {
     const overview = await api.overview();
     $("#main").classList.add("full");
     const where = overview.docs.path === "." ? "the app folder" : `<span class="mono">${esc(overview.docs.path)}</span>`;
-    setHeader("Docs", overview.docs.scenarios ? `${plural(overview.docs.scenarios, "scenario")} from the AL UI tests in ${where}. Write them as files with <code>bca docs generate</code>.` : "User guides and test cases from AL UI tests.");
+    setHeader("Docs", overview.docs.scenarios ? `User guides and test cases from ${plural(overview.docs.scenarios, "AL UI test")} in ${where}, the same as <code>bca docs generate</code>.` : "User guides and test cases from AL UI tests.");
     if (!overview.docs.scenarios) {
       page.innerHTML = `<div class="card empty"><h2>No documented UI tests found</h2><p>Add <code>// [FEATURE]</code> and <code>// [SCENARIO]</code> comments to your AL UI tests, or point <code>docs.tests</code> in .bca.json at their folder.</p><pre class="code">bca docs list ./test\nbca docs generate ./test --app . --export markdown,html</pre></div>`;
       return;
     }
-    page.innerHTML = `<div></div><div class="frame-wrap"><iframe title="Documentation" sandbox="allow-scripts allow-same-origin allow-popups" data-theme-document></iframe>${loading("Writing the guides…")}</div>`;
-    const frame = $("iframe", page);
-    frame.addEventListener("load", () => {
-      $(".frame-wrap .loading", page)?.remove();
-      applyTheme();
+    const mode = DOC_MODES.some(([value]) => value === params.get("mode")) ? params.get("mode") : undefined;
+    const language = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u.test(params.get("language") ?? "") ? params.get("language") : undefined;
+    page.innerHTML = loading("Writing the guides…");
+    const docs = await api.docs({ mode, language });
+    const requested = params.get("id") ?? "";
+    const id = Object.hasOwn(docs.items, requested) ? requested : "";
+    const keep = { mode, language };
+    const href = (target) => `#/docs?${new URLSearchParams(Object.entries({ id: target, ...keep }).filter(([, value]) => value))}`;
+    const scenarios = new Map(docs.scenarios.map((scenario) => [scenario.id, scenario]));
+    const inUseCase = new Set(docs.useCases.flatMap(({ scenarios: main, alternatives }) => [...main, ...alternatives]));
+    const scenarioItem = (scenario) => ({
+      href: href(scenario.id), title: scenario.title, current: scenario.id === id,
+      detail: scenario.goal ?? plural(scenario.steps, "step"),
+      search: [scenario.id, scenario.title, scenario.goal, ...scenario.features].join(" ")
     });
-    try {
-      frame.srcdoc = await api.docsHtml();
-    } catch (error) {
-      $(".frame-wrap", page).innerHTML = `<div class="error-box">${esc(error.message)}</div>`;
+    const groups = [
+      { title: docs.title, items: [{ href: href(""), title: "Overview", detail: "Use cases, journey, pages, and coverage", current: id === "" }] },
+      ...docs.useCases.map((useCase) => ({
+        title: useCase.title,
+        items: [
+          { href: href(useCase.id), title: "Process", detail: "The use case from start to end", count: useCase.scenarios.length + useCase.alternatives.length, current: useCase.id === id, search: `${useCase.title} process use case` },
+          ...[...useCase.scenarios, ...useCase.alternatives].map((target) => scenarios.get(target)).filter(Boolean).map(scenarioItem)
+        ]
+      })),
+      { title: docs.useCases.length ? "Other scenarios" : "Scenarios", items: docs.scenarios.filter(({ id: target }) => !inUseCase.has(target)).map(scenarioItem) }
+    ];
+    const languages = docs.languages ?? [docs.language];
+    const settings = LIVE ? `<form class="wb-form" id="docs-form">
+        <h3>Settings</h3>
+        <div class="field"><span>Write as</span><div class="segmented" role="group">${DOC_MODES.map(([value, label]) =>
+          `<button type="button" data-mode="${value}" aria-pressed="${docs.mode === value}">${label}</button>`).join("")}</div></div>
+        <label class="field"><span>Language</span><select name="language">${languages.map((tag) => `<option value="${esc(tag)}"${tag === docs.language ? " selected" : ""}>${esc(languageName(tag))}</option>`).join("")}</select></label>
+        ${docs.warnings?.length ? `<p class="muted small">${docs.warnings.map(esc).join("<br>")}</p>` : ""}
+      </form>` : `<p class="muted small">Exported docs are written ${docs.mode === "testcase" ? "as test cases" : "as user guides"} in ${esc(languageName(docs.language))}, as set in .bca.json. Open the project in VS Code with the BC Atlas extension to switch.</p>`;
+    const bar = workbench(page, { name: "docs", placeholder: "Filter scenarios", groups, settings });
+    const form = $("#docs-form", page);
+    if (form) {
+      form.addEventListener("click", (event) => {
+        const value = event.target.closest("[data-mode]")?.dataset.mode;
+        if (value) go("docs", { id: id || undefined, mode: value === "guide" ? undefined : value, language });
+      });
+      form.language.addEventListener("change", () => go("docs", { id: id || undefined, mode, language: form.language.value }));
     }
+
+    const item = docs.items[id];
+    const scenario = scenarios.get(id);
+    const useCase = docs.useCases.find((entry) => entry.id === id);
+    const subtitle = scenario
+      ? [scenario.features.length ? esc(scenario.features.join(", ")) : "", plural(scenario.steps, "step"), scenario.source?.procedure ? `<span class="mono">${esc(scenario.source.procedure)}</span>` : ""].filter(Boolean).join(" · ")
+      : useCase ? `Use case · ${plural(useCase.scenarios.length, "scenario")}${useCase.alternatives.length ? `, ${plural(useCase.alternatives.length, "alternative")}` : ""}`
+        : `${plural(docs.scenarios.length, "scenario")}${docs.useCases.length ? ` in ${plural(docs.useCases.length, "use case")}` : ""}`;
+    const name = id || "index";
+    bar.set(item.title, subtitle, [
+      LIVE && scenario?.source?.file ? '<button class="icon-button" data-open="test" title="Open the AL test in the editor">Open test</button>' : "",
+      `<span class="wb-tools"><button class="icon-button" data-download="md" title="Save as Markdown">Markdown</button>${item.dita ? '<button class="icon-button" data-download="dita" title="Save as a DITA task">DITA</button>' : ""}${item.bpmn ? '<button class="icon-button" data-download="bpmn" title="Save the process as BPMN 2.0">BPMN</button>' : ""}${item.svg ? '<button class="icon-button" data-download="svg" title="Save the flow as SVG">SVG</button>' : ""}</span>`,
+      `<button class="icon-button" data-download="html" title="Save all guides as one HTML page">All as HTML</button>`
+    ].join(""));
+    bar.body.classList.add("scroll");
+    const article = document.createElement("article");
+    article.className = `doc${docs.mode === "testcase" ? " testcase" : ""}`;
+    article.lang = docs.language;
+    article.append(...safeHtml(item.html));
+    bar.body.replaceChildren(article);
+    // Links between guides, and from a process to its scenarios, stay on this page.
+    article.addEventListener("click", (event) => {
+      const link = event.target.closest("a[href^='#']");
+      if (!link) return;
+      const target = decodeURIComponent(link.getAttribute("href").slice(1));
+      if (!Object.hasOwn(docs.items, target)) return;
+      event.preventDefault();
+      location.hash = href(target);
+    });
+    bar.onAction(async (data) => {
+      if (data.open) api.openFile(scenario.source.file, scenario.source.line).catch((error) => toast(error.message));
+      if (data.download === "md") download(`${name}.md`, item.markdown, "text/markdown");
+      if (data.download === "dita") download(`${name}.dita`, item.dita, "application/xml");
+      if (data.download === "bpmn") download(`${name}.bpmn`, item.bpmn, "application/xml");
+      if (data.download === "svg") download(`${name}.svg`, item.svg, "image/svg+xml");
+      if (data.download === "html") {
+        try {
+          download("documentation.html", await api.docsHtml({ mode, language }), "text/html");
+        } catch (error) {
+          toast(error.message);
+        }
+      }
+    });
   }
 
   const RENDERERS = {

@@ -15,7 +15,7 @@ import { writeArchitectureConfig } from "../commands/blueprint.js";
 import { renderD2 } from "../d2.js";
 import { findGitRoot } from "../automation/git.js";
 import { findUiTests } from "../automation/setup.js";
-import { documentationHtml } from "../docs/export.js";
+import { documentationBrowser, documentationHtml } from "../docs/export.js";
 import { loadCorpus } from "../docs/model.js";
 import { createGraphDocument } from "../graph/document.js";
 import { renderExplorerHtml } from "../graph/html.js";
@@ -330,7 +330,9 @@ export class Workspace {
         nodes: projection.model.objects.length,
         edges: projection.model.edges.length,
         d2,
-        svg: await renderSvg(d2, projection.options)
+        svg: await renderSvg(d2, projection.options),
+        // The object behind each node: D2 names the nth object "n<index>".
+        objects: projection.model.objects.map(({ key }) => key)
       };
     });
   }
@@ -372,14 +374,56 @@ export class Workspace {
     });
   }
 
-  docsHtml() {
-    return this.remember("docs-html", async () => {
+  /**
+   * The documentation page by page for the Docs page, as a guide or a test
+   * case and in a language; the .bca.json docs settings are the defaults.
+   */
+  docsBrowser({ mode, language } = {}) {
+    return this.remember(`docs-browser:${mode ?? ""}:${language ?? ""}`, async () => {
+      const docs = await this.docs();
+      if (!docs) return undefined;
+      const root = await this.projectRoot();
+      const browser = await documentationBrowser(docs.corpus, {
+        mode: mode ?? docs.settings.as,
+        language: language ?? docs.settings.language,
+        title: docs.settings.title,
+        appRoot: path.resolve(root, docs.settings.app ?? "."),
+        version: pkg.version,
+        parseCache: await this.parseCache()
+      });
+      // Where each test is, relative to the project, so the editor can open it.
+      const files = new Map(docs.corpus.scenarios.map(({ path: file, value }) => [value.id, { file, procedure: value.procedure }]));
+      const lines = new Map();
+      const lineOf = (file, procedure) => {
+        if (!lines.has(file)) lines.set(file, readFileSync(file, "utf8").split(/\r?\n/u));
+        const name = procedure.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+        const pattern = new RegExp(`^\\s*(?:local\\s+|internal\\s+)?procedure\\s+"?${name}"?\\s*\\(`, "iu");
+        const index = lines.get(file).findIndex((line) => pattern.test(line));
+        return index < 0 ? undefined : index + 1;
+      };
+      return {
+        ...browser,
+        path: docs.path,
+        languages: [...new Set([browser.language, "en-US", "de-DE"])],
+        scenarios: browser.scenarios.map((scenario) => {
+          const found = files.get(scenario.id);
+          if (!found) return scenario;
+          let line;
+          try { line = lineOf(found.file, found.procedure); } catch { line = undefined; }
+          return { ...scenario, source: { ...scenario.source, file: path.relative(root, found.file).split(path.sep).join("/"), line } };
+        })
+      };
+    });
+  }
+
+  docsHtml({ mode, language } = {}) {
+    return this.remember(`docs-html:${mode ?? ""}:${language ?? ""}`, async () => {
       const docs = await this.docs();
       if (!docs) return undefined;
       const root = await this.projectRoot();
       return documentationHtml(docs.corpus, {
-        mode: docs.settings.as,
-        language: docs.settings.language,
+        mode: mode ?? docs.settings.as,
+        language: language ?? docs.settings.language,
         title: docs.settings.title,
         appRoot: path.resolve(root, docs.settings.app ?? "."),
         // The captions come from the app's source, parsed already.

@@ -4,6 +4,25 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- App and VS Code panel: Diagrams and Docs work the same way. On the left, a
+  filterable list (the views; the overview, use cases, and scenarios) with
+  the settings below it; on the right, the selected item with its tools.
+  `J`/`K` and **‹**/**›** step through the list, **Enter** in the filter opens
+  the first match, and the address keeps the selection and the settings.
+- Diagrams: views are listed with what they show, choices apply at once,
+  **PNG** saves the diagram besides **SVG** and **D2**, and a click on an
+  object opens its page.
+- Docs: the guides are part of the page instead of a page in a frame, one
+  overview, use case, or scenario at a time. Switch between user guide and
+  test case and between English and German; **Open test** opens the AL test
+  at its procedure; **Markdown**, **DITA**, **BPMN**, and **SVG** save the
+  page, **All as HTML** the whole documentation. Links between guides and
+  from a use case's process to its scenarios stay on the page.
+
 ## 0.11.0 - 2026-10-29
 
 ### Changed

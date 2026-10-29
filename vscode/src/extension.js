@@ -236,10 +236,11 @@ class AtlasPanel {
     return true;
   }
 
-  async saveFile({ name, content }) {
+  // Text, or binary content (a PNG) as base64.
+  async saveFile({ name, content, encoding }) {
     const target = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(path.join(project, path.basename(String(name)))) });
     if (!target) return false;
-    await vscode.workspace.fs.writeFile(target, Buffer.from(String(content), "utf8"));
+    await vscode.workspace.fs.writeFile(target, Buffer.from(String(content), encoding === "base64" ? "base64" : "utf8"));
     vscode.window.showInformationMessage(`Saved ${vscode.workspace.asRelativePath(target)}`);
     return true;
   }

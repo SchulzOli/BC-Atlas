@@ -2,15 +2,16 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { loadCaptionIndex } from "./captions.js";
-import { SUPPORTED_PHRASE_LANGUAGES } from "./phrases.js";
+import { label, SUPPORTED_PHRASE_LANGUAGES } from "./phrases.js";
 import { layoutProcess, scenarioProcess, useCaseProcess } from "./process.js";
 import { renderBpmn } from "./render/bpmn.js";
 import { renderAzureDevOpsCsv } from "./render/csv.js";
 import { renderDitaMap, renderDitaTask } from "./render/dita.js";
-import { renderHtml } from "./render/html.js";
+import { articleHtml, indexHtml, renderHtml, useCaseHtml } from "./render/html.js";
 import { renderGuide, renderIndex, renderTestCase, renderUseCase } from "./render/markdown.js";
 import { renderProcessSvg } from "./render/process-svg.js";
-import { buildCatalog, journeyD2 } from "./task.js";
+import { escapeXml } from "./render/format.js";
+import { buildCatalog, humanizeFeature, journeyD2, sameAsTitle } from "./task.js";
 
 export const EXPORT_FORMATS = Object.freeze(["markdown", "html", "dita", "ado-csv", "bpmn"]);
 export const DOCUMENT_MODES = Object.freeze(["guide", "testcase"]);
@@ -80,6 +81,71 @@ export async function documentationHtml(corpus, options = {}) {
   const prepared = await prepareCatalog(corpus, options);
   const journeySvg = prepared.journey ? await renderJourneySvg(prepared.journey) : undefined;
   return renderHtmlPage(prepared, journeySvg);
+}
+
+/**
+ * The documentation page by page, for the BC Atlas app: a table of contents
+ * and, per page (the overview under "", every use case, every scenario), its
+ * HTML and what it can be downloaded as.
+ */
+export async function documentationBrowser(corpus, options = {}) {
+  const prepared = await prepareCatalog(corpus, options);
+  const { catalog, mode, named, processes, journey } = prepared;
+  const { language } = catalog;
+  const t = (key, values) => label(language, key, values);
+  const journeySvg = journey ? (await renderJourneySvg(journey))?.replace(/^<\?xml[^>]*>\s*/u, "") : undefined;
+  const items = {};
+  const overview = [`<p class="muted">${escapeXml(t("label.generated"))}</p>`];
+  if (named.length) {
+    overview.push(`<h2>${t("heading.use-cases")}</h2><ul>${catalog.useCases.map((useCase) =>
+      `<li><a href="#${escapeXml(useCase.id)}">${escapeXml(useCase.title)}</a> <span class="muted">(${useCase.main.length + useCase.alternatives.length})</span></li>`).join("")}</ul>`);
+  }
+  overview.push(indexHtml(catalog, journeySvg));
+  items[""] = { kind: "overview", title: catalog.title ?? t("heading.documentation"), html: overview.join("\n"), markdown: renderIndex(catalog, {}) };
+  for (const useCase of named) {
+    const process = processes.get(useCase.id);
+    const svg = renderProcessSvg(layoutProcess(process), { linkFor: (node) => (node.task ? `#${node.task.id}` : undefined) });
+    items[useCase.id] = {
+      kind: "use-case",
+      title: useCase.title,
+      html: useCaseHtml(useCase, catalog, svg, { heading: false }),
+      markdown: renderUseCase(useCase, catalog, {}),
+      svg,
+      bpmn: renderBpmn(process, { version: options.version })
+    };
+  }
+  for (const task of catalog.tasks) {
+    const svg = renderProcessSvg(layoutProcess(scenarioProcess(task)));
+    items[task.id] = {
+      kind: "scenario",
+      title: mode === "testcase" ? `${t("testcase.title", { id: task.id })}: ${task.title}` : task.title,
+      html: articleHtml(task, mode, svg, { heading: false }),
+      markdown: mode === "testcase" ? renderTestCase(task, {}) : renderGuide(task, {}),
+      svg,
+      dita: renderDitaTask(task)
+    };
+  }
+  return {
+    title: items[""].title,
+    language,
+    mode,
+    warnings: prepared.warnings,
+    useCases: named.map((useCase) => ({
+      id: useCase.id,
+      title: useCase.title,
+      scenarios: useCase.main.map(({ id }) => id),
+      alternatives: useCase.alternatives.map(({ id }) => id)
+    })),
+    scenarios: catalog.tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      goal: sameAsTitle(task) ? undefined : task.goal,
+      features: task.features.map(humanizeFeature),
+      steps: task.steps.length,
+      source: { file: task.source.file, procedure: task.source.procedure }
+    })),
+    items
+  };
 }
 
 /**
