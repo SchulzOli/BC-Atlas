@@ -128,7 +128,9 @@ test("the HTML guide scrolls to a scenario in place when it is embedded through 
     const page = await documentationHtml(await loadCorpus(directory));
     const id = "widgets-list-new-widget-persists-general-fields";
     assert.match(page, new RegExp(`<a href="#${id}">`, "u"));
-    const script = page.match(/<script>([\s\S]*?)<\/script>/u)[1];
+    // The renderer writes exactly one inline script; take its body as written.
+    const start = page.indexOf("<script>") + "<script>".length;
+    const script = page.slice(start, page.indexOf("</script>", start));
 
     // A srcdoc document resolves #links against the host page: the click must not navigate.
     const run = (protocol) => {
