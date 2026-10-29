@@ -90,6 +90,12 @@
     overview: () => LIVE ? read("overview") : SNAPSHOT.overview,
     health: () => LIVE ? read("health") : SNAPSHOT.health,
     architecture: (settings = {}) => LIVE ? read("architecture", settings) : SNAPSHOT.architecture,
+    component: async (name, settings = {}) => {
+      if (LIVE) return read("component", { name, ...settings });
+      const component = SNAPSHOT.components?.[name];
+      if (!component) throw new Error("This component is not part of the export.");
+      return component;
+    },
     objects: () => LIVE ? read("objects") : SNAPSHOT.objects,
     object: async (id) => (LIVE ? read("object", { id }) : snapshotObject(id)),
     views: () => LIVE ? read("views") : SNAPSHOT.views,
@@ -280,7 +286,7 @@
 
   let shownPage;
   function markNav() {
-    const page = route().page === "object" ? "objects" : route().page;
+    const page = ({ object: "objects", component: "architecture" })[route().page] ?? route().page;
     for (const link of $$("#nav a")) {
       if (link.dataset.page === page) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
@@ -435,6 +441,474 @@
     </section>`;
   }
 
+  // ------------------------------------------- dependencies: should vs. is
+  // Green: the rules allow the dependency (where dependencies should be).
+  // Red: it exists today but points against the architecture.
+
+  /** Components in their layers, top layer first, with an arrow per component dependency. */
+  function dependencyMapHtml(data) {
+    const layers = [...new Set(data.components.map(({ layer }) => layer))].sort((a, b) => (b ?? -1) - (a ?? -1));
+    const ROW = 110;
+    const HEIGHT = 34;
+    const GAP = 18;
+    const LEFT = 92;
+    const COLUMN = 66;
+    // Every component gets a column of its own, ordered so that components
+    // that depend on each other sit close (barycenters); boxes only have to
+    // stay apart within their layer.
+    const neighbors = new Map(data.components.map(({ name }) => [name, []]));
+    for (const edge of data.edges) {
+      const weight = Math.log2(1 + edge.objectEdges);
+      neighbors.get(edge.source)?.push([edge.target, weight]);
+      neighbors.get(edge.target)?.push([edge.source, weight]);
+    }
+    let order = [...data.components].sort((a, b) => (b.layer ?? -1) - (a.layer ?? -1) || a.name.localeCompare(b.name)).map(({ name }) => name);
+    for (let pass = 0; pass < 24; pass++) {
+      const rank = new Map(order.map((name, index) => [name, index]));
+      const wanted = new Map(order.map((name) => {
+        const list = neighbors.get(name).filter(([other]) => rank.has(other));
+        const total = list.reduce((sum, [, weight]) => sum + weight, 0);
+        const bary = total ? list.reduce((sum, [other, weight]) => sum + rank.get(other) * weight, 0) / total : rank.get(name);
+        return [name, rank.get(name) * 0.5 + bary * 0.5];
+      }));
+      order = [...order].sort((a, b) => wanted.get(a) - wanted.get(b) || a.localeCompare(b));
+    }
+    const column = new Map(order.map((name, index) => [name, LEFT + 60 + index * COLUMN]));
+    const box = new Map();
+    let right = 0;
+    layers.forEach((layer, index) => {
+      const row = data.components.filter((component) => component.layer === layer)
+        .map((component) => ({ component, width: Math.max(96, component.name.length * 7.4 + 52) }))
+        .sort((a, b) => column.get(a.component.name) - column.get(b.component.name));
+      let cursor = LEFT;
+      for (const { component, width: boxWidth } of row) {
+        const x = Math.max(cursor, column.get(component.name) - boxWidth / 2);
+        box.set(component.name, { x, y: 40 + index * ROW, width: boxWidth, component });
+        cursor = x + boxWidth + GAP;
+      }
+      right = Math.max(right, cursor);
+    });
+    const width = right + 30;
+    const height = 40 + (layers.length - 1) * ROW + HEIGHT + 40;
+    const edges = data.edges.filter(({ source, target }) => box.has(source) && box.has(target));
+    const paths = edges.map((edge) => {
+      const from = box.get(edge.source);
+      const to = box.get(edge.target);
+      const wrong = edge.violations > 0;
+      let start;
+      let end;
+      const anchor = (own, other) => {
+        const centre = own.x + own.width / 2;
+        const shift = Math.max(-own.width / 2 + 10, Math.min(own.width / 2 - 10, (other.x + other.width / 2 - centre) * 0.3));
+        return centre + shift;
+      };
+      if (from.y === to.y) {
+        start = [anchor(from, to), from.y];
+        end = [anchor(to, from), to.y];
+      } else {
+        const down = to.y > from.y;
+        start = [anchor(from, to), down ? from.y + HEIGHT : from.y];
+        end = [anchor(to, from), down ? to.y : to.y + HEIGHT];
+      }
+      // A and B depending on each other get two curves, one on each side.
+      const side = edge.source < edge.target ? 1 : -1;
+      const [mx, my] = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
+      const length = Math.hypot(end[0] - start[0], end[1] - start[1]) || 1;
+      const bend = from.y === to.y ? Math.min(90, 30 + length / 6) : 22;
+      const [cx, cy] = from.y === to.y
+        ? [mx, my - bend * side]
+        : [mx + (-(end[1] - start[1]) / length) * bend * side, my + ((end[0] - start[0]) / length) * bend * side];
+      const strokeWidth = (1 + Math.log2(1 + edge.objectEdges) * 0.8).toFixed(1);
+      const tip = `${edge.source} → ${edge.target}: ${plural(edge.objectEdges, "object link")}${wrong ? `, ${fmt(edge.violations)} against the architecture` : ", allowed"}`;
+      return `<path class="dep ${wrong ? "wrong" : "allowed"}" data-source="${esc(edge.source)}" data-target="${esc(edge.target)}" d="M${start[0].toFixed(1)},${start[1].toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${end[0].toFixed(1)},${end[1].toFixed(1)}" stroke-width="${strokeWidth}" marker-end="url(#arrow-${wrong ? "wrong" : "allowed"})"><title>${esc(tip)}</title></path>`;
+    }).join("");
+    const nodes = [...box.values()].map(({ x, y, width: boxWidth, component }) => `
+      <g class="dep-node${component.violations ? " blocked" : component.extractable ? " extractable" : ""}" data-component="${esc(component.name)}" transform="translate(${x.toFixed(1)},${y})">
+        <rect width="${boxWidth.toFixed(1)}" height="${HEIGHT}" rx="7"/>
+        <text x="${(boxWidth / 2).toFixed(1)}" y="21" text-anchor="middle">${esc(component.name)} <tspan class="count">${fmt(component.metrics.objects)}</tspan></text>
+        <title>${esc(`${component.name}: ${component.metrics.objects} objects, layer ${component.layer ?? "–"}. Click to open.`)}</title>
+      </g>`).join("");
+    const labels = layers.map((layer, index) => `<text class="layer-name" x="12" y="${40 + index * ROW + 21}">${layer === undefined ? "No layer" : `Layer ${layer}`}</text>`).join("");
+    const marker = (id) => `<marker id="arrow-${id}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path class="tip ${id}" d="M0,0 L10,5 L0,10 z"/></marker>`;
+    const allowed = edges.filter(({ violations }) => !violations);
+    const wrong = edges.filter(({ violations }) => violations);
+    return `<div class="legend">
+        <label class="check"><input type="checkbox" data-show="allowed" checked><span class="ok">allowed: ${plural(allowed.length, "dependency", "dependencies")} as they should be</span></label>
+        <label class="check"><input type="checkbox" data-show="wrong" checked><span class="bad">against the architecture: ${plural(wrong.length, "dependency", "dependencies")} as they are but should not be</span></label>
+      </div>
+      <div class="muted small">Arrows point from the user to what it uses; thicker means more object links. Dependencies may only point down. Hover a component to see only its arrows; click it to open it.</div>
+      <div class="dependency-map"><svg viewBox="0 0 ${width.toFixed(0)} ${height}" style="max-width:${width.toFixed(0)}px"><defs>${marker("allowed")}${marker("wrong")}</defs>${labels}${paths}${nodes}</svg></div>`;
+  }
+
+  /** Every pair of components: the rules tint the cell, the number counts today's object links. */
+  function dependencyMatrixHtml(data) {
+    const { order, cells } = data.matrix;
+    const layerOf = new Map(data.components.map(({ name, layer }) => [name, layer]));
+    return `<p class="muted small matrix-legend">The row uses the column. <span class="swatch allowed"></span>allowed by the rules: dependencies should be here · <span class="swatch forbidden"></span>not allowed · <span class="swatch wrong"></span>object links that point against the architecture today. Numbers count object links.</p>
+      <div class="table-scroll"><table class="matrix">
+        <thead><tr><th></th>${order.map((name, index) => `<th title="${esc(name)}">${index + 1}</th>`).join("")}</tr></thead>
+        <tbody>${order.map((name, row) => `<tr><th class="row-head"><span class="muted">${row + 1}</span> <button class="link" data-component="${esc(name)}">${esc(name)}</button> <span class="muted small">L${esc(layerOf.get(name) ?? "–")}</span></th>${cells[row].map((cell, column) => cell === null
+          ? '<td class="self"></td>'
+          : `<td class="${cell.wrong ? "wrong" : cell.allowed ? "allowed" : "forbidden"}" title="${esc(`${name} → ${order[column]}: ${cell.allowed ? "allowed" : "not allowed"}; ${plural(cell.links, "object link")}${cell.wrong ? `, ${fmt(cell.wrong)} against the architecture` : ""}`)}">${cell.links ? fmt(cell.links) : ""}</td>`).join("")}</tr>`).join("")}</tbody>
+      </table></div>`;
+  }
+
+  // ------------------------------------------------------- component page
+  // Group colors stay clear of the green and red of allowed and wrong-way links.
+  const GROUP_COLORS = ["#4e79a7", "#f28e2b", "#b07aa1", "#76b7b2", "#edc948", "#ff9da7", "#9c755f", "#6f6fd8", "#17becf", "#bcbd22", "#d37295", "#a0cbe8", "#ffbe7d", "#86bcb6", "#c49c94"];
+  const LOOSE_COLOR = "#94a3b8";
+  const ROLES = {
+    app: ['<span class="pill ok">app of its own</span>', "Coupled more to itself than to the rest: it could become an app of its own."],
+    component: ['<span class="pill">component</span>', "Part of a larger app candidate together with the components it is most coupled to."],
+    shared: ['<span class="pill warning">shared core</span>', "Objects that many components use but none owns (setup, master data, helpers)."],
+    review: ['<span class="pill error">place by hand</span>', "Its relations do not say where it belongs; place it by hand."]
+  };
+
+  /**
+   * Force-directed layout of one group around (0, 0): Fruchterman-Reingold
+   * with a grid for the repulsion and a pull to the middle, so objects
+   * without links stay close. Deterministic: a component always looks the same.
+   */
+  function forceLayout(count, links) {
+    const k = 26;
+    let seed = 7;
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const x = new Float64Array(count);
+    const y = new Float64Array(count);
+    const spread = Math.sqrt(count) * k;
+    for (let index = 0; index < count; index++) {
+      x[index] = (random() - 0.5) * spread;
+      y[index] = (random() - 0.5) * spread;
+    }
+    const dx = new Float64Array(count);
+    const dy = new Float64Array(count);
+    const cell = k * 3;
+    let temperature = spread / 4 + k;
+    for (let step = 0; step < (count > 1 ? 220 : 0); step++) {
+      dx.fill(0);
+      dy.fill(0);
+      const grid = new Map();
+      for (let index = 0; index < count; index++) {
+        const key = `${Math.floor(x[index] / cell)},${Math.floor(y[index] / cell)}`;
+        if (!grid.has(key)) grid.set(key, []);
+        grid.get(key).push(index);
+      }
+      for (let a = 0; a < count; a++) {
+        const gx = Math.floor(x[a] / cell);
+        const gy = Math.floor(y[a] / cell);
+        for (let ox = -1; ox <= 1; ox++) {
+          for (let oy = -1; oy <= 1; oy++) {
+            for (const b of grid.get(`${gx + ox},${gy + oy}`) ?? []) {
+              if (b <= a) continue;
+              const ddx = x[a] - x[b];
+              const ddy = y[a] - y[b];
+              const force = (k * k) / (ddx * ddx + ddy * ddy || 0.01);
+              dx[a] += ddx * force; dy[a] += ddy * force;
+              dx[b] -= ddx * force; dy[b] -= ddy * force;
+            }
+          }
+        }
+      }
+      for (const [a, b, weight] of links) {
+        const ddx = x[a] - x[b];
+        const ddy = y[a] - y[b];
+        const force = (Math.sqrt(ddx * ddx + ddy * ddy) / k) * (0.3 + Math.min(weight, 8) / 10);
+        dx[a] -= ddx * force; dy[a] -= ddy * force;
+        dx[b] += ddx * force; dy[b] += ddy * force;
+      }
+      for (let index = 0; index < count; index++) {
+        dx[index] -= x[index] * 0.25;
+        dy[index] -= y[index] * 0.25;
+        const length = Math.sqrt(dx[index] * dx[index] + dy[index] * dy[index]);
+        if (!length) continue;
+        const move = Math.min(length, temperature);
+        x[index] += (dx[index] / length) * move;
+        y[index] += (dy[index] / length) * move;
+      }
+      temperature = Math.max(0.5, temperature * 0.975);
+    }
+    let radius = 0;
+    for (let index = 0; index < count; index++) radius = Math.max(radius, Math.hypot(x[index], y[index]));
+    return { x, y, radius: radius + 18 };
+  }
+
+  /**
+   * Each group laid out on its own, then the groups packed as islands
+   * around the largest one, so the sub-domains stay apart.
+   * @returns { x, y, width, height, islands: Map of group key to { x, y, radius } }
+   */
+  function groupedLayout(objects, links, keys) {
+    const members = new Map(keys.map((key) => [key, []]));
+    objects.forEach(({ group }, index) => members.get(group)?.push(index));
+    const position = new Map();
+    for (const [key, list] of members) list.forEach((index, local) => position.set(index, [key, local]));
+    const blobs = [...members].filter(([, list]) => list.length).map(([key, list]) => {
+      const local = links.filter(([a, b]) => position.get(a)[0] === key && position.get(b)[0] === key)
+        .map(([a, b, weight]) => [position.get(a)[1], position.get(b)[1], weight]);
+      return { key, list, ...forceLayout(list.length, local) };
+    }).sort((a, b) => b.radius - a.radius);
+    const placed = [];
+    const MARGIN = 46;
+    for (const blob of blobs) {
+      let spot = [0, 0];
+      for (let step = 0; placed.length; step++) {
+        const angle = step * 0.4;
+        const distance = step * 5;
+        const candidate = [Math.cos(angle) * distance * 1.25, Math.sin(angle) * distance];
+        if (placed.every((other) => Math.hypot(candidate[0] - other.cx, candidate[1] - other.cy) >= blob.radius + other.radius + MARGIN)) {
+          spot = candidate;
+          break;
+        }
+      }
+      placed.push({ ...blob, cx: spot[0], cy: spot[1] });
+    }
+    const x = new Float64Array(objects.length);
+    const y = new Float64Array(objects.length);
+    let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const blob of placed) {
+      minX = Math.min(minX, blob.cx - blob.radius); maxX = Math.max(maxX, blob.cx + blob.radius);
+      minY = Math.min(minY, blob.cy - blob.radius); maxY = Math.max(maxY, blob.cy + blob.radius);
+    }
+    const pad = 50;
+    const islands = new Map();
+    for (const blob of placed) {
+      const cx = blob.cx - minX + pad;
+      const cy = blob.cy - minY + pad;
+      islands.set(blob.key, { x: cx, y: cy, radius: blob.radius });
+      blob.list.forEach((index, local) => { x[index] = blob.x[local] + cx; y[index] = blob.y[local] + cy; });
+    }
+    return { x, y, islands, width: maxX - minX + pad * 2, height: maxY - minY + pad * 2 };
+  }
+
+  /** The objects of a component as SVG; with `dependencies`, the other components around them. */
+  function componentGraphSvg(detail, layout, groups, { dependencies, componentHref }) {
+    const { x, y } = layout;
+    let width = layout.width;
+    let height = layout.height;
+    let offset = 0;
+    const others = new Map();
+    if (dependencies) {
+      // Other components on a ring around the objects, top layer first, clockwise from the top.
+      const listed = detail.components.filter(({ out, in: incoming }) => out.links || incoming.links);
+      const radius = Math.max(width, height) / 2 + 100 * Math.max(1, Math.max(width, height) / 900);
+      offset = radius - Math.min(width, height) / 2 + 40;
+      const cx = width / 2 + offset;
+      const cy = height / 2 + offset;
+      listed.forEach((component, index) => {
+        const angle = (2 * Math.PI * index) / Math.max(listed.length, 1) - Math.PI / 2;
+        others.set(component.name, { ...component, x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) });
+      });
+      width += offset * 2;
+      height += offset * 2;
+    }
+    // Labels and the components on the ring grow with the graph, so they stay readable when it is fitted.
+    const unit = Math.max(1, Math.max(layout.width, layout.height) / 900);
+    const px = (index) => (x[index] + offset).toFixed(1);
+    const py = (index) => (y[index] + offset).toFixed(1);
+    const degree = detail.objects.map((object) => object.inside + (dependencies ? object.out.links + object.in.links : 0));
+    const inside = detail.links.map(([a, b]) => `<line class="link" data-groups="${esc(detail.objects[a].group)} ${esc(detail.objects[b].group)}" x1="${px(a)}" y1="${py(a)}" x2="${px(b)}" y2="${py(b)}"/>`).join("");
+    const outside = dependencies ? detail.external.map(([index, name, direction, links, wrong]) => {
+      const other = others.get(name);
+      if (!other) return "";
+      return `<line class="ext ${wrong ? "wrong" : "allowed"} ${direction}" data-groups="${esc(detail.objects[index].group)}" x1="${px(index)}" y1="${py(index)}" x2="${other.x.toFixed(1)}" y2="${other.y.toFixed(1)}" stroke-width="${(0.8 + Math.log2(1 + links) * 0.7).toFixed(1)}"><title>${esc(`${direction === "out" ? `${detail.objects[index].label} uses ${name}` : `${name} uses ${detail.objects[index].label}`}: ${plural(links, "link")}${wrong ? `, ${fmt(wrong)} against the architecture` : ", allowed"}`)}</title></line>`;
+    }).join("") : "";
+    const showNames = detail.objects.length <= 80;
+    const nodes = detail.objects.map((object, index) => {
+      const group = groups.get(object.group);
+      const radius = (3.5 + Math.sqrt(degree[index]) * 1.3).toFixed(1);
+      const flagged = dependencies && (object.out.wrong || object.in.wrong);
+      return `<a href="#/object/${encodeURIComponent(object.id)}" class="obj" data-group="${esc(object.group)}">
+        <circle cx="${px(index)}" cy="${py(index)}" r="${radius}" fill="${group?.color ?? LOOSE_COLOR}"${flagged ? ' class="flagged"' : ""}/>
+        ${showNames ? `<text x="${px(index)}" y="${(y[index] + offset + Number(radius) + 11).toFixed(1)}" text-anchor="middle">${esc(object.label)}</text>` : ""}
+        <title>${esc(`${object.type} ${object.objectId ?? ""} ${object.label} · ${group?.label ?? ""}\n${object.inside} links inside · uses others ${object.out.links} (${object.out.wrong} wrong way) · used by others ${object.in.links} (${object.in.wrong} wrong way)${object.belongsTo ? `\nbelongs to ${object.belongsTo}` : ""}`)}</title></a>`;
+    }).join("");
+    // Each group as an island with its name on top.
+    const islands = [...layout.islands].map(([key, island]) => {
+      const color = groups.get(key)?.color ?? LOOSE_COLOR;
+      return `<circle class="island" data-group="${esc(key)}" cx="${(island.x + offset).toFixed(1)}" cy="${(island.y + offset).toFixed(1)}" r="${island.radius.toFixed(1)}" fill="${color}" stroke="${color}"/>`;
+    }).join("");
+    const groupLabels = [...layout.islands].map(([key, island]) => {
+      const group = groups.get(key);
+      return `<text class="group-name" data-group="${esc(key)}" x="${(island.x + offset).toFixed(1)}" y="${(island.y - island.radius + offset - 8 * unit).toFixed(1)}" style="font-size:${(15 * unit).toFixed(1)}px" text-anchor="middle" fill="${group?.color ?? LOOSE_COLOR}">${esc(group?.label ?? key)} <tspan class="count">${fmt(group?.objects ?? 0)}</tspan></text>`;
+    }).join("");
+    const otherNodes = [...others.values()].map((other) => {
+      const tone = other.out.wrong || other.in.wrong ? "wrong" : "allowed";
+      return `<a href="${esc(componentHref(other.name))}" class="other ${tone}"><g transform="translate(${other.x.toFixed(1)},${other.y.toFixed(1)})"><circle r="${((14 + Math.sqrt(other.out.links + other.in.links)) * unit).toFixed(1)}" style="stroke-width:${(2.5 * unit).toFixed(1)}px"/><text y="${(4 * unit).toFixed(1)}" style="font-size:${(13 * unit).toFixed(1)}px" text-anchor="middle">${esc(other.name)}</text>
+        <title>${esc(`${other.name} (layer ${other.layer ?? "–"}): ${detail.name} uses it ${plural(other.out.links, "time")}${other.out.wrong ? `, ${fmt(other.out.wrong)} wrong way` : ""}; it uses ${detail.name} ${plural(other.in.links, "time")}${other.in.wrong ? `, ${fmt(other.in.wrong)} wrong way` : ""}. ${other.mayUse ? `${detail.name} may use it.` : `${detail.name} may not use it.`}`)}</title></g></a>`;
+    }).join("");
+    return `<svg xmlns="http://www.w3.org/2000/svg" class="component-graph" viewBox="0 0 ${width.toFixed(0)} ${height.toFixed(0)}" width="${width.toFixed(0)}" height="${height.toFixed(0)}">${islands}${outside}${inside}${nodes}${groupLabels}${otherNodes}</svg>`;
+  }
+
+  async function componentPage(page, { arg, params }) {
+    $("#main").classList.remove("full");
+    const settings = {
+      propose: params.get("propose") === "1" || undefined,
+      groupBy: params.get("groupBy") ?? undefined,
+      depth: params.get("depth") ?? undefined,
+      minObjects: params.get("minObjects") ?? undefined
+    };
+    const query = new URLSearchParams(Object.entries({ propose: settings.propose ? 1 : undefined, groupBy: settings.groupBy, depth: settings.depth, minObjects: settings.minObjects }).filter(([, value]) => value !== undefined && value !== "")).toString();
+    const componentHref = (name) => `#/component/${encodeURIComponent(name)}${query ? `?${query}` : ""}`;
+    const [detail, architecture] = await Promise.all([api.component(arg, settings), api.architecture(settings)]);
+    const groups = new Map(detail.groups.map((group, index) => [group.key, { ...group, color: group.key === "loose" ? LOOSE_COLOR : GROUP_COLORS[index % GROUP_COLORS.length] }]));
+    const [rolePill, roleText] = ROLES[detail.role] ?? ["", ""];
+    const uses = detail.components.reduce((sum, { out }) => ({ links: sum.links + out.links, wrong: sum.wrong + out.wrong }), { links: 0, wrong: 0 });
+    const usedBy = detail.components.reduce((sum, { in: incoming }) => ({ links: sum.links + incoming.links, wrong: sum.wrong + incoming.wrong }), { links: 0, wrong: 0 });
+    const mayUse = detail.components.filter(({ mayUse: allowed }) => allowed).map(({ name }) => name);
+    const selectors = (list) => !list.length ? "–" : list.length <= 6 ? list.map(esc).join("<br>")
+      : `${list.slice(0, 4).map(esc).join("<br>")}<details class="steps"><summary>and ${fmt(list.length - 4)} more</summary>${list.slice(4).map(esc).join("<br>")}</details>`;
+    const workItems = architecture.workItems.filter((item) => item.sourceComponent === detail.name || item.targetComponent === detail.name);
+    setHeader(detail.name,
+      `${rolePill} Layer ${esc(detail.layer ?? "–")} · ${plural(detail.objects.length, "object")} in ${plural(detail.groups.length, "group")}${detail.namespace ? ` · namespace <code>${esc(detail.namespace)}</code>` : ""}${detail.app ? ` · app candidate ${esc(detail.app)}` : ""}`,
+      `<a class="btn" href="#/architecture${query ? `?${query}` : ""}">All components</a>${query ? "" : `<a class="btn" href="#/objects?${new URLSearchParams({ component: detail.name })}">In the object list</a>`}`);
+    page.innerHTML = `
+      <div class="stats">
+        ${stat({ label: "Objects", value: fmt(detail.objects.length), sub: `${plural(detail.groups.length, "group")} inside` })}
+        ${stat({ label: "Cohesion", value: detail.metrics.cohesion === undefined ? "–" : `${Math.round(detail.metrics.cohesion * 100)}%`, tone: detail.metrics.cohesion >= 0.7 ? "good" : undefined, sub: "of its coupling stays inside" })}
+        ${stat({ label: "Uses other components", value: fmt(uses.links), tone: uses.wrong ? "bad" : "good", sub: uses.wrong ? `<span class="bad">${fmt(uses.wrong)} against the architecture</span>` : "all allowed" })}
+        ${stat({ label: "Used by other components", value: fmt(usedBy.links), tone: usedBy.wrong ? "warn" : undefined, sub: usedBy.wrong ? `${fmt(usedBy.wrong)} of them point the wrong way` : "all allowed" })}
+        ${stat({ label: "Can become an app today", value: detail.extractable ? "yes" : "no", tone: detail.extractable ? "good" : undefined, sub: detail.inCycle ? "in a dependency cycle" : `${plural(workItems.length, "work item")}` })}
+      </div>
+      <section class="card"><h2>Objects and how they hang together <span class="actions"><span class="segmented" id="graph-mode"><button data-graph="inside" aria-pressed="true">Inside</button><button data-graph="dependencies" aria-pressed="false">With dependencies</button></span></span></h2>
+          <div class="group-chips">${detail.groups.map((group) => `<button class="chip" data-group-chip="${esc(group.key)}" aria-pressed="false"><span class="swatch" style="background:${groups.get(group.key).color}"></span>${esc(group.label)} <span class="count">${fmt(group.objects)}</span></button>`).join("")}</div>
+          <div class="legend" id="graph-legend" hidden><span class="ok">uses or is used as allowed</span><span class="bad">against the architecture</span><span class="muted">objects with a red ring have wrong-way links; click a component on the ring to open it</span></div>
+          <div class="canvas component-canvas"><div class="canvas-tools"><button class="icon-button" data-zoom="in" title="Zoom in">+</button><button class="icon-button" data-zoom="out" title="Zoom out">−</button><button class="icon-button" data-zoom="fit" title="Fit">Fit</button></div><div class="stage"></div>
+            <div class="canvas-info">${plural(detail.objects.length, "object")} · ${plural(detail.links.length, "link")} inside · click an object to open it · scroll to zoom, drag to pan</div></div>
+      </section>
+      <div class="grid">
+        <section class="card"><h2>What it is</h2>
+          ${roleText ? `<p>${roleText}</p>` : ""}
+          <dl class="facts">
+            ${detail.description ? `<dt>Description</dt><dd>${esc(detail.description)}</dd>` : ""}
+            <dt>Layer</dt><dd>${esc(detail.layer ?? "none")}${detail.dependsOn ? ` · may use only ${esc(detail.dependsOn.join(", ") || "nothing")}` : ""}</dd>
+            <dt>May use</dt><dd>${mayUse.length ? mayUse.map((name) => `<a href="${esc(componentHref(name))}">${esc(name)}</a>`).join(", ") : "no other component"}</dd>
+            ${detail.namespace ? `<dt>Namespace</dt><dd><code>${esc(detail.namespace)}</code> <span class="muted small">suggested</span></dd>` : ""}
+            ${detail.app ? `<dt>App candidate</dt><dd>${esc(detail.app)}</dd>` : ""}
+            <dt>Selected by</dt><dd class="mono small">${selectors(detail.match ?? [])}</dd>
+            <dt>Groups</dt><dd>${detail.mode === "proposal" ? "Found the same way as the components: objects coupled more to each other than to the rest of the component, named after their namespace, folder, or the words their names share." : "Objects coupled more to each other than to the rest of the component, named after their namespace, folder, or the words their names share."}</dd>
+          </dl>
+        </section>
+        <section class="card flush"><h2>Dependencies <span class="muted">should vs. is, per component</span></h2><div id="component-dependencies"></div></section>
+      </div>
+      <section class="card flush"><h2>Groups inside <span class="muted">sub-domains by coupling</span></h2><div id="group-table"></div></section>
+      <section class="card flush"><h2>Objects <span class="muted" id="component-object-count"></span></h2>
+        <div class="toolbar padded"><input type="search" id="component-search" placeholder="Search name, ID, file"><select id="component-group"><option value="">All groups</option>${detail.groups.map((group) => `<option value="${esc(group.key)}">${esc(group.label)}</option>`).join("")}</select>
+          <label class="check"><input type="checkbox" id="component-wrong"> With wrong-way links</label></div>
+        <div id="component-objects"></div></section>
+      ${workItems.length ? `<section class="card flush"><h2>Work items <span class="muted">${plural(workItems.length, "item")} where ${esc(detail.name)} uses or is used against the architecture</span></h2><div id="component-work"></div></section>` : ""}`;
+
+    // Graph: laid out once, drawn per mode.
+    const layout = groupedLayout(detail.objects, detail.links, detail.groups.map(({ key }) => key));
+    const canvas = $(".component-canvas", page);
+    let controls;
+    let focus;
+    const applyFocus = () => {
+      const svg = $("svg", canvas);
+      svg.classList.toggle("focused", Boolean(focus));
+      for (const element of $$("[data-group]", svg)) element.classList.toggle("on", focus !== undefined && element.dataset.group === focus);
+      for (const element of $$("[data-groups]", svg)) element.classList.toggle("on", focus !== undefined && element.dataset.groups.split(" ").includes(focus));
+      for (const chip of $$("[data-group-chip]", page)) chip.setAttribute("aria-pressed", String(chip.dataset.groupChip === focus));
+    };
+    const draw = (mode) => {
+      const markup = componentGraphSvg(detail, layout, groups, { dependencies: mode === "dependencies", componentHref });
+      const svg = new DOMParser().parseFromString(markup, "image/svg+xml").documentElement;
+      controls = panZoom(canvas, document.importNode(svg, true));
+      $("#graph-legend").hidden = mode !== "dependencies";
+      for (const button of $$("[data-graph]", page)) button.setAttribute("aria-pressed", String(button.dataset.graph === mode));
+      applyFocus();
+    };
+    draw("inside");
+    $("#graph-mode").onclick = (event) => {
+      const mode = event.target.closest("[data-graph]")?.dataset.graph;
+      if (mode) draw(mode);
+    };
+    $(".canvas-tools", canvas).onclick = (event) => {
+      const zoom = event.target.closest("[data-zoom]")?.dataset.zoom;
+      if (zoom === "fit") controls.fit();
+      else if (zoom) controls.zoom(zoom === "in" ? 1.25 : 0.8);
+    };
+    const setFocus = (key) => {
+      focus = focus === key ? undefined : key;
+      applyFocus();
+      $("#component-group").value = focus ?? "";
+      renderObjects();
+    };
+    page.addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-group-chip]");
+      if (chip) setFocus(chip.dataset.groupChip);
+    });
+
+    dataTable($("#group-table"), {
+      rows: detail.groups,
+      sort: { key: "objects", direction: "descending" },
+      onRow: (row) => setFocus(row.key),
+      columns: [
+        { key: "label", label: "Group", render: (row) => `<span class="swatch" style="background:${groups.get(row.key).color}"></span><b>${esc(row.label)}</b>${row.fullName && row.fullName !== row.label ? `<div class="small muted mono">${esc(row.fullName)}</div>` : ""}` },
+        { key: "basis", label: "Named after", render: (row) => `<span class="small muted">${esc(row.basis ?? (row.key === "loose" ? "no links inside" : "shared words"))}</span>` },
+        { key: "objects", label: "Objects", numeric: true, render: (row) => fmt(row.objects) },
+        { key: "types", label: "Types", value: (row) => Object.keys(row.types).length, render: (row) => `<span class="small">${Object.entries(row.types).sort((a, b) => b[1] - a[1]).map(([type, count]) => `${esc(type)} ${fmt(count)}`).join(", ")}</span>` },
+        { key: "inside", label: "Links inside", numeric: true, value: (row) => row.inside ?? 0, render: (row) => fmt(row.inside ?? 0) }
+      ]
+    });
+
+    const linkCell = ({ links, wrong }) => links ? `${fmt(links)}${wrong ? ` <span class="pill error">${fmt(wrong)} wrong</span>` : ""}` : '<span class="muted">–</span>';
+    dataTable($("#component-dependencies"), {
+      rows: detail.components,
+      sort: { key: "out", direction: "descending" },
+      onRow: (row) => { location.hash = componentHref(row.name); },
+      columns: [
+        { key: "name", label: "Component", render: (row) => `<b>${esc(row.name)}</b> <span class="muted small">L${esc(row.layer ?? "–")}</span>` },
+        { key: "mayUse", label: "Should", value: (row) => (row.mayUse ? 2 : 0) + (row.mayBeUsedBy ? 1 : 0), render: (row) => `${row.mayUse ? '<span class="pill ok">may use it</span>' : ""}${row.mayBeUsedBy ? ' <span class="pill ok">may be used by it</span>' : ""}${!row.mayUse && !row.mayBeUsedBy ? '<span class="pill">no dependency</span>' : ""}` },
+        { key: "out", label: "Uses it (is)", numeric: true, value: (row) => row.out.links, render: (row) => linkCell(row.out) },
+        { key: "in", label: "Used by it (is)", numeric: true, value: (row) => row.in.links, render: (row) => linkCell(row.in) }
+      ]
+    });
+
+    const renderObjects = () => {
+      const text = $("#component-search").value.trim().toLowerCase();
+      const group = $("#component-group").value;
+      const wrongOnly = $("#component-wrong").checked;
+      const rows = detail.objects.filter((object) => (!group || object.group === group) && (!wrongOnly || object.out.wrong || object.in.wrong) &&
+        (!text || `${object.label} ${object.objectId ?? ""} ${object.file ?? ""}`.toLowerCase().includes(text)));
+      $("#component-object-count").textContent = `${fmt(rows.length)} of ${fmt(detail.objects.length)}`;
+      dataTable($("#component-objects"), {
+        rows,
+        empty: "No objects match.",
+        sort: { key: "inside", direction: "descending" },
+        onRow: (row) => { location.hash = `#/object/${encodeURIComponent(row.id)}`; },
+        columns: [
+          { key: "type", label: "Type", render: (row) => `<span class="type">${esc(row.type)}</span>` },
+          { key: "objectId", label: "ID", numeric: true, value: (row) => Number(row.objectId) || 0, render: (row) => esc(row.objectId ?? "") },
+          { key: "label", label: "Name", render: (row) => `${objectLink(row)}${row.file ? `<div class="small muted mono">${esc(row.file)}</div>` : ""}` },
+          { key: "group", label: "Group", value: (row) => groups.get(row.group)?.label, render: (row) => `<span class="swatch" style="background:${groups.get(row.group)?.color ?? LOOSE_COLOR}"></span>${esc(groups.get(row.group)?.label ?? "")}` },
+          { key: "inside", label: "Links inside", numeric: true },
+          { key: "out", label: "Uses others", numeric: true, value: (row) => row.out.links, render: (row) => linkCell(row.out) },
+          { key: "in", label: "Used by others", numeric: true, value: (row) => row.in.links, render: (row) => linkCell(row.in) },
+          ...(detail.objects.some(({ belongsTo }) => belongsTo) ? [{ key: "belongsTo", label: "Belongs to", render: (row) => row.belongsTo ? `<span class="pill warning">${esc(row.belongsTo)}</span>` : "" }] : [])
+        ]
+      });
+    };
+    let timer;
+    $("#component-search").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(renderObjects, 120); });
+    $("#component-group").addEventListener("change", (event) => { focus = event.target.value || undefined; applyFocus(); renderObjects(); });
+    $("#component-wrong").addEventListener("change", renderObjects);
+    renderObjects();
+
+    if ($("#component-work")) {
+      dataTable($("#component-work"), {
+        rows: workItems,
+        sort: { key: "violations", direction: "descending" },
+        columns: [
+          { key: "effort", label: "Effort", value: (row) => ({ S: 1, M: 2, L: 3 })[row.effort], render: (row) => `<span class="pill ${row.effort === "S" ? "ok" : row.effort === "M" ? "warning" : "error"}" title="${esc(EFFORT[row.effort])} effort">${esc(row.effort)}</span>` },
+          { key: "title", label: "What to do", render: (row) => `<b>${esc(row.title)}</b> <span class="mono muted">${esc(row.strategy)}</span><details class="steps"><summary>Steps</summary><ol>${row.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol>${row.command ? `<div class="small">Do it: <code>${esc(row.command)}</code></div>` : ""}</details>` },
+          { key: "source", label: "Object", value: (row) => row.source.label, render: (row) => `${objectLink(row.source)}<div class="type">${esc(row.source.type)}</div>` },
+          { key: "from", label: "From → to (is)", value: (row) => `${row.sourceComponent} ${row.targetComponent}`, render: (row) => `<span class="${row.sourceComponent === detail.name ? "bad" : ""}">${esc(row.sourceComponent)} → ${esc(row.targetComponent)}</span>` },
+          { key: "violations", label: "Dependencies", numeric: true, render: (row) => fmt(row.violations) }
+        ]
+      });
+    }
+  }
+
   async function architecturePage(page, { params }) {
     const settings = {
       propose: params.get("propose") === "1" || undefined,
@@ -446,7 +920,7 @@
     const proposal = data.mode === "proposal";
     const summary = data.summary;
     const layers = [...new Set(data.components.map(({ layer }) => layer))].sort((a, b) => (b ?? -1) - (a ?? -1));
-    let selected = params.get("component") ?? undefined;
+    const selected = params.get("component") ?? undefined;
     setHeader(proposal ? "Proposed architecture" : "Architecture",
       proposal
         ? `Derived from today's dependencies (${esc(data.proposal.groupBy)} grouping). Nothing is enforced until you adopt it.`
@@ -487,6 +961,7 @@
                 </button>`).join("")}</div>
             </div>`).join("")}</div>
           <div class="legend"><span class="ok">can become an app today</span><span class="bad">has wrong-way dependencies (count in red)</span><span>blocked only by dependencies on it</span></div>
+          <p class="muted small">Click a component for its objects, the groups inside it, and its dependencies.</p>
         </section>
         <section class="card"><h2>${proposal ? "How it was derived" : "How it is enforced"}</h2>
           ${proposal ? `<p class="muted">${({
@@ -507,6 +982,9 @@
               </dl>`}
         </section>
       </div>
+      ${data.matrix ? `<section class="card"><h2>Dependencies between components <span class="muted">where they should be and where they are</span>
+          <span class="actions"><span class="segmented" id="dependency-mode"><button data-dependency-mode="map" aria-pressed="true">Map</button><button data-dependency-mode="matrix" aria-pressed="false">Matrix</button></span></span></h2>
+        <div id="dependency-view"></div></section>` : ""}
       ${proposal && data.proposal.recommendations?.length ? appCandidatesCard(data.proposal.recommendations) : ""}
       <section class="card flush"><h2>Work items <span class="muted" id="work-scope"></span></h2><div id="work-items"></div></section>
       ${!proposal && data.checks?.length ? `<section class="card"><h2>Architecture checks <span class="muted">components, declared dependencies, and selectors</span></h2>
@@ -583,10 +1061,35 @@
         ]
       });
     }
+    const query = { propose: settings.propose ? 1 : undefined, groupBy: settings.groupBy, depth: settings.depth, minObjects: settings.minObjects };
+    const openComponent = (name) => go(`component/${encodeURIComponent(name)}`, query);
+    if ($("#dependency-view")) {
+      const show = (mode) => {
+        for (const button of $$("[data-dependency-mode]", page)) button.setAttribute("aria-pressed", String(button.dataset.dependencyMode === mode));
+        $("#dependency-view").innerHTML = mode === "matrix" ? dependencyMatrixHtml(data) : dependencyMapHtml(data);
+      };
+      $("#dependency-mode").onclick = (event) => {
+        const mode = event.target.closest("[data-dependency-mode]")?.dataset.dependencyMode;
+        if (mode) show(mode);
+      };
+      // Hovering a component shows only its dependencies.
+      $("#dependency-view").onmouseover = (event) => {
+        const svg = $("#dependency-view svg");
+        if (!svg) return;
+        const name = event.target.closest(".dep-node")?.dataset.component;
+        svg.classList.toggle("focused", Boolean(name));
+        for (const path of $$(".dep", svg)) path.classList.toggle("on", Boolean(name) && (path.dataset.source === name || path.dataset.target === name));
+      };
+      $("#dependency-view").onchange = (event) => {
+        const kind = event.target.closest("[data-show]")?.dataset.show;
+        if (kind) $("#dependency-view .dependency-map")?.classList.toggle(`hide-${kind}`, !event.target.checked);
+      };
+      show("map");
+    }
     dataTable($("#components"), {
       rows: data.components,
       sort: { key: "layer", direction: "ascending" },
-      onRow: (row) => { selected = selected === row.name ? undefined : row.name; renderScoped(); $("#work-items").scrollIntoView({ behavior: "smooth", block: "start" }); },
+      onRow: (row) => openComponent(row.name),
       columns: [
         { key: "name", label: "Component", render: (row) => `<b>${esc(row.name)}</b><div class="small muted mono">${esc((row.match ?? []).join(" | "))}</div>` },
         { key: "layer", label: "Layer", numeric: true, value: (row) => row.layer ?? -1, render: (row) => row.layer ?? "–" },
@@ -603,11 +1106,7 @@
 
     page.addEventListener("click", async (event) => {
       const component = event.target.closest("[data-component]");
-      if (component) {
-        selected = selected === component.dataset.component ? undefined : component.dataset.component;
-        renderScoped();
-        return;
-      }
+      if (component) return openComponent(component.dataset.component);
       const mode = event.target.closest("[data-mode]")?.dataset.mode;
       if (mode) return go("architecture", { propose: mode === "proposal" ? 1 : undefined });
       if (event.target.closest('[data-action="apply"]')) {
@@ -886,7 +1385,7 @@
       <div class="stats">
         ${stat({ label: "Uses", value: fmt(object.uses.length), sub: `${fmt(object.uses.filter(({ dependency }) => dependency !== "intra-app").length)} across apps` })}
         ${stat({ label: "Used by", value: fmt(object.usedBy.length), sub: `${fmt(object.usedBy.filter(({ dependency }) => dependency !== "intra-app").length)} across apps` })}
-        ${stat({ label: "Component", text: true, value: esc(object.component ?? "–"), sub: object.component ? `<a href="#/architecture?component=${encodeURIComponent(object.component)}">see architecture</a>` : "no component" })}
+        ${stat({ label: "Component", text: true, value: esc(object.component ?? "–"), sub: object.component ? `<a href="#/component/${encodeURIComponent(object.component)}">open the component</a>` : "no component" })}
         ${stat({ label: "Wrong-way dependencies", value: fmt(object.violations.length), tone: object.violations.length ? "bad" : "good", sub: object.violations.length ? "see below how to resolve them" : "follows the architecture" })}
       </div>
       ${object.violations.length ? `<section class="card"><h2>Against the architecture</h2>${object.violations.map((violation) => `
@@ -932,6 +1431,7 @@
     overview: overviewPage,
     health: healthPage,
     architecture: architecturePage,
+    component: componentPage,
     dependencies: dependenciesPage,
     diagrams: diagramsPage,
     objects: objectsPage,

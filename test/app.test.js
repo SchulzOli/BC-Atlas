@@ -60,6 +60,26 @@ test("the service answers every page from one analysis", async () => {
   assert.equal(proposal.proposal.groupBy, "app");
   await assert.rejects(service.call("architecture", { groupBy: "nope" }), /groupBy must be one of/u);
 
+  // Where dependencies should be (rules) and where they are (object links), top layer first.
+  assert.deepEqual(configured.matrix.order, ["Integration", "Sales", "Core"]);
+  const [integration] = configured.matrix.cells;
+  assert.deepEqual(integration.slice(1).map(({ allowed, wrong }) => ({ allowed, wrong })), [{ allowed: true, wrong: 0 }, { allowed: false, wrong: 1 }]);
+  assert.equal(configured.matrix.cells[2][0].allowed, false, "Core may not use Integration");
+
+  const component = await service.call("component", { name: "Integration" });
+  assert.equal(component.layer, 2);
+  assert.ok(component.objects.every(({ group }) => component.groups.some(({ key }) => key === group)), "every object is in a group");
+  assert.equal(component.objects.length, component.groups.reduce((sum, { objects: count }) => sum + count, 0));
+  const core = component.components.find(({ name }) => name === "Core");
+  assert.deepEqual({ mayUse: core.mayUse, wrong: core.out.wrong }, { mayUse: false, wrong: 1 });
+  const sales = component.components.find(({ name }) => name === "Sales");
+  assert.equal(sales.mayUse, true);
+  assert.equal(sales.out.wrong, 0);
+  const wrongWay = component.objects.find(({ out }) => out.wrong);
+  assert.equal(wrongWay.label, "CON Item Sync");
+  assert.ok(component.external.some(([index, name, direction, , wrong]) => component.objects[index] === wrongWay && name === "Core" && direction === "out" && wrong === 1));
+  await assert.rejects(service.call("component", { name: "Nope" }), /component not found/u);
+
   const diagram = await service.call("diagram", { view: "module" });
   assert.match(diagram.svg, /<svg\b/u);
   await assert.rejects(service.call("diagram", { view: "object" }), /--object is required/u);
@@ -205,6 +225,8 @@ test("bca export writes the app as one offline file with every page's data", () 
     assert.equal(snapshot.nodes[target[0]][1], "CON Item", "links point into the node table");
     assert.deepEqual(Object.keys(snapshot.diagrams).sort(), snapshot.views.map(({ id }) => id).sort());
     assert.ok(snapshot.diagrams.project.svg.startsWith("<"));
+    assert.deepEqual(Object.keys(snapshot.components).sort(), ["Core", "Integration", "Sales"], "every component page is in the export");
+    assert.ok(snapshot.architecture.matrix.cells.length === 3);
     const explorer = gunzipSync(Buffer.from(packed("BCA_EXPLORER_GZIP"), "base64")).toString("utf8");
     assert.match(explorer, /^<!doctype html>/u);
   } finally {

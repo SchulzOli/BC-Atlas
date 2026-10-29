@@ -50,6 +50,28 @@ On the Architecture page:
   `bca architecture --update-baseline`. Afterwards `bca check` fails only on
   new violations.
 
+**Dependencies between components** shows where dependencies should be and
+where they are, in two colors: green for dependencies the rules allow, red for
+dependencies that point against the architecture today. **Map** draws the
+components in their layers with an arrow per dependency (hover a component to
+see only its arrows); **Matrix** tints every pair of components by the rules
+and counts today's object links in it.
+
+Click a component for its own page:
+
+- what it is: role (app of its own, component, shared core), layer, which
+  components it may use, the suggested namespace, its app candidate, and the
+  selectors that pick its objects
+- **groups inside** (sub-domains): its objects clustered by how tightly they
+  are coupled, named after their namespace, folder, or the words their names
+  share; objects without links inside follow their folder
+- a graph of its objects, one island per group; **With dependencies** adds
+  the other components around it with green and red links
+- per other component: may it be used (should) and how often it is used,
+  allowed and wrong way (is)
+- every object with its group and its links, and the work items that
+  involve the component
+
 See [Clean architecture](./clean-architecture.md) for the rules behind it.
 
 ## In the editor

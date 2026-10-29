@@ -387,6 +387,105 @@ export function clusterByRelations(nodes, levels, weights, { prefix = "" } = {})
 }
 
 /**
+ * Groups inside one component (its sub-domains): the coupling of its objects
+ * among themselves, clustered and named the same way as components. Groups
+ * smaller than `minSize` join the group they are most coupled to; objects
+ * without coupling inside the component form the group "Loose".
+ * @param nodes the component's objects { id, label, namespace, file, objectId }
+ * @param edges { source, target, weight } between them
+ * @returns Map of object id to { key, label, fullName, basis }
+ */
+export function subgroups(nodes, edges, { minSize = 3, affix = commonAffix(nodes) } = {}) {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const inside = edges.filter(({ source, target }) => byId.has(source) && byId.has(target) && source !== target);
+  const one = (list) => ({ key: "g0", ...clusterName(list, affix) });
+  if (nodes.length < minSize * 2) {
+    const group = one(nodes);
+    return new Map(nodes.map(({ id }) => [id, group]));
+  }
+  const candidates = [
+    (id) => hasNamespace(byId.get(id)) ? byId.get(id).namespace.toLowerCase() : undefined,
+    (id) => functionalFolder(byId.get(id).file)
+  ];
+  const found = communities(new Set(byId.keys()), inside, { candidates });
+  const group = new Map(nodes.map(({ id }) => [id, found[id] === undefined ? undefined : String(found[id])]));
+
+  const coupled = new Map();
+  for (const { source, target, weight } of inside) {
+    for (const [from, to] of [[source, target], [target, source]]) {
+      if (!coupled.has(from)) coupled.set(from, new Map());
+      coupled.get(from).set(to, (coupled.get(from).get(to) ?? 0) + weight);
+    }
+  }
+  for (let round = 0; round < 3; round++) {
+    const sizes = new Map();
+    for (const key of group.values()) if (key !== undefined) sizes.set(key, (sizes.get(key) ?? 0) + 1);
+    const small = [...sizes].filter(([, size]) => size < minSize).sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
+    if (!small.length || sizes.size === 1) break;
+    for (const [key] of small) {
+      const members = [...group].filter(([, value]) => value === key).map(([id]) => id);
+      const pull = new Map();
+      for (const id of members) {
+        for (const [other, weight] of coupled.get(id) ?? []) {
+          const target = group.get(other);
+          if (target !== undefined && target !== key) pull.set(target, (pull.get(target) ?? 0) + weight);
+        }
+      }
+      const [best] = [...pull].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] ?? [];
+      if (best !== undefined) for (const id of members) group.set(id, best);
+    }
+  }
+
+  // Objects without coupling inside the component (often extensions of
+  // objects elsewhere): the group most of their namespace or folder is in,
+  // else a group per namespace or folder, else "Loose".
+  const placed = [...group].filter(([, key]) => key !== undefined).map(([id]) => byId.get(id));
+  const majority = (read, value) => mostCommon(placed.filter((node) => read(node) === value).map((node) => group.get(node.id)))?.[0];
+  const readers = [(node) => (hasNamespace(node) ? node.namespace : undefined), (node) => functionalFolder(node.file)];
+  const loose = [...group].filter(([, key]) => key === undefined).map(([id]) => byId.get(id));
+  for (const node of loose) {
+    for (const read of readers) {
+      const value = read(node);
+      const key = value === undefined ? undefined : majority(read, value);
+      if (key !== undefined) {
+        group.set(node.id, key);
+        break;
+      }
+    }
+  }
+  for (const read of readers) {
+    const rest = loose.filter(({ id }) => group.get(id) === undefined);
+    const byValue = new Map();
+    for (const node of rest) {
+      const value = read(node);
+      if (value === undefined) continue;
+      if (!byValue.has(value)) byValue.set(value, []);
+      byValue.get(value).push(node);
+    }
+    for (const [value, list] of byValue) if (list.length >= minSize) for (const node of list) group.set(node.id, `v${value}`);
+  }
+
+  const members = new Map();
+  for (const [id, key] of group) {
+    const name = key ?? "loose";
+    if (!members.has(name)) members.set(name, []);
+    members.get(name).push(byId.get(id));
+  }
+  // Largest first; the same name twice gets its next alternative.
+  const ordered = [...members].sort((a, b) => (a[0] === "loose") - (b[0] === "loose") || b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  const used = new Set();
+  const result = new Map();
+  ordered.forEach(([key, list], index) => {
+    let name = key === "loose" ? { label: "Loose", fullName: "Loose", alternatives: [] } : clusterName(list, affix);
+    const label = [name.label, ...(name.alternatives ?? [])].find((candidate) => !used.has(candidate.toLowerCase())) ?? `${name.label} ${index + 1}`;
+    used.add(label.toLowerCase());
+    name = { label, fullName: label === name.label ? name.fullName : label, basis: label === name.label ? name.basis : undefined };
+    for (const node of list) result.set(node.id, { key: key === "loose" ? "loose" : `g${index}`, ...name });
+  });
+  return result;
+}
+
+/**
  * Selectors that reproduce an assignment of objects to components: a
  * namespace or functional folder whose objects (nearly) all belong to one
  * component, else object ID ranges, else single objects; then a check against

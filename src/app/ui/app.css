@@ -214,6 +214,63 @@ details.steps ol, details.steps ul { margin: 6px 0 2px; padding-left: 18px; }
 .legend .bad::before { background: var(--error); }
 .controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
 
+/* Dependencies between components: green where allowed, red where against the architecture */
+.dependency-map { overflow: auto; margin-top: 8px; }
+.dependency-map svg { width: 100%; height: auto; display: block; margin: 0 auto; }
+.dependency-map .dep { fill: none; opacity: 0.75; transition: opacity 0.15s; }
+.dependency-map .dep.allowed, .dependency-map .tip.allowed { stroke: var(--ok); fill: var(--ok); }
+.dependency-map .dep.allowed { fill: none; }
+.dependency-map .dep.wrong, .dependency-map .tip.wrong { stroke: var(--error); fill: var(--error); }
+.dependency-map .dep.wrong { fill: none; }
+.dependency-map svg.focused .dep { opacity: 0.06; }
+.dependency-map svg.focused .dep.on { opacity: 1; }
+.dependency-map.hide-allowed .dep.allowed, .dependency-map.hide-wrong .dep.wrong { display: none; }
+.dependency-map .dep-node { cursor: pointer; }
+.dependency-map .dep-node rect { fill: var(--surface); stroke: var(--border-strong); }
+.dependency-map .dep-node.extractable rect { stroke: var(--ok); }
+.dependency-map .dep-node.blocked rect { stroke: var(--error); }
+.dependency-map .dep-node:hover rect { stroke-width: 2; }
+.dependency-map .dep-node text { fill: var(--text); font-size: 12.5px; font-weight: 600; }
+.dependency-map .dep-node .count { fill: var(--muted); font-weight: 400; }
+.dependency-map .layer-name { fill: var(--muted); font-size: 12px; }
+table.matrix { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+table.matrix th { font-weight: 600; color: var(--muted); padding: 4px; text-align: center; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+table.matrix th.row-head { text-align: left; white-space: nowrap; position: sticky; left: 0; padding-right: 10px; z-index: 0; }
+table.matrix td { min-width: 34px; height: 26px; text-align: center; border: 1px solid var(--surface); }
+table.matrix td.allowed { background: color-mix(in srgb, var(--ok) 16%, transparent); }
+table.matrix td.forbidden { background: color-mix(in srgb, var(--error) 6%, transparent); color: var(--muted); }
+table.matrix td.wrong { background: color-mix(in srgb, var(--error) 26%, transparent); color: var(--error); font-weight: 700; }
+table.matrix td.self { background: var(--surface-2); }
+.matrix-legend .swatch { margin-left: 4px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.swatch.allowed { background: color-mix(in srgb, var(--ok) 40%, transparent); }
+.swatch.forbidden { background: color-mix(in srgb, var(--error) 14%, transparent); }
+.swatch.wrong { background: color-mix(in srgb, var(--error) 60%, transparent); }
+
+/* Component page */
+.group-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.group-chips .swatch { margin-right: 0; }
+.toolbar.padded { padding: 10px 18px 6px; }
+.canvas.component-canvas { height: 66vh; min-height: 420px; background: var(--surface-2); }
+.component-graph .link { stroke: var(--muted); stroke-opacity: 0.28; stroke-width: 0.8; }
+.component-graph .ext { stroke-opacity: 0.55; }
+.component-graph .ext.allowed { stroke: var(--ok); }
+.component-graph .ext.wrong { stroke: var(--error); stroke-opacity: 0.75; }
+.component-graph .ext.in { stroke-dasharray: 5 4; }
+.component-graph .obj circle { stroke: var(--surface); stroke-width: 1.2; }
+.component-graph .obj circle.flagged { stroke: var(--error); stroke-width: 2.5; }
+.component-graph .obj:hover circle { stroke: var(--text); stroke-width: 2; }
+.component-graph .obj text { fill: var(--text); font-size: 10px; pointer-events: none; }
+.component-graph .island { fill-opacity: 0.07; stroke-opacity: 0.35; stroke-width: 1; stroke-dasharray: 4 4; }
+.component-graph .group-name { font-size: 15px; font-weight: 700; paint-order: stroke; stroke: var(--surface-2); stroke-width: 4px; pointer-events: none; }
+.component-graph .group-name .count { fill: var(--muted); font-weight: 400; }
+.component-graph .other circle { fill: var(--surface); stroke-width: 2.5; }
+.component-graph .other.allowed circle { stroke: var(--ok); }
+.component-graph .other.wrong circle { stroke: var(--error); }
+.component-graph .other text { fill: var(--text); font-size: 12px; font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.component-graph.focused [data-group], .component-graph.focused [data-groups] { opacity: 0.12; }
+.component-graph.focused .on { opacity: 1; }
+
 /* Diagrams */
 .diagram-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 18px; align-items: start; }
 .diagram-form { display: grid; gap: 12px; position: sticky; top: 90px; }

@@ -7,6 +7,7 @@ import { createArchitectureModel } from "../architecture.js";
 import { assessArchitecture } from "../blueprint/index.js";
 import { writeBaseline } from "../blueprint/baseline.js";
 import { architectureJson } from "../blueprint/report.js";
+import { componentDrilldown, componentDrilldowns, dependencyMatrix } from "../blueprint/drilldown.js";
 import { planExtraction } from "../blueprint/extract.js";
 import { VIEWS } from "../capabilities.js";
 import { runHealthCheck } from "../commands/check.js";
@@ -164,6 +165,8 @@ export class Workspace {
     return {
       ...json,
       configured: Boolean(assessment.context.options.architecture?.components?.length),
+      // Where dependencies should be (the rules) and where they are (object links).
+      matrix: dependencyMatrix(assessment),
       unassigned: unassigned.slice(0, 200),
       workItems: json.workItems.map((item) => ({ ...item, evidence: item.evidence.slice(0, MAX_EVIDENCE) })),
       violationCount: violations.length,
@@ -176,6 +179,16 @@ export class Workspace {
         }
       }))
     };
+  }
+
+  /** One component up close: objects, groups inside it, and its dependencies, allowed or wrong-way. */
+  component(name, settings = {}) {
+    return this.remember(`component:${name}:${JSON.stringify(settings)}`, async () => componentDrilldown(await this.assessment(settings), name));
+  }
+
+  /** Every component up close, for the exported app. */
+  async components(settings = {}) {
+    return componentDrilldowns(await this.assessment(settings));
   }
 
   /** Saves a proposal as the configured architecture (and optionally accepts today's violations). */

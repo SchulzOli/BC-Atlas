@@ -32,6 +32,18 @@ follows [Semantic Versioning](https://semver.org/).
   component's description, and the Architecture page.
 - `id:50100..50199` selects objects by ID range; proposals use it for code
   without namespaces or functional folders.
+- A page per component (click it on the Architecture page): its role, layer,
+  the components it may use, suggested namespace, app candidate, and
+  selectors; the groups inside it (sub-domains clustered by coupling and
+  named after their namespace, folder, or shared words); a graph of its
+  objects with one island per group and, on request, its links to other
+  components in green (allowed) and red (wrong way); per other component
+  whether it may be used and how often it is; every object; and its work
+  items. Also in the exported app.
+- Dependencies between components, should vs. is: a map of the components in
+  their layers with green arrows for allowed and red arrows for wrong-way
+  dependencies, and a matrix that tints every pair by the rules and counts
+  today's object links in it.
 
 ### Changed
 

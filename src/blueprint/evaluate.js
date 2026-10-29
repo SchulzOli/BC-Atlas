@@ -163,7 +163,7 @@ function objectSummary(node) {
 }
 
 /** Why a dependency from one component to another is not allowed, or undefined. */
-function ruleFor(source, target, settings) {
+export function ruleFor(source, target, settings) {
   if (source.dependsOn) {
     return source.dependsOn.includes(target.name) ? undefined : "undeclared-component-dependency";
   }
