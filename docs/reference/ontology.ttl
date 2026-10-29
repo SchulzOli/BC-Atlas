@@ -9,7 +9,7 @@
 <https://schulzoli.github.io/BC-Atlas/ontology> a owl:Ontology ;
     rdfs:label "BC Atlas ontology for Business Central AL" ;
     rdfs:comment "Apps, namespaces, architecture components, AL objects, their members, and their relations, as found by BC Atlas in AL source." ;
-    owl:versionInfo "0.11.0" ;
+    owl:versionInfo "0.12.0" ;
     dcterms:license <https://opensource.org/licenses/MIT> ;
     vann:preferredNamespacePrefix "bca" ;
     vann:preferredNamespaceUri "https://schulzoli.github.io/BC-Atlas/ontology#" .

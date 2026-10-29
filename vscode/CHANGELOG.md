@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.12.0
+
+- Diagrams are drawn by BC Atlas itself instead of D2, with a cleaner layout,
+  right-angled routes, and a legend. **SVG**, **PNG**, and **D2** save the
+  diagram; the extension is half the size (about 4.5 instead of 9 MB).
+- Diagrams and Docs work the same way: a filterable list with the settings on
+  the left, the selected view, use case, or scenario on the right. `J`/`K`
+  step through the list, and the address keeps the selection.
+- Diagrams page: hover an object to light up its relations, click it to open
+  its page, find objects by name, and click the legend to hide a kind of
+  relation. On a dark theme the diagrams are dark too.
+- Large views start as an overview of their groups: click a group to open it,
+  its name to close it. The Base Application's project view has a diagram now.
+- Docs page: the guides are part of the panel, one overview, use case, or
+  scenario at a time, as a user guide or a test case, in English or German.
+- **Export…** writes the project as a knowledge graph in RDF with the BC
+  Atlas OWL ontology (Turtle, RDF/XML, OWL, N-Triples, JSON-LD), for triple
+  stores, graph databases, and Protégé.
+
 ## 0.11.0
 
 - 3D explorer: objects are grouped and colored by their relation clusters,

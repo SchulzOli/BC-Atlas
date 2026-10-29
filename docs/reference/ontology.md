@@ -9,7 +9,7 @@ Apps, namespaces, architecture components, AL objects, their members, and their 
 | --- | --- |
 | Ontology IRI | `https://schulzoli.github.io/BC-Atlas/ontology` |
 | Namespace | `https://schulzoli.github.io/BC-Atlas/ontology#` (prefix `bca:`) |
-| Version | 0.11.0 |
+| Version | 0.12.0 |
 | License | MIT |
 | Download | [Turtle](https://schulzoli.github.io/BC-Atlas/ontology.ttl) · [OWL (RDF/XML)](https://schulzoli.github.io/BC-Atlas/ontology.owl) · [RDF/XML](https://schulzoli.github.io/BC-Atlas/ontology.rdf) · [N-Triples](https://schulzoli.github.io/BC-Atlas/ontology.nt) · [JSON-LD](https://schulzoli.github.io/BC-Atlas/ontology.jsonld) |
 

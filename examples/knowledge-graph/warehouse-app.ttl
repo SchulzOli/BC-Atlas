@@ -10,7 +10,7 @@
     rdfs:label "BC Atlas Warehouse Example" ;
     rdfs:comment "AL source analyzed by BC Atlas: 9 objects, 26 relations." ;
     dcterms:created "2025-01-01T00:00:00.000Z"^^xsd:dateTime ;
-    dcterms:creator "BC Atlas 0.11.0" ;
+    dcterms:creator "BC Atlas 0.12.0" ;
     dcterms:conformsTo <https://schulzoli.github.io/BC-Atlas/ontology> ;
     rdfs:seeAlso <https://schulzoli.github.io/BC-Atlas/ontology.ttl> .
 
