@@ -399,6 +399,20 @@
     render();
   }
 
+  /** What each proposed component could become, grouped by app candidate, with its namespace. */
+  function appCandidatesCard(recommendations) {
+    const apps = new Map();
+    for (const recommendation of recommendations) {
+      const key = recommendation.app ?? (recommendation.role === "shared" ? "Shared core" : "No relations");
+      if (!apps.has(key)) apps.set(key, []);
+      apps.get(key).push(recommendation);
+    }
+    const role = { app: '<span class="pill ok">app of its own</span>', component: '<span class="pill">component</span>', shared: '<span class="pill warning">shared core</span>', review: '<span class="pill error">place by hand</span>' };
+    return `<section class="card"><h2>App candidates and namespaces <span class="muted">components coupled more to each other than to the rest could become one app</span></h2>
+      <ul class="list">${[...apps].map(([app, list]) => `<li><span class="grow"><b>${esc(app)}</b>${list.length > 1 && list[0].existingApp ? ' <span class="muted small">stays one app</span>' : ""}
+        <ul class="small">${list.map((item) => `<li>${esc(item.component)} ${role[item.role]} <code>${esc(item.namespace)}</code>${item.keepsNamespace ? ' <span class="muted">kept</span>' : ""}</li>`).join("")}</ul></span></li>`).join("")}</ul></section>`;
+  }
+
   /** The plan for extracting one component as an app, with a picker for the component. */
   function extractionCard(data, name) {
     const names = Object.keys(data.extractions ?? {});
@@ -445,7 +459,7 @@
       <section class="card"><div class="controls">
         ${data.configured ? `<div class="field"><span>Show</span><div class="segmented"><button data-mode="configured" aria-pressed="${!proposal}">Configured</button><button data-mode="proposal" aria-pressed="${proposal}">New proposal</button></div></div>` : ""}
         ${proposal ? `
-          <label class="field"><span>Group objects by</span><select id="group-by">${["auto", "coupling", "module", "app", "namespace", "folder"].map((value) => `<option${value === (data.proposal.groupBy ?? "auto") ? " selected" : ""}>${value}</option>`).join("")}</select></label>
+          <label class="field"><span>Group objects by</span><select id="group-by">${["auto", "module", "app", "namespace", "folder"].map((value) => `<option${value === (data.proposal.groupBy ?? "auto") ? " selected" : ""}>${value}</option>`).join("")}</select></label>
           <label class="field"><span>Namespace depth</span><input type="number" id="depth" min="1" placeholder="auto" value="${esc(settings.depth ?? "")}"></label>
           <label class="field"><span>Merge groups below</span><input type="number" id="min-objects" min="1" placeholder="1" value="${esc(settings.minObjects ?? "")}"></label>
           <button class="btn" data-action="apply">Propose again</button>` : ""}
@@ -475,7 +489,14 @@
           <div class="legend"><span class="ok">can become an app today</span><span class="bad">has wrong-way dependencies (count in red)</span><span>blocked only by dependencies on it</span></div>
         </section>
         <section class="card"><h2>${proposal ? "How it was derived" : "How it is enforced"}</h2>
-          ${proposal ? `<p class="muted">${data.proposal.groupBy === "coupling" ? "Namespaces that are tightly coupled to each other form a component (communities of the coupling, inside each module or app)." : "Each module or app is a component; one that holds more than 15% of the objects (at least 40) is split by namespace."} Components are ordered so that as little coupling as possible points the wrong way, and each one sits one layer above the deepest component it uses. Try another grouping and compare the coupling inside components.</p>
+          ${proposal ? `<p class="muted">${({
+              auto: "The relations decide: inside each app or module, objects that are tightly coupled (weighted by relation type: extends, writes, source tables, calls, …) form a component, objects that many components use form a shared core, and namespaces or folders survive only where the relations confirm them.",
+              coupling: "The relations decide: inside each app or module, objects that are tightly coupled form a component, and objects that many components use form a shared core.",
+              namespace: "Namespaces form the components; objects without a namespace follow their relations.",
+              folder: "Folders that say what objects do form the components; objects in type folders follow their relations.",
+              module: "Each module is a component.",
+              app: "Each app is a component."
+            })[data.proposal.groupBy] ?? ""} Components are ordered so that as little coupling as possible points the wrong way, and each one sits one layer above the deepest component it uses. Try another grouping and compare the coupling inside components.</p>
             ${data.proposal.feedback.length ? `<h3 class="small muted">Dependencies against the order</h3><ul class="list">${data.proposal.feedback.slice(0, 8).map((edge) => `<li><span class="grow">${esc(edge.source)} → ${esc(edge.target)}</span><span class="muted small nowrap">${plural(edge.objectEdges, "object link")}</span></li>`).join("")}</ul>` : ""}`
             : `<dl class="facts">
                 <dt>Cohesion</dt><dd>${summary.coupling ? `${Math.round(summary.coupling.share * 100)}% of the coupling stays inside components (modularity ${summary.coupling.modularity.toFixed(2)}); weights per relation kind in architecture.couplingWeights` : "–"}</dd>
@@ -486,6 +507,7 @@
               </dl>`}
         </section>
       </div>
+      ${proposal && data.proposal.recommendations?.length ? appCandidatesCard(data.proposal.recommendations) : ""}
       <section class="card flush"><h2>Work items <span class="muted" id="work-scope"></span></h2><div id="work-items"></div></section>
       ${!proposal && data.checks?.length ? `<section class="card"><h2>Architecture checks <span class="muted">components, declared dependencies, and selectors</span></h2>
         <ul class="list">${data.checks.map((check) => `<li>${severityPill(check.severity)}<span class="grow">${esc(check.message)}</span><code class="muted small nowrap">${esc(check.rule)}</code></li>`).join("")}</ul></section>` : ""}

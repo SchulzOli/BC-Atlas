@@ -21,12 +21,18 @@ with Core, Sales, Warehouse, and permissions in folders of their own.
 ## 1. Agree on components and layers
 
 [Clean architecture](./clean-architecture.md) explains how BC Atlas proposes
-components and layers and how to write them down in `.bca.json`. Compare
-groupings by their score: `--group-by coupling` puts namespaces that are
-tightly coupled into one component, which often keeps more coupling inside
-components than the namespaces alone
-([Compare groupings](./clean-architecture.md#compare-groupings)). In the
-example, every folder is a component:
+components and layers and how to write them down in `.bca.json`. The
+proposal comes from the typed, weighted relations between the objects, so it
+works for a monolith without namespaces just as well: it finds the
+components, the shared core, which components could become an app together
+(app candidates), and a namespace for each component
+([How components are found](./clean-architecture.md#how-components-are-found)).
+Compare it with other groupings by their score
+([Compare groupings](./clean-architecture.md#compare-groupings)).
+
+In the example, the relations put Warehouse together with Sales (it writes
+and relates to the sales order); the team decides to keep it apart anyway and
+writes down every folder as a component:
 
 ```json
 {

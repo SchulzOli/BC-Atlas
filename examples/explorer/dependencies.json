@@ -152,6 +152,7 @@
       "permits",
       "reads",
       "relates",
+      "source",
       "subscribes",
       "uses",
       "writes"
@@ -217,10 +218,10 @@
       },
       "cycles": 0,
       "coupling": {
-        "inside": 28.3,
+        "inside": 32.3,
         "across": 24,
-        "share": 0.541,
-        "modularity": 0.159
+        "share": 0.574,
+        "modularity": 0.186
       },
       "checks": 2,
       "sharedTables": 2,
@@ -276,7 +277,7 @@
             "outDegree": 1,
             "crossAppIn": 2,
             "crossAppOut": 0,
-            "pagerank": 0.209425,
+            "pagerank": 0.212106,
             "community": 0,
             "buildLayer": 1
           }
@@ -305,7 +306,7 @@
             "outDegree": 0,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.228841,
+            "pagerank": 0.230855,
             "community": 1,
             "buildLayer": 0
           }
@@ -334,7 +335,7 @@
             "outDegree": 1,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.029895,
+            "pagerank": 0.03001,
             "community": 0,
             "buildLayer": 2
           }
@@ -362,7 +363,7 @@
             "outDegree": 0,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.050829,
+            "pagerank": 0.050564,
             "community": 1,
             "buildLayer": 0
           }
@@ -391,7 +392,7 @@
             "outDegree": 3,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.073884,
+            "pagerank": 0.072546,
             "community": 1,
             "buildLayer": 2
           }
@@ -420,7 +421,7 @@
             "outDegree": 1,
             "crossAppIn": 1,
             "crossAppOut": 0,
-            "pagerank": 0.051752,
+            "pagerank": 0.050042,
             "community": 1,
             "buildLayer": 3
           }
@@ -449,7 +450,7 @@
             "outDegree": 1,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.029895,
+            "pagerank": 0.03001,
             "community": 0,
             "buildLayer": 2
           }
@@ -478,7 +479,7 @@
             "outDegree": 1,
             "crossAppIn": 1,
             "crossAppOut": 1,
-            "pagerank": 0.096899,
+            "pagerank": 0.10002,
             "community": 2,
             "buildLayer": 2
           }
@@ -507,7 +508,7 @@
             "outDegree": 2,
             "crossAppIn": 1,
             "crossAppOut": 1,
-            "pagerank": 0.064284,
+            "pagerank": 0.058919,
             "community": 2,
             "buildLayer": 4
           }
@@ -536,7 +537,7 @@
             "outDegree": 2,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.038365,
+            "pagerank": 0.038512,
             "community": 2,
             "buildLayer": 5
           }
@@ -565,7 +566,7 @@
             "outDegree": 3,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.029895,
+            "pagerank": 0.03001,
             "community": 2,
             "buildLayer": 6
           }
@@ -594,7 +595,7 @@
             "outDegree": 3,
             "crossAppIn": 0,
             "crossAppOut": 3,
-            "pagerank": 0.029895,
+            "pagerank": 0.03001,
             "community": 2,
             "buildLayer": 5
           }
@@ -619,7 +620,7 @@
             "outDegree": 0,
             "crossAppIn": 1,
             "crossAppOut": 0,
-            "pagerank": 0.036248,
+            "pagerank": 0.036387,
             "community": 2,
             "buildLayer": 0
           }
@@ -648,7 +649,7 @@
             "outDegree": 1,
             "crossAppIn": 0,
             "crossAppOut": 1,
-            "pagerank": 0.029895,
+            "pagerank": 0.03001,
             "community": 0,
             "buildLayer": 2
           }
@@ -696,12 +697,12 @@
           "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
           "dependency": "intra-app",
           "kinds": {
-            "reads": 1
+            "source": 1
           },
           "weight": 1,
           "evidence": [
             {
-              "kind": "reads",
+              "kind": "source",
               "property": "sourcetable",
               "file": "core/Items.al",
               "line": 40
@@ -715,7 +716,7 @@
             ]
           ],
           "changes": [],
-          "coupling": 2
+          "coupling": 4
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::interface::con price calculation",
@@ -1019,12 +1020,12 @@
           "targetModule": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
           "dependency": "intra-app",
           "kinds": {
-            "reads": 1
+            "source": 1
           },
           "weight": 1,
           "evidence": [
             {
-              "kind": "reads",
+              "kind": "source",
               "property": "sourcetable",
               "file": "sales/Quotes.al",
               "line": 44
@@ -1038,7 +1039,7 @@
             ]
           ],
           "changes": [],
-          "coupling": 2
+          "coupling": 4
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
@@ -1552,7 +1553,7 @@
             "instability": 0,
             "abstractness": 0.167,
             "distance": 0.833,
-            "cohesion": 0.531
+            "cohesion": 0.559
           },
           "violations": 0,
           "extractable": true,
@@ -1590,7 +1591,7 @@
             "instability": 0.667,
             "abstractness": 0,
             "distance": 0.333,
-            "cohesion": 0.414
+            "cohesion": 0.454
           },
           "violations": 0,
           "extractable": true,

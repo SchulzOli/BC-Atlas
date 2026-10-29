@@ -4,6 +4,35 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- The architecture proposal comes from the relations, not from namespaces.
+  Relations are typed (structural, data, behavioral, loose, administrative)
+  and weighted; inside each app or module, the objects that are coupled more
+  to each other than to the rest form a component (the best of several
+  Louvain runs, refined object by object, with today's namespaces and
+  folders competing as candidates). It works the same for apps without
+  namespaces (type folders, ID blocks) and for a mix. `--group-by coupling`
+  is now the same as `auto`; `namespace` and `folder` let the structure
+  decide and place objects without one by their relations.
+- A page or query and its source table are a relation of their own
+  (`source`, weight 4) instead of a read.
+
+### Added
+
+- Shared core: objects that many components use but none owns (setup
+  tables, master data) form a component of their own instead of gluing the
+  others together.
+- App candidates and namespaces: components that are coupled more to each
+  other than to the rest could become one app together. Every proposed
+  component gets a role (app, component, shared core) and a suggested
+  namespace, in the JSON (`proposal.recommendations`), the reports, the
+  component's description, and the Architecture page.
+- `id:50100..50199` selects objects by ID range; proposals use it for code
+  without namespaces or functional folders.
+
 ## 0.8.0 - 2026-10-29
 
 ### Added

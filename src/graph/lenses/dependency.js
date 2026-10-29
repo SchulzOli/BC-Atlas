@@ -16,8 +16,14 @@ export const DEPENDENCY_KINDS = Object.freeze([
   "part",
   "subscribes",
   "permits",
-  "includes"
+  "includes",
+  "source"
 ]);
+
+// A page, report, or query is bound to its SourceTable or DataItemTable more
+// than it merely reads it; the dependency lens keeps that as its own kind.
+const relationKind = (relation) =>
+  relation.kind === "reads" && ["sourcetable", "dataitemtable"].includes(relation.property) ? "source" : relation.kind;
 
 // Evidence kept per edge; edges inside one module keep less to bound the size
 // of large graphs (a Base Application has ~70,000 of them).
@@ -185,7 +191,7 @@ function createObjectIndex(objects) {
 
 function evidenceFor(edge) {
   const evidence = {
-    kind: edge.kind,
+    kind: relationKind(edge),
     operation: edge.operation,
     member: edge.sourceProcedure ?? edge.member ?? edge.sourceProcedures?.[0],
     property: edge.property,
@@ -251,7 +257,8 @@ export function dependencyLens(model, { filter = () => true } = {}) {
       weight: 0,
       evidence: []
     };
-    edge.kinds[relation.kind] = (edge.kinds[relation.kind] ?? 0) + (relation.weight ?? 1);
+    const kind = relationKind(relation);
+    edge.kinds[kind] = (edge.kinds[kind] ?? 0) + (relation.weight ?? 1);
     edge.weight += relation.weight ?? 1;
     const limit = edge.dependency === "intra-app" ? MAX_LOCAL_EVIDENCE : MAX_EVIDENCE;
     if (edge.evidence.length < limit) edge.evidence.push(evidenceFor(relation));
