@@ -885,6 +885,24 @@ function dataOperationRelations(members, object) {
   return relations;
 }
 
+function subscriberRelations(procedures) {
+  const relations = [];
+  for (const procedure of procedures) {
+    for (const attribute of procedure.attributes ?? []) {
+      const match = attribute.match(/^\[\s*EventSubscriber\s*\(\s*ObjectType::(Codeunit|Table|Page|Report|XmlPort)\s*,\s*(?:Codeunit|Database|Page|Report|XmlPort)::\s*(?:"((?:""|[^"])*)"|([^,\]\s]+))/iu);
+      if (!match) continue;
+      relations.push({
+        target: (match[2] ?? match[3]).replaceAll('""', '"'),
+        targetType: match[1].toLowerCase(),
+        kind: "subscribes",
+        member: procedure.name,
+        location: procedure.location
+      });
+    }
+  }
+  return relations;
+}
+
 function helperDataOperationRelations(members, directRelations) {
   const procedures = new Map();
   for (const procedure of members.procedures) {
@@ -971,6 +989,7 @@ async function objectsFromSource(source, file) {
       });
     }
     const members = membersFor(node, source, file);
+    relations.push(...subscriberRelations(members.procedures));
     const dataRelations = dataOperationRelations(members, { type, name, base, relations });
     relations.push(...dataRelations, ...helperDataOperationRelations(members, dataRelations));
 

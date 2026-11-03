@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { assessArchitecture } from "../src/blueprint/index.js";
 import { extractedAppId, idRanges, planExtraction } from "../src/blueprint/extract.js";
 import { applyRefactoring, planMove } from "../src/refactor/move.js";
+import { planObjectMove } from "../src/commands/refactor.js";
 import { lineDiff } from "../src/refactor/diff.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -52,7 +53,7 @@ test("an extraction plan names blockers, the app.json, data moves, and steps", a
   assert.equal(plan.ready, false);
   assert.deepEqual(plan.blockers.map(({ kind }) => kind), ["wrong-way-dependencies-on-it", "app-cycle"]);
   assert.equal(plan.blockers[0].workItems[0].command, 'bca refactor move --object codeunit:50001 --to "Warehouse"');
-  assert.match(plan.blockers[1].message, /uses Sales and is used by Permissions, Core, which all stay in Contoso Monolith/u);
+  assert.match(plan.blockers[1].message, /uses Sales and is used by Core, Permissions, which all stay in Contoso Monolith/u);
   assert.deepEqual(plan.uses, [{ component: "Sales", objects: 1 }]);
 
   assert.equal(plan.appJson.id, extractedAppId("7e1b2c3d-4f50-4a6b-8c7d-9e0f1a2b3c4d", "Warehouse"));
@@ -64,7 +65,7 @@ test("an extraction plan names blockers, the app.json, data moves, and steps", a
 
   assert.deepEqual(plan.tables.map(({ object }) => object), ["table 50200 CON Shipment"]);
   assert.ok(plan.steps.some((step) => step.includes(`MovedTo = '${plan.appJson.id}'`) && step.includes("ObsoleteState = PendingMove")));
-  assert.ok(plan.steps.some((step) => step === "Add Warehouse to the dependencies of the app(s) that use it: Contoso Monolith (Permissions, Core)."));
+  assert.ok(plan.steps.some((step) => step === "Add Warehouse to the dependencies of the app(s) that use it: Contoso Monolith (Core, Permissions)."));
   assert.deepEqual(plan.permissionSets.map(({ permissionSet }) => permissionSet), ["permissionset 50000 CON ALL"]);
   assert.throws(() => planExtraction(assessment, "Nope"), /no component "Nope"/u);
 
@@ -153,6 +154,113 @@ test("bca refactor move previews by default; bca architecture --extract plans an
     assert.match(extraction.stdout, /^# Extract Warehouse as an app/u);
     assert.match(extraction.stdout, /## app\.json/u);
     assert.equal(run("refactor", "nope").status, 2);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("refactor move folder and namespace options do not become architecture filters", async () => {
+  const { plan } = await planObjectMove(monolith, {
+    object: "codeunit:50001",
+    to: "Warehouse",
+    folder: "src/Warehouse",
+    namespace: "Contoso.Warehouse"
+  });
+
+  assert.equal(plan.to.file, "src/Warehouse/WarehouseHooks.Codeunit.al");
+  assert.equal(plan.to.namespace, "Contoso.Warehouse");
+});
+
+test("refactor move ignores dependency apps without a local root", async () => {
+  const assessment = await assessArchitecture(monolith);
+  assessment.model.apps.push({ id: "dependency-app", name: "Dependency App" });
+
+  const plan = await planMove(assessment, { object: "codeunit:50001", to: "Warehouse" });
+
+  assert.equal(plan.to.component, "Warehouse");
+});
+
+test("refactor move chooses the shared folder of a component's members", async () => {
+  const directory = copyMonolith();
+  try {
+    const configPath = path.join(directory, ".bca.json");
+    const config = JSON.parse(readFileSync(configPath, "utf8"));
+    config.architecture.components.find(({ name }) => name === "Warehouse").match = ["namespace:Contoso.Warehouse.*"];
+    writeFileSync(configPath, JSON.stringify(config, null, 2));
+    for (const [folder, object] of [
+      ["Inventory", 'codeunit 51000 "Warehouse Inventory" { }'],
+      ["Setup", 'codeunit 51001 "Warehouse Setup" { }']
+    ]) {
+      const target = path.join(directory, "src", "Warehouse", folder);
+      mkdirSync(target, { recursive: true });
+      writeFileSync(path.join(target, "Object.al"), `namespace Contoso.Warehouse.${folder};\n\n${object}\n`);
+    }
+
+    const assessment = await assessArchitecture(directory);
+    const plan = await planMove(assessment, { object: "codeunit:50001", to: "Warehouse" });
+
+    assert.equal(plan.to.file, "src/Warehouse/WarehouseHooks.Codeunit.al");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("refactor move updates old-namespace imports even when a reference is not modeled", async () => {
+  const directory = copyMonolith();
+  try {
+    const subscriber = path.join(directory, "src", "Sales", "WarehouseSubscriber.Codeunit.al");
+    writeFileSync(subscriber, [
+      "namespace Contoso.Sales;",
+      "",
+      "using Contoso.Core;",
+      "",
+      "codeunit 52000 \"CON Warehouse Subscriber\"",
+      "{",
+      "    [EventSubscriber(ObjectType::Codeunit, Codeunit::\"CON Warehouse Hooks\", 'OnAfterShip', '', false, false)]",
+      "    local procedure OnAfterShip() begin end;",
+      "}"
+    ].join("\n"));
+
+    const assessment = await assessArchitecture(directory);
+    const plan = await planMove(assessment, { object: "codeunit:50001", to: "Warehouse" });
+    const subscriberChange = plan.operations.find(({ path: file }) => file === "src/Sales/WarehouseSubscriber.Codeunit.al");
+
+    assert.ok(subscriberChange, "the subscriber file is updated");
+    assert.match(subscriberChange.content, /using Contoso\.Warehouse;/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("refactor move keeps paths relative to an explicit parent project root", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-parent-root-"));
+  try {
+    const app = path.join(directory, "CommissionApp");
+    cpSync(monolith, app, { recursive: true });
+    const appConfig = path.join(app, ".bca.json");
+    const config = JSON.parse(readFileSync(appConfig, "utf8"));
+    for (const component of config.architecture.components) {
+      component.match = component.match.map((selector) => selector.replace("folder:src/", "folder:CommissionApp/src/"));
+    }
+    writeFileSync(path.join(directory, ".bca.json"), JSON.stringify(config, null, 2));
+    rmSync(appConfig);
+
+    const result = spawnSync(process.execPath, [
+      cli,
+      "refactor", "move", app,
+      "--project-root", directory,
+      "--object", "codeunit:50001",
+      "--to", "Warehouse",
+      "--apply",
+      "--format", "json"
+    ], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const plan = JSON.parse(result.stdout);
+
+    assert.equal(plan.from.file, "CommissionApp/src/Core/WarehouseHooks.Codeunit.al");
+    assert.equal(plan.to.file, "CommissionApp/src/Warehouse/WarehouseHooks.Codeunit.al");
+    assert.ok(existsSync(path.join(app, "src", "Warehouse", "WarehouseHooks.Codeunit.al")));
+    assert.ok(!existsSync(path.join(directory, "src", "Warehouse", "WarehouseHooks.Codeunit.al")));
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

@@ -166,8 +166,8 @@ bca refactor move ./app --object codeunit:50001 --to Warehouse
  codeunit 50001 "CON Warehouse Hooks"
 ```
 
-- The file moves to the component's folder (its `folder:` selector, else where
-  most of its objects are); an object that shares a file with others is cut
+- The file moves to the component's folder (its `folder:` selector, else the
+  common parent folder of its objects); an object that shares a file with others is cut
   out into `<Name>.<Type>.al`.
 - The namespace becomes the component's (its `namespace:` selector, else the
   one most of its objects use). The moved file gets the usings it needs, and

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { assessArchitecture, evaluateArchitecture, proposeArchitecture } from "../src/blueprint/index.js";
 import { compareWithBaseline, createBaseline } from "../src/blueprint/baseline.js";
 import { subgroups } from "../src/blueprint/cluster.js";
-import { componentMatcher } from "../src/blueprint/components.js";
+import { compileSelector, componentMatcher } from "../src/blueprint/components.js";
 import { createGraphDocument } from "../src/graph/document.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -54,6 +54,17 @@ test("checks dependencies against components, layers, and dependsOn", async () =
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("component selectors can match individual files and file globs", () => {
+  const context = { apps: new Map(), modules: new Map() };
+  const exact = compileSelector("file:src/Common/CommissionPermission.PermissionSet.al", context);
+  const glob = compileSelector("file:src/Setup/**/*.Enum.al", context);
+
+  assert.ok(exact({ file: "src/Common/CommissionPermission.PermissionSet.al" }));
+  assert.ok(!exact({ file: "src/Common/CommissionErrorHelper.Codeunit.al" }));
+  assert.ok(glob({ file: "src/Setup/Selectors/CommissionType.Enum.al" }));
+  assert.ok(!glob({ file: "src/Setup/CommissionSetup.Table.al" }));
 });
 
 test("explains how to resolve outward dependencies in AL terms", async () => {
@@ -260,6 +271,18 @@ test("exposes limits what other components may use; severities turn rules off", 
   assert.throws(() => evaluate({ severities: { "empty-component": "loud" } }), /must be one of: error, warning, info, off/u);
   assert.throws(() => evaluate({ rules: [{ from: "*" }] }), /needs "from" and "to"/u);
   assert.throws(() => evaluate({ rules: [{ from: "*", to: "*", kinds: ["eats"] }] }), /unknown relation kind\(s\) eats/u);
+});
+
+test("permission grants to internal objects are not internal-access violations", async () => {
+  const assessment = await assessArchitecture(path.join(root, "examples", "monolith"));
+  const { levels } = assessment;
+  for (const edge of levels.object.edges.filter(({ kinds }) => kinds?.permits)) {
+    levels.object.nodes.find(({ id }) => id === edge.target).access = "internal";
+  }
+
+  const result = evaluateArchitecture(levels, assessment.architecture);
+
+  assert.equal(result.violations.filter(({ rule, source }) => rule === "internal-access" && source.type === "permissionset").length, 0);
 });
 
 test("checks the architecture configuration itself", async () => {

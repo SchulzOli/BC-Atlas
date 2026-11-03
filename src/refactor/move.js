@@ -52,7 +52,18 @@ function mostCommon(values) {
   return [...counts].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))[0]?.[0];
 }
 
-/** Where objects of a component live: its folder: or namespace: selector, else what most of its objects use. */
+function commonDirectory(files) {
+  const directories = files.map((file) => path.posix.dirname(toPosix(file)));
+  if (!directories.length) return undefined;
+  const segments = directories.map((directory) => directory.split("/"));
+  const common = [];
+  for (let index = 0; segments.every((parts) => parts[index] === segments[0][index]); index++) {
+    common.push(segments[0][index]);
+  }
+  return common.join("/") || undefined;
+}
+
+/** Where objects of a component live: its folder selector, else the common parent of its object files. */
 function componentHome(component, members) {
   const selectors = [component.match ?? []].flat().map(String);
   const literal = (kind) => selectors
@@ -60,7 +71,7 @@ function componentHome(component, members) {
     .find((part) => part.toLowerCase().startsWith(`${kind}:`) && !/[*?]/u.test(part))
     ?.slice(kind.length + 1).trim();
   return {
-    folder: literal("folder")?.replace(/^\.?\//u, "").replace(/\/$/u, "") ?? mostCommon(members.map(({ file }) => path.posix.dirname(toPosix(file)))),
+    folder: literal("folder")?.replace(/^\.?\//u, "").replace(/\/$/u, "") ?? commonDirectory(members.map(({ file }) => file)),
     namespace: literal("namespace") ?? mostCommon(members.map(({ namespace }) => namespace).filter(hasNamespace))
   };
 }
@@ -216,6 +227,7 @@ export async function planMove(assessment, { object: selector, to, folder, names
 
   // Moving between apps: the ID must fit the target app, and tables keep their data only with MovedTo/MovedFrom.
   const appOf = (file) => [...model.apps].filter((app) => {
+    if (!app.root) return false;
     const relative = toPosix(path.relative(root, app.root));
     return !relative || file === relative || file.startsWith(`${relative}/`);
   }).sort((a, b) => b.root.length - a.root.length)[0];
