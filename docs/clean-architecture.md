@@ -210,11 +210,12 @@ Selectors:
 | --- | --- |
 | `namespace:Contoso.Sales` | The namespace and everything below it; globs allowed. |
 | `folder:src/Sales` | Files below the folder; globs allowed. |
+| `file:src/Sales/Order.al` | One file; globs allowed. More specific than a namespace or folder selector. |
 | `app:Contoso Sales` | An app by name or ID. |
 | `module:Job Queue` | A module (nested `app.json`) by name or ID. |
 | `type:table,tableextension` | Object types. |
 | `object:codeunit:Sales-Post` | One object by type and name or ID. |
-| `id:50100..50199` | Objects whose ID lies in the range (any type), or `id:50100`. A narrower range wins over a wider one; a namespace or folder wins over any range. |
+| `id:50100..50199` | Objects whose ID lies in the range (any type), or `id:50100`. A narrower range wins over a wider one; a namespace, folder, or file wins over any range. |
 | `*` | Everything no other selector matches. |
 | `component:Sales` | The objects of a component. Only in `exposes` and `rules`. |
 | `layer:0,1` | The objects of the components in these layers. Only in `exposes` and `rules`. |

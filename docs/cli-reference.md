@@ -228,7 +228,7 @@ bca refactor move ./app --object tableextension:50001 --to Sales --apply
 | --- | --- | --- |
 | `--object` | selector | Required. `codeunit:50100`, `table:"Sales Doc"`, or a name. |
 | `--to` | component | Target component. |
-| `--folder` | path | Target folder relative to the project root. Default: the component's `folder:` selector, else the folder most of its objects are in. |
+| `--folder` | path | Target folder relative to the project root. Default: the component's `folder:` selector, else the common parent folder of its objects. |
 | `--namespace` | namespace | Target namespace. Default: the component's `namespace:` selector, else the namespace most of its objects use. |
 | `--apply` | flag | Write the changes. Refuses when a file changed since the analysis. |
 | `--format` | format | `text` or `json`. Default: `text`. |
