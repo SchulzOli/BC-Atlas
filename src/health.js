@@ -296,7 +296,9 @@ function evidenceSummary(item, { markdown = false } = {}) {
     ...(primary && evidenceLocation(primary) ? [`Primary location: ${label(evidenceLocation(primary))}`] : []),
     ...(shown.length ? [`Supporting locations: ${shown.map(evidenceDescription).filter(Boolean).map(label).join(", ")}`] : []),
     ...(omitted ? [`${omitted} additional evidence item(s) omitted; use JSON for all evidence`] : []),
-    ...(item.limitations?.length ? [`Limitations: ${item.limitations.join("; ")}`] : [])
+    ...(item.limitations?.length
+      ? [`Limitations: ${markdown ? escapeCell(item.limitations.join("; ")) : item.limitations.join("; ")}`]
+      : [])
   ];
 }
 
@@ -343,7 +345,9 @@ export function formatHealthText(report, { limit = 50 } = {}) {
   lines.push(report.findings.length ? "Findings" : "Findings: none");
   for (const item of report.findings.slice(0, limit)) {
     const location = item.file ? ` (${item.file}${item.line ? `:${item.line}` : ""})` : "";
-    const metadata = item.basis ? ` [basis: ${item.basis}; architecture origin: ${item.architectureOrigin}]` : "";
+    const metadata = item.basis
+      ? ` [basis: ${item.basis}${item.architectureOrigin ? `; architecture origin: ${item.architectureOrigin}` : ""}]`
+      : "";
     lines.push(`  ${labels[item.severity]}  ${item.message}${location}${metadata}`);
     for (const detail of evidenceSummary(item)) lines.push(`      ${detail}`);
   }
@@ -390,12 +394,14 @@ export function formatHealthMarkdown(report, { heading = "## Architecture health
   if (report.findings.length) {
     lines.push("| Severity | Rule | Finding | Evidence |", "| --- | --- | --- | --- |");
     for (const item of report.findings.slice(0, limit)) {
-      const location = item.file ? ` (\`${item.file}${item.line ? `:${item.line}` : ""}\`)` : "";
-      const metadata = item.basis ? `<br>Basis: \`${item.basis}\`; architecture origin: \`${item.architectureOrigin}\`` : "";
-      const evidence = evidenceSummary(item, { markdown: true }).map(escapeCell).join("<br>");
+      const location = item.file ? ` (\`${escapeCell(`${item.file}${item.line ? `:${item.line}` : ""}`)}\`)` : "";
+      const metadata = item.basis
+        ? `<br>Basis: \`${item.basis}\`${item.architectureOrigin ? `; architecture origin: \`${item.architectureOrigin}\`` : ""}`
+        : "";
+      const evidence = evidenceSummary(item, { markdown: true }).join("<br>");
       lines.push(`| ${icon[item.severity]} | \`${item.rule}\` | ${escapeCell(item.message)}${location}${metadata} | ${evidence} |`);
     }
-    if (report.findings.length > limit) lines.push(`| | | ${report.findings.length - limit} more finding(s) |`);
+    if (report.findings.length > limit) lines.push(`| | | ${report.findings.length - limit} more finding(s) | |`);
     lines.push("");
   } else {
     lines.push("No findings.", "");

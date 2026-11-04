@@ -413,3 +413,33 @@ test("compiles with the real AL toolchain without touching the repository", { sk
     rmSync(folder, { recursive: true, force: true });
   }
 });
+
+test("health reports omit absent architecture origin and keep Markdown evidence cells intact", () => {
+  const report = {
+    summary: { objectsByType: {}, relationshipsByKind: {}, apps: [] },
+    counts: {},
+    hubs: [],
+    findings: [1, 2, 3].map(() => ({
+      severity: "warning",
+      rule: "contract-fallback",
+      message: "Silent fallback",
+      basis: "configured-policy",
+      file: "a|b.al",
+      line: 2,
+      primaryEvidence: { file: "a|b.al", line: 2 },
+      evidence: [{ file: "a|b.al", line: 2 }, { file: "c.al", line: 3 }],
+      limitations: ["x | y"]
+    }))
+  };
+  const text = formatHealthText(report);
+  assert.doesNotMatch(text, /architecture origin: undefined/u);
+  assert.match(text, /\[basis: configured-policy\]/u);
+
+  const markdown = formatHealthMarkdown(report, { limit: 2 }).split("| Severity |")[1];
+  assert.doesNotMatch(markdown, /undefined/u);
+  assert.match(markdown, /Silent fallback \(`a\\\|b\.al:2`\)/u);
+  assert.doesNotMatch(markdown, /\\\\\|/u);
+  assert.match(markdown, /Primary location: `a\\\|b\.al:2`/u);
+  assert.match(markdown, /Limitations: x \\\| y/u);
+  assert.match(markdown, /\| \| \| 1 more finding\(s\) \| \|/u);
+});
