@@ -3,6 +3,7 @@
 // `settings` and `folders` of a `.code-workspace` file. Folder settings win
 // over workspace settings, as in VS Code.
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { parseJsonc } from "../automation/vscode.js";
 
@@ -65,8 +66,29 @@ function list(value) {
   return (Array.isArray(value) ? value : [value]).map(String).filter(Boolean);
 }
 
-function alSettings(values = {}) {
-  const pick = (key) => values[`al.${key}`];
+/**
+ * Expands the VS Code variables that appear in `al.*` path settings:
+ * `${workspaceFolder}` and `${workspaceRoot}` (the folder the setting belongs
+ * to), `${userHome}`, `${env:NAME}`, and a leading `~`. Analyzer names such as
+ * `${CodeCop}` and `${AnalyzerFolder}` are left for the toolchain.
+ */
+export function expandVariables(value, { workspaceFolder, env = process.env, home = os.homedir() } = {}) {
+  if (Array.isArray(value)) return value.map((item) => expandVariables(item, { workspaceFolder, env, home }));
+  if (typeof value !== "string") return value;
+  return value
+    .replace(/\$\{(workspaceFolder|workspaceRoot)\}/gu, (match) => workspaceFolder ?? match)
+    .replace(/\$\{userHome\}/gu, home)
+    .replace(/\$\{env:([^}]+)\}/gu, (_, name) => env[name] ?? "")
+    .replace(/^~(?=$|[\\/])/u, home);
+}
+
+const PATH_SETTINGS = new Set(["packageCachePath", "codeAnalyzers", "ruleSetPath", "assemblyProbingPaths"]);
+
+function alSettings(values = {}, workspaceFolder) {
+  const pick = (key) => {
+    const value = values[`al.${key}`];
+    return PATH_SETTINGS.has(key) ? expandVariables(value, { workspaceFolder }) : value;
+  };
   return Object.fromEntries(Object.entries({
     packageCachePath: pick("packageCachePath"),
     codeAnalyzers: pick("codeAnalyzers"),
@@ -104,7 +126,7 @@ export async function readAlWorkspace(root, { workspaceFile, settings } = {}) {
   const absoluteRoot = path.resolve(root);
   const workspacePath = await findWorkspaceFile(absoluteRoot, workspaceFile);
   const workspace = workspacePath ? await readJson(workspacePath, { jsonc: true }) : undefined;
-  const workspaceSettings = alSettings(workspace?.settings);
+  const workspaceSettings = workspace?.settings;
 
   let folders = await findAppFolders(absoluteRoot);
   const declared = (workspace?.folders ?? [])
@@ -120,15 +142,24 @@ export async function readAlWorkspace(root, { workspaceFile, settings } = {}) {
   for (const folder of folders) {
     const manifest = await readJson(path.join(folder, "app.json"));
     if (!manifest) continue;
-    const folderSettings = alSettings(await readJson(path.join(folder, ".vscode", "settings.json"), { jsonc: true }));
+    // ${workspaceFolder} is the folder whose settings name it; in a
+    // .code-workspace file, the project's own folder.
+    const folderSettings = alSettings(await readJson(path.join(folder, ".vscode", "settings.json"), { jsonc: true }), folder);
     const rootSettings = folder === absoluteRoot
       ? {}
-      : alSettings(await readJson(path.join(absoluteRoot, ".vscode", "settings.json"), { jsonc: true }));
+      : alSettings(await readJson(path.join(absoluteRoot, ".vscode", "settings.json"), { jsonc: true }), absoluteRoot);
     apps.push({
       folder,
       relative: path.relative(absoluteRoot, folder).replaceAll("\\", "/") || ".",
       manifest,
-      settings: projectSettings(folder, rootSettings, workspaceSettings, folderSettings, settings)
+      settings: projectSettings(
+        folder,
+        rootSettings,
+        alSettings(workspaceSettings, folder),
+        folderSettings,
+        settings && Object.fromEntries(Object.entries(settings).map(([key, value]) =>
+          [key, PATH_SETTINGS.has(key) ? expandVariables(value, { workspaceFolder: folder }) : value]))
+      )
     });
   }
   return { root: absoluteRoot, workspaceFile: workspacePath, apps };

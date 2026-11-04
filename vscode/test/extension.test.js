@@ -99,6 +99,7 @@ function fakeVscode() {
     },
     workspace: {
       workspaceFolders: [{ uri: Uri.file(project) }],
+      getWorkspaceFolder: () => ({ uri: Uri.file(project) }),
       getConfiguration: () => ({ get: (key) => ({ project: "", paths: [], problems: true, codeLens: true, nodePath: "" })[key] }),
       findFiles: async () => ["core", "sales", "integration"].map((app) => Uri.file(path.join(project, app, "app.json"))),
       createFileSystemWatcher: () => ({ onDidChange() {}, onDidCreate() {}, onDidDelete() {}, dispose() {} }),

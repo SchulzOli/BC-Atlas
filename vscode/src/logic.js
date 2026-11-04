@@ -129,8 +129,20 @@ function pageHash(page, params = {}) {
   return `#/${page}${query.size ? `?${query}` : ""}`;
 }
 
+/**
+ * Resolves `${workspaceFolder}` in an `al.*` setting the way VS Code would:
+ * the workspace folder that holds the project. VS Code's configuration API
+ * returns the raw text; the engine expands the remaining variables.
+ */
+function expandWorkspaceFolder(value, workspaceFolder) {
+  if (Array.isArray(value)) return value.map((item) => expandWorkspaceFolder(item, workspaceFolder));
+  if (typeof value !== "string" || !workspaceFolder) return value;
+  return value.replace(/\$\{(?:workspaceFolder|workspaceRoot)\}/gu, workspaceFolder);
+}
+
 module.exports = {
   EXPORTS,
+  expandWorkspaceFolder,
   exportArgs,
   findingsToProblems,
   lensesForFile,

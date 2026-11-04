@@ -64,11 +64,13 @@ async function findProject(context) {
 function alOptions() {
   const compiler = config().get("alCompiler") || "auto";
   if (compiler === "off") return { compiler };
-  const al = vscode.workspace.getConfiguration("al", vscode.Uri.file(project));
+  const uri = vscode.Uri.file(project);
+  const al = vscode.workspace.getConfiguration("al", uri);
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
   const alSettings = {};
   for (const key of ["packageCachePath", "codeAnalyzers", "enableCodeAnalysis", "ruleSetPath", "assemblyProbingPaths"]) {
     const value = al.get(key);
-    if (value !== undefined && value !== null && value !== "") alSettings[key] = value;
+    if (value !== undefined && value !== null && value !== "") alSettings[key] = logic.expandWorkspaceFolder(value, workspaceFolder);
   }
   const analyzers = config().get("alAnalyzers") ?? [];
   return {

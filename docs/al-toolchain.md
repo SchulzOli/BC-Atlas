@@ -56,8 +56,11 @@ BC Atlas reads an AL workspace the way the AL Language extension does:
 `app.json` per project, `.vscode/settings.json` per project folder, and the
 `folders` and `settings` of a `.code-workspace` file at the analyzed root
 (`al.workspaceFile` picks one when there are several). Folder settings win over
-workspace settings; relative paths resolve against the project folder. In VS
-Code, BC Atlas uses the effective `al.*` settings of the editor.
+workspace settings; relative paths resolve against the project folder. Paths
+may use `${workspaceFolder}` (the folder whose settings name it), `${userHome}`,
+`${env:NAME}`, and a leading `~`. In VS Code, BC Atlas uses the effective
+`al.*` settings of the editor, with `${workspaceFolder}` as the editor's
+workspace folder.
 
 | Setting | Used for |
 | --- | --- |
@@ -69,11 +72,18 @@ Code, BC Atlas uses the effective `al.*` settings of the editor.
 `--analyzers CodeCop,UICop` (or `al.analyzers` in `.bca.json`) chooses
 analyzers for BC Atlas only, regardless of `al.enableCodeAnalysis`.
 
+Folders, rule sets, and analyzers that do not exist are left out of the
+compile instead of stopping it (the compiler fails with `AL1018` on a missing
+folder). A missing rule set or analyzer is reported as `al-ruleset-missing` or
+`al-analyzer-missing`; the AL default `./.netpackages` probing folder is
+simply skipped when absent.
+
 Projects compile in dependency order; each project's `.app` becomes a symbol
 package for the projects that depend on it, so a multi-app workspace needs
 only the Microsoft symbols (**AL: Download Symbols**). Missing Microsoft
 symbols show up as compiler errors such as `AL0185: Table 'Customer' is
-missing`.
+missing`; when no package cache exists at all, `al-symbols-missing` says so
+next to `app.json`.
 
 ## Import an error log instead of compiling
 

@@ -12,6 +12,18 @@ follows [Semantic Versioning](https://semver.org/).
   found") on every run: assembly probing folders that do not exist, such as
   the AL default `./.netpackages` that VS Code reports even when it is
   absent, are left out of the call, as package cache folders already were.
+- A rule set or analyzer that does not exist no longer stops the compile:
+  it is left out and reported as `al-ruleset-missing` or
+  `al-analyzer-missing` next to `app.json`. A toolchain without an analyzer
+  folder skips code analysis instead of failing the whole run.
+- `al.*` path settings expand `${workspaceFolder}`, `${userHome}`,
+  `${env:NAME}`, and `~`, as VS Code does; before, such a path pointed nowhere.
+  In VS Code, `${workspaceFolder}` is the editor's workspace folder.
+
+### Changed
+
+- A failed compile without any symbol package reports one
+  `al-symbols-missing` hint ("Run AL: Download Symbols") next to `app.json`.
 
 ## 0.13.0 - 2026-11-04
 

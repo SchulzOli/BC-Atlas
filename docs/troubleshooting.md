@@ -89,9 +89,15 @@ resolves them ([AL toolchain](./al-toolchain.md)).
   `bcAtlas.alCompiler` is not `off`;
 - on Linux and macOS, install the .NET 8 runtime or later.
 
-Many `AL0185 ... is missing` errors mean the Microsoft symbols are not in a
-package cache: run **AL: Download Symbols**, or set `al.packageCachePath` to
-the folder that has them.
+Many `AL0185 ... is missing` errors, or `al-symbols-missing`, mean the
+Microsoft symbols are not in a package cache: run **AL: Download Symbols**, or
+set `al.packageCachePath` to the folder that has them.
+
+`AL1018: Directory '...' could not be found` came from BC Atlas before 0.13.1,
+which passed the AL default `./.netpackages` probing folder even when it did
+not exist; update BC Atlas. `al-ruleset-missing` and `al-analyzer-missing`
+name a rule set or analyzer path in `al.ruleSetPath` or `al.codeAnalyzers`
+that does not exist; the compile ran without it.
 
 ## `check` fails
 

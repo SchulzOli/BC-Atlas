@@ -80,3 +80,11 @@ test("builds page addresses and export arguments", () => {
   const graph = logic.EXPORTS.find(({ view }) => view === "knowledge-graph");
   assert.deepEqual(Object.values(graph.filters).flat(), ["ttl", "owl", "rdf", "nt", "jsonld"]);
 });
+
+test("resolves ${workspaceFolder} in al.* settings to the VS Code workspace folder", () => {
+  const folder = path.resolve("/work");
+  assert.equal(logic.expandWorkspaceFolder("${workspaceFolder}/.alpackages", folder), `${folder}/.alpackages`);
+  assert.deepEqual(logic.expandWorkspaceFolder(["${workspaceRoot}/a", "${CodeCop}"], folder), [`${folder}/a`, "${CodeCop}"]);
+  assert.equal(logic.expandWorkspaceFolder("${workspaceFolder}/x", undefined), "${workspaceFolder}/x");
+  assert.equal(logic.expandWorkspaceFolder(true, folder), true);
+});

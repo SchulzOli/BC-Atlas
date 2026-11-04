@@ -444,44 +444,129 @@ test("health reports omit absent architecture origin and keep Markdown evidence 
   assert.match(markdown, /\| \| \| 1 more finding\(s\) \| \|/u);
 });
 
-test("alc only receives probing and package folders that exist (AL1018)", async () => {
-  const folder = temp("probing");
+// A stand-in for alc: records its arguments and, like alc, fails with AL1018
+// on a missing directory and with an error on a missing rule set or analyzer.
+function fakeAlc(folder) {
+  const argsFile = path.join(folder, "args.json");
+  const script = path.join(folder, "alc.cjs");
+  writeFileSync(script, `
+    const fs = require("node:fs");
+    const args = process.argv.slice(2);
+    fs.writeFileSync(${JSON.stringify(argsFile)}, JSON.stringify(args));
+    const values = (name) => args.filter((arg) => arg.startsWith("/" + name + ":"))
+      .flatMap((arg) => arg.slice(name.length + 2).split(";"));
+    const issues = [
+      ...values("packagecachepath").concat(values("assemblyprobingpaths")).filter((dir) => !fs.existsSync(dir))
+        .map((dir) => ({ ruleId: "AL1018", fullMessage: "Directory '" + dir + "' could not be found.", properties: { severity: "Error" } })),
+      ...values("ruleset").concat(values("analyzer")).filter((file) => !fs.existsSync(file))
+        .map((file) => ({ ruleId: "AL1000", fullMessage: "File '" + file + "' could not be found.", properties: { severity: "Error" } })),
+      ...(values("packagecachepath").some((dir) => fs.existsSync(dir) && fs.readdirSync(dir).some((name) => name.endsWith(".app")))
+        ? [] : [{ ruleId: "AL1022", fullMessage: "A package with publisher 'Microsoft' could not be found.", properties: { severity: "Error" } }])
+    ];
+    const log = values("errorlog")[0];
+    fs.writeFileSync(log, JSON.stringify({ issues }));
+    process.exit(issues.length ? 1 : 0);
+  `);
+  return {
+    toolchain: { source: "config", location: script, alc: { command: process.execPath, args: [script] } },
+    args: () => JSON.parse(readFileSync(argsFile, "utf8"))
+  };
+}
+
+async function withAlCache(folder, run) {
   const cache = process.env.BCA_CACHE_DIR;
   process.env.BCA_CACHE_DIR = path.join(folder, "cache");
   try {
-    const app = path.join(folder, "app");
-    cpSync(example, app, { recursive: true });
-    mkdirSync(path.join(app, "dotnet"));
-    const argsFile = path.join(folder, "args.json");
-    const fakeAlc = path.join(folder, "alc.cjs");
-    // A stand-in for alc that fails like it does on a missing directory.
-    writeFileSync(fakeAlc, `
-      const fs = require("node:fs");
-      const args = process.argv.slice(2);
-      fs.writeFileSync(${JSON.stringify(argsFile)}, JSON.stringify(args));
-      const missing = args.filter((arg) => /^\\/(packagecachepath|assemblyprobingpaths):/u.test(arg))
-        .flatMap((arg) => arg.slice(arg.indexOf(":") + 1).split(";"))
-        .filter((dir) => !fs.existsSync(dir));
-      const log = args.find((arg) => arg.startsWith("/errorlog:")).slice("/errorlog:".length);
-      fs.writeFileSync(log, JSON.stringify({ issues: missing.map((dir) => ({
-        ruleId: "AL1018", fullMessage: "Directory '" + dir + "' could not be found.", properties: { severity: "Error" }
-      })) }));
-      process.exit(missing.length ? 1 : 0);
-    `);
-    const toolchain = { source: "config", location: fakeAlc, alc: { command: process.execPath, args: [fakeAlc] } };
-    const result = await runAlTools(app, {
-      toolchain,
-      graph: false,
-      cache: false,
-      al: { settings: { assemblyProbingPaths: ["./.netpackages", "./dotnet"], packageCachePath: ["./.alpackages", "./missing"] } }
-    });
-    const args = JSON.parse(readFileSync(argsFile, "utf8"));
-    assert.deepEqual(result.diagnostics.filter(({ code }) => code === "AL1018"), []);
-    assert.ok(result.projects.every(({ succeeded }) => succeeded));
-    assert.ok(args.some((arg) => arg === `/assemblyprobingpaths:${path.join(app, "dotnet")}`), args.join(" "));
-    assert.ok(!args.some((arg) => arg.includes(".netpackages") || arg.includes("missing")), args.join(" "));
+    return await run();
   } finally {
     if (cache === undefined) delete process.env.BCA_CACHE_DIR;
     else process.env.BCA_CACHE_DIR = cache;
   }
+}
+
+function alProject(folder) {
+  const app = path.join(folder, "app");
+  cpSync(example, app, { recursive: true });
+  mkdirSync(path.join(app, ".alpackages"), { recursive: true });
+  writeFileSync(path.join(app, ".alpackages", "Microsoft_System_27.0.0.0.app"), "");
+  return app;
+}
+
+test("alc only receives probing and package folders that exist (AL1018)", async () => {
+  const folder = temp("probing");
+  await withAlCache(folder, async () => {
+    const app = alProject(folder);
+    mkdirSync(path.join(app, "dotnet"));
+    const alc = fakeAlc(folder);
+    const result = await runAlTools(app, {
+      toolchain: alc.toolchain,
+      graph: false,
+      cache: false,
+      al: { settings: { assemblyProbingPaths: ["./.netpackages", "./dotnet"], packageCachePath: ["./.alpackages", "./missing"] } }
+    });
+    const args = alc.args();
+    assert.deepEqual(result.diagnostics, []);
+    assert.ok(result.projects.every(({ succeeded }) => succeeded));
+    assert.ok(args.some((arg) => arg === `/assemblyprobingpaths:${path.join(app, "dotnet")}`), args.join(" "));
+    assert.ok(!args.some((arg) => arg.includes(".netpackages") || arg.includes("missing")), args.join(" "));
+  });
+});
+
+test("a missing rule set or analyzer is reported and left out instead of stopping alc", async () => {
+  const folder = temp("ruleset");
+  await withAlCache(folder, async () => {
+    const app = alProject(folder);
+    writeFileSync(path.join(app, "present.dll"), "");
+    const alc = fakeAlc(folder);
+    const result = await runAlTools(app, {
+      toolchain: alc.toolchain,
+      graph: false,
+      cache: false,
+      al: { settings: { ruleSetPath: "./missing.ruleset.json", enableCodeAnalysis: true, codeAnalyzers: ["./present.dll", "./absent.dll"] } }
+    });
+    const args = alc.args();
+    assert.ok(result.projects.every(({ succeeded }) => succeeded));
+    assert.deepEqual(result.diagnostics.map(({ code, severity }) => `${severity} ${code}`).sort(), [
+      "warning al-analyzer-missing",
+      "warning al-ruleset-missing"
+    ]);
+    assert.match(result.diagnostics.find(({ code }) => code === "al-ruleset-missing").message, /missing\.ruleset\.json does not exist; compiled with the default rules/u);
+    assert.ok(args.includes(`/analyzer:${path.join(app, "present.dll")}`), args.join(" "));
+    assert.ok(!args.some((arg) => arg.startsWith("/ruleset:") || arg.includes("absent.dll")), args.join(" "));
+  });
+});
+
+test("a compile without any symbol packages explains how to get them", async () => {
+  const folder = temp("symbols");
+  await withAlCache(folder, async () => {
+    const app = path.join(folder, "app");
+    cpSync(example, app, { recursive: true });
+    rmSync(path.join(app, ".alpackages"), { recursive: true, force: true });
+    const result = await runAlTools(app, { toolchain: fakeAlc(folder).toolchain, graph: false, cache: false });
+    const hint = result.diagnostics.find(({ code }) => code === "al-symbols-missing");
+    assert.ok(hint, JSON.stringify(result.diagnostics));
+    assert.equal(hint.file, "app.json");
+    assert.match(hint.message, /no symbol packages were found \(\.alpackages\).*AL: Download Symbols/u);
+  });
+});
+
+test("VS Code variables in al.* settings resolve against the folder that sets them", async () => {
+  const folder = temp("variables");
+  const root = path.join(folder, "repo");
+  const app = path.join(root, "app");
+  mkdirSync(path.join(root, ".vscode"), { recursive: true });
+  mkdirSync(path.join(app, ".vscode"), { recursive: true });
+  writeFileSync(path.join(app, "app.json"), JSON.stringify({ id: "1", name: "App", publisher: "Me", version: "1.0.0.0" }));
+  writeFileSync(path.join(root, ".vscode", "settings.json"), JSON.stringify({ "al.packageCachePath": "${workspaceFolder}/symbols" }));
+  writeFileSync(path.join(app, ".vscode", "settings.json"), JSON.stringify({ "al.ruleSetPath": "${workspaceFolder}/rules.json" }));
+  let workspace = await readAlWorkspace(root);
+  assert.deepEqual(workspace.apps[0].settings.packageCachePaths, [path.join(root, "symbols")]);
+  assert.equal(workspace.apps[0].settings.ruleSetPath, path.join(app, "rules.json"));
+  process.env.BCA_TEST_PROBE = path.join(folder, "probe");
+  try {
+    workspace = await readAlWorkspace(root, { settings: { assemblyProbingPaths: ["~/probe", "${env:BCA_TEST_PROBE}/x"] } });
+  } finally {
+    delete process.env.BCA_TEST_PROBE;
+  }
+  assert.deepEqual(workspace.apps[0].settings.assemblyProbingPaths, [path.join(os.homedir(), "probe"), path.join(folder, "probe", "x")]);
 });
