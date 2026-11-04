@@ -32,6 +32,16 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Faster 3D explorer and architecture proposal; on a 2,800-object app with a
+  Base-Application-sized symbol package, the explorer opens in 0.4 instead of
+  2.3 s and a proposal takes 0.4 instead of 1.3 s, with identical results:
+  - symbol packages are unzipped and parsed once per file version instead of
+    for every page;
+  - the explorer and the architecture pages reuse the app's analyzed model
+    instead of analyzing or copying it again;
+  - `object:` selectors are looked up by name: a proposal has one per
+    misplaced object, and each was tested against every object of the model;
+  - AL names are normalized once.
 - A failed compile without any symbol package reports one
   `al-symbols-missing` hint ("Run AL: Download Symbols") next to `app.json`.
 

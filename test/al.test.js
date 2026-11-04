@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -114,6 +114,32 @@ test("loads symbols from configured package caches and each app version once", a
     rmSync(path.join(workspace, "app", ".alpackages"), { recursive: true });
     const configured = await analyze(path.join(workspace, "app"));
     assert.equal(configured.symbolPackages.length, 1, "al.packageCachePath outside the project");
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("symbol packages are parsed once and handed out as independent copies", async () => {
+  const workspace = temp("symbol-cache");
+  try {
+    write(path.join(workspace, "app", "app.json"), JSON.stringify({ id: "a", name: "App" }));
+    const file = path.join(workspace, "app", ".alpackages", "Microsoft_Base Application_27.0.0.0.app");
+    symbolPackage(file, { id: "437dbf0e-84ff-417a-965d-ed2bb9650972", name: "Base Application", version: "27.0.0.0" });
+    const first = await loadSymbolPackages(path.join(workspace, "app"));
+    first.objects[0].name = "Changed";
+    first.objects[0].relations.push({ kind: "uses" });
+    first.packages[0].name = "Changed";
+    const second = await loadSymbolPackages(path.join(workspace, "app"));
+    assert.equal(second.objects[0].name, "Customer", "a caller's change does not reach the cache");
+    assert.deepEqual(second.objects[0].relations, []);
+    assert.equal(second.packages[0].name, "Base Application");
+    assert.equal(second.objects[0].app, second.packages[0], "objects point to their package's app");
+    assert.notEqual(second.objects[0], first.objects[0]);
+
+    // A new download (other size or time) is parsed again.
+    symbolPackage(file, { id: "437dbf0e-84ff-417a-965d-ed2bb9650972", name: "Base Application", version: "28.0.0.0" });
+    utimesSync(file, new Date(), new Date(Date.now() + 5000));
+    assert.equal((await loadSymbolPackages(path.join(workspace, "app"))).packages[0].version, "28.0.0.0");
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }

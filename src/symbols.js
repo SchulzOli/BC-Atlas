@@ -116,6 +116,58 @@ async function packagesIn(folder) {
  * below `root` and in `folders` (the package cache paths from
  * `al.packageCachePath`). The same app version in several caches loads once.
  */
+// Parsed packages by file, path relative to the root, size, and modification
+// time: a Base Application takes seconds to unzip and parse, and every page
+// of the app (health, architecture, explorer) loads the same packages.
+const packageCache = new Map();
+
+async function readPackage(packageFile, reportedPath) {
+  const stat = await fs.stat(packageFile);
+  const key = `${packageFile}\u0000${reportedPath}`;
+  const stamp = `${stat.size}:${stat.mtimeMs}`;
+  const cached = packageCache.get(key);
+  if (cached?.stamp === stamp) return cached.value;
+  const bytes = new Uint8Array(await fs.readFile(packageFile));
+  let zipStart = -1;
+  for (let index = 0; index + 3 < bytes.length; index++) {
+    if (bytes[index] === 0x50 && bytes[index + 1] === 0x4b && bytes[index + 2] === 0x03 && bytes[index + 3] === 0x04) {
+      zipStart = index;
+      break;
+    }
+  }
+  if (zipStart < 0) throw new Error("ZIP payload not found");
+  const archive = unzipSync(bytes.subarray(zipStart), {
+    filter: ({ name }) => name.toLowerCase().endsWith("symbolreference.json")
+  });
+  const symbolEntry = Object.entries(archive).find(([name]) =>
+    name.toLowerCase().endsWith("symbolreference.json")
+  );
+  if (!symbolEntry) throw new Error("SymbolReference.json not found");
+  const symbols = JSON.parse(new TextDecoder().decode(symbolEntry[1]));
+  const app = appFor(symbols, reportedPath);
+  const value = { app, objects: objectsFor(symbols, app, reportedPath) };
+  packageCache.set(key, { stamp, value });
+  return value;
+}
+
+/** Fresh copies, so callers may change what they get without touching the cache. */
+function copyPackage({ app, objects }) {
+  const copy = { ...app, dependencies: [...app.dependencies] };
+  return {
+    app: copy,
+    objects: objects.map((object) => ({
+      ...object,
+      relations: object.relations.map((relation) => ({ ...relation })),
+      procedures: [],
+      fields: [],
+      actions: [],
+      views: [],
+      variables: [],
+      app: copy
+    }))
+  };
+}
+
 export async function loadSymbolPackages(root, { folders = [] } = {}) {
   const packages = [];
   const objects = [];
@@ -126,23 +178,13 @@ export async function loadSymbolPackages(root, { folders = [] } = {}) {
   for (const packageFile of [...files].sort()) {
     const reportedPath = path.relative(root, packageFile).replaceAll("\\", "/");
     try {
-      const bytes = new Uint8Array(await fs.readFile(packageFile));
-      const zipStart = bytes.findIndex((value, index) =>
-        value === 0x50 && bytes[index + 1] === 0x4b && bytes[index + 2] === 0x03 && bytes[index + 3] === 0x04
-      );
-      if (zipStart < 0) throw new Error("ZIP payload not found");
-      const archive = unzipSync(bytes.subarray(zipStart));
-      const symbolEntry = Object.entries(archive).find(([name]) =>
-        name.toLowerCase().endsWith("symbolreference.json")
-      );
-      if (!symbolEntry) throw new Error("SymbolReference.json not found");
-      const symbols = JSON.parse(new TextDecoder().decode(symbolEntry[1]));
-      const app = appFor(symbols, reportedPath);
-      const identity = `${app.id ?? app.name}@${app.version ?? ""}`.toLowerCase();
+      const parsed = await readPackage(packageFile, reportedPath);
+      const identity = `${parsed.app.id ?? parsed.app.name}@${parsed.app.version ?? ""}`.toLowerCase();
       if (loaded.has(identity)) continue;
       loaded.add(identity);
+      const { app, objects: packageObjects } = copyPackage(parsed);
       packages.push(app);
-      objects.push(...objectsFor(symbols, app, reportedPath));
+      for (const object of packageObjects) objects.push(object);
     } catch (error) {
       diagnostics.push({
         severity: "warning",

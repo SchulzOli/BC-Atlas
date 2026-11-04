@@ -305,6 +305,22 @@ test("the most specific selector assigns an object", () => {
   assert.throws(() => componentMatcher([{ name: "A", match: ["*"], dependsOn: ["B"] }], levels), /unknown component "B"/u);
 });
 
+test("object selectors keep their precedence when the matcher looks them up by name", () => {
+  const levels = { app: { nodes: [] }, object: { nodes: [] } };
+  const assign = componentMatcher([
+    { name: "First", match: ["object:codeunit:Sales-Post", "object:50100"] },
+    { name: "Second", match: ["object:Sales-Post"] },
+    { name: "Folder", match: ["file:" + "x".repeat(900) + ".al"] }
+  ], levels);
+  assert.equal(assign({ type: "codeunit", label: "Sales-Post" }), "First", "the first of equal selectors wins");
+  assert.equal(assign({ type: "page", label: "Sales-Post" }), "Second", "the type still has to match");
+  assert.equal(assign({ type: "table", label: "Other", objectId: "50100" }), "First", "by object ID too");
+  assert.equal(assign({ type: "codeunit", label: '"SALES-POST"' }), "First", "names compare like AL identifiers");
+  assert.equal(assign({ type: "codeunit", label: "Sales-Post", file: "x".repeat(900) + ".al" }), "Folder",
+    "a more specific selector of another kind still wins");
+  assert.equal(assign({ type: "codeunit", label: "Other" }), undefined);
+});
+
 // The multi-app example with "CON Pricing Mgt." (used by Sales) marked Access = Internal.
 function workspaceWithInternalPricing(architecture) {
   const directory = copyWorkspace(architecture);

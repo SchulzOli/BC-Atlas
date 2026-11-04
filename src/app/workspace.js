@@ -114,8 +114,9 @@ export class Workspace {
   assessment({ propose = false, groupBy = "auto", depth, minObjects } = {}) {
     const settings = { propose: Boolean(propose), groupBy, depth: depth || undefined, minObjects: minObjects || undefined };
     return this.remember(`architecture:${JSON.stringify(settings)}`, async () => {
-      // A path selection needs its own parse; otherwise reuse the shared one.
-      const reuse = this.values.paths?.length ? undefined : structuredClone((await this.model()).model);
+      // A path selection needs its own parse; otherwise reuse the shared one
+      // as it is: the architecture pages only read it (a test freezes it).
+      const reuse = this.values.paths?.length ? undefined : (await this.model()).model;
       return assessArchitecture(this.input, { ...this.values, ...settings }, { model: reuse });
     });
   }
@@ -347,11 +348,14 @@ export class Workspace {
    */
   explorer({ propose = false, history = false, last } = {}) {
     return this.remember(`explorer:${propose}:${history}:${last ?? ""}`, async () => {
+      // The snapshot reuses the shared model as it is: the explorer only reads
+      // it (a test freezes it). A path selection needs its own parse.
+      const model = this.values.paths?.length ? undefined : (await this.model()).model;
       const document = await createGraphDocument(this.input, {
         ...this.values,
         propose: propose || undefined,
         ...(history ? { history: true, historyBy: history === true ? "commits" : history, last } : {})
-      }, { parseCache: await this.parseCache() });
+      }, { parseCache: await this.parseCache(), model });
       return renderExplorerHtml(document);
     });
   }

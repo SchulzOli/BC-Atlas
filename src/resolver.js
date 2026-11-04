@@ -1,10 +1,21 @@
 import { classifyPermissionSet } from "./permission-semantics.js";
 
+// Names repeat across a model (every reference names its target), so the
+// normalized form is remembered; the memo is cleared when it grows large.
+const normalized = new Map();
+
 export function normalizeIdentifier(value) {
-  return String(value ?? "")
-    .trim()
-    .replace(/"((?:""|[^"])*)"/gu, (_match, content) => content.replaceAll('""', '"'))
-    .toLocaleLowerCase("en-US");
+  const text = typeof value === "string" ? value : String(value ?? "");
+  let result = normalized.get(text);
+  if (result === undefined) {
+    result = text
+      .trim()
+      .replace(/"((?:""|[^"])*)"/gu, (_match, content) => content.replaceAll('""', '"'))
+      .toLocaleLowerCase("en-US");
+    if (normalized.size >= 200000) normalized.clear();
+    normalized.set(text, result);
+  }
+  return result;
 }
 
 function symbolKey(object) {
