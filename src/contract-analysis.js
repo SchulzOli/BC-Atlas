@@ -212,7 +212,10 @@ function hasSuccessfulConditionalPath(statement) {
     if (branch === null || branch.length === 0) return true;
     if (branch.length !== 1) return false;
     const [item] = branch;
-    if (item.kind === "return") return item.constant && normalizeIdentifier(item.value) === "true";
+    if (item.kind === "return") {
+      return item.value === undefined ||
+        item.constant && normalizeIdentifier(item.value) === "true";
+    }
     if (item.kind === "conditional") return hasSuccessfulConditionalPath(item);
     return false;
   };

@@ -615,6 +615,39 @@ enum 50106 AmbiguousChoice {
   ));
 });
 
+test("contract expectations report a conditional void exit as normal completion", async () => {
+  const result = await testing.objectsFromSource(`
+interface Contract {
+  procedure Execute(Flag: Boolean);
+}
+codeunit 50100 Handler {
+  procedure Execute(Flag: Boolean) begin if Flag then Error('failed') else exit; end;
+}
+enum 50101 Choice {
+  DefaultImplementation = "Contract" = "Handler";
+  value(0; Defaulted) { }
+}
+`, "conditional-exit.al");
+  const model = {
+    ...result,
+    objects: result.objects.map((object) => ({
+      ...object,
+      label: object.name,
+      objectId: object.id
+    }))
+  };
+
+  const findings = analyzeContractFallbacks(model, [{
+    interface: "object:interface:Contract",
+    methods: ["Execute"]
+  }]);
+
+  assert.ok(findings.some(({ method, enumValue, fallbackKind, severity }) =>
+    method === "Execute" && enumValue === "Defaulted" &&
+    fallbackKind === "conditional" && severity === "warning"
+  ));
+});
+
 test("unqualified binding contracts resolve in their namespace without cross-matching same-named interfaces", async () => {
   const demo = await testing.objectsFromSource(`
 namespace Demo;
