@@ -1,10 +1,13 @@
-name: Publish npm package
+# One release pipeline for the npm package and the VS Code extension, which
+# share one version. The file keeps its name: the package's trusted publisher
+# on npmjs.com is this workflow file.
+name: Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Exact package.json version to publish
+        description: Exact version in package.json and vscode/package.json
         required: true
         type: string
       dist_tag:
@@ -16,17 +19,22 @@ on:
           - latest
           - next
           - beta
+      vscode:
+        description: Also publish the VS Code extension
+        required: true
+        default: true
+        type: boolean
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 concurrency:
-  group: npm-publish
+  group: release
   cancel-in-progress: false
 
 jobs:
-  publish:
+  # Everything that can fail before anything is published.
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,32 +43,27 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-
-      - name: Use npm with trusted publishing support
-        run: npm install --global npm@11
-
-      - name: Install dependencies
-        run: npm ci
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            vscode/package-lock.json
 
       - name: Confirm requested version
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
         run: |
           node --input-type=commonjs <<'NODE'
-          const pkg = require("./package.json");
-          if (pkg.version !== process.env.EXPECTED_VERSION) {
-            console.error(`Requested ${process.env.EXPECTED_VERSION}, but package.json contains ${pkg.version}.`);
-            process.exit(1);
-          }
-          // The npm package and the VS Code extension share one version.
-          const extension = require("./vscode/package.json");
-          if (extension.version !== pkg.version) {
-            console.error(`vscode/package.json contains ${extension.version}; run npm run version:set -- ${pkg.version}.`);
-            process.exit(1);
+          const expected = process.env.EXPECTED_VERSION;
+          for (const file of ["./package.json", "./vscode/package.json"]) {
+            const { version } = require(file);
+            if (version !== expected) {
+              console.error(`Requested ${expected}, but ${file} contains ${version}; run npm run version:set -- ${expected}.`);
+              process.exit(1);
+            }
           }
           NODE
 
-      - name: Confirm version is unpublished
+      - name: Confirm version is unpublished on npm
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
         run: |
@@ -75,18 +78,142 @@ jobs:
             exit 1
           }
 
-      - name: Validate package
+      - name: Confirm the tag does not exist
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" >/dev/null; then
+            echo "Tag v${VERSION} already exists."
+            exit 1
+          fi
+
+      - name: Validate npm package
+        run: |
+          npm ci
           npm run check
           npm test
           npm pack --dry-run
 
-      # No token: npm authenticates through trusted publishing (OIDC), with
-      # this workflow registered as the package's trusted publisher on npmjs.com.
+      - name: Test and package the VS Code extension
+        working-directory: vscode
+        run: |
+          npm ci
+          npm test
+          npm run package -- --out bc-atlas.vsix
+          unzip -q bc-atlas.vsix -d .packaged
+          BCA_EXTENSION_MAIN=.packaged/extension/dist/extension.js npm test
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bc-atlas-vsix
+          path: vscode/bc-atlas.vsix
+          if-no-files-found: error
+
+  npm:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # No token: npm authenticates through trusted publishing (OIDC).
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Use npm with trusted publishing support
+        run: npm install --global npm@11
+
+      - run: npm ci
+
+      # The prepack hook repeats check and test, so the published tarball is
+      # built from a tested tree.
       - name: Publish package
         env:
           DIST_TAG: ${{ inputs.dist_tag }}
         run: npm publish --access public --tag "$DIST_TAG"
+
+  vscode:
+    needs: verify
+    if: inputs.vscode
+    runs-on: ubuntu-latest
+    # The federated credential of the Entra app trusts this environment.
+    environment: marketplace
+    permissions:
+      contents: read
+      # Signs in to Microsoft Entra ID with GitHub's OIDC token, so no
+      # Marketplace token is stored in GitHub.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: vscode/package-lock.json
+
+      - run: npm ci
+        working-directory: vscode
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: bc-atlas-vsix
+          path: vscode
+
+      # Microsoft Entra ID instead of a personal access token: Azure DevOps
+      # retires global PATs, the only kind the Marketplace accepted, on
+      # December 1, 2026. The app needs no Azure subscription.
+      - name: Sign in to Microsoft Entra ID
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      # The Marketplace knows identities by their Azure DevOps profile, not by
+      # their Entra IDs: add this ID as a Contributor of the publisher.
+      - name: Show the identity the Marketplace sees
+        run: |
+          az rest --method get --resource 499b84ac-1321-427f-aa17-267ca6975798 \
+            --url "https://app.vssps.visualstudio.com/_apis/profile/profiles/me?api-version=6.0" \
+            --query "{profileId: id, name: displayName}" --output table || true
+
+      - name: Check access to the publisher
+        working-directory: vscode
+        run: npx vsce verify-pat --azure-credential "$(node -p 'require("./package.json").publisher')"
+
+      - name: Publish to the Visual Studio Marketplace
+        working-directory: vscode
+        run: npx vsce publish --azure-credential --packagePath bc-atlas.vsix
+
+      # Open VSX serves VSCodium, Cursor, and other editors; skipped without a token.
+      - name: Publish to Open VSX
+        working-directory: vscode
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then echo "OVSX_PAT is not set; skipping Open VSX."; exit 0; fi
+          npx --yes ovsx@1.2.0 publish bc-atlas.vsix
+
+  # Tags the release once npm has it, so `uses: SchulzOli/BC-Atlas@v<version>`
+  # resolves; the extension, when published, is attached to the release.
+  release:
+    needs: [npm, vscode]
+    if: ${{ !cancelled() && needs.npm.result == 'success' && contains(fromJSON('["success", "skipped"]'), needs.vscode.result) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: bc-atlas-vsix
 
       - name: Tag and create GitHub release
         env:
@@ -102,4 +229,6 @@ jobs:
           [ -s release-notes.md ] || echo "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/v${VERSION}/CHANGELOG.md)." > release-notes.md
           PRERELEASE=""
           [ "$DIST_TAG" = "latest" ] || PRERELEASE="--prerelease"
-          gh release create "v${VERSION}" --target "$GITHUB_SHA" --title "v${VERSION}" --notes-file release-notes.md $PRERELEASE
+          cp bc-atlas.vsix "bc-atlas-${VERSION}.vsix"
+          gh release create "v${VERSION}" "bc-atlas-${VERSION}.vsix" \
+            --target "$GITHUB_SHA" --title "v${VERSION}" --notes-file release-notes.md $PRERELEASE

@@ -44,7 +44,7 @@ In VS Code, install the **BC Atlas** extension and open an AL project:
 | **Export** | `bca export` | Everything the extension shows, as files: the BC Atlas pages as one offline HTML file to share (default), the Markdown report ([example](./examples/report/README.md)), the 3D explorer, one Markdown page per object, any of ten diagram views as D2, SVG, PNG, PDF, or JSON, with `--watch`, and the project as a knowledge graph in RDF with an OWL ontology ([Turtle, RDF/XML, OWL, N-Triples, JSON-LD](./docs/knowledge-graph.md)). |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations, a flow diagram per scenario, and BPMN 2.0 processes per use case. [Example](./examples/docs/index.md) |
 | **Integrate** | `bca run` | One entry point for Git hooks, schedules, and pipelines; verifies, stages, or publishes generated files. Also available as a [GitHub Action](./docs/automation-and-ci.md#github-actions). |
-| | `bca update` | "BC Atlas 0.13.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
+| | `bca update` | "BC Atlas 0.14.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
 | | `bca mcp` | A Model Context Protocol server for AI agents; `bca help --format json` is the versioned command contract. |
 
 Run `bca` for the same overview in your terminal and `bca help <command>` for
@@ -259,27 +259,25 @@ lists planned work.
 
 ### Publishing
 
-Releases are published manually through the `Publish npm package` workflow.
-Update and commit the version in `package.json` and `package-lock.json`, then
-enter that exact version in the workflow form. The workflow rejects mismatched
-or already published versions, runs all checks, and publishes with the selected
-dist-tag. It then tags the commit as `v<version>`, so
+Releases are published manually through the `Release` workflow
+(`.github/workflows/publish-npm.yml`). Set the version of both packages with
+`npm run version:set -- <version>`, merge it, then run the workflow on `main`
+with that exact version. It rejects mismatched, already published, or already
+tagged versions, and tests the npm package and the VS Code extension, the
+packaged `.vsix` included, before anything is published. Then it publishes the
+npm package with the selected dist-tag and, unless switched off, the extension
+to the Visual Studio Marketplace and, with the secret `OVSX_PAT`, to Open VSX.
+Last, it tags the commit as `v<version>`, so
 `uses: SchulzOli/BC-Atlas@v<version>` resolves, and creates a GitHub release
-with the version's `CHANGELOG.md` section. npm authenticates through
+with the version's `CHANGELOG.md` section and the `.vsix`.
+
+No token is stored for either registry. npm authenticates through
 [trusted publishing](https://docs.npmjs.com/trusted-publishers): the package's
 trusted publisher on npmjs.com is this repository's `publish-npm.yml`
-workflow, so no npm token is stored in GitHub.
-
-
-The VS Code extension in `vscode/` is published by the `Publish VS Code
-extension` workflow: set `version` in `vscode/package.json`, then run the
-workflow with that version. It tests and packages the extension with the
-current engine and publishes it to the Visual Studio Marketplace as the
-publisher `SchulzOli`, signed in with Microsoft Entra ID through GitHub's OIDC
-token (no Marketplace token is stored; see the
-[launch checklist](https://github.com/SchulzOli/BC-Atlas/blob/main/vscode/marketing/README.md#launch-checklist)), and, with
-the secret `OVSX_PAT`, to Open VSX. Every CI run uploads the `.vsix` as the
-`bc-atlas-vsix` artifact.
+workflow. The Marketplace publisher `SchulzOli` is signed in with Microsoft
+Entra ID through GitHub's OIDC token in the `marketplace` environment (see the
+[launch checklist](https://github.com/SchulzOli/BC-Atlas/blob/main/vscode/marketing/README.md#launch-checklist)).
+Every CI run uploads the `.vsix` as the `bc-atlas-vsix` artifact.
 
 ## Contributing and support
 

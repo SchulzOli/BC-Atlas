@@ -102,11 +102,12 @@ The npm package and the VS Code extension are released together, under one
 version number.
 
 1. Set the version of both, with their lock files:
-   `npm run version:set -- 0.11.0`. The tests and both publish workflows
+   `npm run version:set -- 0.11.0`. The tests and the release workflow
    refuse a mismatch.
 2. In `CHANGELOG.md` and `vscode/CHANGELOG.md`, turn the changes since the
    last release into a section for the new version; update the version in
    the GitHub Action example and the update-notice examples, then run
    `npm run docs` and `npm run examples`.
-3. Merge the release pull request, then run the **Publish npm package** and
-   **Publish VS Code extension** workflows on `main` with the same version.
+3. Merge the release pull request, then run the **Release** workflow on
+   `main` with the same version. It publishes the npm package and the VS Code
+   extension and creates the GitHub release.

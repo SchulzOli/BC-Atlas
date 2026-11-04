@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0
+
+- The engine is BC Atlas 0.13.0: health checks find interface methods that
+  fall back silently, summarize the responsibilities of selected objects, and
+  show the evidence and limitations behind every finding.
+- Component cycles show the path and the dependencies behind each step.
+
 ## 0.12.0
 
 - Diagrams are drawn by BC Atlas itself instead of D2, with a cleaner layout,
