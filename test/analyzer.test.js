@@ -151,6 +151,58 @@ async function contextResponsibilityModel() {
   };
 }
 
+async function temporaryArgumentContextModel() {
+  const parsed = await testing.objectsFromSource(`
+    table 50400 Ledger { }
+    codeunit 50401 Context {
+      var
+        LedgerRecord: Record Ledger;
+        TemporaryLedger: Record Ledger temporary;
+      procedure WriteRecordWithMixedTemporaryArguments()
+      begin
+        WriteRecord(LedgerRecord);
+        WriteRecord(TemporaryLedger);
+      end;
+      procedure WriteRecord(var RecordRef: Record Ledger)
+      begin
+        RecordRef.Insert();
+      end;
+    }
+  `, "temporary-argument-context.al");
+  return resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+}
+
+async function truncatedLazyReadContextModel() {
+  const parsed = await testing.objectsFromSource(`
+    table 50500 Ledger { }
+    codeunit 50501 Context {
+      var
+        LedgerRecord: Record Ledger;
+        Resolver: Codeunit PartnerResolver;
+      procedure LoadPartnerWithTraversalLimit()
+      begin
+        LedgerRecord.Get('PARTNER');
+        Resolver.Resolve();
+      end;
+    }
+    codeunit 50502 PartnerResolver {
+      var Directory: Codeunit PartnerDirectory;
+      procedure Resolve()
+      begin
+        Directory.Lookup();
+      end;
+    }
+    codeunit 50503 PartnerDirectory {
+      var LedgerRecord: Record Ledger;
+      procedure Lookup()
+      begin
+        LedgerRecord.Get('PARTNER');
+      end;
+    }
+  `, "truncated-lazy-read-context.al");
+  return resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+}
+
 test("context responsibility separates persistent, temporary, commit, and in-memory effects", async () => {
   const { model } = await contextResponsibilityModel();
   const report = assessHealth(model, {
@@ -202,6 +254,19 @@ test("context responsibility propagates temporary flags through resolved calls",
   ));
 });
 
+test("context responsibility revisits a procedure reached with different temporary arguments", async () => {
+  const model = await temporaryArgumentContextModel();
+  const [summary] = analyzeContextResponsibilities(model, [
+    { object: "object:codeunit:Context" }
+  ]).summaries;
+  const effects = summary.indirectEffects
+    .filter(({ path }) => path[0] === "Context.WriteRecordWithMixedTemporaryArguments()")
+    .map(({ category }) => category)
+    .sort();
+
+  assert.deepEqual(effects, ["persistent-writes", "temporary-writes"]);
+});
+
 test("context responsibility uses only explicitly selected roles and lazy-read methods", async () => {
   const { model } = await contextResponsibilityModel();
   const [summary] = analyzeContextResponsibilities(model, [{
@@ -218,6 +283,55 @@ test("context responsibility uses only explicitly selected roles and lazy-read m
   assert.ok(summary.responsibilities.lazyReads.some(({ procedure }) => procedure === "LoadPartner()"));
   assert.ok(summary.responsibilities.lazyReads.some(({ procedure, limitations }) =>
     procedure === "LoadPartnerThroughResolver()" && !limitations.length
+  ));
+});
+
+test("context responsibility keeps lazy reads uncertain when traversal is truncated", async () => {
+  const model = await truncatedLazyReadContextModel();
+  const report = assessHealth(model, {
+    failOn: "warning",
+    contexts: [{
+      object: "object:codeunit:Context",
+      maxCallDepth: 1,
+      lazyReadMethods: ["LoadPartnerWithTraversalLimit()"],
+      forbid: ["lazy-reads"]
+    }]
+  });
+  const [lazyRead] = report.contextResponsibilities.summaries[0].responsibilities.lazyReads;
+
+  assert.ok(lazyRead.limitations.some((limitation) => /maxCallDepth 1/u.test(limitation)));
+  assert.ok(!report.findings.some(({ category, severity, basis }) =>
+    category === "lazy-reads" && severity === "warning" && basis === "configured-policy"
+  ));
+});
+
+test("refactored context delegates writes without a forbidden direct-write finding", async () => {
+  const source = await fs.readFile(
+    new URL("./context-fixtures/RefactoredContext.al", import.meta.url),
+    "utf8"
+  );
+  const parsed = await testing.objectsFromSource(source, "RefactoredContext.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  const report = assessHealth(model, {
+    failOn: "warning",
+    contexts: [{
+      object: "object:codeunit:PartnerContextFacade",
+      forbid: ["persistent-writes"]
+    }]
+  });
+  const [summary] = report.contextResponsibilities.summaries;
+
+  assert.equal(report.passed, true);
+  assert.deepEqual(summary.directEffects, []);
+  assert.ok(summary.indirectEffects.some(({ category, path }) =>
+    category === "persistent-writes" && path[0] === "PartnerContextFacade.SavePartner()"
+  ));
+  assert.ok(report.findings.some(({ category, directness, severity }) =>
+    category === "persistent-writes" && directness === "indirect" && severity === "info"
+  ));
+  assert.ok(!report.findings.some(({ category, directness, severity, basis }) =>
+    category === "persistent-writes" && directness === "direct" &&
+    severity === "warning" && basis === "configured-policy"
   ));
 });
 

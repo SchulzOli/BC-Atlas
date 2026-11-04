@@ -162,6 +162,10 @@ function procedureIdentity(record) {
   return `${record.owner.key}::${normalizeIdentifier(record.procedure.signature)}`;
 }
 
+function temporaryOverridesIdentity(overrides) {
+  return JSON.stringify([...overrides.entries()].sort(([left], [right]) => left.localeCompare(right)));
+}
+
 function temporaryValue(record, name, overrides = new Map(), fallback) {
   const identifier = normalizeIdentifier(name);
   if (overrides.has(identifier)) return overrides.get(identifier);
@@ -418,7 +422,7 @@ function analyzeSelectedObject(config, callResolver, recordByNode, recordsByOwne
         );
       }
       const rootKey = procedureIdentity(root);
-      const seen = new Set([rootKey]);
+      const seen = new Set([`${rootKey}|${temporaryOverridesIdentity(new Map())}`]);
       const queue = [{
         record: root,
         depth: 0,
@@ -499,8 +503,15 @@ function analyzeSelectedObject(config, callResolver, recordByNode, recordsByOwne
               );
               continue;
             }
-            if (seen.has(targetKey)) continue;
-            seen.add(targetKey);
+            const temporaryOverrides = temporaryOverridesForCall(
+              currentRecord,
+              call,
+              targetRecord,
+              current.temporaryOverrides
+            );
+            const traversalKey = `${targetKey}|${temporaryOverridesIdentity(temporaryOverrides)}`;
+            if (seen.has(traversalKey)) continue;
+            seen.add(traversalKey);
             queue.push({
               record: targetRecord,
               depth: current.depth + 1,
@@ -513,12 +524,7 @@ function analyzeSelectedObject(config, callResolver, recordByNode, recordsByOwne
                 resolution: callItem.resolution,
                 location: call.location
               }],
-              temporaryOverrides: temporaryOverridesForCall(
-                currentRecord,
-                call,
-                targetRecord,
-                current.temporaryOverrides
-              )
+              temporaryOverrides
             });
           }
         }
@@ -551,6 +557,7 @@ function analyzeSelectedObject(config, callResolver, recordByNode, recordsByOwne
         .map(({ message }) => message);
       const readOnly = methodEffects.length > 0 &&
         methodEffects.every(({ category }) => category === "reads") &&
+        methodLimitations.length === 0 &&
         !methodCalls.some(({ resolution }) => resolution !== "syntactic" && resolution !== "compiler");
       if (readOnly) {
         responsibilities.lazyReads.push({
