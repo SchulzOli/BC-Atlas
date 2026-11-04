@@ -1,4 +1,5 @@
 import { FAIL_LEVELS, SEVERITIES } from "./capabilities.js";
+import { analyzeContractFallbacks } from "./contract-analysis.js";
 
 const SEVERITY_RANK = { error: 3, warning: 2, info: 1 };
 
@@ -176,6 +177,7 @@ export function assessHealth(model, settings = {}) {
   }
 
   if (settings.architecture) findings.push(...architectureFindings(settings.architecture, model));
+  findings.push(...analyzeContractFallbacks(model, settings.contractExpectations));
 
   findings.sort((left, right) =>
     SEVERITY_RANK[right.severity] - SEVERITY_RANK[left.severity] ||

@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { zipSync, strToU8 } from "fflate";
 import { analyze, testing } from "../src/analyzer.js";
+import { analyzeContractFallbacks, classifyFallbackBody } from "../src/contract-analysis.js";
 import { createArchitectureModel } from "../src/architecture.js";
 import { renderD2 } from "../src/d2.js";
 import { resolveModel } from "../src/resolver.js";
@@ -417,6 +418,257 @@ codeunit 50102 Handler
       { name: "NoBody", hasBody: false }
     ]
   );
+});
+
+test("extracts source fallback facts with returns, direct errors, conditions, and delegation", async () => {
+  const source = `
+interface Contract {
+  procedure Empty() begin end;
+  procedure ReturnsTrue(): Boolean begin exit(true); end;
+  procedure ReturnsFalse(): Boolean begin exit(false); end;
+  procedure Fails() begin Error('failed'); end;
+  procedure Conditional(Flag: Boolean) begin if Flag then Error('failed'); end;
+  procedure CaseConditional(Flag: Boolean) begin case Flag of true: Error('failed'); else exit(false); end; end;
+  procedure Delegates() begin Helper(); end;
+  procedure Helper() begin Error('failed'); end;
+}
+`;
+  const result = await testing.objectsFromSource(source, "fallbacks.al");
+  const procedures = new Map(
+    result.objects[0].procedures.map((procedure) => [procedure.name, procedure])
+  );
+
+  assert.deepEqual(procedures.get("Empty").fallbackFacts, {
+    complete: true,
+    statements: []
+  });
+  assert.deepEqual(
+    procedures.get("ReturnsTrue").fallbackFacts.statements.map(
+      ({ kind, value, constant, conditional, location }) => ({
+        kind, value, constant, conditional, file: location.file, line: location.line
+      })
+    ),
+    [{ kind: "return", value: "true", constant: true, conditional: false, file: "fallbacks.al", line: 4 }]
+  );
+  assert.deepEqual(
+    procedures.get("ReturnsFalse").fallbackFacts.statements.map(({ kind, value }) => ({ kind, value })),
+    [{ kind: "return", value: "false" }]
+  );
+  assert.deepEqual(
+    procedures.get("Fails").fallbackFacts.statements.map(({ kind, target, directError, conditional }) => ({
+      kind, target, directError, conditional
+    })),
+    [{ kind: "call", target: "Error", directError: true, conditional: false }]
+  );
+  const conditional = procedures.get("Conditional").fallbackFacts.statements[0];
+  assert.equal(conditional.kind, "conditional");
+  assert.equal(conditional.else, null);
+  assert.deepEqual(
+    conditional.then.map(({ kind, target, directError, conditional: nested, location }) => ({
+      kind, target, directError, conditional: nested,
+      file: location.file, line: location.line, column: location.column
+    })),
+    [{ kind: "call", target: "Error", directError: true, conditional: true,
+      file: "fallbacks.al", line: 7, column: 59 }]
+  );
+  assert.deepEqual(
+    [conditional.location.file, conditional.location.line, conditional.location.column],
+    ["fallbacks.al", 7, 46]
+  );
+  assert.deepEqual(
+    procedures.get("Delegates").fallbackFacts.statements.map(({ kind, target, resolved }) => ({
+      kind, target, resolved
+    })),
+    [{ kind: "call", target: "Helper", resolved: true }]
+  );
+  assert.equal(procedures.get("CaseConditional").fallbackFacts.statements[0].kind, "conditional");
+  assert.deepEqual(
+    procedures.get("CaseConditional").fallbackFacts.statements[0].branches.map((branch) =>
+      branch.map(({ kind, target, value }) => ({ kind, target, value }))
+    ),
+    [
+      [{ kind: "call", target: "Error", value: undefined }],
+      [{ kind: "return", target: undefined, value: "false" }]
+    ]
+  );
+});
+
+test("classifies fallback bodies conservatively", async () => {
+  const source = `
+interface Contract {
+  procedure Empty() begin end;
+  procedure ReturnsTrue(): Boolean begin exit(true); end;
+  procedure ReturnsFalse(): Boolean begin exit(false); end;
+  procedure Fails() begin Error('failed'); end;
+  procedure Conditional(Flag: Boolean) begin if Flag then Error('failed'); end;
+  procedure CaseConditional(Flag: Boolean) begin case Flag of true: Error('failed'); else exit(false); end; end;
+  procedure Delegates() begin Helper(); end;
+  procedure Helper() begin Error('failed'); end;
+  procedure UnknownDelegation() begin MissingHelper(); end;
+  procedure Declaration();
+}
+`;
+  const result = await testing.objectsFromSource(source, "classifications.al");
+  const procedures = new Map(
+    result.objects[0].procedures.map((procedure) => [procedure.name, procedure])
+  );
+  const classify = (name) => classifyFallbackBody(procedures.get(name));
+  assert.equal(classify("Empty").kind, "empty");
+  assert.equal(classify("ReturnsTrue").kind, "constant-return");
+  assert.equal(classify("ReturnsFalse").kind, "constant-return");
+  assert.equal(classify("Fails").kind, "direct-error");
+  assert.equal(classify("Conditional").kind, "conditional");
+  assert.equal(classify("CaseConditional").kind, "conditional");
+  assert.equal(classify("Delegates").kind, "delegation");
+  assert.equal(classify("UnknownDelegation").kind, "unknown");
+  assert.equal(classify("Declaration").kind, "unknown");
+  assert.equal(classify("ReturnsTrue").evidence[0].value, "true");
+  assert.ok(classify("UnknownDelegation").limitations.length > 0);
+  assert.equal(classifyFallbackBody({ name: "SymbolOnly" }).kind, "unknown");
+});
+
+test("contract expectations honor explicit bindings, interface defaults, and uncertainty", async () => {
+  const source = `
+namespace Demo;
+interface Contract {
+  procedure Execute(): Boolean;
+  procedure Conditional(Flag: Boolean);
+  procedure ConditionalFalse(Flag: Boolean): Boolean;
+  procedure FalseValue(): Boolean;
+  procedure Fails();
+  procedure Unknown();
+  procedure Inherited() begin end;
+  procedure Ambiguous(): Boolean;
+  procedure SignatureMismatch(): Boolean begin end;
+}
+codeunit 50101 DefaultHandler {
+  procedure Execute(): Boolean begin exit(true); end;
+  procedure Conditional(Flag: Boolean) begin if Flag then Error('failed'); end;
+  procedure ConditionalFalse(Flag: Boolean): Boolean begin if Flag then Error('failed') else exit(false); end;
+  procedure FalseValue(): Boolean begin exit(false); end;
+  procedure Fails() begin Error('failed'); end;
+  procedure Unknown() begin MissingHelper(); end;
+  procedure SignatureMismatch(): Integer begin Error('failed'); end;
+}
+codeunit 50102 OverrideHandler {
+  procedure Execute(): Boolean begin Error('failed'); end;
+}
+codeunit 50104 AmbiguousHandler {
+  procedure Ambiguous(): Boolean begin exit(true); end;
+  procedure Ambiguous(): Boolean begin exit(false); end;
+}
+enum 50103 Choice {
+  DefaultImplementation = "Demo.Contract" = "DefaultHandler";
+  value(0; Defaulted) { }
+  value(1; Explicit) {
+    Implementation = "Demo.Contract" = "OverrideHandler";
+  }
+}
+enum 50105 UnknownChoice {
+  UnknownValueImplementation = "Demo.Contract" = "DefaultHandler";
+  value(0; UnknownValue) { }
+}
+enum 50106 AmbiguousChoice {
+  DefaultImplementation = "Demo.Contract" = "AmbiguousHandler";
+  value(0; AmbiguousValue) { }
+}
+`;
+  const result = await testing.objectsFromSource(source, "contract-fallbacks.al");
+  const model = {
+    ...result,
+    objects: result.objects.map((object) => ({
+      ...object,
+      label: object.name,
+      objectId: object.id
+    }))
+  };
+  const expectations = [{
+    interface: "object:interface:Contract",
+    methods: [
+      "Execute", "Conditional", "ConditionalFalse", "FalseValue", "Fails", "Unknown",
+      "Inherited", "Ambiguous", "SignatureMismatch"
+    ]
+  }];
+  const required = analyzeContractFallbacks(model, expectations);
+  assert.deepEqual(required.map(({ method, enumValue, fallbackKind }) => ({
+    method, enumValue, fallbackKind
+  })), [
+    { method: "Conditional", enumValue: "Defaulted", fallbackKind: "conditional" },
+    { method: "Execute", enumValue: "Defaulted", fallbackKind: "constant-return" },
+    { method: "Inherited", enumValue: "AmbiguousValue", fallbackKind: "empty" },
+    { method: "Inherited", enumValue: "Defaulted", fallbackKind: "empty" },
+    { method: "Inherited", enumValue: "Explicit", fallbackKind: "empty" },
+    { method: "SignatureMismatch", enumValue: "AmbiguousValue", fallbackKind: "empty" },
+    { method: "SignatureMismatch", enumValue: "Defaulted", fallbackKind: "empty" },
+    { method: "SignatureMismatch", enumValue: "Explicit", fallbackKind: "empty" }
+  ]);
+  assert.ok(required.every(({ severity, rule, basis, resolution, limitations, evidence }) =>
+    severity === "warning" && rule === "contract-fallback" &&
+    basis === "configured-policy" && resolution === "syntactic" &&
+    limitations.length > 0 && evidence.length > 0
+  ));
+
+  const neutral = analyzeContractFallbacks(model);
+  assert.ok(neutral.length > 0);
+  assert.ok(neutral.every(({ severity, rule, basis }) =>
+    severity === "info" && rule === "contract-fallback" && basis === "observed-code-fact"
+  ));
+});
+
+test("unqualified binding contracts resolve in their namespace without cross-matching same-named interfaces", async () => {
+  const demo = await testing.objectsFromSource(`
+namespace Demo;
+interface Contract { procedure Execute() begin end; }
+codeunit 50100 Handler { }
+enum 50101 Choice {
+  DefaultImplementation = Contract = Handler;
+  value(0; First) { }
+}
+`, "demo-contract.al");
+  const other = await testing.objectsFromSource(`
+namespace Other;
+interface Contract { procedure Execute() begin end; }
+`, "other-contract.al");
+  const model = {
+    objects: [...demo.objects, ...other.objects].map((object) => ({
+      ...object,
+      label: object.name,
+      objectId: object.id
+    }))
+  };
+  const findings = analyzeContractFallbacks(model, [{
+    interface: "namespace:Demo & object:interface:Contract",
+    methods: ["Execute"]
+  }]);
+
+  assert.deepEqual(findings.map(({ interface: contract, severity }) => ({
+    contract, severity
+  })), [{ contract: "Demo.Contract", severity: "warning" }]);
+});
+
+test("keeps a namespace-qualified interface name intact in contract findings", async () => {
+  const parsed = await testing.objectsFromSource(`
+namespace Demo;
+interface "Demo.Contract" { procedure Execute() begin end; }
+codeunit 50100 Handler { }
+enum 50101 Choice {
+  DefaultImplementation = "Demo.Contract" = Handler;
+  value(0; First) { }
+}
+`, "qualified-contract.al");
+  const model = {
+    objects: parsed.objects.map((object) => ({
+      ...object,
+      label: object.name,
+      objectId: object.id
+    }))
+  };
+  const findings = analyzeContractFallbacks(model, [{
+    interface: "object:interface:Demo.Contract",
+    methods: ["Execute"]
+  }]);
+
+  assert.deepEqual(findings.map(({ interface: contract }) => contract), ["Demo.Contract"]);
 });
 
 test("resolves namespace-qualified EventSubscriber publisher arguments", async () => {

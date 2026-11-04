@@ -1,0 +1,10 @@
+{
+  "check": {
+    "contractExpectations": [
+      {
+        "interface": "object:interface:Missing",
+        "methods": ["Required"]
+      }
+    ]
+  }
+}

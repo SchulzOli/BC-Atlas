@@ -1,0 +1,10 @@
+{
+  "check": {
+    "contractExpectations": [
+      {
+        "interface": "object:interface:Contract",
+        "methods": ["Required", "Inherited"]
+      }
+    ]
+  }
+}

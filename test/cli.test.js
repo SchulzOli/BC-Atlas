@@ -280,6 +280,59 @@ test("check reports architecture health and fails on configured policy violation
   }
 });
 
+test("check applies contract expectations as warnings and reports neutral fallbacks as info", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const fixture = fileURLToPath(new URL("./contract-fixtures", import.meta.url));
+  const noExpectations = fileURLToPath(new URL("./contract-fixtures/no-expectations.json", import.meta.url));
+  const unknownSelector = fileURLToPath(new URL("./contract-fixtures/unknown-selector.json", import.meta.url));
+  const unknownMethod = fileURLToPath(new URL("./contract-fixtures/unknown-method.json", import.meta.url));
+
+  const configured = spawnSync(process.execPath, [cli, "check", fixture, "--format", "json"], {
+    encoding: "utf8"
+  });
+  assert.equal(configured.status, 0, configured.stderr);
+  const configuredReport = JSON.parse(configured.stdout);
+  const contractFindings = configuredReport.findings.filter(({ rule }) => rule === "contract-fallback");
+  assert.ok(contractFindings.length > 0);
+  assert.ok(contractFindings.every(({ severity, basis }) =>
+    severity === "warning" && basis === "configured-policy"
+  ));
+  assert.deepEqual(
+    contractFindings.filter(({ method }) => method === "Required")
+      .map(({ enumValue, bindingKind, fallbackKind }) => ({ enumValue, bindingKind, fallbackKind })),
+    [{ enumValue: "Defaulted", bindingKind: "default", fallbackKind: "constant-return" }]
+  );
+
+  const strict = spawnSync(process.execPath, [
+    cli, "check", fixture, "--fail-on", "warning", "--format", "json"
+  ], { encoding: "utf8" });
+  assert.equal(strict.status, 1);
+  assert.equal(JSON.parse(strict.stdout).passed, false);
+
+  const neutral = spawnSync(process.execPath, [
+    cli, "check", fixture, "--config", noExpectations, "--format", "json"
+  ], { encoding: "utf8" });
+  assert.equal(neutral.status, 0, neutral.stderr);
+  const neutralFindings = JSON.parse(neutral.stdout).findings.filter(({ rule }) =>
+    rule === "contract-fallback"
+  );
+  assert.ok(neutralFindings.length > 0);
+  assert.ok(neutralFindings.every(({ severity, basis }) =>
+    severity === "info" && basis === "observed-code-fact"
+  ));
+
+  for (const [config, expectedMessage] of [
+    [unknownSelector, /must resolve to exactly one interface object/u],
+    [unknownMethod, /unknown method "DoesNotExist"/u]
+  ]) {
+    const invalid = spawnSync(process.execPath, [
+      cli, "check", fixture, "--config", config, "--format", "json"
+    ], { encoding: "utf8" });
+    assert.equal(invalid.status, 1);
+    assert.match(invalid.stderr, expectedMessage);
+  }
+});
+
 test("setup writes a starter configuration that export and check accept", () => {
   const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
   const fixtures = fileURLToPath(new URL("./fixtures", import.meta.url));

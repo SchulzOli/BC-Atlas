@@ -41,8 +41,17 @@ Result: PASSED - 0 error(s), 0 warning(s), 1 info (fail on: error)
 | `dependency-cycle` | warning | Objects depend on each other in a cycle. Configure with `check.cycles`. |
 | `high-fan-in` | warning | More than `maxFanIn` distinct objects depend on one object. |
 | `high-fan-out` | warning | One object depends on more than `maxFanOut` distinct objects. |
+| `contract-fallback` | info; warning for configured expectations | A resolved enum implementation or inherited interface default has an empty body, a constant `true` return, or a conditional path that can complete without an error. Configure `check.contractExpectations` to make the selected methods warnings. |
 | `orphan-objects` | info | Objects without any relationship. |
 | `unresolved-references` | info | References to objects outside the analyzed source. Add `.alpackages` symbols to resolve them. |
+
+`contract-fallback` is based on supported source structure, not a proof of
+runtime behavior or a business obligation. Direct `Error` calls,
+conditional behavior, delegation, and unknown bodies remain distinct; an
+unresolved helper or symbol-only body is never promoted to a proven silent
+success. Findings include `basis`, `resolution`, primary and supporting source
+locations, and `limitations`. Unknown-value enum implementations are not used
+as ordinary fallbacks.
 
 ## Fail levels
 
@@ -77,7 +86,13 @@ Findings from the AL compiler also carry `column`, `endLine`, `endColumn`,
     "failOn": "warning",
     "cycles": "error",
     "maxFanIn": 30,
-    "maxFanOut": 20
+    "maxFanOut": 20,
+    "contractExpectations": [
+      {
+        "interface": "object:interface:IPipelineStep",
+        "methods": ["Execute"]
+      }
+    ]
   },
   "forbiddenDependencies": [
     {
@@ -91,4 +106,6 @@ Findings from the AL compiler also carry `column`, `endLine`, `endColumn`,
 ```
 
 Command-line options override the `check` section. Patterns in
-`forbiddenDependencies` match `Namespace:ObjectType:ObjectName`.
+`forbiddenDependencies` match `Namespace:ObjectType:ObjectName`. See
+[configuration](./configuration.md#configure-health-checks-and-reports) for
+contract expectation selector and validation details.

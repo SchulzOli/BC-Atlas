@@ -100,7 +100,13 @@ Rules that work with the components and layers of a target architecture
     "failOn": "error",
     "cycles": "warning",
     "maxFanIn": 25,
-    "maxFanOut": 25
+    "maxFanOut": 25,
+    "contractExpectations": [
+      {
+        "interface": "object:interface:IPipelineStep",
+        "methods": ["Execute"]
+      }
+    ]
   },
   "report": {
     "outputDir": "docs/atlas",
@@ -109,6 +115,22 @@ Rules that work with the components and layers of a target architecture
   }
 }
 ```
+
+`check.contractExpectations` opts selected interface methods into a warning
+when a resolved enum implementation can complete silently through an empty
+body, a constant `true` return, or a conditional path with no error. Each
+`interface` selector must match exactly one existing interface object, and
+every method name must exist on that interface. Selectors use the same syntax
+as architecture selectors, such as `object:interface:IPipelineStep`,
+`id:50100`, or `namespace:Contoso.Pipeline`. Without an expectation, detected
+neutral fallbacks are informational and do not fail the default check. Set
+`failOn` to `"warning"` (or use `--fail-on warning`) to fail on configured
+expectations.
+
+The body classification is structural evidence from supported source syntax,
+not proof of runtime behavior. Symbol-only bodies, unresolved delegation, and
+ambiguous implementation signatures remain unknown rather than being treated
+as empty or safe.
 
 See [Architecture health checks](./health-checks.md) and
 [Architecture reports](./reports.md).

@@ -619,6 +619,138 @@ function variableType(node, source) {
   return declaredType(type);
 }
 
+function fallbackStatements(node, source, file, conditional = false) {
+  if (!node) return [];
+  if (node.type === "statement_block") {
+    return node.namedChildren.flatMap((child) =>
+      fallbackStatements(child, source, file, conditional)
+    );
+  }
+  if (node.type === "if_statement") {
+    return [{
+      kind: "conditional",
+      then: fallbackStatements(node.childForFieldName("then_branch"), source, file, true),
+      else: node.childForFieldName("else_branch")
+        ? fallbackStatements(node.childForFieldName("else_branch"), source, file, true)
+        : null,
+      location: locationFor(node, file)
+    }];
+  }
+  if (node.type === "case_statement") {
+    const body = node.childForFieldName("body");
+    const branches = (body?.namedChildren ?? [])
+      .filter((child) => child.type === "case_branch")
+      .map((branch) => fallbackStatements(
+        branch.childForFieldName("body"),
+        source,
+        file,
+        true
+      ));
+    const elseBranch = node.namedChildren.find((child) => child.type === "case_else_branch");
+    if (elseBranch) {
+      branches.push(elseBranch.namedChildren
+        .filter((child) => child.type !== "else_keyword")
+        .flatMap((child) => fallbackStatements(child, source, file, true)));
+    }
+    return [{
+      kind: "conditional",
+      branches,
+      hasImplicitEmptyPath: !elseBranch,
+      location: locationFor(node, file)
+    }];
+  }
+  if (["while_statement", "for_statement", "repeat_statement"].includes(node.type)) {
+    const body = node.childForFieldName("body");
+    return [{
+      kind: "conditional",
+      branches: [fallbackStatements(body, source, file, true)],
+      hasImplicitEmptyPath: node.type !== "repeat_statement",
+      location: locationFor(node, file)
+    }];
+  }
+  if (node.type === "call_expression") {
+    const functionNode = node.childForFieldName("function");
+    const memberNode = functionNode?.type === "member_expression"
+      ? functionNode.childForFieldName("member")
+      : undefined;
+    const receiverNode = functionNode?.type === "member_expression"
+      ? functionNode.childForFieldName("object")
+      : undefined;
+    const target = functionNode
+      ? cleanName(source.slice(
+        (memberNode ?? functionNode).startIndex,
+        (memberNode ?? functionNode).endIndex
+      ))
+      : undefined;
+    const argumentsNode = node.childForFieldName("arguments");
+    return [{
+      kind: "call",
+      target,
+      receiver: receiverNode
+        ? cleanName(source.slice(receiverNode.startIndex, receiverNode.endIndex))
+        : undefined,
+      arity: argumentsNode?.namedChildCount ?? 0,
+      directError: !receiverNode && target?.toLocaleLowerCase("en-US") === "error",
+      conditional,
+      location: locationFor(node, file)
+    }];
+  }
+  if (node.type === "exit_statement") {
+    const returnNode = node.childForFieldName("return_value");
+    return [{
+      kind: "return",
+      value: returnNode ? source.slice(returnNode.startIndex, returnNode.endIndex).trim() : undefined,
+      constant: Boolean(returnNode && [
+        "boolean",
+        "integer",
+        "decimal",
+        "string_literal"
+      ].includes(returnNode.type)),
+      conditional,
+      location: locationFor(node, file)
+    }];
+  }
+  return [{
+    kind: "other",
+    conditional,
+    location: locationFor(node, file)
+  }];
+}
+
+function fallbackFactsFor(node, source, file, hasBody) {
+  if (!hasBody) return undefined;
+  const codeBlock = node.namedChildren.find((child) =>
+    ["code_block", "statement_block"].includes(child.type)
+  );
+  const body = codeBlock?.childForFieldName("body") ??
+    codeBlock?.namedChildren.find((child) => child.type === "statement_block");
+  return {
+    complete: !node.hasError && !codeBlock?.hasError,
+    statements: fallbackStatements(body, source, file),
+    ...((node.hasError || codeBlock?.hasError)
+      ? { limitations: ["The AL parser reported errors in this procedure body."] }
+      : {})
+  };
+}
+
+function resolveFallbackCalls(statements, procedures) {
+  for (const statement of statements) {
+    if (statement.kind === "conditional") {
+      if (statement.then) resolveFallbackCalls(statement.then, procedures);
+      if (statement.else) resolveFallbackCalls(statement.else, procedures);
+      for (const branch of statement.branches ?? []) {
+        resolveFallbackCalls(branch, procedures);
+      }
+      continue;
+    }
+    if (statement.kind !== "call" || statement.directError) continue;
+    const candidates = procedures.get(`${statement.target?.toLocaleLowerCase("en-US")}:${statement.arity}`) ?? [];
+    const target = !statement.receiver && candidates.length === 1 ? candidates[0] : undefined;
+    statement.resolved = Boolean(target?.fallbackFacts?.complete);
+    if (target) statement.targetSignature = target.signature;
+  }
+}
+
 function membersFor(objectNode, source, file) {
   const procedures = [];
   const fields = [];
@@ -633,18 +765,24 @@ function membersFor(objectNode, source, file) {
       const name = fieldText(node, "name", source);
       if (name) {
         const returnTypeNode = node.childForFieldName("return_type");
-        const returnType = returnTypeNode
-          ? declaredType(source.slice(returnTypeNode.startIndex, returnTypeNode.endIndex).trim())
-          : {};
+        const header = procedureHeader(node, source);
+        const returnTypeText = returnTypeNode
+          ? source.slice(returnTypeNode.startIndex, returnTypeNode.endIndex).trim()
+          : header.match(/\)\s*:\s*([^;\r\n]+)$/u)?.[1]?.trim();
+        const returnType = declaredType(returnTypeText);
         const attributes = [
           ...node.namedChildren
           .filter((child) => child.type === "attribute_item")
           .map((child) => source.slice(child.startIndex, child.endIndex)),
           ...attributesFor(node, source)
         ];
+        const hasBody = node.namedChildren.some((child) =>
+          ["code_block", "statement_block"].includes(child.type)
+        );
+        const fallbackFacts = fallbackFactsFor(node, source, file, hasBody);
         procedures.push({
           name,
-          header: procedureHeader(node, source),
+          header,
           visibility: node.type === "trigger_declaration"
             ? undefined
             : fieldText(node, "modifier", source)?.toLowerCase() ?? "public",
@@ -656,9 +794,8 @@ function membersFor(objectNode, source, file) {
               : attributes.some((attribute) => /\[(?:Integration|Business)Event\b/iu.test(attribute))
                 ? "event"
               : "procedure",
-          hasBody: node.namedChildren.some((child) =>
-            ["code_block", "statement_block"].includes(child.type)
-          ),
+          hasBody,
+          ...(fallbackFacts ? { fallbackFacts } : {}),
           location: locationFor(node, file),
           calls: callsFor(node, source, file),
           attributes,
@@ -836,6 +973,18 @@ function membersFor(objectNode, source, file) {
       .filter(isCommitCall)
       .map(({ order, location }) => ({ kind: "commit", order, location }));
     procedure.transactionSegments = procedure.transactionBoundaries.length + 1;
+  }
+  const localProcedures = new Map();
+  for (const procedure of procedures) {
+    const key = `${procedure.name.toLocaleLowerCase("en-US")}:${procedure.arity}`;
+    const candidates = localProcedures.get(key) ?? [];
+    candidates.push(procedure);
+    localProcedures.set(key, candidates);
+  }
+  for (const procedure of procedures) {
+    if (procedure.fallbackFacts) {
+      resolveFallbackCalls(procedure.fallbackFacts.statements, localProcedures);
+    }
   }
   const transactionBoundaries = procedures.flatMap((procedure) =>
     procedure.transactionBoundaries.map((boundary) => ({
