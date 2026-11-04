@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -99,6 +100,17 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     assert.equal(finding.architectureOrigin, "configured");
     assert.ok(finding.evidence.some(({ operation, member, file }) =>
       operation === "Get" && member === "Sync(Code[20])" && file === "integration/ItemSync.al"));
+    const cliReport = spawnSync(process.execPath, [
+      path.join(root, "src", "cli.js"),
+      "check",
+      path.join(root, "examples", "multi-app"),
+      "--config",
+      config,
+      "--format",
+      "json"
+    ], { encoding: "utf8" });
+    assert.equal(cliReport.status, 0, cliReport.stderr);
+    assert.deepEqual(JSON.parse(cliReport.stdout), report, "CLI and MCP expose the same canonical health JSON");
 
     writeFileSync(contextConfig, JSON.stringify({
       check: {

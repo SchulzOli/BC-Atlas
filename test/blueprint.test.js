@@ -143,6 +143,30 @@ test("explains supported orchestrator-provider cycles and preserves structural l
   assert.equal(partialCycle.resolution, undefined, "incomplete call evidence does not receive a tailored remedy");
 });
 
+test("component cycle findings display the representative path separately from all SCC members", () => {
+  const nodes = ["A", "B", "C"].map((id) => ({
+    id, label: id, type: "codeunit", file: `${id}.al`
+  }));
+  const edge = (source, target) => ({
+    id: `${source}->${target}`, source, target, kinds: { uses: 1 }, weight: 1,
+    evidence: [{ kind: "uses", file: `${source}.al`, line: 1 }]
+  });
+  const result = evaluateArchitecture({
+    object: {
+      nodes,
+      edges: [edge("A", "B"), edge("B", "A"), edge("A", "C"), edge("C", "A")]
+    }
+  }, {
+    components: nodes.map(({ label }) => ({ name: label, match: [`object:codeunit:${label}`] }))
+  });
+  const cycle = result.checks.find(({ rule }) => rule === "component-cycle");
+
+  assert.ok(cycle);
+  assert.deepEqual(cycle.components, ["A", "B", "C"], "all strongly connected component members remain listed separately");
+  assert.deepEqual(cycle.cyclePath.path.map(({ from, to }) => [from, to]), [["A", "B"], ["B", "A"]]);
+  assert.equal(cycle.message, "Components have a structural dependency cycle (not evidence of runtime recursion): A -> B -> A");
+});
+
 test("explains how to resolve outward dependencies in AL terms", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-outward-"));
   try {

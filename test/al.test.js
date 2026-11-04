@@ -309,6 +309,55 @@ test("health and SARIF retain configured architecture evidence and origin", asyn
   assert.ok(result.relatedLocations.every(({ physicalLocation }) => physicalLocation.region.startLine !== 12));
 });
 
+test("CLI health JSON retains all evidence and limitations when text and Markdown truncate", () => {
+  const project = mkdtempSync(path.join(root, "test", "health-evidence-"));
+  cpSync(path.join(root, "test", "contract-fixtures"), project, { recursive: true });
+  const source = path.join(project, "Contracts.al");
+  writeFileSync(source, readFileSync(source, "utf8").replace(
+    "procedure Required(): Boolean begin exit(true); end;",
+    `procedure Required(): Boolean
+    begin
+      if true then
+        exit(true)
+      else if false then
+        exit(true)
+      else if true then
+        exit(true)
+      else
+        exit(true);
+    end;`
+  ));
+  const run = (format) => {
+    const result = spawnSync(process.execPath, [
+      cli, "check", project, "--format", format
+    ], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout;
+  };
+  try {
+    const finding = JSON.parse(run("json")).findings.find(({ rule, method }) =>
+      rule === "contract-fallback" && method === "Required");
+    assert.equal(finding.evidence.length, 8, "binding, three conditionals, and four returns remain in JSON");
+    assert.deepEqual(finding.limitations, [
+      "Body classification is structural and is not proof of runtime behavior."
+    ]);
+    assert.deepEqual(finding.evidence.map(({ line }) => line), [27, 11, 12, 13, 14, 15, 16, 18]);
+    for (const format of ["text", "markdown"]) {
+      const output = run(format);
+      assert.ok(output.includes("3 additional evidence item(s) omitted; use JSON for all evidence"));
+      assert.ok(output.includes(`Limitations: ${finding.limitations[0]}`));
+      for (const { line } of finding.evidence.slice(0, 5)) {
+        assert.ok(output.includes(`Contracts.al:${line}`), `displayed evidence at line ${line}`);
+      }
+      for (const { line } of finding.evidence.slice(5)) {
+        assert.ok(!output.includes(`Contracts.al:${line}`), `omitted evidence at line ${line}`);
+      }
+    }
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
 test("bca check imports an error log from any AL build and writes SARIF", () => {
   const folder = temp("check");
   try {

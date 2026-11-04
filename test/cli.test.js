@@ -346,6 +346,21 @@ test("check applies contract expectations as warnings and reports neutral fallba
   assert.ok(contractFindings.every(({ severity, basis }) =>
     severity === "warning" && basis === "configured-policy"
   ));
+  const configuredAgain = spawnSync(process.execPath, [cli, "check", fixture, "--format", "json"], {
+    encoding: "utf8"
+  });
+  assert.equal(configuredAgain.status, 0, configuredAgain.stderr);
+  assert.equal(configuredAgain.stdout, configured.stdout, "the JSON report is deterministic");
+  const severityRank = { error: 3, warning: 2, info: 1 };
+  assert.deepEqual(
+    configuredReport.findings,
+    [...configuredReport.findings].sort((left, right) =>
+      severityRank[right.severity] - severityRank[left.severity] ||
+      left.rule.localeCompare(right.rule) ||
+      left.message.localeCompare(right.message)
+    ),
+    "findings use stable severity, rule, and message ordering"
+  );
   assert.deepEqual(
     contractFindings.filter(({ method }) => method === "Required")
       .map(({ enumValue, bindingKind, fallbackKind }) => ({ enumValue, bindingKind, fallbackKind })),
@@ -369,6 +384,7 @@ test("check applies contract expectations as warnings and reports neutral fallba
   assert.ok(neutralFindings.every(({ severity, basis }) =>
     severity === "info" && basis === "observed-code-fact"
   ));
+  assert.ok(!neutralFindings.some(({ severity }) => severity === "warning"));
 
   for (const [config, expectedMessage] of [
     [unknownSelector, /must resolve to exactly one interface object/u],
@@ -469,7 +485,9 @@ test("check reports explicitly selected context responsibilities and validates t
       cli, "check", fileURLToPath(new URL("./fixtures", import.meta.url)), "--format", "json"
     ], { encoding: "utf8" });
     assert.equal(noContexts.status, 0, noContexts.stderr);
-    assert.equal("contextResponsibilities" in JSON.parse(noContexts.stdout), false);
+    const noContextReport = JSON.parse(noContexts.stdout);
+    assert.equal("contextResponsibilities" in noContextReport, false);
+    assert.ok(!noContextReport.findings.some(({ rule }) => rule === "context-responsibility"));
   } finally {
     rmSync(config, { force: true });
   }

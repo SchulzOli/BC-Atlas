@@ -171,6 +171,11 @@ also identifies direct versus indirect effects. With no `check.contexts`
 setting, health output retains its existing shape. CLI and MCP checks use the
 same canonical analysis.
 
+These policies are opt-in: without `check.contractExpectations`, detected
+neutral contract fallbacks remain informational and do not become warnings.
+Without `check.contexts`, no context-responsibility findings or
+`contextResponsibilities` report section are produced.
+
 See [Architecture health checks](./health-checks.md) and
 [Architecture reports](./reports.md).
 

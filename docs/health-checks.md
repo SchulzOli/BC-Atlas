@@ -90,6 +90,15 @@ The JSON report contains `passed`, `failOn`, `thresholds`, `summary`
 Findings from the AL compiler also carry `column`, `endLine`, `endColumn`,
 `helpLink`, and `origin: "al"`.
 
+Findings are ordered deterministically by severity, rule, then message. CLI
+JSON and the MCP `bc_atlas_check` tool return the same canonical health report;
+JSON retains the complete evidence arrays and any `limitations`. Text and
+Markdown display the primary location plus up to four supporting locations
+per finding. When more evidence exists, they state how many items were omitted
+and direct readers to JSON; limitations remain visible. SARIF uses the primary
+location for the finding and emits file-backed supporting evidence as
+`relatedLocations`, with `limitations` in result properties.
+
 ## Configure
 
 ```json

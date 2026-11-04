@@ -536,10 +536,11 @@ function architectureChecks({ settings, components, members, selectorUse, compon
   };
   for (const cyclePath of cyclePaths) {
     const cycle = cyclePath.members;
+    const representativeCycle = cyclePath.path.map(({ from }) => from).concat(cyclePath.path.at(-1)?.to ?? cycle[0]);
     const resolution = suggestCycleResolution(cyclePath);
     check(
       "component-cycle",
-      `Components have a structural dependency cycle (not evidence of runtime recursion): ${cycle.join(" -> ")} -> ${cycle[0]}`,
+      `Components have a structural dependency cycle (not evidence of runtime recursion): ${representativeCycle.join(" -> ")}`,
       { components: cycle, cyclePath, limitations: cyclePath.limitations, ...(resolution ? { resolution } : {}) }
     );
   }
