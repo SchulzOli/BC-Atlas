@@ -4,6 +4,50 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## 0.13.0 - 2026-11-04
+
+### Added
+
+- `bca check` flags interface methods whose enum implementation can complete
+  silently: an empty body, a constant `true` return, or a conditional path
+  with no error (`contract-fallback`). Without configuration these are
+  informational; `check.contractExpectations` names the interface methods
+  that must not fall back silently and turns them into warnings. Unresolved
+  delegation, symbol-only bodies, and ambiguous signatures stay unknown
+  instead of counting as safe. See [Configuration](./docs/configuration.md).
+- `check.contexts` summarizes the responsibilities of selected objects:
+  reads, persistent and temporary writes, commits, resolved calls, and global
+  state, direct and up to `maxCallDepth` calls away. `roles`,
+  `lazyReadMethods`, and `forbid` turn them into policy warnings; bounded or
+  unresolved evidence is reported with its limitations.
+- Architecture component selectors accept `file:` (one file, globs allowed),
+  more specific than a namespace, folder, or ID range.
+- Enum bindings keep `DefaultImplementation` and `UnknownValueImplementation`
+  as evidence, and calls keep their arguments.
+
+### Changed
+
+- Health and architecture findings carry their basis (`configured-policy`,
+  `observed-code-fact`, or `heuristic` for a proposed architecture), a
+  primary location, all evidence, and limitations. Text and Markdown show up
+  to five locations; JSON and SARIF keep everything.
+- Component cycles are explained by a representative path with the
+  dependencies behind each hop, and, where several providers call back into
+  the same orchestrator procedure, suggest extracting a shared service.
+- `bca refactor move` defaults to the common parent folder of a component's
+  objects instead of the folder most of them are in.
+- Records of pages and tables with `SourceTableTemporary` count as temporary,
+  and record parameters of unknown temporariness are no longer reported as
+  persistent writes.
+- Release: one *Release* workflow publishes the npm package and the VS Code
+  extension under one version, after testing both, and attaches the `.vsix`
+  to the GitHub release.
+
+### Fixed
+
+- Health reports no longer print `architecture origin: undefined`, and
+  Markdown evidence cells with `|` no longer break the table.
+
 ## 0.12.0 - 2026-10-29
 
 ### Added

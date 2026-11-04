@@ -115,7 +115,7 @@ theme, the secondary side bar closed, the window at 1440 × 900, run
    3. In the repository, add the secrets `AZURE_CLIENT_ID` (the app's
       application ID) and `AZURE_TENANT_ID` (the directory ID), as repository
       secrets or secrets of the `marketplace` environment.
-   4. Run the *Publish VS Code extension* workflow once. The step *Show the
+   4. Run the *Release* workflow once. The step *Show the
       identity the Marketplace sees* prints the identity's Azure DevOps
       profile ID; the Marketplace knows identities by this ID, not by their
       Entra IDs. Add that ID to the publisher `SchulzOli` as a member with
@@ -126,8 +126,8 @@ theme, the secondary side bar closed, the window at 1440 × 900, run
    `InvalidAccessException` before anything is published. For Open VSX
    (VSCodium, Cursor, Windsurf, Gitpod), also add the token `OVSX_PAT`; Open
    VSX is not affected by the Azure DevOps change.
-3. **Publish.** Run the *Publish VS Code extension* workflow with the version
-   in `../package.json`.
+3. **Publish.** Run the *Release* workflow with the version in
+   `../package.json`; it publishes the npm package and the extension together.
 4. **GitHub.** Under *Settings → General → Social preview*, upload
    `social-preview.jpg`. Set the repository description to the short
    description above, the website to the documentation, and the topics
