@@ -57,6 +57,92 @@ test("checks dependencies against components, layers, and dependsOn", async () =
   }
 });
 
+test("explains supported orchestrator-provider cycles and preserves structural limitations after refactoring", () => {
+  const node = (id, label, type = "codeunit") => ({
+    id, label, type, namespace: "Demo", app: "demo", origin: "workspace", file: `${label}.al`
+  });
+  const objects = [
+    node("orchestrator", "Orchestrator"),
+    node("provider-a", "Provider A"),
+    node("provider-b", "Provider B"),
+    node("type-a", "Type A", "interface"),
+    node("type-b", "Type B", "interface"),
+    node("partial-a", "Partial A"),
+    node("partial-b", "Partial B")
+  ];
+  const call = (source, target, sourceProcedure, targetProcedure, file, line, callResolution = "syntactic") => ({
+    id: `${source}->${target}`,
+    source,
+    target,
+    kinds: { calls: 1 },
+    weight: 1,
+    evidence: [{
+      kind: "calls", sourceProcedure, targetProcedure, callResolution,
+      file, line
+    }]
+  });
+  const levels = (includeProviderCallbacks) => ({
+    object: {
+      nodes: objects,
+      edges: [
+        call("orchestrator", "provider-a", "Start()", "Provide()", "Orchestrator.al", 10),
+        call("orchestrator", "provider-b", "Start()", "Provide()", "Orchestrator.al", 11),
+        ...(includeProviderCallbacks ? [
+          call("provider-a", "orchestrator", "Provide()", "ResolveShared()", "ProviderA.al", 20),
+          call("provider-b", "orchestrator", "Provide()", "ResolveShared()", "ProviderB.al", 30)
+        ] : []),
+        { id: "type-a->type-b", source: "type-a", target: "type-b", kinds: { uses: 1 }, weight: 1, evidence: [{ kind: "uses", file: "TypeA.al", line: 40 }] },
+        { id: "type-b->type-a", source: "type-b", target: "type-a", kinds: { uses: 1 }, weight: 1, evidence: [{ kind: "uses", file: "TypeB.al", line: 50 }] },
+        call("partial-a", "partial-b", "Run()", undefined, "PartialA.al", 60, "ambiguous"),
+        call("partial-b", "partial-a", "Run()", undefined, "PartialB.al", 70, "ambiguous")
+      ]
+    }
+  });
+  const architecture = {
+    components: [
+      { name: "Orchestration", match: ["object:codeunit:Orchestrator"] },
+      { name: "Providers", match: ["object:codeunit:Provider A", "object:codeunit:Provider B"] },
+      { name: "Type A", match: ["object:interface:Type A"] },
+      { name: "Type B", match: ["object:interface:Type B"] },
+      { name: "Partial A", match: ["object:codeunit:Partial A"] },
+      { name: "Partial B", match: ["object:codeunit:Partial B"] }
+    ]
+  };
+  const cycleFor = (result, ...components) => result.checks.find(({ rule, components: cycle }) =>
+    rule === "component-cycle" && components.every((component) => cycle.includes(component)));
+  const result = evaluateArchitecture(levels(true), architecture);
+  const sharedCycle = cycleFor(result, "Orchestration", "Providers");
+
+  assert.ok(sharedCycle);
+  assert.ok(sharedCycle.cyclePath, "cycle checks retain an ordered, evidence-backed path");
+  assert.deepEqual(sharedCycle.cyclePath.path.map(({ from, to, kind }) => [from, to, kind]), [
+    ["Orchestration", "Providers", "calls"],
+    ["Providers", "Orchestration", "calls"]
+  ]);
+  assert.ok(sharedCycle.cyclePath.path.every(({ evidence }) => evidence.length > 0));
+  assert.ok(sharedCycle.cyclePath.path[1].evidence.some(({ targetProcedure }) => targetProcedure === "ResolveShared()"));
+  assert.equal(sharedCycle.resolution.strategy, "extract-shared-service");
+  assert.deepEqual(sharedCycle.resolution.alternatives.map(({ strategy }) => strategy), ["extract-interface", "raise-event"]);
+  assert.ok(sharedCycle.resolution.steps.some((step) => /callers, state, transactions, permissions, and idempotence/u.test(step)));
+
+  const assessment = { result, baseline: { baselined: false, new: [], known: [], fixed: [] } };
+  const markdown = formatArchitectureMarkdown(assessment);
+  assert.match(markdown, /ResolveShared\(\)/u);
+  assert.match(markdown, /not evidence of runtime recursion/u);
+  assert.match(markdown, /call resolution is incomplete/iu);
+
+  const refactored = evaluateArchitecture(levels(false), architecture);
+  assert.equal(cycleFor(refactored, "Orchestration", "Providers"), undefined);
+  const typeCycle = cycleFor(refactored, "Type A", "Type B");
+  assert.ok(typeCycle, "the unrelated type-only dependency cycle remains visible");
+  assert.ok(typeCycle.cyclePath.path.every(({ kind }) => kind === "uses"));
+  assert.equal(typeCycle.resolution, undefined, "a type-only dependency cycle gets no runtime-oriented remedy");
+  const partialCycle = cycleFor(refactored, "Partial A", "Partial B");
+  assert.ok(partialCycle, "the incomplete-resolution cycle remains visible");
+  assert.ok(partialCycle?.limitations.some((limitation) => /ambiguous or unresolved call evidence/u.test(limitation)));
+  assert.equal(partialCycle.resolution, undefined, "incomplete call evidence does not receive a tailored remedy");
+});
+
 test("explains how to resolve outward dependencies in AL terms", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-outward-"));
   try {

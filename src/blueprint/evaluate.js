@@ -1,10 +1,10 @@
 import { SEVERITIES } from "../capabilities.js";
 import { DEPENDENCY_KINDS } from "../graph/lenses/dependency.js";
 import { coupling, couplingWeights } from "../graph/coupling.js";
-import { findCycles } from "../insights.js";
+import { findCyclePaths, findCycles } from "../insights.js";
 import { compileSelector, componentAssigner, selectorContext } from "./components.js";
 import { dataOwnership } from "./ownership.js";
-import { suggestResolution } from "./resolutions.js";
+import { suggestCycleResolution, suggestResolution } from "./resolutions.js";
 
 /** Rules a dependency between two objects can break; their violations can be baselined. */
 export const VIOLATION_RULES = Object.freeze([
@@ -388,11 +388,19 @@ export function evaluateArchitecture(levels, architecture = {}, { architectureOr
     const rule = direction ?? enabled(isPublic(target, targetComponent) ? undefined : "internal-access");
     const id = `${sourceComponent}->${targetComponent}`;
     const aggregate = componentEdges.get(id) ?? {
-      id, source: sourceComponent, target: targetComponent, objectEdges: 0, weight: 0, kinds: {}, violations: 0, allowed: !direction
+      id, source: sourceComponent, target: targetComponent, objectEdges: 0, weight: 0, kinds: {}, evidence: [], violations: 0, allowed: !direction
     };
     aggregate.objectEdges++;
     aggregate.weight += edge.weight;
     for (const [kind, weight] of Object.entries(edge.kinds ?? {})) aggregate.kinds[kind] = (aggregate.kinds[kind] ?? 0) + weight;
+    const edgeEvidence = edge.evidence?.length
+      ? edge.evidence
+      : Object.entries(edge.kinds ?? {}).filter(([, weight]) => weight).map(([kind]) => ({ kind }));
+    aggregate.evidence.push(...edgeEvidence.map((item) => ({
+      ...item,
+      source: objectSummary(nodes.get(edge.source)),
+      target: objectSummary(nodes.get(edge.target))
+    })));
     if (rule) aggregate.violations++;
     componentEdges.set(id, aggregate);
 
@@ -431,10 +439,12 @@ export function evaluateArchitecture(levels, architecture = {}, { architectureOr
 
   const workItems = groupWorkItems(violations, inputs);
 
-  const cycles = findCycles(
-    [...components.keys()].map((key) => ({ key })),
-    [...componentEdges.values()].map(({ source, target }) => ({ from: source, to: target }))
-  );
+  const cycleNodes = [...components.keys()].map((key) => ({ key }));
+  const cycleEdges = [...componentEdges.values()].map(({ source, target, kinds, evidence }) => ({
+    from: source, to: target, kinds, evidence
+  }));
+  const cycles = findCycles(cycleNodes, cycleEdges);
+  const cyclePaths = findCyclePaths(cycleNodes, cycleEdges);
   const inCycle = new Set(cycles.flat());
   const metrics = new Map([...components.keys()].map((name) =>
     [name, componentMetrics(name, members.get(name), outgoing.get(name), incoming.get(name))]));
@@ -465,7 +475,7 @@ export function evaluateArchitecture(levels, architecture = {}, { architectureOr
   });
 
   const ownership = dataOwnership(levels.object, componentOf);
-  const checks = architectureChecks({ settings, components, members, selectorUse, componentEdges, cycles, stability, unassigned, ownership });
+  const checks = architectureChecks({ settings, components, members, selectorUse, componentEdges, cyclePaths, stability, unassigned, ownership });
   for (const check of checks) {
     check.basis = basis;
     check.architectureOrigin = architectureOrigin;
@@ -501,6 +511,7 @@ export function evaluateArchitecture(levels, architecture = {}, { architectureOr
     components: summaries,
     edges: [...componentEdges.values()].sort((a, b) => a.id.localeCompare(b.id)),
     cycles,
+    cyclePaths,
     stability,
     dataOwnership: ownership,
     checks,
@@ -517,14 +528,20 @@ const named = (list) => `${list.slice(0, 5).map(({ type, label }) => `${type} ${
  * Findings about the architecture as a whole: its configuration (selectors,
  * declared dependencies, layers) and its components (cycles, size, stability).
  */
-function architectureChecks({ settings, components, members, selectorUse, componentEdges, cycles, stability, unassigned, ownership }) {
+function architectureChecks({ settings, components, members, selectorUse, componentEdges, cyclePaths, stability, unassigned, ownership }) {
   const checks = [];
   const check = (rule, message, details = {}) => {
     const severity = settings.severities[rule] ?? CHECK_RULES[rule];
     if (severity !== "off") checks.push({ rule, severity, message, ...details });
   };
-  for (const cycle of cycles) {
-    check("component-cycle", `Components depend on each other in a cycle: ${cycle.join(" -> ")} -> ${cycle[0]}`, { components: cycle });
+  for (const cyclePath of cyclePaths) {
+    const cycle = cyclePath.members;
+    const resolution = suggestCycleResolution(cyclePath);
+    check(
+      "component-cycle",
+      `Components have a structural dependency cycle (not evidence of runtime recursion): ${cycle.join(" -> ")} -> ${cycle[0]}`,
+      { components: cycle, cyclePath, limitations: cyclePath.limitations, ...(resolution ? { resolution } : {}) }
+    );
   }
   if (unassigned.length) check("unassigned-objects", `${unassigned.length} object(s) belong to no architecture component: ${named(unassigned)}`);
 

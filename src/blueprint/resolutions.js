@@ -19,6 +19,7 @@ export const STRATEGIES = Object.freeze({
   "move-navigation": "Move the page navigation into a page extension",
   "move-interface-down": "Move the interface to the consuming component",
   "move-enum-value": "Move the enum value into an enum extension",
+  "extract-shared-service": "Extract shared work into a lower-level service",
   "use-public-api": "Use a public object of the other component",
   "go-through-layer": "Go through the layer in between",
   "follow-rule": "Remove the dependency the rule forbids"
@@ -34,6 +35,77 @@ function name(node) {
 
 function suggestion(strategy, effort, steps, alternatives = []) {
   return { strategy, title: STRATEGIES[strategy], effort, steps, alternatives };
+}
+
+function supportedCycleCalls(cyclePath) {
+  return cyclePath.path.flatMap((hop) =>
+    hop.evidence
+      .filter(({ kind, callResolution }) => kind === "calls" && ["compiler", "syntactic"].includes(callResolution))
+      .map((evidence) => ({ ...evidence, fromComponent: hop.from, toComponent: hop.to }))
+  );
+}
+
+/**
+ * Offers shared-service extraction only when multiple providers call back into
+ * the same orchestrator procedure after the orchestrator invokes those providers.
+ */
+export function suggestCycleResolution(cyclePath) {
+  const calls = supportedCycleCalls(cyclePath);
+  const orchestrators = new Map();
+  for (const call of calls) {
+    if (!call.source?.id || !call.target?.id || !call.sourceProcedure || !call.targetProcedure) continue;
+    const item = orchestrators.get(call.source.id) ?? { outgoing: [], callbacks: [] };
+    if (call.fromComponent !== call.toComponent) {
+      item.outgoing.push(call);
+    }
+    orchestrators.set(call.source.id, item);
+  }
+  for (const call of calls) {
+    if (!call.source?.id || !call.target?.id || !call.sourceProcedure || !call.targetProcedure) continue;
+    const item = orchestrators.get(call.target.id);
+    if (item && call.fromComponent !== call.toComponent) item.callbacks.push(call);
+  }
+
+  for (const [orchestratorId, { outgoing, callbacks }] of orchestrators) {
+    const providers = new Set(outgoing.map(({ target }) => target?.id).filter(Boolean));
+    const shared = new Map();
+    for (const callback of callbacks) {
+      if (callback.target.id !== orchestratorId || !providers.has(callback.source.id)) continue;
+      const providersForMethod = shared.get(callback.targetProcedure) ?? new Set();
+      providersForMethod.add(callback.source.id);
+      shared.set(callback.targetProcedure, providersForMethod);
+    }
+    const targetProcedure = [...shared]
+      .filter(([, providerIds]) => providerIds.size >= 2)
+      .map(([procedure]) => procedure)
+      .sort()[0];
+    if (!targetProcedure) continue;
+
+    const providerIds = shared.get(targetProcedure);
+    const providerMethods = [...new Set(callbacks
+      .filter(({ targetProcedure: method, source }) => method === targetProcedure && providerIds.has(source.id))
+      .map(({ sourceProcedure }) => sourceProcedure))].sort();
+    const orchestratorMethods = [...new Set(outgoing
+      .filter(({ target }) => providerIds.has(target?.id))
+      .map(({ sourceProcedure }) => sourceProcedure))].sort();
+    const providerNames = [...new Set(callbacks
+      .filter(({ targetProcedure: method, source }) => method === targetProcedure && providerIds.has(source.id))
+      .map(({ source }) => `${source.type} ${source.label}`))].sort();
+    const orchestrator = calls.find(({ target }) => target?.id === orchestratorId)?.target;
+    const sharedMethod = `${orchestrator?.type ?? "object"} ${orchestrator?.label ?? orchestratorId}.${targetProcedure}`;
+    const contract = suggestion("extract-interface", "L", [
+      `Keep the provider contract, but move ${sharedMethod} behind a lower-level contract that the providers can call without depending back on the orchestrator.`
+    ]);
+    const event = suggestion("raise-event", "L", [
+      "Use an event only if the provider is notifying the orchestrator; an event is not a substitute for shared work that returns data."
+    ]);
+    return suggestion("extract-shared-service", "L", [
+      `The orchestrator methods ${orchestratorMethods.join(", ")} invoke ${providerNames.join(", ")}, whose methods ${providerMethods.join(", ")} call back to ${sharedMethod}.`,
+      `Extract the shared low-level work into a separate service below the orchestrator and providers, then remove the callback dependency.`,
+      "The cycle alone does not establish extractability or behavior equivalence; review callers, state, transactions, permissions, and idempotence."
+    ], [contract, event]);
+  }
+  return undefined;
 }
 
 /**

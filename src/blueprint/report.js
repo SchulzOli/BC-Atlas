@@ -40,6 +40,39 @@ function workItemEvidence(item) {
   ];
 }
 
+function cycleHop(evidence) {
+  const source = evidence.source
+    ? `${evidence.source.type} ${evidence.source.label}${evidence.sourceProcedure ? `.${evidence.sourceProcedure}` : ""}`
+    : undefined;
+  const target = evidence.target
+    ? `${evidence.target.type} ${evidence.target.label}${evidence.targetProcedure ? `.${evidence.targetProcedure}` : ""}`
+    : undefined;
+  const place = location(evidence);
+  return `${source && target ? `${source} → ${target}` : evidence.member ?? evidence.kind ?? "dependency"}${place ? ` (${place})` : " (location unavailable)"}`;
+}
+
+function cycleReportLines(check, prefix = "    ") {
+  const { cyclePath, resolution } = check;
+  if (!cyclePath) return [];
+  const path = cyclePath.path.map(({ from, to, kind }) => `${from} --${kind}--> ${to}`).join("; ");
+  const lines = [`${prefix}Cycle path: ${path}`];
+  for (const hop of cyclePath.path) {
+    const evidence = hop.evidence.slice(0, MAX_EVIDENCE_SUMMARY);
+    const omitted = hop.evidence.length - evidence.length;
+    lines.push(`${prefix}  ${hop.kind} evidence: ${evidence.map(cycleHop).join("; ") || "supporting source location unavailable"}` +
+      (omitted ? `; ${omitted} additional evidence item(s) omitted; use --format json for all evidence` : ""));
+  }
+  for (const limitation of check.limitations ?? cyclePath.limitations) lines.push(`${prefix}Limitation: ${limitation}`);
+  if (resolution) {
+    lines.push(`${prefix}Resolution candidate: ${resolution.title} (\`${resolution.strategy}\`)`);
+    for (const step of resolution.steps) lines.push(`${prefix}  ${step}`);
+    if (resolution.alternatives.length) {
+      lines.push(`${prefix}Alternatives: ${resolution.alternatives.map(({ title, strategy }) => `${title} (\`${strategy}\`)`).join("; ")}`);
+    }
+  }
+  return lines;
+}
+
 /** The machine-readable report: everything except internal lookup tables. */
 export function architectureJson(assessment) {
   const { result, proposal, baseline, architecture } = assessment;
@@ -155,7 +188,10 @@ export function formatArchitectureText(assessment, { limit = 15 } = {}) {
   const checks = result.checks ?? [];
   if (checks.length) {
     lines.push("", "Architecture checks");
-    for (const check of checks.slice(0, limit)) lines.push(`  ${check.severity.toUpperCase().padEnd(7)} ${check.message}`);
+    for (const check of checks.slice(0, limit)) {
+      lines.push(`  ${check.severity.toUpperCase().padEnd(7)} ${check.message}`);
+      lines.push(...cycleReportLines(check));
+    }
     if (checks.length > limit) lines.push(`  ... ${checks.length - limit} more`);
   }
   return `${lines.join("\n")}\n`;
@@ -291,6 +327,9 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
   if (checks.length) {
     lines.push("## Architecture checks", "", "| Severity | Check | Finding |", "| --- | --- | --- |");
     for (const check of checks.slice(0, limit)) lines.push(`| ${check.severity} | ${CHECK_TITLES[check.rule] ?? check.rule} (\`${check.rule}\`) | ${cell(check.message)} |`);
+    for (const check of checks.slice(0, limit)) {
+      if (check.cyclePath) lines.push("", ...cycleReportLines(check, "- "));
+    }
     lines.push("");
   }
   if (result.unassigned.length) {

@@ -10,6 +10,7 @@ import { analyzeContractFallbacks, classifyFallbackBody } from "../src/contract-
 import { createArchitectureModel } from "../src/architecture.js";
 import { renderD2 } from "../src/d2.js";
 import { resolveModel } from "../src/resolver.js";
+import { dependencyLens } from "../src/graph/lenses/dependency.js";
 import { createView, filterModel } from "../src/views.js";
 import { addInsights } from "../src/insights.js";
 
@@ -31,6 +32,89 @@ test("extracts AL objects and architectural relations", async () => {
   );
   assert.ok(result.objects[1].relations.some((relation) => relation.target === "Buffer"));
   assert.ok(result.objects[2].relations.some((relation) => relation.kind === "extends"));
+});
+
+test("explains cycles with ordered edge evidence and keeps type-only cycles structural", () => {
+  const objects = [
+    { key: "orchestrator", name: "Orchestrator", type: "codeunit" },
+    { key: "provider", name: "Provider", type: "codeunit" },
+    { key: "type-a", name: "Type A", type: "interface" },
+    { key: "type-b", name: "Type B", type: "interface" }
+  ];
+  const edges = [
+    {
+      from: "orchestrator",
+      to: "provider",
+      kind: "calls",
+      evidence: [{ kind: "calls", member: "Setup()", sourceProcedure: "Setup()", targetProcedure: "Provide()", callResolution: "syntactic", file: "Setup.al", line: 10 }]
+    },
+    {
+      from: "provider",
+      to: "orchestrator",
+      kind: "calls",
+      evidence: [{ kind: "calls", member: "Provide()", sourceProcedure: "Provide()", targetProcedure: "ResolveShared()", callResolution: "syntactic", file: "Provider.al", line: 20 }]
+    },
+    { from: "type-a", to: "type-b", kind: "uses", evidence: [{ kind: "uses", file: "Types.al", line: 30 }] },
+    { from: "type-b", to: "type-a", kind: "uses", evidence: [{ kind: "uses", file: "Types.al", line: 40 }] }
+  ];
+
+  const result = addInsights({ objects, edges, diagnostics: [] });
+
+  assert.deepEqual(result.insights.cycles, [["orchestrator", "provider"], ["type-a", "type-b"]]);
+  assert.ok(result.insights.cyclePaths, "cycle insights retain concrete representative paths");
+  const [callCycle, typeCycle] = result.insights.cyclePaths;
+  assert.deepEqual(callCycle.path.map(({ from, to, kind }) => [from, to, kind]), [
+    ["orchestrator", "provider", "calls"],
+    ["provider", "orchestrator", "calls"]
+  ]);
+  assert.ok(callCycle.path.every(({ evidence }) => evidence.some(({ file, line }) => file && line)));
+  assert.deepEqual(typeCycle.path.map(({ from, to, kind }) => [from, to, kind]), [
+    ["type-a", "type-b", "uses"],
+    ["type-b", "type-a", "uses"]
+  ]);
+  assert.equal(typeCycle.classification, "structural");
+  assert.ok(typeCycle.limitations.some((limitation) => /not evidence of runtime recursion/u.test(limitation)));
+});
+
+test("keeps resolved call sites and resolution provenance for cycle evidence", async () => {
+  const source = [
+    "codeunit 50100 Orchestrator {",
+    "  var Provider: Codeunit Provider;",
+    "  procedure Initialize()",
+    "  begin",
+    "    Provider.Provide();",
+    "  end;",
+    "  procedure ResolveShared() begin end;",
+    "}",
+    "codeunit 50101 Provider {",
+    "  var Orchestrator: Codeunit Orchestrator;",
+    "  procedure Provide()",
+    "  begin",
+    "    Orchestrator.ResolveShared();",
+    "  end;",
+    "}"
+  ].join("\n");
+  const parsed = await testing.objectsFromSource(source, "Calls.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  const { object } = dependencyLens(model);
+  const calls = object.edges.flatMap(({ source: from, target: to, evidence }) =>
+    evidence.filter(({ kind }) => kind === "calls").map((item) => ({
+      from: object.nodes.find(({ id }) => id === from)?.label,
+      to: object.nodes.find(({ id }) => id === to)?.label,
+      sourceProcedure: item.sourceProcedure,
+      targetProcedure: item.targetProcedure,
+      callResolution: item.callResolution,
+      file: item.file,
+      line: item.line
+    }))
+  );
+
+  assert.deepEqual(calls.map(({ from, to, sourceProcedure, targetProcedure, callResolution, file }) =>
+    [from, to, sourceProcedure, targetProcedure, callResolution, file]), [
+    ["Orchestrator", "Provider", "Initialize()", "Provide()", "syntactic", "Calls.al"],
+    ["Provider", "Orchestrator", "Provide()", "ResolveShared()", "syntactic", "Calls.al"]
+  ]);
+  assert.ok(calls.every(({ line }) => Number.isInteger(line) && line > 0));
 });
 
 test("extracts semantic data, permissions, page members, and parent app context", async () => {
