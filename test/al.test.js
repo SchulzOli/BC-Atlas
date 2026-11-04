@@ -79,7 +79,19 @@ test("reads AL settings like the AL Language extension: folder over workspace, p
     assert.deepEqual(dependencyOrder([sales, core]).map(({ relative }) => relative), ["core", "sales"]);
 
     const editor = await readAlWorkspace(workspace, { settings: { packageCachePath: "./cache" } });
-    assert.deepEqual(editor.apps[1].settings.packageCachePaths, [path.join(workspace, "sales", "cache")], "editor settings override every layer");
+    assert.deepEqual(editor.apps[1].settings.packageCachePaths, [path.join(workspace, "sales", "cache")], "explicit settings override every layer");
+
+    // Editor settings rank below a project's own .vscode/settings.json, as in VS Code.
+    const layered = await readAlWorkspace(workspace, { editorSettings: {
+      user: { packageCachePath: "./user-cache", assemblyProbingPaths: ["./dotnet"] },
+      workspaceFolder: { ruleSetPath: "editor.json", codeAnalyzers: ["${UICop}"] }
+    } });
+    const [layeredCore, layeredSales] = layered.apps;
+    assert.deepEqual(layeredCore.settings.packageCachePaths, core.settings.packageCachePaths, "the workspace file wins over user settings");
+    assert.deepEqual(layeredCore.settings.assemblyProbingPaths, [path.join(workspace, "core", "dotnet")], "user settings fill what nothing else sets");
+    assert.deepEqual(layeredCore.settings.codeAnalyzers, ["${UICop}"], "the editor's folder settings win over the workspace file");
+    assert.equal(layeredSales.settings.ruleSetPath, path.join(workspace, "sales", "ruleset.json"), "a project's own settings win over the editor");
+    assert.deepEqual(layeredSales.settings.codeAnalyzers, ["${CodeCop}", "${UICop}"]);
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }

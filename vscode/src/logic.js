@@ -140,7 +140,35 @@ function expandWorkspaceFolder(value, workspaceFolder) {
   return value.replace(/\$\{(?:workspaceFolder|workspaceRoot)\}/gu, workspaceFolder);
 }
 
+const AL_SETTINGS = Object.freeze(["packageCachePath", "codeAnalyzers", "enableCodeAnalysis", "ruleSetPath", "assemblyProbingPaths"]);
+
+/**
+ * The `al.*` settings someone actually set, by layer, for the engine:
+ * { user, workspace, workspaceFolder }. `inspect` is VS Code's
+ * `WorkspaceConfiguration.inspect`. Defaults are left out: `get()` would also
+ * return the AL extension's defaults (`./.alpackages`, `./.netpackages`), which
+ * then hid every project's own `.vscode/settings.json`.
+ * @param options { workspaceFolder, multiRoot } where `${workspaceFolder}`
+ *   points; in a multi-root workspace the workspace (file) layer is left to
+ *   the engine, which resolves it per project.
+ */
+function editorAlSettings(inspect, { workspaceFolder, multiRoot = false } = {}) {
+  const layers = { user: {}, workspace: {}, workspaceFolder: {} };
+  const set = (layer, key, value) => {
+    if (value !== undefined && value !== null && value !== "") layers[layer][key] = value;
+  };
+  for (const key of AL_SETTINGS) {
+    const info = inspect(key) ?? {};
+    set("user", key, info.globalValue);
+    set("workspace", key, multiRoot ? info.workspaceValue : expandWorkspaceFolder(info.workspaceValue, workspaceFolder));
+    set("workspaceFolder", key, expandWorkspaceFolder(info.workspaceFolderValue, workspaceFolder));
+  }
+  return Object.fromEntries(Object.entries(layers).filter(([, layer]) => Object.keys(layer).length));
+}
+
 module.exports = {
+  AL_SETTINGS,
+  editorAlSettings,
   EXPORTS,
   expandWorkspaceFolder,
   exportArgs,

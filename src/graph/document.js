@@ -4,6 +4,7 @@ import { analyze } from "../analyzer.js";
 import { analyzeProject, mergeArchitectureOptions, positiveInteger } from "../architecture.js";
 import { loadConfig } from "../config.js";
 import { resolveModel } from "../resolver.js";
+import { alOptions } from "../al/index.js";
 import { loadProjectSymbols } from "../symbols.js";
 import { objectFilter, pathMatcher } from "../views.js";
 import { findLens } from "./lenses/index.js";
@@ -103,7 +104,10 @@ export async function createGraphDocument(input, values = {}, { onFrame, parseCa
   const paths = [options.paths ?? []].flat().filter(Boolean);
   const fileFilter = paths.length ? pathMatcher(paths) : undefined;
   const parseCache = new Map();
-  const symbols = await loadProjectSymbols(projectRoot);
+  const al = alOptions(options);
+  const symbols = await loadProjectSymbols(projectRoot, {
+    workspaceFile: al.workspaceFile, settings: al.settings, editorSettings: al.editorSettings
+  });
   // A snapshot goes through the AL compiler when it is available. A timeline
   // stays source-level throughout so frames compare like with like.
   const compiled = !(options.history || options.historyBy);

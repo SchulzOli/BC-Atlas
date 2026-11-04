@@ -25,7 +25,7 @@ import { MAX_DIAGRAM_NODES, prepareScene, sceneToSvg } from "../diagram/index.js
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
 // Options that select what is analyzed; every page shares them.
-const SHARED = ["projectRoot", "config", "namespace", "type", "include", "exclude", "paths", "compiler", "compilerLog", "analyzers", "alSettings", "alExtensionPath"];
+const SHARED = ["projectRoot", "config", "namespace", "type", "include", "exclude", "paths", "compiler", "compilerLog", "analyzers", "alSettings", "alEditorSettings", "alExtensionPath"];
 const DIAGRAM_OPTIONS = ["view", "object", "scope", "focus", "entry", "namespace", "groupBy", "direction", "moduleDepth", "objectInboundDepth", "objectOutboundDepth", "callDepth", "callDirection", "details", "noExternal"];
 
 const MAX_EVIDENCE = 3;

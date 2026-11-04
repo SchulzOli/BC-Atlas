@@ -117,12 +117,23 @@ export function projectSettings(folder, ...layers) {
   };
 }
 
+/** Expands the path settings of a layer keyed without the `al.` prefix. */
+function expandLayer(layer, workspaceFolder) {
+  if (!layer) return undefined;
+  return Object.fromEntries(Object.entries(layer).map(([key, value]) =>
+    [key, PATH_SETTINGS.has(key) ? expandVariables(value, { workspaceFolder }) : value]));
+}
+
 /**
  * The AL projects below `root` with their manifests and settings.
- * @param options { workspaceFile, settings } settings override every layer
- *   (VS Code passes the effective `al.*` configuration here).
+ * @param options { workspaceFile, settings, editorSettings }
+ *   settings override every layer (CLI and MCP callers);
+ *   editorSettings are the values an editor knows that the files below `root`
+ *   may not hold, lowest first: { user, workspace, workspaceFolder } as VS
+ *   Code's `inspect()` reports them. They rank below a project's own
+ *   `.vscode/settings.json`, as in VS Code, and never carry defaults.
  */
-export async function readAlWorkspace(root, { workspaceFile, settings } = {}) {
+export async function readAlWorkspace(root, { workspaceFile, settings, editorSettings = {} } = {}) {
   const absoluteRoot = path.resolve(root);
   const workspacePath = await findWorkspaceFile(absoluteRoot, workspaceFile);
   const workspace = workspacePath ? await readJson(workspacePath, { jsonc: true }) : undefined;
@@ -154,11 +165,13 @@ export async function readAlWorkspace(root, { workspaceFile, settings } = {}) {
       manifest,
       settings: projectSettings(
         folder,
+        expandLayer(editorSettings.user, folder),
         rootSettings,
         alSettings(workspaceSettings, folder),
+        expandLayer(editorSettings.workspace, folder),
+        expandLayer(editorSettings.workspaceFolder, folder),
         folderSettings,
-        settings && Object.fromEntries(Object.entries(settings).map(([key, value]) =>
-          [key, PATH_SETTINGS.has(key) ? expandVariables(value, { workspaceFolder: folder }) : value]))
+        expandLayer(settings, folder)
       )
     });
   }
