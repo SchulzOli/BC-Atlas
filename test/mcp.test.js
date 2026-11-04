@@ -11,6 +11,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 test("serves BC Atlas tools over MCP stdio", async () => {
   const config = path.join(root, "test", `task3-mcp-policy-${process.pid}.json`);
+  const contextConfig = path.join(root, "test", `task5-mcp-context-${process.pid}.json`);
   writeFileSync(config, JSON.stringify({
     architecture: {
       components: [
@@ -83,7 +84,9 @@ test("serves BC Atlas tools over MCP stdio", async () => {
       arguments: { path: path.join(root, "test", "fixtures") }
     });
     assert.equal(health.isError, undefined);
-    assert.equal(JSON.parse(health.content[0].text).passed, true);
+    const healthReport = JSON.parse(health.content[0].text);
+    assert.equal(healthReport.passed, true);
+    assert.equal("contextResponsibilities" in healthReport, false);
 
     const architectureHealth = await client.callTool({
       name: "bc_atlas_check",
@@ -96,8 +99,35 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     assert.equal(finding.architectureOrigin, "configured");
     assert.ok(finding.evidence.some(({ operation, member, file }) =>
       operation === "Get" && member === "Sync(Code[20])" && file === "integration/ItemSync.al"));
+
+    writeFileSync(contextConfig, JSON.stringify({
+      check: {
+        contexts: [{
+          object: "object:codeunit:Context",
+          roles: { partnerResolution: ["object:codeunit:PartnerResolver"] },
+          lazyReadMethods: ["LoadPartner()"],
+          forbid: []
+        }]
+      }
+    }));
+    const contextHealth = await client.callTool({
+      name: "bc_atlas_check",
+      arguments: {
+        path: path.join(root, "test", "context-fixtures"),
+        config: contextConfig
+      }
+    });
+    assert.equal(contextHealth.isError, undefined);
+    const contextReport = JSON.parse(contextHealth.content[0].text);
+    assert.equal(contextReport.passed, true);
+    assert.ok(contextReport.contextResponsibilities.summaries[0].responsibilities.partnerResolution
+      .some(({ target }) => target === "PartnerResolver"));
+    assert.ok(contextReport.findings.some(({ rule, category, severity }) =>
+      rule === "context-responsibility" && category === "lazy-reads" && severity === "info"
+    ));
   } finally {
     await client.close();
     rmSync(config, { force: true });
+    rmSync(contextConfig, { force: true });
   }
 });

@@ -42,6 +42,7 @@ Result: PASSED - 0 error(s), 0 warning(s), 1 info (fail on: error)
 | `high-fan-in` | warning | More than `maxFanIn` distinct objects depend on one object. |
 | `high-fan-out` | warning | One object depends on more than `maxFanOut` distinct objects. |
 | `contract-fallback` | info; warning for configured expectations | A resolved enum implementation or inherited interface default has an empty body, a constant `true` return, or a conditional path that can complete without an error. Configure `check.contractExpectations` to make the selected methods warnings. |
+| `context-responsibility` | info; warning for direct effects forbidden by policy | An explicitly selected context has record reads/writes, temporary writes, commits, resolved calls, selected role responsibilities, in-memory global assignments, or bounded indirect effect candidates. Configure `check.contexts` and its `forbid` list to assert selected responsibilities. |
 | `orphan-objects` | info | Objects without any relationship. |
 | `unresolved-references` | info | References to objects outside the analyzed source. Add `.alpackages` symbols to resolve them. |
 
@@ -52,6 +53,17 @@ unresolved helper or symbol-only body is never promoted to a proven silent
 success. Findings include `basis`, `resolution`, primary and supporting source
 locations, and `limitations`. Unknown-value enum implementations are not used
 as ordinary fallbacks.
+
+`context-responsibility` runs only for objects explicitly selected by
+`check.contexts`. Its JSON report includes `contextResponsibilities.summaries`
+with direct effects, bounded indirect candidates, resolved calls, selected
+planning/partner-resolution roles, explicitly selected lazy-read methods, and
+traversal limitations. `maxCallDepth` defaults to `3`. Temporary writes,
+permission grants, and in-memory assignments are not persistent writes;
+unknown temporary state stays uncertain. Planning and partner resolution are
+never inferred from method names. Read-only lazy reads are informational and
+permitted unless `"lazy-reads"` is explicitly forbidden. With no
+`check.contexts` setting, the report shape is unchanged.
 
 ## Fail levels
 
@@ -92,6 +104,18 @@ Findings from the AL compiler also carry `column`, `endLine`, `endColumn`,
         "interface": "object:interface:IPipelineStep",
         "methods": ["Execute"]
       }
+    ],
+    "contexts": [
+      {
+        "object": "object:codeunit:EDIPlatformContext",
+        "maxCallDepth": 3,
+        "roles": {
+          "planning": ["object:codeunit:EDIPipelinePlanFactory"],
+          "partnerResolution": ["object:codeunit:EDIPartnerContextResolver"]
+        },
+        "lazyReadMethods": ["TryGetExchange()"],
+        "forbid": ["persistent-writes", "commits"]
+      }
     ]
   },
   "forbiddenDependencies": [
@@ -108,4 +132,4 @@ Findings from the AL compiler also carry `column`, `endLine`, `endColumn`,
 Command-line options override the `check` section. Patterns in
 `forbiddenDependencies` match `Namespace:ObjectType:ObjectName`. See
 [configuration](./configuration.md#configure-health-checks-and-reports) for
-contract expectation selector and validation details.
+contract expectation and context selector validation details.

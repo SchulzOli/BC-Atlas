@@ -542,6 +542,9 @@ function callsFor(node, source, file) {
       ? functionNode.childForFieldName("object")
       : undefined;
     const argumentsNode = callNode.childForFieldName("arguments");
+    const argumentsList = argumentsNode?.namedChildren.map((argument) =>
+      source.slice(argument.startIndex, argument.endIndex).trim()
+    ) ?? [];
     return {
       name: cleanName(source.slice(
         (memberNode ?? functionNode).startIndex,
@@ -552,6 +555,7 @@ function callsFor(node, source, file) {
         : undefined,
       receiverCall: receiverNode?.type === "call_expression" ? describe(receiverNode) : undefined,
       arity: argumentsNode?.namedChildCount ?? 0,
+      ...(argumentsList.length ? { arguments: argumentsList } : {}),
       scope: node.startPosition.row + 1,
       location: locationFor(callNode, file)
     };
@@ -706,6 +710,17 @@ function fallbackStatements(node, source, file, conditional = false) {
         "decimal",
         "string_literal"
       ].includes(returnNode.type)),
+      conditional,
+      location: locationFor(node, file)
+    }];
+  }
+  if (node.type === "assignment_statement") {
+    const targetNode = node.childForFieldName("left");
+    return [{
+      kind: "assignment",
+      target: targetNode
+        ? cleanName(source.slice(targetNode.startIndex, targetNode.endIndex))
+        : undefined,
       conditional,
       location: locationFor(node, file)
     }];
@@ -1015,8 +1030,8 @@ function dataOperationRelations(members, object) {
         .map((variable) => [variable.name.toLowerCase(), variable])
     );
     if (sourceTable) {
-      variables.set("rec", { target: sourceTable, temporary: false });
-      variables.set("xrec", { target: sourceTable, temporary: false });
+      variables.set("rec", { target: sourceTable, temporary: object.sourceTableTemporary });
+      variables.set("xrec", { target: sourceTable, temporary: object.sourceTableTemporary });
     }
     let transactionSegment = 1;
     for (const call of procedure.calls) {
@@ -1035,7 +1050,10 @@ function dataOperationRelations(members, object) {
         kind,
         relationClass: "runtime",
         operation: call.name,
-        temporary: variable.temporary,
+        recordVariable: call.receiver,
+        temporary: variable.parameter && variable.temporary !== true
+          ? undefined
+          : variable.temporary,
         member: procedure.signature,
         sourceProcedure: procedure.signature,
         transactionSegment,
@@ -1132,7 +1150,17 @@ async function objectsFromSource(source, file) {
       });
     }
     const members = membersFor(node, source, file);
-    const dataRelations = dataOperationRelations(members, { type, name, base, relations });
+    const properties = propertiesFor(node, source);
+    const sourceTableTemporary = /^true$/iu.test(
+      propertyValueFor(node, source, "sourcetabletemporary") ?? "false"
+    );
+    const dataRelations = dataOperationRelations(members, {
+      type,
+      name,
+      base,
+      relations,
+      sourceTableTemporary
+    });
     relations.push(...dataRelations, ...helperDataOperationRelations(members, dataRelations));
 
     const assignableValue = type === "permissionset"
@@ -1148,7 +1176,7 @@ async function objectsFromSource(source, file) {
       namespace,
       usings,
       file,
-      properties: propertiesFor(node, source),
+      properties,
       relations,
       procedures: members.procedures,
       fields: members.fields,

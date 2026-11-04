@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 import { zipSync, strToU8 } from "fflate";
 import { analyze, testing } from "../src/analyzer.js";
 import { analyzeContractFallbacks, classifyFallbackBody } from "../src/contract-analysis.js";
+import { analyzeContextResponsibilities } from "../src/context-analysis.js";
 import { createArchitectureModel } from "../src/architecture.js";
+import { assessHealth } from "../src/health.js";
 import { renderD2 } from "../src/d2.js";
 import { resolveModel } from "../src/resolver.js";
 import { dependencyLens } from "../src/graph/lenses/dependency.js";
@@ -32,6 +34,256 @@ test("extracts AL objects and architectural relations", async () => {
   );
   assert.ok(result.objects[1].relations.some((relation) => relation.target === "Buffer"));
   assert.ok(result.objects[2].relations.some((relation) => relation.kind === "extends"));
+});
+
+async function contextResponsibilityModel() {
+  const parsed = await testing.objectsFromSource(`
+    table 50100 Ledger { }
+    codeunit 50101 Context {
+      Permissions = tabledata Ledger = RIMD;
+      var
+        LedgerRecord: Record Ledger;
+        TemporaryLedger: Record Ledger temporary;
+        Resolver: Codeunit PartnerResolver;
+        Planner: Codeunit PlanningService;
+        Unknown: Codeunit MissingService;
+        ExternalResolver: Interface IContextResolver;
+        CachedId: Integer;
+      procedure DirectWrite()
+      begin
+        LedgerRecord.Insert();
+        Commit();
+      end;
+      procedure TemporaryWrite()
+      begin
+        TemporaryLedger.Insert();
+      end;
+      procedure TemporaryWriteThroughHelper()
+      begin
+        WriteRecord(TemporaryLedger);
+      end;
+      procedure PersistentWriteThroughHelper()
+      begin
+        WriteRecord(LedgerRecord);
+      end;
+      procedure WriteRecord(var RecordRef: Record Ledger)
+      begin
+        RecordRef.Insert();
+      end;
+      procedure LoadPartner()
+      begin
+        LedgerRecord.Get('PARTNER');
+      end;
+      procedure ResolvePartner()
+      begin
+        Resolver.Resolve();
+      end;
+      procedure LoadPartnerThroughResolver()
+      begin
+        Resolver.Resolve();
+      end;
+      procedure BuildPlan()
+      begin
+        Planner.Build();
+      end;
+      procedure UnresolvedCall()
+      begin
+        InvokeUnknown();
+      end;
+      procedure InvokeUnknown()
+      begin
+        Unknown.Resolve();
+      end;
+      procedure InvokeExternalResolver()
+      begin
+        ExternalResolver.Resolve();
+      end;
+      procedure Recurse()
+      begin
+        Recurse();
+      end;
+      procedure CacheOnlyAssignment()
+      begin
+        CachedId := 1;
+      end;
+      procedure LocalAssignment()
+      var LocalCache: Integer;
+      begin
+        LocalCache := 1;
+      end;
+    }
+    codeunit 50102 PartnerResolver {
+      var
+        LedgerRecord: Record Ledger;
+        Directory: Codeunit PartnerDirectory;
+      procedure Resolve()
+      begin
+        Directory.Lookup();
+      end;
+    }
+    codeunit 50103 PartnerDirectory {
+      var LedgerRecord: Record Ledger;
+      procedure Lookup()
+      begin
+        LedgerRecord.Get('PARTNER');
+      end;
+    }
+    codeunit 50104 PlanningService {
+      procedure Build()
+      begin
+      end;
+    }
+    page 50105 TemporaryLedgerPage {
+      SourceTable = Ledger;
+      SourceTableTemporary = true;
+      procedure InsertTemporary()
+      begin
+        Rec.Insert();
+      end;
+    }
+    interface IContextResolver {
+      procedure Resolve();
+    }
+  `, "context-responsibilities.al");
+  return {
+    parsed,
+    model: resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] })
+  };
+}
+
+test("context responsibility separates persistent, temporary, commit, and in-memory effects", async () => {
+  const { model } = await contextResponsibilityModel();
+  const report = assessHealth(model, {
+    contexts: [{ object: "object:codeunit:Context" }]
+  });
+  const [summary] = report.contextResponsibilities.summaries;
+
+  assert.deepEqual(
+    summary.directEffects.map(({ category, operation, temporary }) => [category, operation, temporary]),
+    [
+      ["persistent-writes", "Insert", false],
+      ["commits", "Commit", false],
+      ["temporary-writes", "Insert", true],
+      ["unknown-state-writes", "Insert", undefined],
+      ["reads", "Get", false]
+    ]
+  );
+  assert.deepEqual(
+    summary.stateMutations.map(({ procedure, target }) => [procedure, target]),
+    [["CacheOnlyAssignment()", "CachedId"]]
+  );
+  assert.ok(!summary.directEffects.some(({ category }) => category === "permits"));
+});
+
+test("context responsibility propagates temporary flags through resolved calls", async () => {
+  const { parsed, model } = await contextResponsibilityModel();
+  const context = parsed.objects.find(({ name }) => name === "Context");
+  assert.deepEqual(
+    context.procedures.find(({ name }) => name === "TemporaryWriteThroughHelper").calls[0].arguments,
+    ["TemporaryLedger"]
+  );
+  const [summary] = analyzeContextResponsibilities(model, [
+    { object: "object:codeunit:Context" }
+  ]).summaries;
+
+  assert.deepEqual(
+    summary.indirectEffects.map(({ category, operation }) => [category, operation]),
+    [
+      ["persistent-writes", "Insert"],
+      ["temporary-writes", "Insert"],
+      ["reads", "Get"],
+      ["reads", "Get"]
+    ]
+  );
+  assert.ok(summary.indirectEffects.every(({ callPath }) =>
+    callPath.length > 0 && callPath.every(({ resolution, location }) =>
+      ["syntactic", "compiler"].includes(resolution) && location?.line
+    )
+  ));
+});
+
+test("context responsibility uses only explicitly selected roles and lazy-read methods", async () => {
+  const { model } = await contextResponsibilityModel();
+  const [summary] = analyzeContextResponsibilities(model, [{
+    object: "object:codeunit:Context",
+    roles: {
+      planning: ["object:codeunit:PlanningService"],
+      partnerResolution: ["object:codeunit:PartnerResolver"]
+    },
+    lazyReadMethods: ["LoadPartner()", "LoadPartnerThroughResolver()"]
+  }]).summaries;
+
+  assert.ok(summary.responsibilities.planning.some(({ target }) => target === "PlanningService"));
+  assert.ok(summary.responsibilities.partnerResolution.some(({ target }) => target === "PartnerResolver"));
+  assert.ok(summary.responsibilities.lazyReads.some(({ procedure }) => procedure === "LoadPartner()"));
+  assert.ok(summary.responsibilities.lazyReads.some(({ procedure, limitations }) =>
+    procedure === "LoadPartnerThroughResolver()" && !limitations.length
+  ));
+});
+
+test("context responsibility discloses unresolved calls, cycles, and depth limits", async () => {
+  const { model } = await contextResponsibilityModel();
+  const summary = assessHealth(model, {
+    contexts: [{ object: "object:codeunit:Context", maxCallDepth: 1 }]
+  }).contextResponsibilities.summaries[0];
+
+  assert.ok(summary.calls.some(({ resolution, directness }) =>
+    resolution === "unresolved" && directness === "indirect"
+  ));
+  assert.ok(summary.limitations.some((limitation) => /unresolved call/iu.test(limitation)));
+  assert.ok(summary.limitations.some((limitation) => /call cycle reached Recurse/iu.test(limitation)));
+  assert.ok(summary.limitations.some((limitation) => /body information is unavailable/iu.test(limitation)));
+  assert.ok(summary.limitations.some((limitation) => /maxCallDepth 1/u.test(limitation)));
+  assert.deepEqual(summary.responsibilities.planning, []);
+  assert.deepEqual(summary.responsibilities.partnerResolution, []);
+  assert.deepEqual(summary.responsibilities.lazyReads, []);
+});
+
+test("context responsibility does not treat a selected bodyless procedure as effect-free", async () => {
+  const { model } = await contextResponsibilityModel();
+  const summary = assessHealth(model, {
+    contexts: [{ object: "object:interface:IContextResolver" }]
+  }).contextResponsibilities.summaries[0];
+
+  assert.ok(summary.limitations.some((limitation) =>
+    /selected procedure body information is unavailable/iu.test(limitation)
+  ));
+});
+
+test("context responsibility enforces only forbidden direct effects and permits temporary page writes", async () => {
+  const { model } = await contextResponsibilityModel();
+  const report = assessHealth(model, {
+    failOn: "warning",
+    contexts: [{
+      object: "object:codeunit:Context",
+      forbid: ["persistent-writes", "commits"]
+    }]
+  });
+  assert.equal(report.passed, false);
+  assert.deepEqual(
+    report.findings
+      .filter(({ rule, severity }) => rule === "context-responsibility" && severity !== "info")
+      .map(({ category, directness, severity, basis }) => [category, directness, severity, basis])
+      .sort(([left], [right]) => left.localeCompare(right)),
+    [
+      ["commits", "direct", "warning", "configured-policy"],
+      ["persistent-writes", "direct", "warning", "configured-policy"]
+    ]
+  );
+
+  const temporaryPage = assessHealth(model, {
+    failOn: "warning",
+    contexts: [{
+      object: "object:page:TemporaryLedgerPage",
+      forbid: ["persistent-writes"]
+    }]
+  });
+  assert.equal(temporaryPage.passed, true);
+  assert.deepEqual(
+    temporaryPage.contextResponsibilities.summaries[0].directEffects
+      .map(({ category, temporary }) => [category, temporary]),
+    [["temporary-writes", true]]
+  );
 });
 
 test("explains cycles with ordered edge evidence and keeps type-only cycles structural", () => {

@@ -106,6 +106,18 @@ Rules that work with the components and layers of a target architecture
         "interface": "object:interface:IPipelineStep",
         "methods": ["Execute"]
       }
+    ],
+    "contexts": [
+      {
+        "object": "object:codeunit:EDIPlatformContext",
+        "maxCallDepth": 3,
+        "roles": {
+          "planning": ["object:codeunit:EDIPipelinePlanFactory"],
+          "partnerResolution": ["object:codeunit:EDIPartnerContextResolver"]
+        },
+        "lazyReadMethods": ["TryGetExchange()"],
+        "forbid": ["persistent-writes", "commits"]
+      }
     ]
   },
   "report": {
@@ -131,6 +143,33 @@ The body classification is structural evidence from supported source syntax,
 not proof of runtime behavior. Symbol-only bodies, unresolved delegation, and
 ambiguous implementation signatures remain unknown rather than being treated
 as empty or safe.
+
+`check.contexts` opts specific objects into context-responsibility summaries.
+Each `object` and role entry uses an existing object selector and must match
+objects in the analyzed project. `maxCallDepth` is a positive integer with a
+default of `3`; direct operations are reported separately from bounded
+indirect call candidates. The analysis reports reads, persistent and temporary
+writes, explicit commits, resolved calls, and in-memory assignments to global
+variables. Permission grants and cache assignments are not persistent writes.
+If temporary state cannot be determined, the write remains uncertain.
+
+Planning and partner-resolution responsibilities are attributed only to
+objects explicitly listed under `roles.planning` and
+`roles.partnerResolution`. `lazyReadMethods` takes exact procedure signatures
+on the selected object, such as `"TryGetExchange()"`; method names alone do not
+establish a responsibility. Read-only lazy reads remain visible and permitted
+unless `"lazy-reads"` is in `forbid`. The supported `forbid` values are
+`"persistent-writes"`, `"commits"`, `"planning"`, `"partner-resolution"`, and
+`"lazy-reads"`. An empty or omitted `forbid` reports evidence without asserting
+a policy violation. Configured violations are warnings and follow the normal
+`failOn` threshold.
+
+Indirect findings are bounded candidates, not proof of runtime behavior.
+Unresolved calls, cycles, and depth limits are disclosed in
+`contextResponsibilities.summaries[].limitations`; the JSON finding evidence
+also identifies direct versus indirect effects. With no `check.contexts`
+setting, health output retains its existing shape. CLI and MCP checks use the
+same canonical analysis.
 
 See [Architecture health checks](./health-checks.md) and
 [Architecture reports](./reports.md).

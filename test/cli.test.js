@@ -382,6 +382,99 @@ test("check applies contract expectations as warnings and reports neutral fallba
   }
 });
 
+test("check reports explicitly selected context responsibilities and validates their configuration", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const fixture = fileURLToPath(new URL("./context-fixtures", import.meta.url));
+  const config = fileURLToPath(new URL(`./context-fixtures/task5-config-${process.pid}.json`, import.meta.url));
+  const writeConfig = (check) => writeFileSync(config, JSON.stringify({ check }));
+  const run = () => spawnSync(process.execPath, [
+    cli, "check", fixture, "--config", config, "--format", "json"
+  ], { encoding: "utf8" });
+
+  try {
+    writeConfig({
+      contexts: [{
+        object: "object:codeunit:Context",
+        roles: {
+          planning: ["object:codeunit:PlanningService"],
+          partnerResolution: ["object:codeunit:PartnerResolver"]
+        },
+        lazyReadMethods: ["LoadPartner()"],
+        forbid: ["persistent-writes", "commits"]
+      }]
+    });
+    const result = run();
+    assert.equal(result.status, 0, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.passed, true);
+    assert.equal(report.contextResponsibilities.summaries.length, 1);
+    assert.ok(report.contextResponsibilities.summaries[0].responsibilities.partnerResolution
+      .some(({ target }) => target === "PartnerResolver"));
+    assert.ok(report.contextResponsibilities.summaries[0].responsibilities.planning
+      .some(({ target }) => target === "PlanningService"));
+    assert.ok(report.contextResponsibilities.summaries[0].responsibilities.lazyReads
+      .some(({ procedure, limitations }) => procedure === "LoadPartner()" && !limitations.length));
+    assert.ok(report.findings.some(({ rule, category, severity }) =>
+      rule === "context-responsibility" && category === "lazy-reads" && severity === "info"
+    ));
+    assert.ok(!report.findings.some(({ rule, category, severity }) =>
+      rule === "context-responsibility" &&
+      category === "persistent-writes" &&
+      severity === "warning"
+    ));
+
+    for (const [invalid, message] of [
+      [{ contexts: { object: "object:codeunit:Context" } }, /check\.contexts must be an array/u],
+      [{ contexts: [{ object: "object:codeunit:Missing" }] }, /did not match any object/u],
+      [{ contexts: [{ object: "object:codeunit:Context", maxCallDepth: 0 }] }, /maxCallDepth must be a positive integer/u],
+      [{ contexts: [{ object: "object:codeunit:Context", maxCallDepth: null }] }, /maxCallDepth must be a positive integer/u],
+      [{ contexts: [{ object: "object:codeunit:Context", roles: { partnerResolution: ["object:codeunit:Missing"] } }] }, /did not match any object/u],
+      [{ contexts: [{ object: "object:codeunit:Context", roles: { planning: "object:codeunit:PlanningService" } }] }, /roles\.planning must be an array/u],
+      [{ contexts: [{ object: "object:codeunit:Context", lazyReadMethods: ["Missing"] }] }, /must be a method signature/u],
+      [{ contexts: [{ object: "object:codeunit:Context", lazyReadMethods: ["Missing()"] }] }, /unknown method signature/u],
+      [{ contexts: [{ object: "object:codeunit:Context", forbid: ["unknown"] }] }, /forbid must contain only/u]
+    ]) {
+      writeConfig(invalid);
+      const rejected = run();
+      assert.equal(rejected.status, 1);
+      assert.match(rejected.stderr, message);
+    }
+
+    for (const [category, role] of [
+      ["planning", { planning: ["object:codeunit:PlanningService"] }],
+      ["partner-resolution", { partnerResolution: ["object:codeunit:PartnerResolver"] }],
+      ["lazy-reads", {}]
+    ]) {
+      writeConfig({
+        failOn: "warning",
+        contexts: [{
+          object: "object:codeunit:Context",
+          roles: role,
+          lazyReadMethods: ["LoadPartner()"],
+          forbid: [category]
+        }]
+      });
+      const forbidden = run();
+      assert.equal(forbidden.status, 1);
+      const policyReport = JSON.parse(forbidden.stdout);
+      assert.ok(policyReport.findings.some(({ rule, category: findingCategory, severity, basis }) =>
+        rule === "context-responsibility" &&
+        findingCategory === category &&
+        severity === "warning" &&
+        basis === "configured-policy"
+      ));
+    }
+
+    const noContexts = spawnSync(process.execPath, [
+      cli, "check", fileURLToPath(new URL("./fixtures", import.meta.url)), "--format", "json"
+    ], { encoding: "utf8" });
+    assert.equal(noContexts.status, 0, noContexts.stderr);
+    assert.equal("contextResponsibilities" in JSON.parse(noContexts.stdout), false);
+  } finally {
+    rmSync(config, { force: true });
+  }
+});
+
 test("setup writes a starter configuration that export and check accept", () => {
   const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
   const fixtures = fileURLToPath(new URL("./fixtures", import.meta.url));
