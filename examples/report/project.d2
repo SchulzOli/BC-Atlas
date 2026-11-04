@@ -80,6 +80,7 @@ g4: "UI" {
   }
 }
 
+g3.n0 -> g3.n4: "subscribes" {style.stroke: "#A21CAF"; style.stroke-dash: 3; tooltip: "Source procedures: NotifyRequestProcessed"}
 g2.n1 -> g1.n3: "tabledata [RIMD]" {style.stroke: "#7C3AED"; tooltip: "Table data rights: read, insert, modify, delete"}
 g2.n1 -> g3.n4: "executes [X]" {style.stroke: "#7C3AED"; tooltip: "Permission: execute"}
 g2.n1 -> g4.n6: "executes [X]" {style.stroke: "#7C3AED"; tooltip: "Permission: execute"}
@@ -99,7 +100,7 @@ g3.n8 -> g4.n6: "uses (2)" {style.stroke: "#6B7280"; style.stroke-dash: 3}
 g3.n8 -> g1.n3: "writes (3)" {style.stroke: "#D55E00"; tooltip: "Operations: DeleteAll, Insert\nSource procedures: WarehouseRequests_CreateRequest_PersistsDescription(), WarehouseRequests_ProcessRequest_MarksRequestProcessed()\nRelation: runtime\nTransaction segments: 1"}
 g3.n8 -> g1.n3: "reads (2)" {style.stroke: "#0072B2"; tooltip: "Operations: Get\nSource procedures: WarehouseRequests_CreateRequest_PersistsDescription(), WarehouseRequests_ProcessRequest_MarksRequestProcessed()\nRelation: runtime\nTransaction segments: 1"}
 
-legend: "Legend\nEdges: extends #CC79A7, implements #E69F00, permits #7C3AED, reads #0072B2, selects #EA580C, uses #6B7280, writes #D55E00\nConfidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; ambiguous = dashed amber #B45309; cycle = red #B91C1C\nData: schema = dashed; runtime access = solid" {
+legend: "Legend\nEdges: extends #CC79A7, implements #E69F00, permits #7C3AED, reads #0072B2, selects #EA580C, subscribes #A21CAF, uses #6B7280, writes #D55E00\nConfidence overlay: resolved = relation style; syntactic = dashed gray #6B7280; ambiguous = dashed amber #B45309; cycle = red #B91C1C\nData: schema = dashed; runtime access = solid" {
   shape: text
   near: bottom-right
 }

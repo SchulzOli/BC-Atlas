@@ -8,7 +8,7 @@
 
 | Files | Objects | Relationships | Unresolved | Cycles | Health |
 | --- | --- | --- | --- | --- | --- |
-| 4 | 9 | 26 | 0 | 0 | Passed (0 errors, 0 warnings) |
+| 4 | 9 | 27 | 0 | 0 | Passed (0 errors, 0 warnings) |
 
 ## Contents
 
@@ -27,7 +27,7 @@ AL objects grouped into role lanes (Data, UI, Services, ...).
 
 ![Project overview](project.svg)
 
-9 nodes, 26 edges. Source: [project.d2](project.d2)
+9 nodes, 27 edges. Source: [project.d2](project.d2)
 
 ## Modules
 
@@ -35,7 +35,7 @@ Aggregated namespace or folder dependencies.
 
 ![Modules](module.svg)
 
-3 nodes, 6 edges. Source: [module.d2](module.d2)
+3 nodes, 7 edges. Source: [module.d2](module.d2)
 
 ## Data model
 
@@ -71,14 +71,14 @@ Pages, source tables, parts, actions, and navigation.
 
 ## Architecture health
 
-**Passed** - 0 error(s), 0 warning(s), 1 info. Fails on: `error`.
+**Passed** - 0 error(s), 0 warning(s), 0 info. Fails on: `error`.
 
 | Metric | Value |
 | --- | --- |
 | Apps | BC Atlas Warehouse Example 1.0.0.0 |
 | Files | 4 |
 | Objects | 9 |
-| Relationships | 26 |
+| Relationships | 27 |
 | Unresolved references | 0 |
 | Dependency cycles | 0 |
 
@@ -96,18 +96,17 @@ Pages, source tables, parts, actions, and navigation.
 
 | Object | Used by | Depends on |
 | --- | --- | --- |
-| codeunit 50101 Warehouse Processor | 3 | 2 |
+| codeunit 50101 Warehouse Processor | 4 | 2 |
 | page 50110 Warehouse Requests | 3 | 2 |
 | table 50100 Warehouse Request | 4 | 0 |
 | permissionset 50121 WAREHOUSE PROCESS | 0 | 3 |
 | codeunit 50122 WarehouseUITests | 0 | 2 |
 | enum 50102 Warehouse Handler | 0 | 2 |
 | interface Handles Warehouse Activity | 2 | 0 |
+| codeunit 50120 Warehouse Notifications | 0 | 1 |
 | pageextension 50111 Warehouse Request Ext. | 0 | 1 |
 
-| Severity | Rule | Finding |
-| --- | --- | --- |
-| Info | `orphan-objects` | 1 object(s) without relationships: codeunit 50120 Warehouse Notifications |
+No findings.
 
 ## Regenerate
 
@@ -115,4 +114,4 @@ Pages, source tables, parts, actions, and navigation.
 bca export examples/warehouse-app --view report -o examples/report --codegraph
 ```
 
-_4 AL file(s) analyzed. Result: PASSED - 0 error(s), 0 warning(s), 1 info (fail on: error)._
+_4 AL file(s) analyzed. Result: PASSED - 0 error(s), 0 warning(s), 0 info (fail on: error)._
