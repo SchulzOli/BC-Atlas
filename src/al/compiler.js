@@ -162,7 +162,10 @@ async function compileProject(app, { toolchain, copyRoot, root, output, caches, 
   const analyzerList = analyzers ?? (settings.enableCodeAnalysis ? settings.codeAnalyzers : []);
   if (analyzerList.length) args.push(`/analyzer:${analyzerPaths(analyzerList, toolchain, app.folder).join(";")}`);
   if (settings.ruleSetPath) args.push(`/ruleset:${settings.ruleSetPath}`);
-  if (settings.assemblyProbingPaths.length) args.push(`/assemblyprobingpaths:${settings.assemblyProbingPaths.join(";")}`);
+  // alc stops with AL1018 ("Directory could not be found") on a missing
+  // folder; VS Code reports the AL default ./.netpackages even when it is absent.
+  const probingPaths = settings.assemblyProbingPaths.filter((folder) => caches.has(folder));
+  if (probingPaths.length) args.push(`/assemblyprobingpaths:${probingPaths.join(";")}`);
   const started = Date.now();
   const result = await runTool(toolchain.alc, args, { cwd: copy });
   let diagnostics = [];
@@ -267,7 +270,7 @@ export async function runAlTools(root, { toolchain, al, analyzers, graph = true,
   const files = await fingerprintFiles(workspace);
   const caches = new Set();
   for (const app of workspace.apps) {
-    for (const folder of app.settings.packageCachePaths) {
+    for (const folder of [...app.settings.packageCachePaths, ...app.settings.assemblyProbingPaths]) {
       if (await fs.stat(folder).then((stat) => stat.isDirectory(), () => false)) caches.add(folder);
     }
   }
@@ -275,6 +278,7 @@ export async function runAlTools(root, { toolchain, al, analyzers, graph = true,
     version: CACHE_VERSION,
     files,
     settings: workspace.apps.map(({ relative, settings, manifest }) => ({ relative, settings, manifest })),
+    folders: [...caches].sort(),
     packages: await packageFingerprint([...caches]),
     tool: [toolchain.source, toolchain.location, toolchain.version],
     analyzers,

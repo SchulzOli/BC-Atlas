@@ -443,3 +443,45 @@ test("health reports omit absent architecture origin and keep Markdown evidence 
   assert.match(markdown, /Limitations: x \\\| y/u);
   assert.match(markdown, /\| \| \| 1 more finding\(s\) \| \|/u);
 });
+
+test("alc only receives probing and package folders that exist (AL1018)", async () => {
+  const folder = temp("probing");
+  const cache = process.env.BCA_CACHE_DIR;
+  process.env.BCA_CACHE_DIR = path.join(folder, "cache");
+  try {
+    const app = path.join(folder, "app");
+    cpSync(example, app, { recursive: true });
+    mkdirSync(path.join(app, "dotnet"));
+    const argsFile = path.join(folder, "args.json");
+    const fakeAlc = path.join(folder, "alc.cjs");
+    // A stand-in for alc that fails like it does on a missing directory.
+    writeFileSync(fakeAlc, `
+      const fs = require("node:fs");
+      const args = process.argv.slice(2);
+      fs.writeFileSync(${JSON.stringify(argsFile)}, JSON.stringify(args));
+      const missing = args.filter((arg) => /^\\/(packagecachepath|assemblyprobingpaths):/u.test(arg))
+        .flatMap((arg) => arg.slice(arg.indexOf(":") + 1).split(";"))
+        .filter((dir) => !fs.existsSync(dir));
+      const log = args.find((arg) => arg.startsWith("/errorlog:")).slice("/errorlog:".length);
+      fs.writeFileSync(log, JSON.stringify({ issues: missing.map((dir) => ({
+        ruleId: "AL1018", fullMessage: "Directory '" + dir + "' could not be found.", properties: { severity: "Error" }
+      })) }));
+      process.exit(missing.length ? 1 : 0);
+    `);
+    const toolchain = { source: "config", location: fakeAlc, alc: { command: process.execPath, args: [fakeAlc] } };
+    const result = await runAlTools(app, {
+      toolchain,
+      graph: false,
+      cache: false,
+      al: { settings: { assemblyProbingPaths: ["./.netpackages", "./dotnet"], packageCachePath: ["./.alpackages", "./missing"] } }
+    });
+    const args = JSON.parse(readFileSync(argsFile, "utf8"));
+    assert.deepEqual(result.diagnostics.filter(({ code }) => code === "AL1018"), []);
+    assert.ok(result.projects.every(({ succeeded }) => succeeded));
+    assert.ok(args.some((arg) => arg === `/assemblyprobingpaths:${path.join(app, "dotnet")}`), args.join(" "));
+    assert.ok(!args.some((arg) => arg.includes(".netpackages") || arg.includes("missing")), args.join(" "));
+  } finally {
+    if (cache === undefined) delete process.env.BCA_CACHE_DIR;
+    else process.env.BCA_CACHE_DIR = cache;
+  }
+});

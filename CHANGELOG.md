@@ -4,6 +4,15 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- The AL compiler no longer fails with AL1018 ("Directory could not be
+  found") on every run: assembly probing folders that do not exist, such as
+  the AL default `./.netpackages` that VS Code reports even when it is
+  absent, are left out of the call, as package cache folders already were.
+
 ## 0.13.0 - 2026-11-04
 
 ### Added
