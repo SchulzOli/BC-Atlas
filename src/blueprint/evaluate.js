@@ -385,7 +385,8 @@ export function evaluateArchitecture(levels, architecture = {}, { architectureOr
     incoming.get(targetComponent).add(edge.source);
 
     const direction = enabled(ruleFor(components.get(sourceComponent), components.get(targetComponent), settings));
-    const rule = direction ?? enabled(isPublic(target, targetComponent) ? undefined : "internal-access");
+    const usesTarget = Object.keys(edge.kinds ?? {}).some((kind) => !["permits", "includes"].includes(kind));
+    const rule = direction ?? enabled(usesTarget && !isPublic(target, targetComponent) ? "internal-access" : undefined);
     const id = `${sourceComponent}->${targetComponent}`;
     const aggregate = componentEdges.get(id) ?? {
       id, source: sourceComponent, target: targetComponent, objectEdges: 0, weight: 0, kinds: {}, evidence: [], violations: 0, allowed: !direction

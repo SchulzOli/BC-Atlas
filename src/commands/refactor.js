@@ -4,7 +4,10 @@ import { planSurface } from "../refactor/surface.js";
 
 /** The analysis behind a refactoring needs the source only; the AL compiler stays off unless asked for. */
 export async function planObjectMove(input, values = {}) {
-  const assessment = await assessArchitecture(input, { ...values, compiler: values.compiler ?? "off" });
+  const analysisValues = Object.fromEntries(
+    Object.entries(values).filter(([key]) => key !== "folder" && key !== "namespace")
+  );
+  const assessment = await assessArchitecture(input, { ...analysisValues, compiler: values.compiler ?? "off" });
   return { assessment, plan: await planMove(assessment, values) };
 }
 

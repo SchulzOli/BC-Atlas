@@ -2,10 +2,11 @@ import { normalizeIdentifier } from "../resolver.js";
 
 // A component is a named part of the target architecture (a future app, or a
 // layer inside one). Objects are assigned by selectors; the most specific
-// matching selector wins (object, then the longest namespace or folder, then
-// the narrowest ID range, then module and app, then type, then *):
+// matching selector wins (object, then file, then the longest namespace or
+// folder, then the narrowest ID range, then module and app, then type, then *):
 //   namespace:Contoso.Sales      the namespace and everything below it
 //   folder:src/Sales             files below a folder (globs allowed)
+//   file:src/Sales/Order.al       one file (globs allowed)
 //   app:Contoso Sales            an app by name or ID
 //   module:Job Queue             a module (nested app.json) by name or ID
 //   type:table                   an object type
@@ -52,7 +53,7 @@ function compileSingle(selector, { apps, modules, componentOf, layerOf }) {
   if (text === "*" || text === "**") return () => 1;
   const separator = text.indexOf(":");
   if (separator < 1) {
-    throw new Error(`Invalid component selector "${text}"; use namespace:, folder:, app:, module:, type:, object:, id:, or *`);
+    throw new Error(`Invalid component selector "${text}"; use namespace:, folder:, file:, app:, module:, type:, object:, id:, or *`);
   }
   const kind = text.slice(0, separator).toLowerCase();
   const value = text.slice(separator + 1).trim();
@@ -79,6 +80,15 @@ function compileSingle(selector, { apps, modules, componentOf, layerOf }) {
       return (node) => Boolean(node.file) && (expression.test(node.file) || nested.test(node.file)) && specificity;
     }
     return (node) => Boolean(node.file) && (node.file === folder || node.file.startsWith(`${folder}/`)) && specificity;
+  }
+  if (kind === "file") {
+    const file = value.replaceAll("\\", "/").replace(/^\.?\//u, "");
+    const specificity = 200 + file.replaceAll("*", "").replaceAll("?", "").length;
+    const expression = isGlob(file) ? globToRegExp(file) : undefined;
+    return (node) => {
+      const candidate = String(node.file ?? "").replaceAll("\\", "/");
+      return (expression ? expression.test(candidate) : candidate === file) && specificity;
+    };
   }
   if (kind === "app") {
     return (node) => {
@@ -118,7 +128,7 @@ function compileSingle(selector, { apps, modules, componentOf, layerOf }) {
     return (node) => (!type || node.type === type.toLowerCase()) &&
       [node.label, node.objectId].filter(Boolean).some((candidate) => normalizeIdentifier(candidate) === name) && 1000;
   }
-  throw new Error(`Unsupported selector kind "${kind}"; use namespace, folder, app, module, type, object, or id${componentOf ? ", component, or layer" : ""}`);
+  throw new Error(`Unsupported selector kind "${kind}"; use namespace, folder, file, app, module, type, object, or id${componentOf ? ", component, or layer" : ""}`);
 }
 
 /** Apps and modules by id, for selectors that name them. */

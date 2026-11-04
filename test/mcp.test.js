@@ -137,6 +137,24 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     assert.ok(contextReport.findings.some(({ rule, category, severity }) =>
       rule === "context-responsibility" && category === "lazy-reads" && severity === "info"
     ));
+
+    const move = await client.callTool({
+      name: "bc_atlas_refactor_move",
+      arguments: {
+        path: path.join(root, "examples", "monolith"),
+        object: "codeunit:50001",
+        to: "Warehouse",
+        folder: "src/Warehouse",
+        namespace: "Contoso.Warehouse",
+        dryRun: true
+      }
+    });
+    assert.equal(move.isError, undefined, move.content[0]?.text);
+    const movePlan = JSON.parse(move.content[0].text);
+    assert.equal(movePlan.to.component, "Warehouse");
+    assert.equal(movePlan.to.file, "src/Warehouse/WarehouseHooks.Codeunit.al");
+    assert.equal(movePlan.to.namespace, "Contoso.Warehouse");
+    assert.equal(movePlan.applied, false);
   } finally {
     await client.close();
     rmSync(config, { force: true });
