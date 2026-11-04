@@ -103,7 +103,7 @@ jobs:
           unzip -q bc-atlas.vsix -d .packaged
           BCA_EXTENSION_MAIN=.packaged/extension/dist/extension.js npm test
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bc-atlas-vsix
           path: vscode/bc-atlas.vsix
