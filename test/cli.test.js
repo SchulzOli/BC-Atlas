@@ -280,6 +280,55 @@ test("check reports architecture health and fails on configured policy violation
   }
 });
 
+test("check formats preserve architecture origin and source evidence", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const project = fileURLToPath(new URL("../examples/multi-app", import.meta.url));
+  const config = fileURLToPath(new URL(`./task3-policy-${process.pid}.json`, import.meta.url));
+  writeFileSync(config, JSON.stringify({
+    architecture: {
+      components: [
+        { name: "Core", layer: 0, match: ["app:Contoso Core"] },
+        { name: "Sales", layer: 1, match: ["app:Contoso Sales"] },
+        { name: "Integration", layer: 2, match: ["app:Contoso Integration"] }
+      ],
+      rules: [{
+        name: "no-platform-table-reads",
+        from: "component:Integration",
+        to: "type:table",
+        kinds: ["reads"],
+        severity: "warning"
+      }]
+    }
+  }));
+  try {
+    const run = (format) => spawnSync(process.execPath, [
+      cli, "check", project, "--config", config, "--format", format
+    ], { encoding: "utf8" });
+    const jsonRun = run("json");
+    assert.equal(jsonRun.status, 0, jsonRun.stderr);
+    const finding = JSON.parse(jsonRun.stdout).findings.find(({ policy }) => policy === "no-platform-table-reads");
+    assert.equal(finding.basis, "configured-policy");
+    assert.equal(finding.architectureOrigin, "configured");
+    assert.ok(finding.evidence.some(({ operation, member, line }) =>
+      operation === "Get" && member === "Sync(Code[20])" && line === 12));
+
+    const text = run("text");
+    assert.equal(text.status, 0, text.stderr);
+    assert.match(text.stdout, /Primary location: integration\/ItemSync\.al:12/u);
+    const markdown = run("markdown");
+    assert.equal(markdown.status, 0, markdown.stderr);
+    assert.match(markdown.stdout, /Supporting locations/u);
+    const sarif = run("sarif");
+    assert.equal(sarif.status, 0, sarif.stderr);
+    const result = JSON.parse(sarif.stdout).runs[0].results.find(({ ruleId }) => ruleId === "dependency-rule");
+    assert.equal(result.properties.basis, "configured-policy");
+    assert.equal(result.properties.architectureOrigin, "configured");
+    assert.ok(result.relatedLocations.length);
+  } finally {
+    rmSync(config, { force: true });
+  }
+});
+
 test("check applies contract expectations as warnings and reports neutral fallbacks as info", () => {
   const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
   const fixture = fileURLToPath(new URL("./contract-fixtures", import.meta.url));

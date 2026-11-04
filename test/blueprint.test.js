@@ -11,6 +11,7 @@ import { compareWithBaseline, createBaseline } from "../src/blueprint/baseline.j
 import { subgroups } from "../src/blueprint/cluster.js";
 import { componentMatcher } from "../src/blueprint/components.js";
 import { createGraphDocument } from "../src/graph/document.js";
+import { architectureJson, formatArchitectureMarkdown, formatArchitectureText } from "../src/blueprint/report.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = path.join(root, "examples", "multi-app");
@@ -237,6 +238,82 @@ test("rules for layers, public objects, and dependencies", async () => {
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("architecture reports preserve configured and proposed origins with complete dependency evidence", async () => {
+  const initial = await assessArchitecture(workspace);
+  const model = structuredClone(initial.model);
+  const core = model.objects.find(({ name }) => name === "CON Item");
+  const integration = model.objects.find(({ name }) => name === "CON Item Sync");
+  for (let index = 0; index < 8; index++) {
+    model.edges.push({
+      from: core.key,
+      to: integration.key,
+      kind: "calls",
+      sourceProcedure: `TouchSync${index + 1}`,
+      location: { file: "core/Items.al", line: 44 + index }
+    });
+  }
+
+  const proposal = await assessArchitecture(workspace, { propose: true, groupBy: "app" }, { model });
+  const proposedViolation = proposal.result.violations.find(({ source, target }) =>
+    source.label === "CON Item" && target.label === "CON Item Sync");
+  assert.equal(proposedViolation.basis, "heuristic");
+  assert.equal(proposedViolation.architectureOrigin, "proposed");
+  assert.ok(proposedViolation.evidence.some(({ member, file, line }) =>
+    member === "TouchSync1" && file === "core/Items.al" && line === 44));
+  assert.ok(proposedViolation.resolution);
+
+  const configured = await assessArchitecture(workspace, {
+    architecture: {
+      ...proposal.architecture,
+      rules: [{
+        name: "no-core-calls-to-integration",
+        from: "component:Contoso Core",
+        to: "component:Contoso Integration",
+        kinds: ["calls"],
+        severity: "warning"
+      }]
+    }
+  }, { model });
+  const configuredViolation = configured.result.violations.find(({ rule, source, target }) =>
+    rule === "dependency-rule" && source.label === "CON Item" && target.label === "CON Item Sync");
+  assert.equal(configuredViolation.basis, "configured-policy");
+  assert.equal(configuredViolation.architectureOrigin, "configured");
+  assert.ok(configuredViolation.evidence.some(({ member }) => member === "TouchSync1"));
+  assert.equal(configuredViolation.evidence.length, 8);
+  assert.equal(architectureJson(configured).violations.find(({ policy }) =>
+    policy === "no-core-calls-to-integration").evidence.length, 8);
+  assert.match(formatArchitectureText(configured), /3 additional evidence item\(s\) omitted/u);
+
+  const forbiddenRead = await assessArchitecture(workspace, {
+    architecture: {
+      components: [
+        { name: "Core", layer: 0, match: ["app:Contoso Core"] },
+        { name: "Sales", layer: 1, match: ["app:Contoso Sales"] },
+        { name: "Integration", layer: 2, match: ["app:Contoso Integration"] }
+      ],
+      rules: [{
+        name: "no-platform-table-reads",
+        from: "component:Integration",
+        to: "type:table",
+        kinds: ["reads"],
+        severity: "warning"
+      }]
+    }
+  });
+  const readViolation = forbiddenRead.result.violations.find(({ rule, source, target }) =>
+    rule === "dependency-rule" && source.label === "CON Item Sync" && target.label === "CON Item");
+  assert.ok(readViolation.evidence.some(({ kind, operation, member, file, line }) =>
+    kind === "reads" && operation === "Get" && member === "Sync(Code[20])" &&
+    file === "integration/ItemSync.al" && line === 12));
+  assert.ok(forbiddenRead.result.workItems.find(({ source }) => source.label === "CON Item Sync")
+    .evidence.some(({ member }) => member === "Sync(Code[20])"));
+
+  const json = architectureJson(forbiddenRead);
+  assert.ok(json.violations.find(({ rule }) => rule === "dependency-rule").evidence.some(({ operation }) => operation === "Get"));
+  assert.match(formatArchitectureText(forbiddenRead), /Primary location/u);
+  assert.match(formatArchitectureMarkdown(forbiddenRead), /Supporting locations/u);
 });
 
 test("exposes limits what other components may use; severities turn rules off", async () => {

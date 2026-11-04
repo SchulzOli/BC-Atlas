@@ -13,15 +13,17 @@ import { dependencyOrder, packageCacheFolders, readAlWorkspace } from "../src/al
 import { analyzerPaths, findAlExtension, findAlToolchain, fromExtension, fromPath } from "../src/al/toolchain.js";
 import { analyze } from "../src/analyzer.js";
 import { githubWorkflow, azurePipeline } from "../src/automation/pipelines.js";
-import { assessHealth } from "../src/health.js";
+import { assessHealth, formatHealthMarkdown, formatHealthText } from "../src/health.js";
 import { resolveModel } from "../src/resolver.js";
 import { renderSarif } from "../src/sarif.js";
 import { loadSymbolPackages } from "../src/symbols.js";
 import { createView } from "../src/views.js";
+import { assessArchitecture } from "../src/blueprint/index.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cli = path.join(root, "src", "cli.js");
 const example = path.join(root, "examples", "warehouse-app");
+const multiApp = path.join(root, "examples", "multi-app");
 const fixtures = path.join(root, "test", "fixtures", "al");
 
 function temp(prefix) {
@@ -255,6 +257,56 @@ test("health checks keep compiler findings with ranges; SARIF carries them for c
   const orphans = run.results.find(({ ruleId }) => ruleId === "orphan-objects");
   assert.equal(orphans.level, "note");
   assert.equal(orphans.locations[0].physicalLocation.artifactLocation.uri, "app.json", "findings without a file anchor at the manifest");
+});
+
+test("health and SARIF retain configured architecture evidence and origin", async () => {
+  const architecture = {
+    components: [
+      { name: "Core", layer: 0, match: ["app:Contoso Core"] },
+      { name: "Sales", layer: 1, match: ["app:Contoso Sales"] },
+      { name: "Integration", layer: 2, match: ["app:Contoso Integration"] }
+    ],
+    rules: [{
+      name: "no-platform-table-reads",
+      from: "component:Integration",
+      to: "type:table",
+      kinds: ["reads"],
+      severity: "warning"
+    }]
+  };
+  const blueprint = await assessArchitecture(multiApp, { architecture });
+  const report = assessHealth(blueprint.model, { architecture: blueprint });
+  const finding = report.findings.find(({ rule, policy }) =>
+    rule === "dependency-rule" && policy === "no-platform-table-reads");
+
+  assert.equal(finding.basis, "configured-policy");
+  assert.equal(finding.architectureOrigin, "configured");
+  assert.equal(finding.file, "integration/ItemSync.al");
+  assert.equal(finding.line, 12);
+  assert.equal(finding.resolution.strategy, "follow-rule");
+  assert.ok(finding.evidence.some(({ kind, operation, member, file, line }) =>
+    kind === "reads" && operation === "Get" && member === "Sync(Code[20])" &&
+    file === "integration/ItemSync.al" && line === 12));
+  assert.deepEqual(finding.limitations, []);
+
+  const jsonFinding = JSON.parse(JSON.stringify(report)).findings.find(({ policy }) => policy === "no-platform-table-reads");
+  assert.equal(jsonFinding.basis, "configured-policy");
+  assert.equal(jsonFinding.evidence.find(({ operation }) => operation === "Get").member, "Sync(Code[20])");
+  assert.match(formatHealthText(report), /Primary location: integration\/ItemSync\.al:12/u);
+  assert.match(formatHealthMarkdown(report), /Supporting locations/u);
+  const supportingLine = formatHealthText(JSON.parse(JSON.stringify(report))).split("\n")
+    .find((line) => line.includes("Supporting locations:"));
+  assert.match(supportingLine, /writes Modify Sync\(Code\[20\]\) \(integration\/ItemSync\.al:13\)/u);
+  assert.doesNotMatch(supportingLine, /reads Get Sync/u);
+
+  const sarif = JSON.parse(renderSarif(report, { root: multiApp, fallbackFile: "app.json", version: "1.0.0" }));
+  const result = sarif.runs[0].results.find(({ ruleId }) => ruleId === "dependency-rule");
+  assert.equal(result.properties.basis, "configured-policy");
+  assert.equal(result.properties.architectureOrigin, "configured");
+  assert.equal(result.locations[0].physicalLocation.region.startLine, 12);
+  assert.ok(result.relatedLocations.some(({ physicalLocation, message }) =>
+    physicalLocation.region.startLine === 13 && /writes/u.test(message.text)));
+  assert.ok(result.relatedLocations.every(({ physicalLocation }) => physicalLocation.region.startLine !== 12));
 });
 
 test("bca check imports an error log from any AL build and writes SARIF", () => {

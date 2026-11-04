@@ -73,22 +73,33 @@ function architectureFindings({ result, baseline, architecture }) {
   const items = new Map();
   for (const violation of result.violations.filter(({ id }) => fresh.has(id))) {
     const key = `${violation.source.id}|${violation.targetComponent}|${violation.rule}|${violation.policy ?? ""}`;
-    const item = items.get(key) ?? { violation, count: 0, names: [] };
+    const item = items.get(key) ?? { violation, count: 0, names: [], evidence: [], limitations: [] };
     item.count++;
     if (item.names.length < 3) item.names.push(`${violation.target.type} ${violation.target.label}`);
+    item.evidence.push(...(violation.evidence ?? []));
+    for (const limitation of violation.limitations ?? []) {
+      if (!item.limitations.includes(limitation)) item.limitations.push(limitation);
+    }
     items.set(key, item);
   }
-  for (const { violation, count, names } of items.values()) {
+  for (const { violation, count, names, evidence, limitations } of items.values()) {
     const targets = `${names.join(", ")}${count > names.length ? `, +${count - names.length} more` : ""}`;
     const rule = DIRECTION_RULES.has(violation.rule) ? "architecture-violation" : violation.rule;
+    const primaryEvidence = violation.primaryEvidence ?? evidence.find(({ file, line }) => file && line !== undefined);
     findings.push(finding(violation.severity ?? severity, rule, violationMessage({ violation, count, targets }), {
-      file: violation.evidence[0]?.file ?? violation.source.file,
-      line: violation.evidence[0]?.line ?? violation.source.line,
+      file: primaryEvidence?.file ?? violation.source.file,
+      line: primaryEvidence?.line ?? violation.source.line,
       strategy: violation.resolution.strategy,
+      resolution: violation.resolution,
       violation: violation.rule,
       ...(violation.policy ? { policy: violation.policy } : {}),
       component: violation.sourceComponent,
-      targetComponent: violation.targetComponent
+      targetComponent: violation.targetComponent,
+      basis: violation.basis,
+      architectureOrigin: violation.architectureOrigin,
+      primaryEvidence,
+      evidence,
+      limitations
     }));
   }
   if (baseline.known.length) {
@@ -98,8 +109,10 @@ function architectureFindings({ result, baseline, architecture }) {
     findings.push(finding("info", "architecture-progress",
       `${baseline.fixed.length} accepted architecture violation(s) are fixed; run "bca architecture --update-baseline" to lock in the progress`));
   }
-  for (const { rule, severity: level, message, component, file, line } of result.checks ?? []) {
-    findings.push(finding(level, rule, message, Object.fromEntries(Object.entries({ component, file, line }).filter(([, value]) => value !== undefined))));
+  for (const { rule, severity: level, message, component, file, line, basis, architectureOrigin, evidence, limitations } of result.checks ?? []) {
+    findings.push(finding(level, rule, message, Object.fromEntries(Object.entries({
+      component, file, line, basis, architectureOrigin, evidence, limitations
+    }).filter(([, value]) => value !== undefined))));
   }
   return findings;
 }
@@ -241,6 +254,48 @@ function compilerSummary(al) {
   }).filter(([, value]) => value !== undefined));
 }
 
+const MAX_DISPLAY_EVIDENCE = 5;
+
+function evidenceLocation(item) {
+  return item.file ? `${item.file}${item.line ? `:${item.line}` : ""}` : undefined;
+}
+
+function evidenceDescription(item) {
+  const details = [item.kind, item.operation, item.member].filter(Boolean);
+  return details.length ? `${details.join(" ")} (${evidenceLocation(item) ?? "location unavailable"})` : evidenceLocation(item);
+}
+
+function primaryEvidenceOf(item) {
+  return item.primaryEvidence ?? item.evidence?.find(({ file, line }) => file && line !== undefined);
+}
+
+function sameEvidence(left, right) {
+  return left === right || Boolean(left && right &&
+    left.file === right.file && left.line === right.line &&
+    left.kind === right.kind && left.operation === right.operation && left.member === right.member);
+}
+
+function supportingEvidence(item) {
+  const primary = primaryEvidenceOf(item);
+  const evidence = item.evidence ?? [];
+  const primaryIndex = evidence.findIndex((item) => sameEvidence(item, primary));
+  return evidence.filter((_, index) => index !== primaryIndex);
+}
+
+function evidenceSummary(item, { markdown = false } = {}) {
+  const primary = primaryEvidenceOf(item);
+  const support = supportingEvidence(item);
+  const shown = support.slice(0, Math.max(0, MAX_DISPLAY_EVIDENCE - (primary ? 1 : 0)));
+  const omitted = Math.max(0, support.length - shown.length);
+  const label = (value) => markdown ? `\`${escapeCell(value)}\`` : value;
+  return [
+    ...(primary && evidenceLocation(primary) ? [`Primary location: ${label(evidenceLocation(primary))}`] : []),
+    ...(shown.length ? [`Supporting locations: ${shown.map(evidenceDescription).filter(Boolean).map(label).join(", ")}`] : []),
+    ...(omitted ? [`${omitted} additional evidence item(s) omitted; use JSON for all evidence`] : []),
+    ...(item.limitations?.length ? [`Limitations: ${item.limitations.join("; ")}`] : [])
+  ];
+}
+
 /** One line on what the AL toolchain contributed, for text and Markdown reports. */
 export function compilerLine(compiler) {
   if (!compiler) return undefined;
@@ -284,7 +339,9 @@ export function formatHealthText(report, { limit = 50 } = {}) {
   lines.push(report.findings.length ? "Findings" : "Findings: none");
   for (const item of report.findings.slice(0, limit)) {
     const location = item.file ? ` (${item.file}${item.line ? `:${item.line}` : ""})` : "";
-    lines.push(`  ${labels[item.severity]}  ${item.message}${location}`);
+    const metadata = item.basis ? ` [basis: ${item.basis}; architecture origin: ${item.architectureOrigin}]` : "";
+    lines.push(`  ${labels[item.severity]}  ${item.message}${location}${metadata}`);
+    for (const detail of evidenceSummary(item)) lines.push(`      ${detail}`);
   }
   if (report.findings.length > limit) {
     lines.push(`  ... ${report.findings.length - limit} more; use --format json for the full list`);
@@ -327,10 +384,12 @@ export function formatHealthMarkdown(report, { heading = "## Architecture health
     lines.push("");
   }
   if (report.findings.length) {
-    lines.push("| Severity | Rule | Finding |", "| --- | --- | --- |");
+    lines.push("| Severity | Rule | Finding | Evidence |", "| --- | --- | --- | --- |");
     for (const item of report.findings.slice(0, limit)) {
       const location = item.file ? ` (\`${item.file}${item.line ? `:${item.line}` : ""}\`)` : "";
-      lines.push(`| ${icon[item.severity]} | \`${item.rule}\` | ${escapeCell(item.message)}${location} |`);
+      const metadata = item.basis ? `<br>Basis: \`${item.basis}\`; architecture origin: \`${item.architectureOrigin}\`` : "";
+      const evidence = evidenceSummary(item, { markdown: true }).map(escapeCell).join("<br>");
+      lines.push(`| ${icon[item.severity]} | \`${item.rule}\` | ${escapeCell(item.message)}${location}${metadata} | ${evidence} |`);
     }
     if (report.findings.length > limit) lines.push(`| | | ${report.findings.length - limit} more finding(s) |`);
     lines.push("");

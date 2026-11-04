@@ -6,8 +6,6 @@ import { compileSelector, componentAssigner, selectorContext } from "./component
 import { dataOwnership } from "./ownership.js";
 import { suggestResolution } from "./resolutions.js";
 
-const MAX_EVIDENCE = 5;
-
 /** Rules a dependency between two objects can break; their violations can be baselined. */
 export const VIOLATION_RULES = Object.freeze([
   "undeclared-component-dependency",
@@ -217,6 +215,10 @@ function groupWorkItems(violations, inputs) {
         targets: [],
         violations: 0,
         evidence: [],
+        limitations: [],
+        basis: violation.basis,
+        architectureOrigin: violation.architectureOrigin,
+        primaryEvidence: violation.primaryEvidence,
         first: violation
       });
     }
@@ -225,7 +227,10 @@ function groupWorkItems(violations, inputs) {
     // The single target, for moves of the target object.
     item.target = item.violations === 1 ? { type: violation.target.type, label: violation.target.label, objectId: violation.target.objectId } : undefined;
     if (item.targets.length < 20) item.targets.push({ label: violation.target.label, type: violation.target.type });
-    for (const evidence of violation.evidence) if (item.evidence.length < 5) item.evidence.push(evidence);
+    item.evidence.push(...violation.evidence);
+    for (const limitation of violation.limitations) {
+      if (!item.limitations.includes(limitation)) item.limitations.push(limitation);
+    }
   }
   // Steps that name every target, not only the first one.
   for (const item of items.values()) {
@@ -237,6 +242,13 @@ function groupWorkItems(violations, inputs) {
   }
   for (const item of items.values()) {
     delete item.first;
+    item.resolution = {
+      strategy: item.strategy,
+      title: item.title,
+      effort: item.effort,
+      steps: item.steps,
+      alternatives: item.alternatives
+    };
     const command = refactorCommand(item);
     if (command) item.command = command;
   }
@@ -274,9 +286,13 @@ function componentMetrics(name, members, outgoing, incoming) {
  * (components, layers, allowed dependencies) and explains how to resolve
  * every dependency the architecture does not allow.
  */
-export function evaluateArchitecture(levels, architecture = {}) {
+export function evaluateArchitecture(levels, architecture = {}, { architectureOrigin = "configured" } = {}) {
   const assigner = componentAssigner(architecture.components, levels);
   const settings = readSettings(architecture);
+  const basis = architectureOrigin === "proposed" ? "heuristic" : "configured-policy";
+  const limitations = architectureOrigin === "proposed"
+    ? ["The proposed boundary is a heuristic hypothesis, not a configured policy."]
+    : [];
   const enabled = (rule) => (rule && settings.severities[rule] !== "off" ? rule : undefined);
   const components = new Map(architecture.components.map((component) => [component.name, {
     name: component.name,
@@ -326,6 +342,8 @@ export function evaluateArchitecture(levels, architecture = {}) {
   const violations = [];
   const violation = (rule, edge, sourceComponent, targetComponent, extra = {}) => violations.push({
     rule,
+    basis,
+    architectureOrigin,
     ...extra,
     sourceComponent,
     targetComponent,
@@ -333,7 +351,9 @@ export function evaluateArchitecture(levels, architecture = {}) {
     target: objectSummary(nodes.get(edge.target)),
     kinds: edge.kinds,
     weight: edge.weight,
-    evidence: (edge.evidence ?? []).slice(0, MAX_EVIDENCE),
+    evidence: edge.evidence ?? [],
+    primaryEvidence: extra.primaryEvidence ?? edge.evidence?.find(({ file, line }) => file && line !== undefined) ?? edge.evidence?.[0],
+    limitations,
     edge: edge.id
   });
   for (const edge of levels.object.edges) {
@@ -351,7 +371,9 @@ export function evaluateArchitecture(levels, architecture = {}) {
         violation("dependency-rule", edge, sourceComponent ?? "(none)", targetComponent ?? "(none)", {
           policy: policy.name,
           ...(policy.severity ? { severity: policy.severity } : {}),
-          ...(policy.message ? { message: policy.message } : {})
+          ...(policy.message ? { message: policy.message } : {}),
+          primaryEvidence: edge.evidence?.find(({ kind }) => policy.kinds?.includes(kind)) ??
+            edge.evidence?.find(({ file, line }) => file && line !== undefined)
         });
       }
     }
@@ -444,10 +466,15 @@ export function evaluateArchitecture(levels, architecture = {}) {
 
   const ownership = dataOwnership(levels.object, componentOf);
   const checks = architectureChecks({ settings, components, members, selectorUse, componentEdges, cycles, stability, unassigned, ownership });
+  for (const check of checks) {
+    check.basis = basis;
+    check.architectureOrigin = architectureOrigin;
+  }
 
   return {
     schema: "bc-atlas.architecture",
     schemaVersion: 1,
+    architectureOrigin,
     settings,
     summary: {
       components: components.size,

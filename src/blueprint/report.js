@@ -16,6 +16,30 @@ function location(evidence) {
   return evidence.file ? `${evidence.file}${evidence.line ? `:${evidence.line}` : ""}` : undefined;
 }
 
+const MAX_EVIDENCE_SUMMARY = 5;
+
+function evidenceDescription(evidence) {
+  const facts = [evidence.kind, evidence.operation, evidence.member].filter(Boolean);
+  const place = location(evidence);
+  return `${facts.length ? `${facts.join(" ")} ` : ""}${place ? `(${place})` : "(location unavailable)"}`;
+}
+
+function workItemEvidence(item) {
+  const evidence = item.evidence ?? [];
+  if (!evidence.length) return [];
+  const primary = item.primaryEvidence ?? evidence[0];
+  const primaryIndex = evidence.indexOf(primary);
+  const supporting = evidence.filter((_, index) => index !== primaryIndex);
+  const shown = supporting.slice(0, Math.max(0, MAX_EVIDENCE_SUMMARY - 1));
+  const omitted = Math.max(0, supporting.length - shown.length);
+  return [
+    ...(location(primary) ? [`Primary location: ${location(primary)}`] : []),
+    ...(shown.length ? [`Supporting locations: ${shown.map(evidenceDescription).join(", ")}`] : []),
+    ...(omitted ? [`${omitted} additional evidence item(s) omitted; use --format json for all evidence`] : []),
+    ...(item.limitations?.length ? [`Limitations: ${item.limitations.join("; ")}`] : [])
+  ];
+}
+
 /** The machine-readable report: everything except internal lookup tables. */
 export function architectureJson(assessment) {
   const { result, proposal, baseline, architecture } = assessment;
@@ -124,6 +148,8 @@ export function formatArchitectureText(assessment, { limit = 15 } = {}) {
   lines.push("", items.length ? `Work items${baseline.baselined ? " (new since the baseline)" : ""}, most dependencies first${grants ? ` (plus ${grants} permission set grant(s) to split)` : ""}` : "Work items: none");
   for (const item of structural.slice(0, limit)) {
     lines.push(`  [${item.effort}] ${item.title}: ${objectName(item.source)} (${item.sourceComponent} -> ${item.targetComponent}), ${count(item.violations, "dependency", "dependencies")}`);
+    if (item.basis) lines.push(`    Basis: ${item.basis}; architecture origin: ${item.architectureOrigin}`);
+    for (const detail of workItemEvidence(item)) lines.push(`    ${detail}`);
   }
   if (structural.length > limit) lines.push(`  ... ${structural.length - limit} more; use --format markdown or json for all of them`);
   const checks = result.checks ?? [];
@@ -201,8 +227,8 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
     if (item.alternatives.length) lines.push(`- Alternative: ${item.alternatives.map(({ title, strategy }) => `${title} (\`${strategy}\`)`).join("; ")}`);
     const targets = item.targets.map((target) => `${target.type} ${target.label}`);
     lines.push(`- Targets: ${cell(targets.join(", "))}${item.violations > targets.length ? `, +${item.violations - targets.length} more` : ""}`);
-    const places = item.evidence.map(location).filter(Boolean);
-    if (places.length) lines.push(`- Where: ${places.map((place) => `\`${place}\``).join(", ")}`);
+    if (item.basis) lines.push(`- Basis: \`${item.basis}\`; architecture origin: \`${item.architectureOrigin}\``);
+    for (const detail of workItemEvidence(item)) lines.push(`- ${detail.replaceAll("`", "\\`")}`);
     lines.push("");
   });
   if (structural.length > limit) lines.push(`${structural.length - limit} more work item(s); use --format json for all of them.`, "");
