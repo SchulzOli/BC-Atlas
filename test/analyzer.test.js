@@ -6,9 +6,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { zipSync, strToU8 } from "fflate";
 import { analyze, testing } from "../src/analyzer.js";
+import { analyzeContractFallbacks, classifyFallbackBody } from "../src/contract-analysis.js";
+import { analyzeContextResponsibilities } from "../src/context-analysis.js";
 import { createArchitectureModel } from "../src/architecture.js";
+import { assessHealth } from "../src/health.js";
 import { renderD2 } from "../src/d2.js";
 import { resolveModel } from "../src/resolver.js";
+import { dependencyLens } from "../src/graph/lenses/dependency.js";
 import { createView, filterModel } from "../src/views.js";
 import { addInsights } from "../src/insights.js";
 
@@ -30,6 +34,453 @@ test("extracts AL objects and architectural relations", async () => {
   );
   assert.ok(result.objects[1].relations.some((relation) => relation.target === "Buffer"));
   assert.ok(result.objects[2].relations.some((relation) => relation.kind === "extends"));
+});
+
+async function contextResponsibilityModel() {
+  const parsed = await testing.objectsFromSource(`
+    table 50100 Ledger { }
+    codeunit 50101 Context {
+      Permissions = tabledata Ledger = RIMD;
+      var
+        LedgerRecord: Record Ledger;
+        TemporaryLedger: Record Ledger temporary;
+        Resolver: Codeunit PartnerResolver;
+        Planner: Codeunit PlanningService;
+        Unknown: Codeunit MissingService;
+        ExternalResolver: Interface IContextResolver;
+        CachedId: Integer;
+      procedure DirectWrite()
+      begin
+        LedgerRecord.Insert();
+        Commit();
+      end;
+      procedure TemporaryWrite()
+      begin
+        TemporaryLedger.Insert();
+      end;
+      procedure TemporaryWriteThroughHelper()
+      begin
+        WriteRecord(TemporaryLedger);
+      end;
+      procedure PersistentWriteThroughHelper()
+      begin
+        WriteRecord(LedgerRecord);
+      end;
+      procedure WriteRecord(var RecordRef: Record Ledger)
+      begin
+        RecordRef.Insert();
+      end;
+      procedure LoadPartner()
+      begin
+        LedgerRecord.Get('PARTNER');
+      end;
+      procedure ResolvePartner()
+      begin
+        Resolver.Resolve();
+      end;
+      procedure LoadPartnerThroughResolver()
+      begin
+        Resolver.Resolve();
+      end;
+      procedure BuildPlan()
+      begin
+        Planner.Build();
+      end;
+      procedure UnresolvedCall()
+      begin
+        InvokeUnknown();
+      end;
+      procedure InvokeUnknown()
+      begin
+        Unknown.Resolve();
+      end;
+      procedure InvokeExternalResolver()
+      begin
+        ExternalResolver.Resolve();
+      end;
+      procedure Recurse()
+      begin
+        Recurse();
+      end;
+      procedure CacheOnlyAssignment()
+      begin
+        CachedId := 1;
+      end;
+      procedure LocalAssignment()
+      var LocalCache: Integer;
+      begin
+        LocalCache := 1;
+      end;
+    }
+    codeunit 50102 PartnerResolver {
+      var
+        LedgerRecord: Record Ledger;
+        Directory: Codeunit PartnerDirectory;
+      procedure Resolve()
+      begin
+        Directory.Lookup();
+      end;
+    }
+    codeunit 50103 PartnerDirectory {
+      var LedgerRecord: Record Ledger;
+      procedure Lookup()
+      begin
+        LedgerRecord.Get('PARTNER');
+      end;
+    }
+    codeunit 50104 PlanningService {
+      procedure Build()
+      begin
+      end;
+    }
+    page 50105 TemporaryLedgerPage {
+      SourceTable = Ledger;
+      SourceTableTemporary = true;
+      procedure InsertTemporary()
+      begin
+        Rec.Insert();
+      end;
+    }
+    interface IContextResolver {
+      procedure Resolve();
+    }
+  `, "context-responsibilities.al");
+  return {
+    parsed,
+    model: resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] })
+  };
+}
+
+async function temporaryArgumentContextModel() {
+  const parsed = await testing.objectsFromSource(`
+    table 50400 Ledger { }
+    codeunit 50401 Context {
+      var
+        LedgerRecord: Record Ledger;
+        TemporaryLedger: Record Ledger temporary;
+      procedure WriteRecordWithMixedTemporaryArguments()
+      begin
+        WriteRecord(LedgerRecord);
+        WriteRecord(TemporaryLedger);
+      end;
+      procedure WriteRecord(var RecordRef: Record Ledger)
+      begin
+        RecordRef.Insert();
+      end;
+    }
+  `, "temporary-argument-context.al");
+  return resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+}
+
+async function truncatedLazyReadContextModel() {
+  const parsed = await testing.objectsFromSource(`
+    table 50500 Ledger { }
+    codeunit 50501 Context {
+      var
+        LedgerRecord: Record Ledger;
+        Resolver: Codeunit PartnerResolver;
+      procedure LoadPartnerWithTraversalLimit()
+      begin
+        LedgerRecord.Get('PARTNER');
+        Resolver.Resolve();
+      end;
+    }
+    codeunit 50502 PartnerResolver {
+      var Directory: Codeunit PartnerDirectory;
+      procedure Resolve()
+      begin
+        Directory.Lookup();
+      end;
+    }
+    codeunit 50503 PartnerDirectory {
+      var LedgerRecord: Record Ledger;
+      procedure Lookup()
+      begin
+        LedgerRecord.Get('PARTNER');
+      end;
+    }
+  `, "truncated-lazy-read-context.al");
+  return resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+}
+
+test("context responsibility separates persistent, temporary, commit, and in-memory effects", async () => {
+  const { model } = await contextResponsibilityModel();
+  const report = assessHealth(model, {
+    contexts: [{ object: "object:codeunit:Context" }]
+  });
+  const [summary] = report.contextResponsibilities.summaries;
+
+  assert.deepEqual(
+    summary.directEffects.map(({ category, operation, temporary }) => [category, operation, temporary]),
+    [
+      ["persistent-writes", "Insert", false],
+      ["commits", "Commit", false],
+      ["temporary-writes", "Insert", true],
+      ["unknown-state-writes", "Insert", undefined],
+      ["reads", "Get", false]
+    ]
+  );
+  assert.deepEqual(
+    summary.stateMutations.map(({ procedure, target }) => [procedure, target]),
+    [["CacheOnlyAssignment()", "CachedId"]]
+  );
+  assert.ok(!summary.directEffects.some(({ category }) => category === "permits"));
+});
+
+test("context responsibility propagates temporary flags through resolved calls", async () => {
+  const { parsed, model } = await contextResponsibilityModel();
+  const context = parsed.objects.find(({ name }) => name === "Context");
+  assert.deepEqual(
+    context.procedures.find(({ name }) => name === "TemporaryWriteThroughHelper").calls[0].arguments,
+    ["TemporaryLedger"]
+  );
+  const [summary] = analyzeContextResponsibilities(model, [
+    { object: "object:codeunit:Context" }
+  ]).summaries;
+
+  assert.deepEqual(
+    summary.indirectEffects.map(({ category, operation }) => [category, operation]),
+    [
+      ["persistent-writes", "Insert"],
+      ["temporary-writes", "Insert"],
+      ["reads", "Get"],
+      ["reads", "Get"]
+    ]
+  );
+  assert.ok(summary.indirectEffects.every(({ callPath }) =>
+    callPath.length > 0 && callPath.every(({ resolution, location }) =>
+      ["syntactic", "compiler"].includes(resolution) && location?.line
+    )
+  ));
+});
+
+test("context responsibility revisits a procedure reached with different temporary arguments", async () => {
+  const model = await temporaryArgumentContextModel();
+  const [summary] = analyzeContextResponsibilities(model, [
+    { object: "object:codeunit:Context" }
+  ]).summaries;
+  const effects = summary.indirectEffects
+    .filter(({ path }) => path[0] === "Context.WriteRecordWithMixedTemporaryArguments()")
+    .map(({ category }) => category)
+    .sort();
+
+  assert.deepEqual(effects, ["persistent-writes", "temporary-writes"]);
+});
+
+test("context responsibility uses only explicitly selected roles and lazy-read methods", async () => {
+  const { model } = await contextResponsibilityModel();
+  const [summary] = analyzeContextResponsibilities(model, [{
+    object: "object:codeunit:Context",
+    roles: {
+      planning: ["object:codeunit:PlanningService"],
+      partnerResolution: ["object:codeunit:PartnerResolver"]
+    },
+    lazyReadMethods: ["LoadPartner()", "LoadPartnerThroughResolver()"]
+  }]).summaries;
+
+  assert.ok(summary.responsibilities.planning.some(({ target }) => target === "PlanningService"));
+  assert.ok(summary.responsibilities.partnerResolution.some(({ target }) => target === "PartnerResolver"));
+  assert.ok(summary.responsibilities.lazyReads.some(({ procedure }) => procedure === "LoadPartner()"));
+  assert.ok(summary.responsibilities.lazyReads.some(({ procedure, limitations }) =>
+    procedure === "LoadPartnerThroughResolver()" && !limitations.length
+  ));
+});
+
+test("context responsibility keeps lazy reads uncertain when traversal is truncated", async () => {
+  const model = await truncatedLazyReadContextModel();
+  const report = assessHealth(model, {
+    failOn: "warning",
+    contexts: [{
+      object: "object:codeunit:Context",
+      maxCallDepth: 1,
+      lazyReadMethods: ["LoadPartnerWithTraversalLimit()"],
+      forbid: ["lazy-reads"]
+    }]
+  });
+  const [lazyRead] = report.contextResponsibilities.summaries[0].responsibilities.lazyReads;
+
+  assert.ok(lazyRead.limitations.some((limitation) => /maxCallDepth 1/u.test(limitation)));
+  assert.ok(!report.findings.some(({ category, severity, basis }) =>
+    category === "lazy-reads" && severity === "warning" && basis === "configured-policy"
+  ));
+});
+
+test("refactored context delegates writes without a forbidden direct-write finding", async () => {
+  const source = await fs.readFile(
+    new URL("./context-fixtures/RefactoredContext.al", import.meta.url),
+    "utf8"
+  );
+  const parsed = await testing.objectsFromSource(source, "RefactoredContext.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  const report = assessHealth(model, {
+    failOn: "warning",
+    contexts: [{
+      object: "object:codeunit:PartnerContextFacade",
+      forbid: ["persistent-writes"]
+    }]
+  });
+  const [summary] = report.contextResponsibilities.summaries;
+
+  assert.equal(report.passed, true);
+  assert.deepEqual(summary.directEffects, []);
+  assert.ok(summary.indirectEffects.some(({ category, path }) =>
+    category === "persistent-writes" && path[0] === "PartnerContextFacade.SavePartner()"
+  ));
+  assert.ok(report.findings.some(({ category, directness, severity }) =>
+    category === "persistent-writes" && directness === "indirect" && severity === "info"
+  ));
+  assert.ok(!report.findings.some(({ category, directness, severity, basis }) =>
+    category === "persistent-writes" && directness === "direct" &&
+    severity === "warning" && basis === "configured-policy"
+  ));
+});
+
+test("context responsibility discloses unresolved calls, cycles, and depth limits", async () => {
+  const { model } = await contextResponsibilityModel();
+  const summary = assessHealth(model, {
+    contexts: [{ object: "object:codeunit:Context", maxCallDepth: 1 }]
+  }).contextResponsibilities.summaries[0];
+
+  assert.ok(summary.calls.some(({ resolution, directness }) =>
+    resolution === "unresolved" && directness === "indirect"
+  ));
+  assert.ok(summary.limitations.some((limitation) => /unresolved call/iu.test(limitation)));
+  assert.ok(summary.limitations.some((limitation) => /call cycle reached Recurse/iu.test(limitation)));
+  assert.ok(summary.limitations.some((limitation) => /body information is unavailable/iu.test(limitation)));
+  assert.ok(summary.limitations.some((limitation) => /maxCallDepth 1/u.test(limitation)));
+  assert.deepEqual(summary.responsibilities.planning, []);
+  assert.deepEqual(summary.responsibilities.partnerResolution, []);
+  assert.deepEqual(summary.responsibilities.lazyReads, []);
+});
+
+test("context responsibility does not treat a selected bodyless procedure as effect-free", async () => {
+  const { model } = await contextResponsibilityModel();
+  const summary = assessHealth(model, {
+    contexts: [{ object: "object:interface:IContextResolver" }]
+  }).contextResponsibilities.summaries[0];
+
+  assert.ok(summary.limitations.some((limitation) =>
+    /selected procedure body information is unavailable/iu.test(limitation)
+  ));
+});
+
+test("context responsibility enforces only forbidden direct effects and permits temporary page writes", async () => {
+  const { model } = await contextResponsibilityModel();
+  const report = assessHealth(model, {
+    failOn: "warning",
+    contexts: [{
+      object: "object:codeunit:Context",
+      forbid: ["persistent-writes", "commits"]
+    }]
+  });
+  assert.equal(report.passed, false);
+  assert.deepEqual(
+    report.findings
+      .filter(({ rule, severity }) => rule === "context-responsibility" && severity !== "info")
+      .map(({ category, directness, severity, basis }) => [category, directness, severity, basis])
+      .sort(([left], [right]) => left.localeCompare(right)),
+    [
+      ["commits", "direct", "warning", "configured-policy"],
+      ["persistent-writes", "direct", "warning", "configured-policy"]
+    ]
+  );
+
+  const temporaryPage = assessHealth(model, {
+    failOn: "warning",
+    contexts: [{
+      object: "object:page:TemporaryLedgerPage",
+      forbid: ["persistent-writes"]
+    }]
+  });
+  assert.equal(temporaryPage.passed, true);
+  assert.deepEqual(
+    temporaryPage.contextResponsibilities.summaries[0].directEffects
+      .map(({ category, temporary }) => [category, temporary]),
+    [["temporary-writes", true]]
+  );
+});
+
+test("explains cycles with ordered edge evidence and keeps type-only cycles structural", () => {
+  const objects = [
+    { key: "orchestrator", name: "Orchestrator", type: "codeunit" },
+    { key: "provider", name: "Provider", type: "codeunit" },
+    { key: "type-a", name: "Type A", type: "interface" },
+    { key: "type-b", name: "Type B", type: "interface" }
+  ];
+  const edges = [
+    {
+      from: "orchestrator",
+      to: "provider",
+      kind: "calls",
+      evidence: [{ kind: "calls", member: "Setup()", sourceProcedure: "Setup()", targetProcedure: "Provide()", callResolution: "syntactic", file: "Setup.al", line: 10 }]
+    },
+    {
+      from: "provider",
+      to: "orchestrator",
+      kind: "calls",
+      evidence: [{ kind: "calls", member: "Provide()", sourceProcedure: "Provide()", targetProcedure: "ResolveShared()", callResolution: "syntactic", file: "Provider.al", line: 20 }]
+    },
+    { from: "type-a", to: "type-b", kind: "uses", evidence: [{ kind: "uses", file: "Types.al", line: 30 }] },
+    { from: "type-b", to: "type-a", kind: "uses", evidence: [{ kind: "uses", file: "Types.al", line: 40 }] }
+  ];
+
+  const result = addInsights({ objects, edges, diagnostics: [] });
+
+  assert.deepEqual(result.insights.cycles, [["orchestrator", "provider"], ["type-a", "type-b"]]);
+  assert.ok(result.insights.cyclePaths, "cycle insights retain concrete representative paths");
+  const [callCycle, typeCycle] = result.insights.cyclePaths;
+  assert.deepEqual(callCycle.path.map(({ from, to, kind }) => [from, to, kind]), [
+    ["orchestrator", "provider", "calls"],
+    ["provider", "orchestrator", "calls"]
+  ]);
+  assert.ok(callCycle.path.every(({ evidence }) => evidence.some(({ file, line }) => file && line)));
+  assert.deepEqual(typeCycle.path.map(({ from, to, kind }) => [from, to, kind]), [
+    ["type-a", "type-b", "uses"],
+    ["type-b", "type-a", "uses"]
+  ]);
+  assert.equal(typeCycle.classification, "structural");
+  assert.ok(typeCycle.limitations.some((limitation) => /not evidence of runtime recursion/u.test(limitation)));
+});
+
+test("keeps resolved call sites and resolution provenance for cycle evidence", async () => {
+  const source = [
+    "codeunit 50100 Orchestrator {",
+    "  var Provider: Codeunit Provider;",
+    "  procedure Initialize()",
+    "  begin",
+    "    Provider.Provide();",
+    "  end;",
+    "  procedure ResolveShared() begin end;",
+    "}",
+    "codeunit 50101 Provider {",
+    "  var Orchestrator: Codeunit Orchestrator;",
+    "  procedure Provide()",
+    "  begin",
+    "    Orchestrator.ResolveShared();",
+    "  end;",
+    "}"
+  ].join("\n");
+  const parsed = await testing.objectsFromSource(source, "Calls.al");
+  const model = resolveModel({ objects: parsed.objects, apps: [], diagnostics: [] });
+  const { object } = dependencyLens(model);
+  const calls = object.edges.flatMap(({ source: from, target: to, evidence }) =>
+    evidence.filter(({ kind }) => kind === "calls").map((item) => ({
+      from: object.nodes.find(({ id }) => id === from)?.label,
+      to: object.nodes.find(({ id }) => id === to)?.label,
+      sourceProcedure: item.sourceProcedure,
+      targetProcedure: item.targetProcedure,
+      callResolution: item.callResolution,
+      file: item.file,
+      line: item.line
+    }))
+  );
+
+  assert.deepEqual(calls.map(({ from, to, sourceProcedure, targetProcedure, callResolution, file }) =>
+    [from, to, sourceProcedure, targetProcedure, callResolution, file]), [
+    ["Orchestrator", "Provider", "Initialize()", "Provide()", "syntactic", "Calls.al"],
+    ["Provider", "Orchestrator", "Provide()", "ResolveShared()", "syntactic", "Calls.al"]
+  ]);
+  assert.ok(calls.every(({ line }) => Number.isInteger(line) && line > 0));
 });
 
 test("extracts semantic data, permissions, page members, and parent app context", async () => {
@@ -326,6 +777,381 @@ test("extracts enum, report, query, and XMLport structural elements", async () =
   assert.ok(result.objects.find(({ name }) => name === "CustomerPort").elements.some(
     ({ kind, name, source }) => kind === "fieldelement" && name === "Name" && source === "Customer.Name"
   ));
+});
+
+test("extracts enum implementation bindings and interface procedure bodies", async () => {
+  const source = `
+namespace Demo;
+enum 50100 "Choice"
+{
+    DefaultImplementation = "Demo.Contract" = "Handler";
+    UnknownValueImplementation = "Demo.Contract" = "Handler";
+    value(0; "Explicit Value")
+    {
+        Implementation = "Demo.Contract" = "Handler";
+    }
+}
+enumextension 50101 "Choice Extension" extends Choice
+{
+    value(1; "Extension Value")
+    {
+        Implementation = "Demo.Contract" = "Handler";
+    }
+}
+interface "Demo.Contract"
+{
+    procedure WithBody()
+    begin
+    end;
+    procedure NoBody();
+}
+codeunit 50102 Handler
+{
+    procedure Execute()
+    begin
+    end;
+}
+`;
+  const result = await testing.objectsFromSource(source, "contracts.al");
+  const bindings = result.objects
+    .filter(({ name }) => ["Choice", "Choice Extension"].includes(name))
+    .flatMap(({ relations }) => relations.filter(({ kind }) => kind === "selects"));
+
+  assert.deepEqual(bindings.map(({ bindingKind, contract, member, target, location }) => ({
+    bindingKind,
+    contract,
+    member,
+    target,
+    file: location.file,
+    line: location.line
+  })), [
+    {
+      bindingKind: "default",
+      contract: "Demo.Contract",
+      member: undefined,
+      target: "Handler",
+      file: "contracts.al",
+      line: 5
+    },
+    {
+      bindingKind: "unknownValue",
+      contract: "Demo.Contract",
+      member: undefined,
+      target: "Handler",
+      file: "contracts.al",
+      line: 6
+    },
+    {
+      bindingKind: "explicit",
+      contract: "Demo.Contract",
+      member: "Explicit Value",
+      target: "Handler",
+      file: "contracts.al",
+      line: 9
+    },
+    {
+      bindingKind: "explicit",
+      contract: "Demo.Contract",
+      member: "Extension Value",
+      target: "Handler",
+      file: "contracts.al",
+      line: 16
+    }
+  ]);
+  assert.deepEqual(
+    result.objects.find(({ name }) => name === "Demo.Contract").procedures.map(({ name, hasBody }) => ({
+      name,
+      hasBody
+    })),
+    [
+      { name: "WithBody", hasBody: true },
+      { name: "NoBody", hasBody: false }
+    ]
+  );
+});
+
+test("extracts source fallback facts with returns, direct errors, conditions, and delegation", async () => {
+  const source = `
+interface Contract {
+  procedure Empty() begin end;
+  procedure ReturnsTrue(): Boolean begin exit(true); end;
+  procedure ReturnsFalse(): Boolean begin exit(false); end;
+  procedure Fails() begin Error('failed'); end;
+  procedure Conditional(Flag: Boolean) begin if Flag then Error('failed'); end;
+  procedure CaseConditional(Flag: Boolean) begin case Flag of true: Error('failed'); else exit(false); end; end;
+  procedure Delegates() begin Helper(); end;
+  procedure Helper() begin Error('failed'); end;
+}
+`;
+  const result = await testing.objectsFromSource(source, "fallbacks.al");
+  const procedures = new Map(
+    result.objects[0].procedures.map((procedure) => [procedure.name, procedure])
+  );
+
+  assert.deepEqual(procedures.get("Empty").fallbackFacts, {
+    complete: true,
+    statements: []
+  });
+  assert.deepEqual(
+    procedures.get("ReturnsTrue").fallbackFacts.statements.map(
+      ({ kind, value, constant, conditional, location }) => ({
+        kind, value, constant, conditional, file: location.file, line: location.line
+      })
+    ),
+    [{ kind: "return", value: "true", constant: true, conditional: false, file: "fallbacks.al", line: 4 }]
+  );
+  assert.deepEqual(
+    procedures.get("ReturnsFalse").fallbackFacts.statements.map(({ kind, value }) => ({ kind, value })),
+    [{ kind: "return", value: "false" }]
+  );
+  assert.deepEqual(
+    procedures.get("Fails").fallbackFacts.statements.map(({ kind, target, directError, conditional }) => ({
+      kind, target, directError, conditional
+    })),
+    [{ kind: "call", target: "Error", directError: true, conditional: false }]
+  );
+  const conditional = procedures.get("Conditional").fallbackFacts.statements[0];
+  assert.equal(conditional.kind, "conditional");
+  assert.equal(conditional.else, null);
+  assert.deepEqual(
+    conditional.then.map(({ kind, target, directError, conditional: nested, location }) => ({
+      kind, target, directError, conditional: nested,
+      file: location.file, line: location.line, column: location.column
+    })),
+    [{ kind: "call", target: "Error", directError: true, conditional: true,
+      file: "fallbacks.al", line: 7, column: 59 }]
+  );
+  assert.deepEqual(
+    [conditional.location.file, conditional.location.line, conditional.location.column],
+    ["fallbacks.al", 7, 46]
+  );
+  assert.deepEqual(
+    procedures.get("Delegates").fallbackFacts.statements.map(({ kind, target, resolved }) => ({
+      kind, target, resolved
+    })),
+    [{ kind: "call", target: "Helper", resolved: true }]
+  );
+  assert.equal(procedures.get("CaseConditional").fallbackFacts.statements[0].kind, "conditional");
+  assert.deepEqual(
+    procedures.get("CaseConditional").fallbackFacts.statements[0].branches.map((branch) =>
+      branch.map(({ kind, target, value }) => ({ kind, target, value }))
+    ),
+    [
+      [{ kind: "call", target: "Error", value: undefined }],
+      [{ kind: "return", target: undefined, value: "false" }]
+    ]
+  );
+});
+
+test("classifies fallback bodies conservatively", async () => {
+  const source = `
+interface Contract {
+  procedure Empty() begin end;
+  procedure ReturnsTrue(): Boolean begin exit(true); end;
+  procedure ReturnsFalse(): Boolean begin exit(false); end;
+  procedure Fails() begin Error('failed'); end;
+  procedure Conditional(Flag: Boolean) begin if Flag then Error('failed'); end;
+  procedure CaseConditional(Flag: Boolean) begin case Flag of true: Error('failed'); else exit(false); end; end;
+  procedure Delegates() begin Helper(); end;
+  procedure Helper() begin Error('failed'); end;
+  procedure UnknownDelegation() begin MissingHelper(); end;
+  procedure Declaration();
+}
+`;
+  const result = await testing.objectsFromSource(source, "classifications.al");
+  const procedures = new Map(
+    result.objects[0].procedures.map((procedure) => [procedure.name, procedure])
+  );
+  const classify = (name) => classifyFallbackBody(procedures.get(name));
+  assert.equal(classify("Empty").kind, "empty");
+  assert.equal(classify("ReturnsTrue").kind, "constant-return");
+  assert.equal(classify("ReturnsFalse").kind, "constant-return");
+  assert.equal(classify("Fails").kind, "direct-error");
+  assert.equal(classify("Conditional").kind, "conditional");
+  assert.equal(classify("CaseConditional").kind, "conditional");
+  assert.equal(classify("Delegates").kind, "delegation");
+  assert.equal(classify("UnknownDelegation").kind, "unknown");
+  assert.equal(classify("Declaration").kind, "unknown");
+  assert.equal(classify("ReturnsTrue").evidence[0].value, "true");
+  assert.ok(classify("UnknownDelegation").limitations.length > 0);
+  assert.equal(classifyFallbackBody({ name: "SymbolOnly" }).kind, "unknown");
+});
+
+test("contract expectations honor explicit bindings, interface defaults, and uncertainty", async () => {
+  const source = `
+namespace Demo;
+interface Contract {
+  procedure Execute(): Boolean;
+  procedure Conditional(Flag: Boolean);
+  procedure ConditionalFalse(Flag: Boolean): Boolean;
+  procedure FalseValue(): Boolean;
+  procedure Fails();
+  procedure Unknown();
+  procedure Inherited() begin end;
+  procedure Ambiguous(): Boolean;
+  procedure SignatureMismatch(): Boolean begin end;
+}
+codeunit 50101 DefaultHandler {
+  procedure Execute(): Boolean begin exit(true); end;
+  procedure Conditional(Flag: Boolean) begin if Flag then Error('failed'); end;
+  procedure ConditionalFalse(Flag: Boolean): Boolean begin if Flag then Error('failed') else exit(false); end;
+  procedure FalseValue(): Boolean begin exit(false); end;
+  procedure Fails() begin Error('failed'); end;
+  procedure Unknown() begin MissingHelper(); end;
+  procedure SignatureMismatch(): Integer begin Error('failed'); end;
+}
+codeunit 50102 OverrideHandler {
+  procedure Execute(): Boolean begin Error('failed'); end;
+}
+codeunit 50104 AmbiguousHandler {
+  procedure Ambiguous(): Boolean begin exit(true); end;
+  procedure Ambiguous(): Boolean begin exit(false); end;
+}
+enum 50103 Choice {
+  DefaultImplementation = "Demo.Contract" = "DefaultHandler";
+  value(0; Defaulted) { }
+  value(1; Explicit) {
+    Implementation = "Demo.Contract" = "OverrideHandler";
+  }
+}
+enum 50105 UnknownChoice {
+  UnknownValueImplementation = "Demo.Contract" = "DefaultHandler";
+  value(0; UnknownValue) { }
+}
+enum 50106 AmbiguousChoice {
+  DefaultImplementation = "Demo.Contract" = "AmbiguousHandler";
+  value(0; AmbiguousValue) { }
+}
+`;
+  const result = await testing.objectsFromSource(source, "contract-fallbacks.al");
+  const model = {
+    ...result,
+    objects: result.objects.map((object) => ({
+      ...object,
+      label: object.name,
+      objectId: object.id
+    }))
+  };
+  const expectations = [{
+    interface: "object:interface:Contract",
+    methods: [
+      "Execute", "Conditional", "ConditionalFalse", "FalseValue", "Fails", "Unknown",
+      "Inherited", "Ambiguous", "SignatureMismatch"
+    ]
+  }];
+  const required = analyzeContractFallbacks(model, expectations);
+  assert.deepEqual(required.map(({ method, enumValue, fallbackKind }) => ({
+    method, enumValue, fallbackKind
+  })), [
+    { method: "Conditional", enumValue: "Defaulted", fallbackKind: "conditional" },
+    { method: "Execute", enumValue: "Defaulted", fallbackKind: "constant-return" },
+    { method: "Inherited", enumValue: "AmbiguousValue", fallbackKind: "empty" },
+    { method: "Inherited", enumValue: "Defaulted", fallbackKind: "empty" },
+    { method: "Inherited", enumValue: "Explicit", fallbackKind: "empty" },
+    { method: "SignatureMismatch", enumValue: "AmbiguousValue", fallbackKind: "empty" },
+    { method: "SignatureMismatch", enumValue: "Defaulted", fallbackKind: "empty" },
+    { method: "SignatureMismatch", enumValue: "Explicit", fallbackKind: "empty" }
+  ]);
+  assert.ok(required.every(({ severity, rule, basis, resolution, limitations, evidence }) =>
+    severity === "warning" && rule === "contract-fallback" &&
+    basis === "configured-policy" && resolution === "syntactic" &&
+    limitations.length > 0 && evidence.length > 0
+  ));
+
+  const neutral = analyzeContractFallbacks(model);
+  assert.ok(neutral.length > 0);
+  assert.ok(neutral.every(({ severity, rule, basis }) =>
+    severity === "info" && rule === "contract-fallback" && basis === "observed-code-fact"
+  ));
+});
+
+test("contract expectations report a conditional void exit as normal completion", async () => {
+  const result = await testing.objectsFromSource(`
+interface Contract {
+  procedure Execute(Flag: Boolean);
+}
+codeunit 50100 Handler {
+  procedure Execute(Flag: Boolean) begin if Flag then Error('failed') else exit; end;
+}
+enum 50101 Choice {
+  DefaultImplementation = "Contract" = "Handler";
+  value(0; Defaulted) { }
+}
+`, "conditional-exit.al");
+  const model = {
+    ...result,
+    objects: result.objects.map((object) => ({
+      ...object,
+      label: object.name,
+      objectId: object.id
+    }))
+  };
+
+  const findings = analyzeContractFallbacks(model, [{
+    interface: "object:interface:Contract",
+    methods: ["Execute"]
+  }]);
+
+  assert.ok(findings.some(({ method, enumValue, fallbackKind, severity }) =>
+    method === "Execute" && enumValue === "Defaulted" &&
+    fallbackKind === "conditional" && severity === "warning"
+  ));
+});
+
+test("unqualified binding contracts resolve in their namespace without cross-matching same-named interfaces", async () => {
+  const demo = await testing.objectsFromSource(`
+namespace Demo;
+interface Contract { procedure Execute() begin end; }
+codeunit 50100 Handler { }
+enum 50101 Choice {
+  DefaultImplementation = Contract = Handler;
+  value(0; First) { }
+}
+`, "demo-contract.al");
+  const other = await testing.objectsFromSource(`
+namespace Other;
+interface Contract { procedure Execute() begin end; }
+`, "other-contract.al");
+  const model = {
+    objects: [...demo.objects, ...other.objects].map((object) => ({
+      ...object,
+      label: object.name,
+      objectId: object.id
+    }))
+  };
+  const findings = analyzeContractFallbacks(model, [{
+    interface: "namespace:Demo & object:interface:Contract",
+    methods: ["Execute"]
+  }]);
+
+  assert.deepEqual(findings.map(({ interface: contract, severity }) => ({
+    contract, severity
+  })), [{ contract: "Demo.Contract", severity: "warning" }]);
+});
+
+test("keeps a namespace-qualified interface name intact in contract findings", async () => {
+  const parsed = await testing.objectsFromSource(`
+namespace Demo;
+interface "Demo.Contract" { procedure Execute() begin end; }
+codeunit 50100 Handler { }
+enum 50101 Choice {
+  DefaultImplementation = "Demo.Contract" = Handler;
+  value(0; First) { }
+}
+`, "qualified-contract.al");
+  const model = {
+    objects: parsed.objects.map((object) => ({
+      ...object,
+      label: object.name,
+      objectId: object.id
+    }))
+  };
+  const findings = analyzeContractFallbacks(model, [{
+    interface: "object:interface:Demo.Contract",
+    methods: ["Execute"]
+  }]);
+
+  assert.deepEqual(findings.map(({ interface: contract }) => contract), ["Demo.Contract"]);
 });
 
 test("resolves namespace-qualified EventSubscriber publisher arguments", async () => {

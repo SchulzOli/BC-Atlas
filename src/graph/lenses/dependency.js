@@ -190,15 +190,30 @@ function createObjectIndex(objects) {
 }
 
 function evidenceFor(edge) {
+  const kind = relationKind(edge);
+  if (kind === "calls" && edge.occurrences?.length) {
+    return edge.occurrences.map(({ sourceProcedure, targetProcedure, callResolution, location }) =>
+      Object.fromEntries(Object.entries({
+        kind,
+        member: sourceProcedure,
+        sourceProcedure,
+        targetProcedure,
+        callResolution,
+        file: location?.file && toPosix(location.file),
+        line: location?.line
+      }).filter(([, value]) => value !== undefined)));
+  }
   const evidence = {
-    kind: relationKind(edge),
+    kind,
     operation: edge.operation,
     member: edge.sourceProcedure ?? edge.member ?? edge.sourceProcedures?.[0],
     property: edge.property,
+    bindingKind: edge.bindingKind,
+    contract: edge.contract,
     file: edge.location?.file && toPosix(edge.location.file),
     line: edge.location?.line
   };
-  return Object.fromEntries(Object.entries(evidence).filter(([, value]) => value !== undefined));
+  return [Object.fromEntries(Object.entries(evidence).filter(([, value]) => value !== undefined))];
 }
 
 function appNode(app, origin, objectCount = 0) {
@@ -261,7 +276,9 @@ export function dependencyLens(model, { filter = () => true } = {}) {
     edge.kinds[kind] = (edge.kinds[kind] ?? 0) + (relation.weight ?? 1);
     edge.weight += relation.weight ?? 1;
     const limit = edge.dependency === "intra-app" ? MAX_LOCAL_EVIDENCE : MAX_EVIDENCE;
-    if (edge.evidence.length < limit) edge.evidence.push(evidenceFor(relation));
+    if (edge.evidence.length < limit) {
+      edge.evidence.push(...evidenceFor(relation).slice(0, limit - edge.evidence.length));
+    }
     edges.set(id, edge);
   }
   for (const edge of edges.values()) {

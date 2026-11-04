@@ -4,6 +4,18 @@ function addUnique(target, values) {
   }
 }
 
+function bindingEvidence(relation) {
+  if (!relation.bindingKind) return undefined;
+  return Object.fromEntries(
+    Object.entries({
+      bindingKind: relation.bindingKind,
+      contract: relation.contract,
+      member: relation.member,
+      location: relation.location
+    }).filter(([, value]) => value !== undefined)
+  );
+}
+
 export function aggregateRelations(relations, { identity, project = (relation) => relation, occurrence } = {}) {
   const combined = new Map();
   for (const source of relations) {
@@ -21,9 +33,14 @@ export function aggregateRelations(relations, { identity, project = (relation) =
     addUnique(current.operations, [relation.operation, ...(relation.operations ?? [])]);
     addUnique(current.sourceProcedures, [
       relation.sourceProcedure,
-      relation.member,
+      ...(relation.bindingKind ? [] : [relation.member]),
       ...(relation.sourceProcedures ?? [])
     ]);
+    const evidence = bindingEvidence(relation);
+    if (evidence) {
+      current.evidence ??= [];
+      current.evidence.push(evidence);
+    }
     if (current.occurrences) {
       current.occurrences.push(...(relation.occurrences ?? [occurrence?.(source)].filter(Boolean)));
     }

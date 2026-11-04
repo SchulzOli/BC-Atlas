@@ -45,6 +45,7 @@ Permissions: "tabledata \"Warehouse Request\" = RM"
 | --- | --- | --- | --- |
 | Permits | [WAREHOUSE PROCESS](../permissionset/50121-warehouse-process.md) | Object | X |
 | Selects implementation | [Warehouse Handler](../enum/50102-warehouse-handler.md) | Default |  |
+| subscribes | [Warehouse Notifications](50120-warehouse-notifications.md) | NotifyRequestProcessed |  |
 | Uses | [Warehouse Requests](../page/50110-warehouse-requests.md) | Object |  |
 
 ## Source

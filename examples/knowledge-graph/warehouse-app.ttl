@@ -8,7 +8,7 @@
 
 <urn:bc-atlas:graph> a owl:Ontology ;
     rdfs:label "BC Atlas Warehouse Example" ;
-    rdfs:comment "AL source analyzed by BC Atlas: 9 objects, 26 relations." ;
+    rdfs:comment "AL source analyzed by BC Atlas: 9 objects, 27 relations." ;
     dcterms:created "2025-01-01T00:00:00.000Z"^^xsd:dateTime ;
     dcterms:creator "BC Atlas 0.12.0" ;
     dcterms:conformsTo <https://schulzoli.github.io/BC-Atlas/ontology> ;
@@ -542,7 +542,8 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Automation.al" ;
     bca:sourceLine "6"^^xsd:integer ;
     bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:NotifyRequestProcessed> ;
-    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:SendNotification> .
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:SendNotification> ;
+    bca:subscribesTo <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:NotifyRequestProcessed> a bca:Procedure ;
     rdfs:label "NotifyRequestProcessed" ;
@@ -751,7 +752,16 @@ bca:weight a owl:DatatypeProperty ;
     bca:visibility "public" ;
     bca:sourceLine "46"^^xsd:integer .
 
-<urn:bc-atlas:relation:f7b2db3a8089b674> a bca:Relation ;
+<urn:bc-atlas:relation:dcef444346bb9da6> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
+    bca:relationKind "subscribes" ;
+    bca:confidence "resolved" ;
+    bca:sourceProcedure "NotifyRequestProcessed" ;
+    bca:sourceFile "Automation.al" ;
+    bca:sourceLine "9"^^xsd:integer .
+
+<urn:bc-atlas:relation:0da2f54458540b2d> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "permits" ;
@@ -760,7 +770,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Automation.al" ;
     bca:sourceLine "23"^^xsd:integer .
 
-<urn:bc-atlas:relation:f37717d975fa0d2f> a bca:Relation ;
+<urn:bc-atlas:relation:7d50f1db6b3f83d9> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
     bca:relationKind "permits" ;
@@ -769,7 +779,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Automation.al" ;
     bca:sourceLine "24"^^xsd:integer .
 
-<urn:bc-atlas:relation:889cb083471a5261> a bca:Relation ;
+<urn:bc-atlas:relation:d0341c1a1778b3b3> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
     bca:relationKind "permits" ;
@@ -778,7 +788,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Automation.al" ;
     bca:sourceLine "25"^^xsd:integer .
 
-<urn:bc-atlas:relation:7a6dc7fb88a0d064> a bca:Relation ;
+<urn:bc-atlas:relation:9f3cab0446f34b5f> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity> ;
     bca:relationKind "implements" ;
@@ -786,7 +796,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Inventory.al" ;
     bca:sourceLine "28"^^xsd:integer .
 
-<urn:bc-atlas:relation:e3af2139e5a6bfe8> a bca:Relation ;
+<urn:bc-atlas:relation:fe960692dcc382ea> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "permits" ;
@@ -795,7 +805,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Inventory.al" ;
     bca:sourceLine "30"^^xsd:integer .
 
-<urn:bc-atlas:relation:b485c76f254c8b8b> a bca:Relation ;
+<urn:bc-atlas:relation:332f63aa6e739726> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "uses" ;
@@ -803,7 +813,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Inventory.al" ;
     bca:sourceLine "33"^^xsd:integer .
 
-<urn:bc-atlas:relation:65c970305208a45a> a bca:Relation ;
+<urn:bc-atlas:relation:4ea2ef4ced046a42> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "uses" ;
@@ -811,7 +821,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Inventory.al" ;
     bca:sourceLine "43"^^xsd:integer .
 
-<urn:bc-atlas:relation:401e37e915215d24> a bca:Relation ;
+<urn:bc-atlas:relation:1dcf920c133e527e> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "uses" ;
@@ -819,7 +829,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Inventory.al" ;
     bca:sourceLine "51"^^xsd:integer .
 
-<urn:bc-atlas:relation:96c7b98b6dd00089> a bca:Relation ;
+<urn:bc-atlas:relation:111faabfe5839a61> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "reads" ;
@@ -830,7 +840,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Inventory.al" ;
     bca:sourceLine "37"^^xsd:integer .
 
-<urn:bc-atlas:relation:5daa7a9acbc17f0a> a bca:Relation ;
+<urn:bc-atlas:relation:09bdfcdd5750d32d> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "writes" ;
@@ -841,7 +851,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Inventory.al" ;
     bca:sourceLine "47"^^xsd:integer .
 
-<urn:bc-atlas:relation:1d803be072491fde> a bca:Relation ;
+<urn:bc-atlas:relation:1fdb5cd67c21d0c8> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "writes" ;
@@ -852,7 +862,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Inventory.al" ;
     bca:sourceLine "40"^^xsd:integer .
 
-<urn:bc-atlas:relation:8c98eedcc752d1b1> a bca:Relation ;
+<urn:bc-atlas:relation:5267243d2fed84c1> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity> ;
     bca:relationKind "implements" ;
@@ -860,7 +870,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Inventory.al" ;
     bca:sourceLine "61"^^xsd:integer .
 
-<urn:bc-atlas:relation:6ed8795a2e93e96f> a bca:Relation ;
+<urn:bc-atlas:relation:c4e3a873b05bfbea> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
     bca:relationKind "selects" ;
@@ -869,7 +879,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "Inventory.al" ;
     bca:sourceLine "65"^^xsd:integer .
 
-<urn:bc-atlas:relation:b5416e9b22dde9a9> a bca:Relation ;
+<urn:bc-atlas:relation:0351a8ee478d689b> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "reads" ;
@@ -877,7 +887,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUI.al" ;
     bca:sourceLine "10"^^xsd:integer .
 
-<urn:bc-atlas:relation:9bf76751bc0f2596> a bca:Relation ;
+<urn:bc-atlas:relation:7f6d360e333bb2e6> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101> ;
     bca:relationKind "uses" ;
@@ -885,7 +895,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUI.al" ;
     bca:sourceLine "54"^^xsd:integer .
 
-<urn:bc-atlas:relation:314573fcb48626ef> a bca:Relation ;
+<urn:bc-atlas:relation:d91fdeff49c9699e> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:pageextension:50111> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
     bca:relationKind "extends" ;
@@ -894,7 +904,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUI.al" ;
     bca:sourceLine "64"^^xsd:integer .
 
-<urn:bc-atlas:relation:c45150a29cab4b13> a bca:Relation ;
+<urn:bc-atlas:relation:08b7ace2b51920a8> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "permits" ;
@@ -903,7 +913,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUITests.al" ;
     bca:sourceLine "14"^^xsd:integer .
 
-<urn:bc-atlas:relation:7ea4f482fe301a53> a bca:Relation ;
+<urn:bc-atlas:relation:a74f91eb6281a9b6> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "uses" ;
@@ -911,7 +921,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUITests.al" ;
     bca:sourceLine "20"^^xsd:integer .
 
-<urn:bc-atlas:relation:95475dee34ec67be> a bca:Relation ;
+<urn:bc-atlas:relation:a5c0bf1ca2396620> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
     bca:relationKind "uses" ;
@@ -919,7 +929,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUITests.al" ;
     bca:sourceLine "21"^^xsd:integer .
 
-<urn:bc-atlas:relation:1102826735aa8b5d> a bca:Relation ;
+<urn:bc-atlas:relation:9e7ff653d1c02214> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "uses" ;
@@ -927,7 +937,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUITests.al" ;
     bca:sourceLine "48"^^xsd:integer .
 
-<urn:bc-atlas:relation:557b78ba567c2e37> a bca:Relation ;
+<urn:bc-atlas:relation:fc8185e5441e534e> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
     bca:relationKind "uses" ;
@@ -935,7 +945,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUITests.al" ;
     bca:sourceLine "49"^^xsd:integer .
 
-<urn:bc-atlas:relation:2fad63a61c2a1dec> a bca:Relation ;
+<urn:bc-atlas:relation:78d28988fa7e6de7> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "writes" ;
@@ -946,7 +956,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUITests.al" ;
     bca:sourceLine "29"^^xsd:integer .
 
-<urn:bc-atlas:relation:68c13bcd1aebd5bb> a bca:Relation ;
+<urn:bc-atlas:relation:3d5d6ea1723a1b47> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "reads" ;
@@ -957,7 +967,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUITests.al" ;
     bca:sourceLine "38"^^xsd:integer .
 
-<urn:bc-atlas:relation:28fee465b38849bb> a bca:Relation ;
+<urn:bc-atlas:relation:ba270960d90eb144> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "writes" ;
@@ -968,7 +978,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUITests.al" ;
     bca:sourceLine "57"^^xsd:integer .
 
-<urn:bc-atlas:relation:303952d2d4bb0e1c> a bca:Relation ;
+<urn:bc-atlas:relation:e7ab695a596c98b0> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "writes" ;
@@ -979,7 +989,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUITests.al" ;
     bca:sourceLine "60"^^xsd:integer .
 
-<urn:bc-atlas:relation:d43c43d9e356babd> a bca:Relation ;
+<urn:bc-atlas:relation:515f956c5431bdeb> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "reads" ;

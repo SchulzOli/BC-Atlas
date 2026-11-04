@@ -11,6 +11,7 @@ import { compareWithBaseline, createBaseline } from "../src/blueprint/baseline.j
 import { subgroups } from "../src/blueprint/cluster.js";
 import { compileSelector, componentMatcher } from "../src/blueprint/components.js";
 import { createGraphDocument } from "../src/graph/document.js";
+import { architectureJson, formatArchitectureMarkdown, formatArchitectureText } from "../src/blueprint/report.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = path.join(root, "examples", "multi-app");
@@ -54,6 +55,116 @@ test("checks dependencies against components, layers, and dependsOn", async () =
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("explains supported orchestrator-provider cycles and preserves structural limitations after refactoring", () => {
+  const node = (id, label, type = "codeunit") => ({
+    id, label, type, namespace: "Demo", app: "demo", origin: "workspace", file: `${label}.al`
+  });
+  const objects = [
+    node("orchestrator", "Orchestrator"),
+    node("provider-a", "Provider A"),
+    node("provider-b", "Provider B"),
+    node("type-a", "Type A", "interface"),
+    node("type-b", "Type B", "interface"),
+    node("partial-a", "Partial A"),
+    node("partial-b", "Partial B")
+  ];
+  const call = (source, target, sourceProcedure, targetProcedure, file, line, callResolution = "syntactic") => ({
+    id: `${source}->${target}`,
+    source,
+    target,
+    kinds: { calls: 1 },
+    weight: 1,
+    evidence: [{
+      kind: "calls", sourceProcedure, targetProcedure, callResolution,
+      file, line
+    }]
+  });
+  const levels = (includeProviderCallbacks) => ({
+    object: {
+      nodes: objects,
+      edges: [
+        call("orchestrator", "provider-a", "Start()", "Provide()", "Orchestrator.al", 10),
+        call("orchestrator", "provider-b", "Start()", "Provide()", "Orchestrator.al", 11),
+        ...(includeProviderCallbacks ? [
+          call("provider-a", "orchestrator", "Provide()", "ResolveShared()", "ProviderA.al", 20),
+          call("provider-b", "orchestrator", "Provide()", "ResolveShared()", "ProviderB.al", 30)
+        ] : []),
+        { id: "type-a->type-b", source: "type-a", target: "type-b", kinds: { uses: 1 }, weight: 1, evidence: [{ kind: "uses", file: "TypeA.al", line: 40 }] },
+        { id: "type-b->type-a", source: "type-b", target: "type-a", kinds: { uses: 1 }, weight: 1, evidence: [{ kind: "uses", file: "TypeB.al", line: 50 }] },
+        call("partial-a", "partial-b", "Run()", undefined, "PartialA.al", 60, "ambiguous"),
+        call("partial-b", "partial-a", "Run()", undefined, "PartialB.al", 70, "ambiguous")
+      ]
+    }
+  });
+  const architecture = {
+    components: [
+      { name: "Orchestration", match: ["object:codeunit:Orchestrator"] },
+      { name: "Providers", match: ["object:codeunit:Provider A", "object:codeunit:Provider B"] },
+      { name: "Type A", match: ["object:interface:Type A"] },
+      { name: "Type B", match: ["object:interface:Type B"] },
+      { name: "Partial A", match: ["object:codeunit:Partial A"] },
+      { name: "Partial B", match: ["object:codeunit:Partial B"] }
+    ]
+  };
+  const cycleFor = (result, ...components) => result.checks.find(({ rule, components: cycle }) =>
+    rule === "component-cycle" && components.every((component) => cycle.includes(component)));
+  const result = evaluateArchitecture(levels(true), architecture);
+  const sharedCycle = cycleFor(result, "Orchestration", "Providers");
+
+  assert.ok(sharedCycle);
+  assert.ok(sharedCycle.cyclePath, "cycle checks retain an ordered, evidence-backed path");
+  assert.deepEqual(sharedCycle.cyclePath.path.map(({ from, to, kind }) => [from, to, kind]), [
+    ["Orchestration", "Providers", "calls"],
+    ["Providers", "Orchestration", "calls"]
+  ]);
+  assert.ok(sharedCycle.cyclePath.path.every(({ evidence }) => evidence.length > 0));
+  assert.ok(sharedCycle.cyclePath.path[1].evidence.some(({ targetProcedure }) => targetProcedure === "ResolveShared()"));
+  assert.equal(sharedCycle.resolution.strategy, "extract-shared-service");
+  assert.deepEqual(sharedCycle.resolution.alternatives.map(({ strategy }) => strategy), ["extract-interface", "raise-event"]);
+  assert.ok(sharedCycle.resolution.steps.some((step) => /callers, state, transactions, permissions, and idempotence/u.test(step)));
+
+  const assessment = { result, baseline: { baselined: false, new: [], known: [], fixed: [] } };
+  const markdown = formatArchitectureMarkdown(assessment);
+  assert.match(markdown, /ResolveShared\(\)/u);
+  assert.match(markdown, /not evidence of runtime recursion/u);
+  assert.match(markdown, /call resolution is incomplete/iu);
+
+  const refactored = evaluateArchitecture(levels(false), architecture);
+  assert.equal(cycleFor(refactored, "Orchestration", "Providers"), undefined);
+  const typeCycle = cycleFor(refactored, "Type A", "Type B");
+  assert.ok(typeCycle, "the unrelated type-only dependency cycle remains visible");
+  assert.ok(typeCycle.cyclePath.path.every(({ kind }) => kind === "uses"));
+  assert.equal(typeCycle.resolution, undefined, "a type-only dependency cycle gets no runtime-oriented remedy");
+  const partialCycle = cycleFor(refactored, "Partial A", "Partial B");
+  assert.ok(partialCycle, "the incomplete-resolution cycle remains visible");
+  assert.ok(partialCycle?.limitations.some((limitation) => /ambiguous or unresolved call evidence/u.test(limitation)));
+  assert.equal(partialCycle.resolution, undefined, "incomplete call evidence does not receive a tailored remedy");
+});
+
+test("component cycle findings display the representative path separately from all SCC members", () => {
+  const nodes = ["A", "B", "C"].map((id) => ({
+    id, label: id, type: "codeunit", file: `${id}.al`
+  }));
+  const edge = (source, target) => ({
+    id: `${source}->${target}`, source, target, kinds: { uses: 1 }, weight: 1,
+    evidence: [{ kind: "uses", file: `${source}.al`, line: 1 }]
+  });
+  const result = evaluateArchitecture({
+    object: {
+      nodes,
+      edges: [edge("A", "B"), edge("B", "A"), edge("A", "C"), edge("C", "A")]
+    }
+  }, {
+    components: nodes.map(({ label }) => ({ name: label, match: [`object:codeunit:${label}`] }))
+  });
+  const cycle = result.checks.find(({ rule }) => rule === "component-cycle");
+
+  assert.ok(cycle);
+  assert.deepEqual(cycle.components, ["A", "B", "C"], "all strongly connected component members remain listed separately");
+  assert.deepEqual(cycle.cyclePath.path.map(({ from, to }) => [from, to]), [["A", "B"], ["B", "A"]]);
+  assert.equal(cycle.message, "Components have a structural dependency cycle (not evidence of runtime recursion): A -> B -> A");
 });
 
 test("component selectors can match individual files and file globs", () => {
@@ -248,6 +359,197 @@ test("rules for layers, public objects, and dependencies", async () => {
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("architecture reports preserve configured and proposed origins with complete dependency evidence", async () => {
+  const initial = await assessArchitecture(workspace);
+  const model = structuredClone(initial.model);
+  const core = model.objects.find(({ name }) => name === "CON Item");
+  const integration = model.objects.find(({ name }) => name === "CON Item Sync");
+  for (let index = 0; index < 8; index++) {
+    model.edges.push({
+      from: core.key,
+      to: integration.key,
+      kind: "calls",
+      sourceProcedure: `TouchSync${index + 1}`,
+      location: { file: "core/Items.al", line: 44 + index }
+    });
+  }
+
+  const proposal = await assessArchitecture(workspace, { propose: true, groupBy: "app" }, { model });
+  const proposedViolation = proposal.result.violations.find(({ source, target }) =>
+    source.label === "CON Item" && target.label === "CON Item Sync");
+  assert.equal(proposedViolation.basis, "heuristic");
+  assert.equal(proposedViolation.architectureOrigin, "proposed");
+  assert.ok(proposedViolation.evidence.some(({ member, file, line }) =>
+    member === "TouchSync1" && file === "core/Items.al" && line === 44));
+  assert.ok(proposedViolation.resolution);
+
+  const configured = await assessArchitecture(workspace, {
+    architecture: {
+      ...proposal.architecture,
+      rules: [{
+        name: "no-core-calls-to-integration",
+        from: "component:Contoso Core",
+        to: "component:Contoso Integration",
+        kinds: ["calls"],
+        severity: "warning"
+      }]
+    }
+  }, { model });
+  const configuredViolation = configured.result.violations.find(({ rule, source, target }) =>
+    rule === "dependency-rule" && source.label === "CON Item" && target.label === "CON Item Sync");
+  assert.equal(configuredViolation.basis, "configured-policy");
+  assert.equal(configuredViolation.architectureOrigin, "configured");
+  assert.ok(configuredViolation.evidence.some(({ member }) => member === "TouchSync1"));
+  assert.equal(configuredViolation.evidence.length, 8);
+  assert.equal(architectureJson(configured).violations.find(({ policy }) =>
+    policy === "no-core-calls-to-integration").evidence.length, 8);
+  assert.match(formatArchitectureText(configured), /3 additional evidence item\(s\) omitted/u);
+
+  const forbiddenRead = await assessArchitecture(workspace, {
+    architecture: {
+      components: [
+        { name: "Core", layer: 0, match: ["app:Contoso Core"] },
+        { name: "Sales", layer: 1, match: ["app:Contoso Sales"] },
+        { name: "Integration", layer: 2, match: ["app:Contoso Integration"] }
+      ],
+      rules: [{
+        name: "no-platform-table-reads",
+        from: "component:Integration",
+        to: "type:table",
+        kinds: ["reads"],
+        severity: "warning"
+      }]
+    }
+  });
+  const readViolation = forbiddenRead.result.violations.find(({ rule, source, target }) =>
+    rule === "dependency-rule" && source.label === "CON Item Sync" && target.label === "CON Item");
+  assert.ok(readViolation.evidence.some(({ kind, operation, member, file, line }) =>
+    kind === "reads" && operation === "Get" && member === "Sync(Code[20])" &&
+    file === "integration/ItemSync.al" && line === 12));
+  assert.ok(forbiddenRead.result.workItems.find(({ source }) => source.label === "CON Item Sync")
+    .evidence.some(({ member }) => member === "Sync(Code[20])"));
+
+  const json = architectureJson(forbiddenRead);
+  assert.ok(json.violations.find(({ rule }) => rule === "dependency-rule").evidence.some(({ operation }) => operation === "Get"));
+  assert.match(formatArchitectureText(forbiddenRead), /Primary location/u);
+  assert.match(formatArchitectureMarkdown(forbiddenRead), /Supporting locations/u);
+});
+
+test("moving a table projection behind a core service removes only its original forbidden read", async () => {
+  const architecture = {
+    components: [
+      { name: "Core", layer: 0, match: ["app:Contoso Core"] },
+      { name: "Sales", layer: 1, match: ["app:Contoso Sales"] },
+      { name: "Integration", layer: 2, match: ["app:Contoso Integration"] }
+    ],
+    rules: [{
+      name: "no-platform-table-reads",
+      from: "component:Integration",
+      to: "type:table",
+      kinds: ["reads"],
+      severity: "warning"
+    }]
+  };
+  const initial = await assessArchitecture(workspace);
+  const originalModel = structuredClone(initial.model);
+  const itemTable = originalModel.objects.find(({ name }) => name === "CON Item");
+  const priceGroupTable = originalModel.objects.find(({ name }) => name === "CON Price Group");
+  const itemSync = originalModel.objects.find(({ name }) => name === "CON Item Sync");
+  const independentSync = {
+    ...itemSync,
+    key: `${itemSync.app.id}::Contoso.Integration::codeunit::50210`,
+    id: "50210",
+    name: "CON Price Group Sync",
+    file: "integration/PriceGroupSync.al",
+    location: { file: "integration/PriceGroupSync.al", line: 3 }
+  };
+  originalModel.objects.push(independentSync);
+  originalModel.edges.push({
+    id: "synthetic-price-group-read",
+    from: independentSync.key,
+    to: priceGroupTable.key,
+    kind: "reads",
+    operation: "Get",
+    sourceProcedure: "Sync(Code[10])",
+    location: { file: "integration/PriceGroupSync.al", line: 8 }
+  });
+
+  const original = await assessArchitecture(workspace, { architecture }, { model: originalModel });
+  const originalForbiddenReads = original.result.violations
+    .filter(({ policy }) => policy === "no-platform-table-reads")
+    .map(({ source, target }) => `${source.label} -> ${target.label}`).sort();
+  assert.deepEqual(originalForbiddenReads, [
+    "CON Item Sync -> CON Item",
+    "CON Price Group Sync -> CON Price Group"
+  ]);
+
+  const refactoredModel = structuredClone(originalModel);
+  refactoredModel.edges = refactoredModel.edges.filter(({ from, to, kind }) =>
+    !(from === itemSync.key && to === itemTable.key && kind === "reads"));
+  const core = refactoredModel.objects.find(({ name }) => name === "CON Item");
+  const projection = {
+    ...itemSync,
+    key: `${core.app.id}::Contoso.Core.Items::codeunit::50020`,
+    id: "50020",
+    name: "CON Item Projection",
+    app: core.app,
+    module: core.module,
+    namespace: core.namespace,
+    file: "core/ItemProjection.al",
+    location: { file: "core/ItemProjection.al", line: 3 }
+  };
+  refactoredModel.objects.push(projection);
+  refactoredModel.edges.push(
+    {
+      id: "synthetic-projection-call",
+      from: itemSync.key,
+      to: projection.key,
+      kind: "calls",
+      sourceProcedure: "Sync(Code[20])",
+      member: "Exists(Code[20])",
+      location: { file: "integration/ItemSync.al", line: 12 }
+    },
+    {
+      id: "synthetic-projection-table-use",
+      from: projection.key,
+      to: itemTable.key,
+      kind: "uses",
+      location: { file: "core/ItemProjection.al", line: 6 }
+    },
+    {
+      id: "synthetic-projection-table-read",
+      from: projection.key,
+      to: itemTable.key,
+      kind: "reads",
+      operation: "Get",
+      sourceProcedure: "Exists(Code[20])",
+      location: { file: "core/ItemProjection.al", line: 8 }
+    }
+  );
+  const refactored = await assessArchitecture(workspace, { architecture }, { model: refactoredModel });
+  const remainingForbiddenReads = refactored.result.violations
+    .filter(({ policy }) => policy === "no-platform-table-reads")
+    .map(({ source, target }) => `${source.label} -> ${target.label}`).sort();
+  assert.deepEqual(remainingForbiddenReads, ["CON Price Group Sync -> CON Price Group"]);
+  const independentViolation = refactored.result.violations.find(({ policy, source, target }) =>
+    policy === "no-platform-table-reads" && source.label === "CON Price Group Sync" && target.label === "CON Price Group");
+  assert.ok(independentViolation.evidence.some(({ operation, member, file, line }) =>
+    operation === "Get" && member === "Sync(Code[10])" &&
+    file === "integration/PriceGroupSync.al" && line === 8));
+  const directItemEdge = refactored.levels.object.edges.find(({ source, target }) =>
+    source === itemSync.key && target === itemTable.key);
+  assert.ok(!directItemEdge.evidence.some(({ kind }) => kind === "reads"));
+  assert.ok(directItemEdge.evidence.some(({ kind }) => kind === "writes"));
+  const serviceCall = refactored.levels.object.edges.find(({ source, target }) =>
+    source === itemSync.key && target === projection.key);
+  assert.ok(serviceCall.kinds.calls);
+  const serviceRead = refactored.levels.object.edges.find(({ source, target }) =>
+    source === projection.key && target === itemTable.key);
+  assert.ok(serviceRead.evidence.some(({ kind, operation, member, file }) =>
+    kind === "reads" && operation === "Get" && member === "Exists(Code[20])" &&
+    file === "core/ItemProjection.al"));
 });
 
 test("exposes limits what other components may use; severities turn rules off", async () => {

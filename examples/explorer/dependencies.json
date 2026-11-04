@@ -239,9 +239,9 @@
       "cycles": 0,
       "coupling": {
         "inside": 32.3,
-        "across": 24,
-        "share": 0.574,
-        "modularity": 0.186
+        "across": 24.585,
+        "share": 0.568,
+        "modularity": 0.18
       },
       "checks": 2,
       "sharedTables": 2,
@@ -297,7 +297,7 @@
             "outDegree": 1,
             "crossAppIn": 2,
             "crossAppOut": 0,
-            "pagerank": 0.212106,
+            "pagerank": 0.211022,
             "community": 0,
             "buildLayer": 1
           },
@@ -327,7 +327,7 @@
             "outDegree": 0,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.230855,
+            "pagerank": 0.230317,
             "community": 1,
             "buildLayer": 0
           },
@@ -357,7 +357,7 @@
             "outDegree": 1,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.03001,
+            "pagerank": 0.03,
             "community": 0,
             "buildLayer": 2
           },
@@ -386,7 +386,7 @@
             "outDegree": 0,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.050564,
+            "pagerank": 0.050947,
             "community": 1,
             "buildLayer": 0
           },
@@ -416,7 +416,7 @@
             "outDegree": 3,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.072546,
+            "pagerank": 0.073932,
             "community": 1,
             "buildLayer": 2
           },
@@ -446,7 +446,7 @@
             "outDegree": 1,
             "crossAppIn": 1,
             "crossAppOut": 0,
-            "pagerank": 0.050042,
+            "pagerank": 0.051685,
             "community": 1,
             "buildLayer": 3
           },
@@ -476,7 +476,7 @@
             "outDegree": 1,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.03001,
+            "pagerank": 0.03,
             "community": 0,
             "buildLayer": 2
           },
@@ -506,7 +506,7 @@
             "outDegree": 1,
             "crossAppIn": 1,
             "crossAppOut": 1,
-            "pagerank": 0.10002,
+            "pagerank": 0.098326,
             "community": 2,
             "buildLayer": 2
           },
@@ -536,7 +536,7 @@
             "outDegree": 2,
             "crossAppIn": 1,
             "crossAppOut": 1,
-            "pagerank": 0.058919,
+            "pagerank": 0.058899,
             "community": 2,
             "buildLayer": 4
           },
@@ -566,7 +566,7 @@
             "outDegree": 2,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.038512,
+            "pagerank": 0.038499,
             "community": 2,
             "buildLayer": 5
           },
@@ -596,7 +596,7 @@
             "outDegree": 3,
             "crossAppIn": 0,
             "crossAppOut": 0,
-            "pagerank": 0.03001,
+            "pagerank": 0.03,
             "community": 2,
             "buildLayer": 6
           },
@@ -626,7 +626,7 @@
             "outDegree": 3,
             "crossAppIn": 0,
             "crossAppOut": 3,
-            "pagerank": 0.03001,
+            "pagerank": 0.03,
             "community": 2,
             "buildLayer": 5
           },
@@ -652,7 +652,7 @@
             "outDegree": 0,
             "crossAppIn": 1,
             "crossAppOut": 0,
-            "pagerank": 0.036387,
+            "pagerank": 0.036374,
             "community": 2,
             "buildLayer": 0
           }
@@ -681,7 +681,7 @@
             "outDegree": 1,
             "crossAppIn": 0,
             "crossAppOut": 1,
-            "pagerank": 0.03001,
+            "pagerank": 0.03,
             "community": 0,
             "buildLayer": 2
           },
@@ -879,6 +879,10 @@
             },
             {
               "kind": "calls",
+              "member": "Calculate(Code[20])",
+              "sourceProcedure": "Calculate(Code[20])",
+              "targetProcedure": "UnitPrice(Code[20])",
+              "callResolution": "syntactic",
               "file": "core/Pricing.al",
               "line": 31
             }
@@ -1011,10 +1015,10 @@
           "dependency": "declared",
           "kinds": {
             "uses": 1,
-            "subscribes": 1,
+            "subscribes": 2,
             "calls": 1
           },
-          "weight": 3,
+          "weight": 4,
           "evidence": [
             {
               "kind": "uses",
@@ -1028,7 +1032,17 @@
               "line": 35
             },
             {
+              "kind": "subscribes",
+              "member": "RoundPrice",
+              "file": "sales/Quotes.al",
+              "line": 35
+            },
+            {
               "kind": "calls",
+              "member": "Recalculate(Record \"CON Sales Quote\")",
+              "sourceProcedure": "Recalculate(Record \"CON Sales Quote\")",
+              "targetProcedure": "Calculate(Code[20])",
+              "callResolution": "syntactic",
               "file": "sales/Quotes.al",
               "line": 30
             }
@@ -1041,7 +1055,7 @@
             ]
           ],
           "changes": [],
-          "coupling": 4
+          "coupling": 4.585
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
@@ -1096,6 +1110,10 @@
             },
             {
               "kind": "calls",
+              "member": "OnAction()",
+              "sourceProcedure": "OnAction()",
+              "targetProcedure": "Recalculate(Record \"CON Sales Quote\")",
+              "callResolution": "syntactic",
               "file": "sales/Quotes.al",
               "line": 67
             }
@@ -1260,6 +1278,10 @@
             },
             {
               "kind": "calls",
+              "member": "Export(Record \"CON Sales Quote\")",
+              "sourceProcedure": "Export(Record \"CON Sales Quote\")",
+              "targetProcedure": "Recalculate(Record \"CON Sales Quote\")",
+              "callResolution": "syntactic",
               "file": "integration/Export.al",
               "line": 11
             }
@@ -1482,10 +1504,10 @@
           "kinds": {
             "relates": 1,
             "uses": 1,
-            "subscribes": 1,
+            "subscribes": 2,
             "calls": 1
           },
-          "weight": 4,
+          "weight": 5,
           "objectEdges": 2,
           "scope": "inter-app",
           "dependency": "declared",
@@ -1496,7 +1518,7 @@
             ]
           ],
           "changes": [],
-          "coupling": 7
+          "coupling": 7.585
         },
         {
           "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03->5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
@@ -1586,7 +1608,7 @@
             "instability": 0,
             "abstractness": 0.167,
             "distance": 0.833,
-            "cohesion": 0.559
+            "cohesion": 0.549
           },
           "violations": 0,
           "extractable": true,
@@ -1624,7 +1646,7 @@
             "instability": 0.667,
             "abstractness": 0,
             "distance": 0.333,
-            "cohesion": 0.454
+            "cohesion": 0.445
           },
           "violations": 0,
           "extractable": true,
@@ -1701,10 +1723,10 @@
           "kinds": {
             "relates": 1,
             "uses": 1,
-            "subscribes": 1,
+            "subscribes": 2,
             "calls": 1
           },
-          "weight": 4,
+          "weight": 5,
           "objectEdges": 2,
           "violations": 0,
           "presence": [
@@ -1714,7 +1736,7 @@
             ]
           ],
           "changes": [],
-          "coupling": 7
+          "coupling": 7.585
         },
         {
           "id": "component::Integration->component::Sales",

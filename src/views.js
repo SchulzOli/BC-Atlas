@@ -381,7 +381,13 @@ function aggregateOwnerCalls(model, procedures, edges) {
       return { ...edge, from, to };
     },
     identity: (edge) =>
-      `${edge.from}|${edge.to ?? edge.unresolved?.name}|${edge.kind}|${edge.confidence}`
+      `${edge.from}|${edge.to ?? edge.unresolved?.name}|${edge.kind}|${edge.confidence}`,
+    occurrence: (edge) => ({
+      sourceProcedure: edge.sourceProcedure,
+      targetProcedure: edge.targetProcedure,
+      callResolution: edge.callResolution,
+      location: edge.location
+    })
   });
   return {
     objects: [...usedOwners].map((key) => owners.get(key)).filter(Boolean),
@@ -432,6 +438,9 @@ function callView(model, options = {}) {
           id: `c${edges.length}`,
           from: from.key,
           to: to?.key,
+          sourceProcedure: procedure.signature,
+          targetProcedure: to?.signature,
+          callResolution: resolved.resolvedBy ?? "syntactic",
           unresolved: to ? undefined : {
             name: call.receiver ? `${call.receiver}.${call.name}` : call.name,
             type: resolved.confidence === "ambiguous" ? "ambiguous procedure" : "procedure"

@@ -17,7 +17,9 @@ App: "BC Atlas Warehouse Example 1.0.0.0"
 
 ## Dependencies
 
-None.
+| Relationship | Target | From | Evidence |
+| --- | --- | --- | --- |
+| subscribes | [Warehouse Processor](50101-warehouse-processor.md) | NotifyRequestProcessed |  |
 
 ## Used by
 

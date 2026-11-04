@@ -62,7 +62,9 @@ export async function assessArchitecture(input, values = {}, { model } = {}) {
     // Configured coupling weights also shape and score a proposal.
     architecture = configured?.couplingWeights ? { ...proposal.architecture, couplingWeights: configured.couplingWeights } : proposal.architecture;
   }
-  const result = evaluateArchitecture(levels, architecture);
+  const result = evaluateArchitecture(levels, architecture, {
+    architectureOrigin: proposal ? "proposed" : "configured"
+  });
   result.surface = componentSurfaces({ levels, componentOf: result.assignment, model: analyzed, components: result.components });
   if (!proposal) {
     for (const surface of result.surface.filter(({ candidates }) => candidates.length)) {
