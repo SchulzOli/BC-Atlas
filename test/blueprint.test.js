@@ -316,6 +316,121 @@ test("architecture reports preserve configured and proposed origins with complet
   assert.match(formatArchitectureMarkdown(forbiddenRead), /Supporting locations/u);
 });
 
+test("moving a table projection behind a core service removes only its original forbidden read", async () => {
+  const architecture = {
+    components: [
+      { name: "Core", layer: 0, match: ["app:Contoso Core"] },
+      { name: "Sales", layer: 1, match: ["app:Contoso Sales"] },
+      { name: "Integration", layer: 2, match: ["app:Contoso Integration"] }
+    ],
+    rules: [{
+      name: "no-platform-table-reads",
+      from: "component:Integration",
+      to: "type:table",
+      kinds: ["reads"],
+      severity: "warning"
+    }]
+  };
+  const initial = await assessArchitecture(workspace);
+  const originalModel = structuredClone(initial.model);
+  const itemTable = originalModel.objects.find(({ name }) => name === "CON Item");
+  const priceGroupTable = originalModel.objects.find(({ name }) => name === "CON Price Group");
+  const itemSync = originalModel.objects.find(({ name }) => name === "CON Item Sync");
+  const independentSync = {
+    ...itemSync,
+    key: `${itemSync.app.id}::Contoso.Integration::codeunit::50210`,
+    id: "50210",
+    name: "CON Price Group Sync",
+    file: "integration/PriceGroupSync.al",
+    location: { file: "integration/PriceGroupSync.al", line: 3 }
+  };
+  originalModel.objects.push(independentSync);
+  originalModel.edges.push({
+    id: "synthetic-price-group-read",
+    from: independentSync.key,
+    to: priceGroupTable.key,
+    kind: "reads",
+    operation: "Get",
+    sourceProcedure: "Sync(Code[10])",
+    location: { file: "integration/PriceGroupSync.al", line: 8 }
+  });
+
+  const original = await assessArchitecture(workspace, { architecture }, { model: originalModel });
+  const originalForbiddenReads = original.result.violations
+    .filter(({ policy }) => policy === "no-platform-table-reads")
+    .map(({ source, target }) => `${source.label} -> ${target.label}`).sort();
+  assert.deepEqual(originalForbiddenReads, [
+    "CON Item Sync -> CON Item",
+    "CON Price Group Sync -> CON Price Group"
+  ]);
+
+  const refactoredModel = structuredClone(originalModel);
+  refactoredModel.edges = refactoredModel.edges.filter(({ from, to, kind }) =>
+    !(from === itemSync.key && to === itemTable.key && kind === "reads"));
+  const core = refactoredModel.objects.find(({ name }) => name === "CON Item");
+  const projection = {
+    ...itemSync,
+    key: `${core.app.id}::Contoso.Core.Items::codeunit::50020`,
+    id: "50020",
+    name: "CON Item Projection",
+    app: core.app,
+    module: core.module,
+    namespace: core.namespace,
+    file: "core/ItemProjection.al",
+    location: { file: "core/ItemProjection.al", line: 3 }
+  };
+  refactoredModel.objects.push(projection);
+  refactoredModel.edges.push(
+    {
+      id: "synthetic-projection-call",
+      from: itemSync.key,
+      to: projection.key,
+      kind: "calls",
+      sourceProcedure: "Sync(Code[20])",
+      member: "Exists(Code[20])",
+      location: { file: "integration/ItemSync.al", line: 12 }
+    },
+    {
+      id: "synthetic-projection-table-use",
+      from: projection.key,
+      to: itemTable.key,
+      kind: "uses",
+      location: { file: "core/ItemProjection.al", line: 6 }
+    },
+    {
+      id: "synthetic-projection-table-read",
+      from: projection.key,
+      to: itemTable.key,
+      kind: "reads",
+      operation: "Get",
+      sourceProcedure: "Exists(Code[20])",
+      location: { file: "core/ItemProjection.al", line: 8 }
+    }
+  );
+  const refactored = await assessArchitecture(workspace, { architecture }, { model: refactoredModel });
+  const remainingForbiddenReads = refactored.result.violations
+    .filter(({ policy }) => policy === "no-platform-table-reads")
+    .map(({ source, target }) => `${source.label} -> ${target.label}`).sort();
+  assert.deepEqual(remainingForbiddenReads, ["CON Price Group Sync -> CON Price Group"]);
+  const independentViolation = refactored.result.violations.find(({ policy, source, target }) =>
+    policy === "no-platform-table-reads" && source.label === "CON Price Group Sync" && target.label === "CON Price Group");
+  assert.ok(independentViolation.evidence.some(({ operation, member, file, line }) =>
+    operation === "Get" && member === "Sync(Code[10])" &&
+    file === "integration/PriceGroupSync.al" && line === 8));
+  const directItemEdge = refactored.levels.object.edges.find(({ source, target }) =>
+    source === itemSync.key && target === itemTable.key);
+  assert.ok(!directItemEdge.evidence.some(({ kind }) => kind === "reads"));
+  assert.ok(directItemEdge.evidence.some(({ kind }) => kind === "writes"));
+  const serviceCall = refactored.levels.object.edges.find(({ source, target }) =>
+    source === itemSync.key && target === projection.key);
+  assert.ok(serviceCall.kinds.calls);
+  const serviceRead = refactored.levels.object.edges.find(({ source, target }) =>
+    source === projection.key && target === itemTable.key);
+  assert.ok(serviceRead.evidence.some(({ kind, operation, member, file }) =>
+    kind === "reads" && operation === "Get" && member === "Exists(Code[20])" &&
+    file === "core/ItemProjection.al"));
+});
+
 test("exposes limits what other components may use; severities turn rules off", async () => {
   const levels = (await assessArchitecture(workspace)).levels;
   const evaluate = (extra, core = {}) => evaluateArchitecture(levels, {
