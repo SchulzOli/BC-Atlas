@@ -163,6 +163,7 @@ export function resolveModel(model) {
         property: relation.property,
         member: relation.member,
         contract: relation.contract,
+        bindingKind: relation.bindingKind,
         relatedField: relation.relatedField,
         condition: relation.condition,
         filters: relation.filters,

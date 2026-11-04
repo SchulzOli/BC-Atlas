@@ -328,6 +328,97 @@ test("extracts enum, report, query, and XMLport structural elements", async () =
   ));
 });
 
+test("extracts enum implementation bindings and interface procedure bodies", async () => {
+  const source = `
+namespace Demo;
+enum 50100 "Choice"
+{
+    DefaultImplementation = "Demo.Contract" = "Handler";
+    UnknownValueImplementation = "Demo.Contract" = "Handler";
+    value(0; "Explicit Value")
+    {
+        Implementation = "Demo.Contract" = "Handler";
+    }
+}
+enumextension 50101 "Choice Extension" extends Choice
+{
+    value(1; "Extension Value")
+    {
+        Implementation = "Demo.Contract" = "Handler";
+    }
+}
+interface "Demo.Contract"
+{
+    procedure WithBody()
+    begin
+    end;
+    procedure NoBody();
+}
+codeunit 50102 Handler
+{
+    procedure Execute()
+    begin
+    end;
+}
+`;
+  const result = await testing.objectsFromSource(source, "contracts.al");
+  const bindings = result.objects
+    .filter(({ name }) => ["Choice", "Choice Extension"].includes(name))
+    .flatMap(({ relations }) => relations.filter(({ kind }) => kind === "selects"));
+
+  assert.deepEqual(bindings.map(({ bindingKind, contract, member, target, location }) => ({
+    bindingKind,
+    contract,
+    member,
+    target,
+    file: location.file,
+    line: location.line
+  })), [
+    {
+      bindingKind: "default",
+      contract: "Demo.Contract",
+      member: undefined,
+      target: "Handler",
+      file: "contracts.al",
+      line: 5
+    },
+    {
+      bindingKind: "unknownValue",
+      contract: "Demo.Contract",
+      member: undefined,
+      target: "Handler",
+      file: "contracts.al",
+      line: 6
+    },
+    {
+      bindingKind: "explicit",
+      contract: "Demo.Contract",
+      member: "Explicit Value",
+      target: "Handler",
+      file: "contracts.al",
+      line: 9
+    },
+    {
+      bindingKind: "explicit",
+      contract: "Demo.Contract",
+      member: "Extension Value",
+      target: "Handler",
+      file: "contracts.al",
+      line: 16
+    }
+  ]);
+  assert.deepEqual(
+    result.objects.find(({ name }) => name === "Demo.Contract").procedures.map(({ name, hasBody }) => ({
+      name,
+      hasBody
+    })),
+    [
+      { name: "WithBody", hasBody: true },
+      { name: "NoBody", hasBody: false }
+    ]
+  );
+});
+
 test("resolves namespace-qualified EventSubscriber publisher arguments", async () => {
   const source = `
     namespace Demo;

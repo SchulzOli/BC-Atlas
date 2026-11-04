@@ -293,10 +293,18 @@ function enclosingMember(node, source, types) {
   return undefined;
 }
 
-function implementationRelations(value, node, source, add) {
+function implementationRelations(property, value, node, source, add) {
+  const bindingKind = {
+    implementation: "explicit",
+    defaultimplementation: "default",
+    unknownvalueimplementation: "unknownValue"
+  }[property];
+  if (!bindingKind) return;
   const identifier = String.raw`(?:"((?:""|[^"])*)"|([A-Za-z_][\w.]*))`;
   const pattern = new RegExp(`${identifier}\\s*=\\s*${identifier}`, "gu");
-  const member = enclosingMember(node, source, ["enum_value_declaration"]);
+  const member = bindingKind === "explicit"
+    ? enclosingMember(node, source, ["enum_value_declaration"])
+    : undefined;
   for (const match of value.matchAll(pattern)) {
     const contract = (match[1] ?? match[2]).replaceAll('""', '"');
     const target = (match[3] ?? match[4]).replaceAll('""', '"');
@@ -304,6 +312,7 @@ function implementationRelations(value, node, source, add) {
       target,
       targetType: "codeunit",
       kind: "selects",
+      bindingKind,
       contract,
       member
     });
@@ -496,8 +505,8 @@ function referencesFor(objectNode, source, file) {
       if (name === "includedpermissionsets") {
         includedPermissionSetRelations(value, node, add);
       }
-      if (name === "implementation") {
-        implementationRelations(value, node, source, add);
+      if (["implementation", "defaultimplementation", "unknownvalueimplementation"].includes(name)) {
+        implementationRelations(name, value, node, source, add);
       }
       if (name === "runobject") {
         const match = value.match(
@@ -647,6 +656,9 @@ function membersFor(objectNode, source, file) {
               : attributes.some((attribute) => /\[(?:Integration|Business)Event\b/iu.test(attribute))
                 ? "event"
               : "procedure",
+          hasBody: node.namedChildren.some((child) =>
+            ["code_block", "statement_block"].includes(child.type)
+          ),
           location: locationFor(node, file),
           calls: callsFor(node, source, file),
           attributes,

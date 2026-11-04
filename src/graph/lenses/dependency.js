@@ -195,6 +195,8 @@ function evidenceFor(edge) {
     operation: edge.operation,
     member: edge.sourceProcedure ?? edge.member ?? edge.sourceProcedures?.[0],
     property: edge.property,
+    bindingKind: edge.bindingKind,
+    contract: edge.contract,
     file: edge.location?.file && toPosix(edge.location.file),
     line: edge.location?.line
   };
