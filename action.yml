@@ -44,7 +44,7 @@ runs:
         node-version: ${{ inputs.node-version }}
     - name: Cache BC Atlas analysis
       if: inputs.cache == 'true'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ runner.temp }}/bc-atlas-cache
         key: bc-atlas-${{ runner.os }}-${{ github.sha }}
