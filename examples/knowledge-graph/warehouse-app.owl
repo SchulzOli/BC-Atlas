@@ -440,6 +440,40 @@
     <rdfs:comment>The Access property of an object (public or internal).</rdfs:comment>
     <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
   </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#documentation">
+    <rdfs:label>documentation</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>The /// summary comment above an object or procedure.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#obsoleteState">
+    <rdfs:label>obsolete state</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>pending, removed, or moved (ObsoleteState or [Obsolete]).</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#dataClassification">
+    <rdfs:label>data classification</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#pageType">
+    <rdfs:label>page type</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#lineCount">
+    <rdfs:label>line count</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    <rdfs:comment>Source lines of an object or procedure.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#complexity">
+    <rdfs:label>complexity</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    <rdfs:comment>Cyclomatic complexity: of a procedure, or the sum over an object's procedures.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
   <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#fieldNumber">
     <rdfs:label>field number</rdfs:label>
     <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
@@ -538,6 +572,8 @@
     <bca:objectType>codeunit</bca:objectType>
     <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50120</bca:objectId>
     <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Automation::codeunit::50120</dcterms:identifier>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">12</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">2</bca:complexity>
     <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
     <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Automation"/>
     <bca:sourceFile>Automation.al</bca:sourceFile>
@@ -550,12 +586,16 @@
     <rdfs:label>NotifyRequestProcessed</rdfs:label>
     <bca:signature>NotifyRequestProcessed()</bca:signature>
     <bca:visibility>local</bca:visibility>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">4</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</bca:complexity>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">9</bca:sourceLine>
   </bca:Procedure>
   <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:SendNotification">
     <rdfs:label>SendNotification</rdfs:label>
     <bca:signature>SendNotification()</bca:signature>
     <bca:visibility>local</bca:visibility>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</bca:complexity>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">14</bca:sourceLine>
   </bca:Procedure>
   <bca:PermissionSet rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121">
@@ -564,6 +604,7 @@
     <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50121</bca:objectId>
     <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Automation::permissionset::50121</dcterms:identifier>
     <bca:access>public</bca:access>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">8</bca:lineCount>
     <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
     <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Automation"/>
     <bca:sourceFile>Automation.al</bca:sourceFile>
@@ -576,6 +617,7 @@
     <rdfs:label>Handles Warehouse Activity</rdfs:label>
     <bca:objectType>interface</bca:objectType>
     <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::interface::handles warehouse activity</dcterms:identifier>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">4</bca:lineCount>
     <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
     <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Inventory"/>
     <bca:sourceFile>Inventory.al</bca:sourceFile>
@@ -586,6 +628,7 @@
     <rdfs:label>Process</rdfs:label>
     <bca:signature>Process()</bca:signature>
     <bca:visibility>public</bca:visibility>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</bca:lineCount>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">5</bca:sourceLine>
   </bca:Procedure>
   <bca:Table rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100">
@@ -593,6 +636,8 @@
     <bca:objectType>table</bca:objectType>
     <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50100</bca:objectId>
     <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::table::50100</dcterms:identifier>
+    <bca:dataClassification>CustomerContent</bca:dataClassification>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">19</bca:lineCount>
     <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
     <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Inventory"/>
     <bca:sourceFile>Inventory.al</bca:sourceFile>
@@ -629,6 +674,8 @@
     <bca:objectType>codeunit</bca:objectType>
     <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50101</bca:objectId>
     <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::codeunit::50101</dcterms:identifier>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">32</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">5</bca:complexity>
     <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
     <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Inventory"/>
     <bca:sourceFile>Inventory.al</bca:sourceFile>
@@ -647,24 +694,32 @@
     <rdfs:label>Process</rdfs:label>
     <bca:signature>Process()</bca:signature>
     <bca:visibility>public</bca:visibility>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">7</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">2</bca:complexity>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">35</bca:sourceLine>
   </bca:Procedure>
   <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:Process~2">
     <rdfs:label>Process</rdfs:label>
     <bca:signature>Process(Record &quot;Warehouse Request&quot;)</bca:signature>
     <bca:visibility>public</bca:visibility>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">7</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</bca:complexity>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">43</bca:sourceLine>
   </bca:Procedure>
   <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:ValidateRequest">
     <rdfs:label>ValidateRequest</rdfs:label>
     <bca:signature>ValidateRequest(Record &quot;Warehouse Request&quot;)</bca:signature>
     <bca:visibility>local</bca:visibility>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</bca:complexity>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">51</bca:sourceLine>
   </bca:Procedure>
   <bca:EventPublisher rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:OnRequestProcessed">
     <rdfs:label>OnRequestProcessed</rdfs:label>
     <bca:signature>OnRequestProcessed()</bca:signature>
     <bca:visibility>public</bca:visibility>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</bca:complexity>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">56</bca:sourceLine>
   </bca:EventPublisher>
   <bca:Enum rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102">
@@ -672,6 +727,7 @@
     <bca:objectType>enum</bca:objectType>
     <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50102</bca:objectId>
     <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::enum::50102</dcterms:identifier>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">7</bca:lineCount>
     <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
     <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Inventory"/>
     <bca:sourceFile>Inventory.al</bca:sourceFile>
@@ -685,6 +741,9 @@
     <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50110</bca:objectId>
     <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::page::50110</dcterms:identifier>
     <bca:caption>Warehouse Requests</bca:caption>
+    <bca:pageType>List</bca:pageType>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">58</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</bca:complexity>
     <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
     <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.UI"/>
     <bca:sourceFile>WarehouseUI.al</bca:sourceFile>
@@ -698,19 +757,24 @@
   </bca:Page>
   <bca:Field rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:EntryNo">
     <rdfs:label>EntryNo</rdfs:label>
+    <bca:caption>Entry No.</bca:caption>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">19</bca:sourceLine>
   </bca:Field>
   <bca:Field rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Description">
     <rdfs:label>Description</rdfs:label>
+    <bca:caption>Description</bca:caption>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">25</bca:sourceLine>
   </bca:Field>
   <bca:Field rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Processed">
     <rdfs:label>Processed</rdfs:label>
+    <bca:caption>Processed</bca:caption>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">31</bca:sourceLine>
   </bca:Field>
   <bca:Trigger rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:trigger:OnAction">
     <rdfs:label>OnAction</rdfs:label>
     <bca:signature>OnAction()</bca:signature>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">7</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</bca:complexity>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">52</bca:sourceLine>
   </bca:Trigger>
   <bca:PageExtension rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:pageextension:50111">
@@ -718,6 +782,7 @@
     <bca:objectType>pageextension</bca:objectType>
     <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50111</bca:objectId>
     <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::pageextension::50111</dcterms:identifier>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</bca:lineCount>
     <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
     <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.UI"/>
     <bca:sourceFile>WarehouseUI.al</bca:sourceFile>
@@ -729,6 +794,10 @@
     <bca:objectType>codeunit</bca:objectType>
     <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50122</bca:objectId>
     <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::codeunit::50122</dcterms:identifier>
+    <bca:access>internal</bca:access>
+    <bca:documentation>Verifies and documents the primary warehouse request workflows through the user interface.</bca:documentation>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">69</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">4</bca:complexity>
     <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
     <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.UI"/>
     <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
@@ -745,12 +814,16 @@
     <rdfs:label>WarehouseRequests_CreateRequest_PersistsDescription</rdfs:label>
     <bca:signature>WarehouseRequests_CreateRequest_PersistsDescription()</bca:signature>
     <bca:visibility>public</bca:visibility>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">26</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">2</bca:complexity>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">18</bca:sourceLine>
   </bca:Procedure>
   <bca:Procedure rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_ProcessRequest_MarksRequestProcessed">
     <rdfs:label>WarehouseRequests_ProcessRequest_MarksRequestProcessed</rdfs:label>
     <bca:signature>WarehouseRequests_ProcessRequest_MarksRequestProcessed()</bca:signature>
     <bca:visibility>public</bca:visibility>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">29</bca:lineCount>
+    <bca:complexity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">2</bca:complexity>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">46</bca:sourceLine>
   </bca:Procedure>
   <bca:Relation rdf:about="urn:bc-atlas:relation:dcef444346bb9da6">

@@ -6,6 +6,7 @@ import { Language, Parser } from "web-tree-sitter";
 import { isCommitCall, operationKind } from "./operation-semantics.js";
 import { includedPermissionSets, permissionGrant } from "./permission-semantics.js";
 import { loadProjectSymbols } from "./symbols.js";
+import { cyclomaticComplexity, documentationComment, fieldMetadata, objectMetadata, procedureMetadata } from "./metadata.js";
 
 const GRAMMAR_PATH = fileURLToPath(
   new URL("../vendor/tree-sitter-al.wasm", import.meta.url)
@@ -822,6 +823,12 @@ function membersFor(objectNode, source, file) {
             : undefined,
           properties: propertiesFor(node, source)
         });
+        const procedure = procedures.at(-1);
+        procedure.metadata = procedureMetadata({
+          ...procedure,
+          documentation: documentationComment(source, node.startIndex),
+          complexity: hasBody ? cyclomaticComplexity(node) : undefined
+        });
       }
     }
     if (node.type === "field_declaration" || node.type === "page_field") {
@@ -846,6 +853,7 @@ function membersFor(objectNode, source, file) {
         properties: propertiesFor(node, source),
         location: locationFor(node, file)
       });
+      fields.at(-1).metadata = fieldMetadata(fields.at(-1));
     }
     if (node.type === "part_section") {
       const identifiers = node.namedChildren.filter((child) =>
@@ -1211,6 +1219,10 @@ async function objectsFromSource(source, file) {
       objectAccess,
       location: locationFor(node, file),
       parseError: node.hasError
+    });
+    objects.at(-1).metadata = objectMetadata({
+      ...objects.at(-1),
+      documentation: documentationComment(source, node.startIndex)
     });
   });
 

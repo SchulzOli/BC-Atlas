@@ -23,9 +23,30 @@ follows [Semantic Versioning](https://semver.org/).
   whether each value came from `.bca.json` or an option.
 - `schemas/bca.schema.json` describes `.bca.json`; the VS Code extension
   applies it, so `.bca.json` gets completion and checks.
+- Objects, fields, and procedures carry `metadata` that describes what they
+  are. The values are normalized from the AL source:
+  - from `///` documentation comments: the summary text
+  - from properties: caption and translator comment, access, extensible,
+    obsolete state, reason, and tag, and data classification
+  - the object's kind: page, table, and query type, subtype, source table,
+    `TableNo`, usage category, application area, and API
+  - permissions and inherent permissions
+  - size: lines, fields, keys, procedures, triggers, events, actions
+  - cyclomatic complexity per procedure, plus total and maximum per object
+
+  The object catalog has an **Overview** section, and its procedure tables add
+  lines, complexity, and descriptions. Tables and pages list their procedures
+  and triggers too. The app's object page has an **About** card. The knowledge
+  graph exports documentation, obsolete state, data classification, page type,
+  line count, and complexity.
 
 ### Fixed
 
+- Knowledge graph captions no longer include `Comment = ...` and other options
+  of the Caption property. `bca:access` now comes from the `Access` property of
+  every object, not only permission sets.
+- The object catalog's global-variable table no longer has a Properties column
+  that was always empty.
 - The AL compiler no longer fails with AL1018 ("Directory could not be
   found") on every run: assembly probing folders that do not exist, such as
   the AL default `./.netpackages` that VS Code reports even when it is

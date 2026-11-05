@@ -8,6 +8,12 @@ App: "BC Atlas Warehouse Example 1.0.0.0"
 
 # Page Extension 50111 Warehouse Request Ext.
 
+## Overview
+
+| Characteristic | Value |
+| --- | --- |
+| Size | 3 lines |
+
 ## Dependencies
 
 | Relationship | Target | From | Evidence |

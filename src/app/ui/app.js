@@ -41,12 +41,13 @@
       ...SNAPSHOT_OBJECTS.get(id),
       source: compact.source,
       properties: compact.properties.map(([name, value]) => ({ name, value })),
+      metadata: compact.metadata,
       uses: compact.uses.map(link),
       usedBy: compact.usedBy.map(link),
       violations: compact.violations.map((violation) => ({ ...violation, target: node(violation.target) })),
       members: {
         fields: fields.map(([number, name, type]) => ({ number, name, type })),
-        procedures: procedures.map(([signature, visibility, kind, event]) => ({ signature, visibility, kind, event: Boolean(event) })),
+        procedures: procedures.map(([signature, visibility, kind, event, complexity, lines]) => ({ signature, visibility, kind, event: Boolean(event), complexity: complexity ?? undefined, lines: lines ?? undefined })),
         actions: actions.map(([name, container]) => ({ name, container })),
         parts: parts.map(([name, target]) => ({ name, target }))
       }
@@ -1641,6 +1642,34 @@
       ${links.length > shown.length ? `<p class="muted small">and ${fmt(links.length - shown.length)} more</p>` : ""}`;
   }
 
+  /** What characterizes an object (src/metadata.js): its purpose, kind, access, size, and complexity. */
+  function aboutCard(meta) {
+    if (!meta) return "";
+    const size = meta.size ?? {};
+    const count = (value, one, many = `${one}s`) => value ? `${fmt(value)} ${value === 1 ? one : many}` : "";
+    const obsolete = meta.obsolete ? `${meta.obsolete.state}${meta.obsolete.tag ? ` (tag ${meta.obsolete.tag})` : ""}${meta.obsolete.reason ? `: ${meta.obsolete.reason}` : ""}` : "";
+    const rows = [
+      ["Caption", meta.caption ? `${meta.caption}${meta.captionComment ? ` — ${meta.captionComment}` : ""}` : ""],
+      ["Access", meta.access ?? ""],
+      ["Extensible", meta.extensible === undefined ? "" : meta.extensible ? "yes" : "no"],
+      ["Obsolete", obsolete],
+      ["Page type", meta.pageType ?? ""],
+      ["Table type", meta.tableType ?? ""],
+      ["Subtype", meta.subtype ?? ""],
+      ["Source table", meta.sourceTable ? `${meta.sourceTable}${meta.sourceTableTemporary ? " (temporary)" : ""}` : ""],
+      ["Runs on", meta.tableNo ?? ""],
+      ["Data classification", meta.dataClassification ?? ""],
+      ["Usage category", meta.usageCategory ?? ""],
+      ["Application area", meta.applicationArea?.join(", ") ?? ""],
+      ["API", meta.entityName ? [meta.apiPublisher, meta.apiGroup, meta.apiVersion, meta.entityName].filter(Boolean).join("/") : ""],
+      ["Permissions", meta.permissions ?? ""],
+      ["Size", [count(size.lines, "line"), count(size.fields, "field"), count(size.pageFields, "page field"), count(size.keys, "key"), count(size.procedures, "procedure"), count(size.triggers, "trigger"), count(size.events, "event"), count(size.actions, "action"), count(size.parts, "part"), count(size.elements, "element")].filter(Boolean).join(", ")],
+      ["Complexity", meta.complexity ? `${fmt(meta.complexity.total)} in all, at most ${fmt(meta.complexity.max)} (${meta.complexity.mostComplex}), ${meta.complexity.average} on average` : ""]
+    ].filter(([, value]) => value);
+    if (!rows.length && !meta.documentation && !meta.description) return "";
+    return `<section class="card"><h2>About</h2>${meta.documentation ? `<p>${esc(meta.documentation)}</p>` : ""}${meta.description && meta.description !== meta.documentation ? `<p class="muted">${esc(meta.description)}</p>` : ""}<dl class="facts">${rows.map(([label, value]) => `<dt>${esc(label)}</dt><dd>${esc(value)}</dd>`).join("")}</dl></section>`;
+  }
+
   async function objectPage(page, { arg }) {
     const object = await api.object(arg);
     const actions = [
@@ -1657,8 +1686,9 @@
     };
     const members = object.members ?? {};
     const memberCards = [
+      aboutCard(object.metadata),
       members.fields?.length ? `<section class="card"><h2>Fields <span class="muted">${fmt(members.fields.length)}</span></h2><div class="table-scroll"><table class="data"><thead><tr><th class="num">No.</th><th>Name</th><th>Type</th></tr></thead><tbody>${members.fields.map((field) => `<tr><td class="num">${esc(field.number ?? "")}</td><td>${esc(field.name)}</td><td class="mono">${esc(field.type ?? field.kind ?? "")}</td></tr>`).join("")}</tbody></table></div></section>` : "",
-      members.procedures?.length ? `<section class="card"><h2>Procedures and triggers <span class="muted">${fmt(members.procedures.length)}</span></h2><ul class="list">${members.procedures.map((procedure) => `<li><span class="grow mono">${LIVE && procedure.line ? `<button class="link mono" data-open-line="${esc(procedure.line)}" title="Open in the editor">${esc(procedure.signature ?? procedure.name)}</button>` : esc(procedure.signature ?? procedure.name)}</span>${procedure.event ? '<span class="pill accent">event</span>' : ""}<span class="muted small nowrap">${esc([procedure.visibility, procedure.kind].filter(Boolean).join(" "))}</span></li>`).join("")}</ul></section>` : "",
+      members.procedures?.length ? `<section class="card"><h2>Procedures and triggers <span class="muted">${fmt(members.procedures.length)}</span></h2><ul class="list">${members.procedures.map((procedure) => `<li><span class="grow mono">${LIVE && procedure.line ? `<button class="link mono" data-open-line="${esc(procedure.line)}" title="Open in the editor">${esc(procedure.signature ?? procedure.name)}</button>` : esc(procedure.signature ?? procedure.name)}</span>${procedure.event ? '<span class="pill accent">event</span>' : ""}<span class="muted small nowrap">${esc([procedure.visibility, procedure.kind, procedure.lines && `${procedure.lines} lines`, procedure.complexity > 1 && `complexity ${procedure.complexity}`].filter(Boolean).join(" · "))}</span>${procedure.documentation ? `<div class="muted small" style="flex-basis:100%">${esc(procedure.documentation)}</div>` : ""}</li>`).join("")}</ul></section>` : "",
       members.actions?.length ? `<section class="card"><h2>Actions <span class="muted">${fmt(members.actions.length)}</span></h2><ul class="list">${members.actions.map((action) => `<li><span class="grow">${esc(action.name)}</span><span class="muted small">${esc(action.container ?? "")}</span></li>`).join("")}</ul></section>` : "",
       members.parts?.length ? `<section class="card"><h2>Parts <span class="muted">${fmt(members.parts.length)}</span></h2><ul class="list">${members.parts.map((part) => `<li><span class="grow">${esc(part.name)}</span><span class="muted small">${esc(part.target ?? "")}</span></li>`).join("")}</ul></section>` : "",
       object.properties.length ? `<section class="card"><h2>Properties</h2><dl class="facts">${object.properties.map((property) => `<dt>${esc(property.name)}</dt><dd class="mono">${esc(property.value)}</dd>`).join("")}</dl></section>` : ""

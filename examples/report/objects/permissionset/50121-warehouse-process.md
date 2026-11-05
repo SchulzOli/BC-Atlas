@@ -10,6 +10,14 @@ Permissions: "tabledata \"Warehouse Request\" = RIMD,\n        codeunit \"Wareho
 
 # Permission Set 50121 WAREHOUSE PROCESS
 
+## Overview
+
+| Characteristic | Value |
+| --- | --- |
+| Access | public |
+| Permissions | tabledata "Warehouse Request" = RIMD, codeunit "Warehouse Processor" = X, page "Warehouse Requests" = X |
+| Size | 8 lines |
+
 ## Dependencies
 
 | Relationship | Target | From | Evidence |

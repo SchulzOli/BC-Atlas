@@ -121,6 +121,12 @@ of [`bca:dependsOn`](#dependsOn): a store with RDFS inference answers
 | <a id="sourceLine"></a>`bca:sourceLine` | source line | `xsd:integer` |  |
 | <a id="caption"></a>`bca:caption` | caption | `xsd:string` |  |
 | <a id="access"></a>`bca:access` | access | `xsd:string` | The Access property of an object (public or internal). |
+| <a id="documentation"></a>`bca:documentation` | documentation | `xsd:string` | The /// summary comment above an object or procedure. |
+| <a id="obsoleteState"></a>`bca:obsoleteState` | obsolete state | `xsd:string` | pending, removed, or moved (ObsoleteState or [Obsolete]). |
+| <a id="dataClassification"></a>`bca:dataClassification` | data classification | `xsd:string` |  |
+| <a id="pageType"></a>`bca:pageType` | page type | `xsd:string` |  |
+| <a id="lineCount"></a>`bca:lineCount` | line count | `xsd:integer` | Source lines of an object or procedure. |
+| <a id="complexity"></a>`bca:complexity` | complexity | `xsd:integer` | Cyclomatic complexity: of a procedure, or the sum over an object's procedures. |
 | <a id="fieldNumber"></a>`bca:fieldNumber` | field number | `xsd:integer` |  |
 | <a id="dataType"></a>`bca:dataType` | data type | `xsd:string` |  |
 | <a id="signature"></a>`bca:signature` | signature | `xsd:string` |  |

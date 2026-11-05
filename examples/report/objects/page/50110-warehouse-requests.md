@@ -13,6 +13,19 @@ UsageCategory: "Lists"
 
 # Page 50110 Warehouse Requests
 
+## Overview
+
+| Characteristic | Value |
+| --- | --- |
+| Caption | Warehouse Requests |
+| Access | public |
+| Page type | List |
+| Source table | Warehouse Request |
+| Usage category | Lists |
+| Application area | All |
+| Size | 58 lines, 3 page fields, 1 trigger, 1 action |
+| Complexity | 1 in all, at most 1 (OnAction), 1 on average |
+
 ## Fields
 
 | Field | Source expression | Area/Container | Properties |
@@ -26,6 +39,12 @@ UsageCategory: "Lists"
 | Action | Area/Group | Runs | Properties |
 | --- | --- | --- | --- |
 | ProcessRequest | Processing |  | `ApplicationArea = All`<br>`Caption = 'Process'`<br>`ToolTip = 'Process the selected warehouse request and mark it as processed.'` |
+
+## Triggers
+
+| Trigger | Lines | Complexity | Attributes |
+| --- | --- | --- | --- |
+| trigger OnAction() var Processor: Codeunit "Warehouse Processor" | 7 | 1 |  |
 
 ## Dependencies
 

@@ -11,19 +11,31 @@ Subtype: "Test"
 
 # Codeunit 50122 WarehouseUITests
 
+Verifies and documents the primary warehouse request workflows through the user interface.
+
+## Overview
+
+| Characteristic | Value |
+| --- | --- |
+| Access | internal |
+| Subtype | Test |
+| Permissions | tabledata "Warehouse Request" = RIMD |
+| Size | 69 lines, 2 procedures (2 public), 2 global variables |
+| Complexity | 4 in all, at most 2 (WarehouseRequests_CreateRequest_PersistsDescription), 2 on average |
+
 ## Global variables
 
-| Variable | Type | Subtype | Properties |
-| --- | --- | --- | --- |
-| RequestNotProcessedErr | Label |  |  |
-| UnexpectedDescriptionErr | Label |  |  |
+| Variable | Type | Subtype |
+| --- | --- | --- |
+| RequestNotProcessedErr | Label |  |
+| UnexpectedDescriptionErr | Label |  |
 
 ## Procedures
 
-| Visibility | Procedure header | Attributes |
-| --- | --- | --- |
-| public | `procedure WarehouseRequests_CreateRequest_PersistsDescription() var WarehouseRequest: Record "Warehouse Request"; WarehouseRequests: TestPage "Warehouse Requests"` | `[Test]` |
-| public | `procedure WarehouseRequests_ProcessRequest_MarksRequestProcessed() var WarehouseRequest: Record "Warehouse Request"; WarehouseRequests: TestPage "Warehouse Requests"` | `[Test]` |
+| Visibility | Procedure header | Lines | Complexity | Description |
+| --- | --- | --- | --- | --- |
+| public | `procedure WarehouseRequests_CreateRequest_PersistsDescription() var WarehouseRequest: Record "Warehouse Request"; WarehouseRequests: TestPage "Warehouse Requests"` | 26 | 2 | `[Test]` |
+| public | `procedure WarehouseRequests_ProcessRequest_MarksRequestProcessed() var WarehouseRequest: Record "Warehouse Request"; WarehouseRequests: TestPage "Warehouse Requests"` | 29 | 2 | `[Test]` |
 
 ## Dependencies
 

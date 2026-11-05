@@ -270,11 +270,13 @@ export class Workspace {
             resolution: { strategy: resolution.strategy, title: resolution.title, effort: resolution.effort, steps: resolution.steps }
           })),
           properties: (object?.properties ?? []).map(({ name, value }) => ({ name, value })),
+          metadata: object?.metadata,
           members: object ? {
             fields: members(object.fields, ({ name, number, type, kind }) => ({ name, number, type, kind })),
             keys: members(object.keys, (key) => ({ name: key.name, fields: key.fields })),
-            procedures: members(object.procedures, ({ name, kind, visibility, signature, attributes, location }) => ({
+            procedures: members(object.procedures, ({ name, kind, visibility, signature, attributes, location, metadata }) => ({
               name, kind, visibility, signature, line: location?.line,
+              lines: metadata?.lines, complexity: metadata?.complexity, documentation: metadata?.documentation,
               event: (attributes ?? []).some((attribute) => /EventSubscriber|IntegrationEvent|BusinessEvent|InternalEvent/iu.test(attribute))
             })),
             actions: members(object.actions, ({ name, container }) => ({ name, container })),

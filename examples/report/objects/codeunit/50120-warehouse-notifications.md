@@ -8,12 +8,20 @@ App: "BC Atlas Warehouse Example 1.0.0.0"
 
 # Codeunit 50120 Warehouse Notifications
 
+## Overview
+
+| Characteristic | Value |
+| --- | --- |
+| Access | public |
+| Size | 12 lines, 2 procedures (0 public) |
+| Complexity | 2 in all, at most 1 (NotifyRequestProcessed), 1 on average |
+
 ## Procedures
 
-| Visibility | Procedure header | Attributes |
-| --- | --- | --- |
-| local | `local procedure NotifyRequestProcessed()` | `[EventSubscriber(ObjectType::Codeunit, Codeunit::"Warehouse Processor", 'OnRequestProcessed', '', false, false)]` |
-| local | `local procedure SendNotification()` |  |
+| Visibility | Procedure header | Lines | Complexity | Description |
+| --- | --- | --- | --- | --- |
+| local | `local procedure NotifyRequestProcessed()` | 4 | 1 | `[EventSubscriber(ObjectType::Codeunit, Codeunit::"Warehouse Processor", 'OnRequestProcessed', '', false, false)]` |
+| local | `local procedure SendNotification()` | 3 | 1 |  |
 
 ## Dependencies
 
