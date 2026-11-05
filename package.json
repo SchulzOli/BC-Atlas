@@ -81,7 +81,7 @@
     "n3": "^2.13.12",
     "opentype.js": "^2.0.0",
     "rdfxml-streaming-parser": "^3.3.0",
-    "three": "^0.186.1",
-    "vitepress": "2.0.0-alpha.20"
+    "three": "^0.187.0",
+    "vitepress": "2.0.0-alpha.21"
   }
 }

@@ -142,7 +142,9 @@ BC Atlas works next to Microsoft's AL Language extension and uses it:
   when the compiler is done;
 - BC Atlas reads the editor's `al.*` settings: `al.packageCachePath` for
   symbols, `al.codeAnalyzers` with `al.enableCodeAnalysis`, `al.ruleSetPath`,
-  and `al.assemblyProbingPaths`;
+  and `al.assemblyProbingPaths`. Only values someone set count, with VS Code's
+  precedence: user, workspace, workspace folder, then each project's own
+  `.vscode/settings.json`;
 - **AL: Download Symbols**, a new `.app`, or changed `al.*` settings start a
   new analysis, so BC Atlas stays in step with the code and its symbols.
 

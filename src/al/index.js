@@ -27,6 +27,7 @@ export function alOptions(options = {}) {
     graph: config.callGraph !== false,
     workspaceFile: config.workspaceFile,
     settings: options.alSettings,
+    editorSettings: options.alEditorSettings,
     extensionPath: options.alExtensionPath
   };
 }
@@ -48,7 +49,7 @@ export async function loadAlResults(root, options = {}, { onProgress, onUpdate }
   if (toolchain) {
     const run = () => runAlTools(root, {
       toolchain,
-      al: { workspaceFile: al.workspaceFile, settings: al.settings },
+      al: { workspaceFile: al.workspaceFile, settings: al.settings, editorSettings: al.editorSettings },
       analyzers: al.analyzers,
       graph: al.graph,
       onProgress

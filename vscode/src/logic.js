@@ -129,8 +129,48 @@ function pageHash(page, params = {}) {
   return `#/${page}${query.size ? `?${query}` : ""}`;
 }
 
+/**
+ * Resolves `${workspaceFolder}` in an `al.*` setting the way VS Code would:
+ * the workspace folder that holds the project. VS Code's configuration API
+ * returns the raw text; the engine expands the remaining variables.
+ */
+function expandWorkspaceFolder(value, workspaceFolder) {
+  if (Array.isArray(value)) return value.map((item) => expandWorkspaceFolder(item, workspaceFolder));
+  if (typeof value !== "string" || !workspaceFolder) return value;
+  return value.replace(/\$\{(?:workspaceFolder|workspaceRoot)\}/gu, workspaceFolder);
+}
+
+const AL_SETTINGS = Object.freeze(["packageCachePath", "codeAnalyzers", "enableCodeAnalysis", "ruleSetPath", "assemblyProbingPaths"]);
+
+/**
+ * The `al.*` settings someone actually set, by layer, for the engine:
+ * { user, workspace, workspaceFolder }. `inspect` is VS Code's
+ * `WorkspaceConfiguration.inspect`. Defaults are left out: `get()` would also
+ * return the AL extension's defaults (`./.alpackages`, `./.netpackages`), which
+ * then hid every project's own `.vscode/settings.json`.
+ * @param options { workspaceFolder, multiRoot } where `${workspaceFolder}`
+ *   points; in a multi-root workspace the workspace (file) layer is left to
+ *   the engine, which resolves it per project.
+ */
+function editorAlSettings(inspect, { workspaceFolder, multiRoot = false } = {}) {
+  const layers = { user: {}, workspace: {}, workspaceFolder: {} };
+  const set = (layer, key, value) => {
+    if (value !== undefined && value !== null && value !== "") layers[layer][key] = value;
+  };
+  for (const key of AL_SETTINGS) {
+    const info = inspect(key) ?? {};
+    set("user", key, info.globalValue);
+    set("workspace", key, multiRoot ? info.workspaceValue : expandWorkspaceFolder(info.workspaceValue, workspaceFolder));
+    set("workspaceFolder", key, expandWorkspaceFolder(info.workspaceFolderValue, workspaceFolder));
+  }
+  return Object.fromEntries(Object.entries(layers).filter(([, layer]) => Object.keys(layer).length));
+}
+
 module.exports = {
+  AL_SETTINGS,
+  editorAlSettings,
   EXPORTS,
+  expandWorkspaceFolder,
   exportArgs,
   findingsToProblems,
   lensesForFile,

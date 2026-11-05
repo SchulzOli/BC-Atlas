@@ -64,17 +64,17 @@ async function findProject(context) {
 function alOptions() {
   const compiler = config().get("alCompiler") || "auto";
   if (compiler === "off") return { compiler };
-  const al = vscode.workspace.getConfiguration("al", vscode.Uri.file(project));
-  const alSettings = {};
-  for (const key of ["packageCachePath", "codeAnalyzers", "enableCodeAnalysis", "ruleSetPath", "assemblyProbingPaths"]) {
-    const value = al.get(key);
-    if (value !== undefined && value !== null && value !== "") alSettings[key] = value;
-  }
+  const uri = vscode.Uri.file(project);
+  const al = vscode.workspace.getConfiguration("al", uri);
+  const alEditorSettings = logic.editorAlSettings((key) => al.inspect(key), {
+    workspaceFolder: vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath,
+    multiRoot: Boolean(vscode.workspace.workspaceFile)
+  });
   const analyzers = config().get("alAnalyzers") ?? [];
   return {
     compiler,
     alExtensionPath: vscode.extensions.getExtension(AL_EXTENSION)?.extensionPath,
-    alSettings,
+    alEditorSettings,
     ...(analyzers.length ? { analyzers } : {})
   };
 }
@@ -472,7 +472,7 @@ async function activate(context) {
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       const restart = ["bcAtlas.project", "bcAtlas.paths", "bcAtlas.nodePath", "bcAtlas.alCompiler", "bcAtlas.alAnalyzers",
-        "al.packageCachePath", "al.codeAnalyzers", "al.enableCodeAnalysis", "al.ruleSetPath", "al.assemblyProbingPaths"];
+        ...logic.AL_SETTINGS.map((key) => `al.${key}`)];
       if (restart.some((key) => event.affectsConfiguration(key))) {
         findProject(context).then((found) => {
           project = found;

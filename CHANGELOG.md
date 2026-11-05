@@ -4,6 +4,47 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- The AL compiler no longer fails with AL1018 ("Directory could not be
+  found") on every run: assembly probing folders that do not exist, such as
+  the AL default `./.netpackages` that VS Code reports even when it is
+  absent, are left out of the call, as package cache folders already were.
+- VS Code: symbols that the AL Language extension resolves are found by BC
+  Atlas too. The extension passed the AL defaults (`./.alpackages`,
+  `./.netpackages`) of settings nobody set, and these overrode every
+  project's own `.vscode/settings.json` and the `.code-workspace` settings,
+  so a `al.packageCachePath` such as `../symbols` was ignored and the
+  compiler and the symbol loader reported missing packages. Now only values
+  someone set are passed, by layer (user, workspace, workspace folder), and a
+  project's own settings win, as in VS Code.
+- The explorer timeline loads symbols from the configured `al.packageCachePath`
+  too, not only from `.alpackages`.
+- A rule set or analyzer that does not exist no longer stops the compile:
+  it is left out and reported as `al-ruleset-missing` or
+  `al-analyzer-missing` next to `app.json`. A toolchain without an analyzer
+  folder skips code analysis instead of failing the whole run.
+- `al.*` path settings expand `${workspaceFolder}`, `${userHome}`,
+  `${env:NAME}`, and `~`, as VS Code does; before, such a path pointed nowhere.
+  In VS Code, `${workspaceFolder}` is the editor's workspace folder.
+
+### Changed
+
+- Faster 3D explorer and architecture proposal; on a 2,800-object app with a
+  Base-Application-sized symbol package, the explorer opens in 0.4 instead of
+  2.3 s and a proposal takes 0.4 instead of 1.3 s, with identical results:
+  - symbol packages are unzipped and parsed once per file version instead of
+    for every page;
+  - the explorer and the architecture pages reuse the app's analyzed model
+    instead of analyzing or copying it again;
+  - `object:` selectors are looked up by name: a proposal has one per
+    misplaced object, and each was tested against every object of the model;
+  - AL names are normalized once.
+- A failed compile without any symbol package reports one
+  `al-symbols-missing` hint ("Run AL: Download Symbols") next to `app.json`.
+
 ## 0.15.0 - 2026-11-05
 
 ### Added
