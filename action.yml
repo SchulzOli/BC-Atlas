@@ -13,7 +13,7 @@ inputs:
     description: Trigger from .bca.json whose tasks and sync mode are used (ci, schedule, pre-push, pre-commit, manual).
     default: ci
   tasks:
-    description: Comma-separated tasks to run instead of the trigger's tasks (check, report, docs, codegraph, diagrams).
+    description: Comma-separated tasks to run instead of the trigger's tasks (check, report, docs, codegraph, handbook, diagrams).
     default: ""
   sync:
     description: Override the sync mode (none, verify, artifact, pull-request, commit).

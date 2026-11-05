@@ -18,6 +18,7 @@ export const TASKS = Object.freeze({
   report: "Architecture report with diagrams (docs/atlas)",
   docs: "User guides or test cases from AL UI tests",
   codegraph: "One Markdown page per AL object",
+  handbook: "System handbook: events, data, permissions, interfaces, UI, code health (docs/handbook)",
   diagrams: "Extra diagrams listed under \"diagrams\" in .bca.json"
 });
 
@@ -47,7 +48,8 @@ const PIPELINE_SYNC = ["none", "verify", "artifact", "pull-request", "commit"];
 export const DEFAULTS = Object.freeze({
   report: { outputDir: "docs/atlas" },
   docs: { outputDir: "docs/guides", export: ["markdown", "html"], as: "guide" },
-  codegraph: { outputDir: "docs/codegraph" }
+  codegraph: { outputDir: "docs/codegraph" },
+  handbook: { outputDir: "docs/handbook" }
 });
 
 export function syncModesFor(trigger) {
@@ -103,6 +105,7 @@ export function taskOutputs(task, config = {}) {
   if (task === "report") return [config.report?.outputDir ?? DEFAULTS.report.outputDir];
   if (task === "docs") return [config.docs?.outputDir ?? DEFAULTS.docs.outputDir];
   if (task === "codegraph") return [config.codegraph?.outputDir ?? DEFAULTS.codegraph.outputDir];
+  if (task === "handbook") return [config.handbook?.outputDir ?? DEFAULTS.handbook.outputDir];
   if (task === "diagrams") {
     return (config.diagrams ?? []).flatMap(({ output }) => {
       if (!output) return [];

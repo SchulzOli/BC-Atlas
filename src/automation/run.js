@@ -4,6 +4,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { createArchitectureModel } from "../architecture.js";
+import { generateHandbook } from "../handbook.js";
 import { generateCodeGraph } from "../codegraph.js";
 import { loadConfig } from "../config.js";
 import { exportDocumentation } from "../docs/export.js";
@@ -15,7 +16,7 @@ import { generateReport } from "../commands/report.js";
 import { automationConfig, DEFAULTS, outputsFor, parseList, SYNC_MODES, TASKS } from "./config.js";
 import { changedPaths, findGitRoot, stagePaths } from "./git.js";
 
-const ORDER = ["check", "report", "diagrams", "docs", "codegraph"];
+const ORDER = ["check", "report", "diagrams", "docs", "codegraph", "handbook"];
 
 async function runTask(task, root, config, log, appPath, values = {}) {
   const at = (relative) => path.resolve(root, relative);
@@ -57,6 +58,12 @@ async function runTask(task, root, config, log, appPath, values = {}) {
     const result = await generateCodeGraph(root, { outputDir: at(outputDir) });
     log(`codegraph: ${result.objects} object page(s) in ${outputDir}`);
     return { ok: true, summary: `${result.objects} page(s)` };
+  }
+  if (task === "handbook") {
+    const outputDir = config.handbook?.outputDir ?? DEFAULTS.handbook.outputDir;
+    const result = await generateHandbook(root, { ...values, outputDir: at(outputDir), title: config.handbook?.title });
+    log(`handbook: ${result.pages.length} page(s) in ${outputDir}`);
+    return { ok: true, summary: `${result.pages.length} page(s)` };
   }
   if (task === "diagrams") {
     const diagrams = config.diagrams ?? [];

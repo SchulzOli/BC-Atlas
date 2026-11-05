@@ -65,6 +65,7 @@ Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents.
 | `report` | Markdown report (README.md) with health, diagrams, and an optional object catalog |
 | `explorer` | Interactive 3D dependency explorer (HTML), replayable over Git history, or its graph as JSON |
 | `catalog` | One linked Markdown page per AL object |
+| `handbook` | System handbook: Markdown pages that explain the system across all objects (events, data, permissions, interfaces, user interface, code health) |
 | `knowledge-graph` | The analyzed project as RDF with the BC Atlas OWL ontology, for knowledge graphs and triple stores: Turtle, RDF/XML (.rdf, .owl), N-Triples, or JSON-LD |
 
 ## Diagram views
@@ -85,6 +86,7 @@ Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents.
 ## Export formats
 
 - `html`
+- `md`
 - `d2`
 - `json`
 - `svg`

@@ -18,6 +18,7 @@ export const SECTIONS = [
     ["Architecture diagrams and views", "architecture-diagrams.md"],
     ["Dependency explorer (3D, timeline)", "dependency-explorer.md"],
     ["Code Graph as Markdown", "code-graph-markdown-design.md"],
+    ["System handbook", "handbook.md"],
     ["Documentation from AL UI tests", "al-ui-test-documentation.md"],
     ["Knowledge graph (RDF and OWL)", "knowledge-graph.md"]
   ]],
@@ -35,6 +36,7 @@ export const SECTIONS = [
   ]],
   ["Generated examples", [
     ["Architecture report (warehouse example)", "../examples/report/README.md"],
+    ["System handbook (warehouse example)", "../examples/handbook/README.md"],
     ["User guides from AL UI tests (warehouse example)", "../examples/docs/index.md"],
     ["Dependency explorer (multi-app example)", "../examples/explorer/README.md"],
     ["Knowledge graph (warehouse example)", "../examples/knowledge-graph/warehouse-app.ttl"]

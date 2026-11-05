@@ -173,6 +173,7 @@ export function resolveModel(model) {
         transactionSegment: relation.transactionSegment,
         property: relation.property,
         member: relation.member,
+        event: relation.event,
         contract: relation.contract,
         bindingKind: relation.bindingKind,
         relatedField: relation.relatedField,

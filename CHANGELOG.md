@@ -23,6 +23,20 @@ follows [Semantic Versioning](https://semver.org/).
   whether each value came from `.bca.json` or an option.
 - `schemas/bca.schema.json` describes `.bca.json`; the VS Code extension
   applies it, so `.bca.json` gets completion and checks.
+- The system handbook (`bca export --view handbook`, the `handbook` task of
+  `bca run` and the GitHub Action) explains an app across all its objects, on
+  pages generated from the source:
+  - what it consists of: apps, components, object types, central objects
+  - its events, with publishers and subscribers
+  - its data: who inserts, modifies, deletes, and reads each table
+  - its permission sets, and the tables none of them covers
+  - its interfaces, with implementations and enum bindings
+  - what users can open, by usage category, and its APIs
+  - its code health: complexity, size, obsolete code, documentation coverage
+
+  See `docs/handbook.md` and `examples/handbook`.
+- Event subscriber relations record the event they subscribe to (`event` on
+  `subscribes` edges).
 - Objects, fields, and procedures carry `metadata` that describes what they
   are. The values are normalized from the AL source:
   - from `///` documentation comments: the summary text
