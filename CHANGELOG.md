@@ -4,6 +4,25 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## 0.15.0 - 2026-11-05
+
+### Added
+
+- Saved graphs are a reusable platform: analyze once, query repeatedly, and
+  render for a specific use case without re-analyzing AL.
+- `bca graph query` and the MCP tool `bc_atlas_graph_query` select roots,
+  named root groups, traversal depth, dependency or caller direction,
+  relation kinds, graph levels, and temporal presence frames. Native Atlas
+  graphs and version 1 nodes/edges snapshots retain their original IDs,
+  evidence, unresolved boundaries, and metadata in reusable JSON slices.
+- `bca graph render` and `bc_atlas_graph_render` write SVG, self-contained
+  static HTML, Graphviz DOT, or JSON. SVG and HTML use the existing local
+  renderer without requiring Graphviz; roots are highlighted and every
+  selected node and edge is retained.
+- Graph validation rejects unsupported versions, invalid roots, and missing
+  endpoints, prevents overwriting the input, and rejects oversized visual
+  selections explicitly rather than truncating dependencies.
+
 ## 0.14.0 - 2026-11-05
 
 ### Added

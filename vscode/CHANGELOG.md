@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.0
+
+- The engine is BC Atlas 0.15.0: saved graph queries and rendering are
+  available through the extension's MCP server as `bc_atlas_graph_query`
+  and `bc_atlas_graph_render`.
+- Reuse an analyzed graph for message migrations, impact analysis, and
+  focused diagrams without analyzing AL again. Select roots, depth,
+  direction, relation kinds, and temporal presence; retain IDs and evidence.
+- Render selections as SVG, static HTML, DOT, or JSON locally, without
+  Graphviz, with highlighted roots and explicit size limits.
+
 ## 0.14.0
 
 - A root `.mcp.json` registers BC Atlas for direct MCP tool calls in
