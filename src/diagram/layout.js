@@ -2,7 +2,7 @@
 // algorithm: groups as containers, relations routed orthogonally around
 // the boxes, labels placed on their relation. The result is a drawing with
 // absolute coordinates that every renderer (SVG, PDF) draws the same way.
-import ELK from "elkjs/lib/elk.bundled.js";
+import { cachedLayout } from "./layout-cache.js";
 import { textWidth, wrap } from "./text.js";
 
 export const STYLE = Object.freeze({
@@ -32,6 +32,11 @@ const ORTHOGONAL_EDGES = 120;
 const DIRECTIONS = { right: "RIGHT", down: "DOWN", left: "LEFT", up: "UP" };
 
 let elk;
+/** ELK loads on the first layout the cache does not have: a 1.6 MB script that takes about 150 ms. */
+async function elkLayout(graph) {
+  elk ??= import("elkjs/lib/elk.bundled.js").then(({ default: ELK }) => new ELK());
+  return (await elk).layout(graph);
+}
 
 /** Lines of a node: its kind and ID, its name, then its details (or, with titleFirst, the name first). */
 function nodeLines(node) {
@@ -53,7 +58,6 @@ function nodeLines(node) {
  * @returns { width, height, title, empty, groups, nodes, edges, legend }
  */
 export async function layoutScene(scene) {
-  elk ??= new ELK();
   const sized = new Map();
   for (const group of scene.groups) {
     for (const node of group.nodes) sized.set(node.path, { ...node, group: group.key, ...nodeLines(node) });
@@ -97,7 +101,7 @@ export async function layoutScene(scene) {
         : []
     }))
   };
-  const result = await elk.layout(graph);
+  const result = await cachedLayout(graph, elkLayout);
 
   const top = STYLE.margin + (scene.title ? STYLE.title * 1.5 : 0);
   const left = STYLE.margin;

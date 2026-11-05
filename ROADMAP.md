@@ -37,8 +37,9 @@ open an issue to discuss priorities.
 
 ## Performance
 
-- Cache parsed files by content hash for `watch`.
-- Reparse only changed files and re-resolve affected symbols.
-- Benchmark a 300+ file app and record peak memory of the AL and D2 workers.
+- Re-resolve only the symbols a changed file affects (parsing is already
+  incremental).
+- Record peak memory in `scripts/benchmark.js`, and run it in CI to catch
+  regressions.
 - Snapshot tests for every grouping mode and deterministic stress tests with
   edge-density limits.

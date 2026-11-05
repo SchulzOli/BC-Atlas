@@ -74,6 +74,18 @@ each clone runs `git config core.hooksPath .githooks` once. The hook uses
 
 Skip hooks once with `git commit --no-verify` or `git push --no-verify`.
 
+### Repeated runs are fast
+
+`bca check`, `bca export`, and `bca run` keep the parse results of every file
+and the layout of every diagram in the BC Atlas cache folder (`BCA_CACHE_DIR`,
+default `<temp>/bc-atlas`). A second run parses only the files that changed
+and lays out only the diagrams whose content changed; their output is the same
+as without the cache. On a synthetic app with 390 files, the report export
+takes about 0.5 s instead of 5 s once the cache is warm. In CI, keep the folder
+between jobs (for example with `actions/cache` on `BCA_CACHE_DIR`) to get the
+same effect. `BCA_PARSE_CACHE=off` and `BCA_LAYOUT_CACHE=off` turn the caches
+off; `node scripts/benchmark.js` measures a synthetic app on your machine.
+
 ## VS Code tasks
 
 `bca setup --editor vscode` adds `BC Atlas:` tasks to `.vscode/tasks.json`:

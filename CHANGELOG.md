@@ -32,6 +32,16 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Repeated `bca check`, `bca export`, and `bca run` calls are several times
+  faster with identical output: diagram layouts are cached by their exact
+  content, the CLI reuses the parse results of unchanged files (as VS Code
+  already did), and views no longer deep-copy the analyzed model. On a
+  synthetic 390-file app, a warm `bca export --view report` takes 0.5 instead
+  of 5.1 s, a project diagram 0.4 instead of 3.7 s, and `bca check` 0.4
+  instead of 1.2 s. `BCA_LAYOUT_CACHE=off` and `BCA_PARSE_CACHE=off` turn the
+  caches off.
+- `scripts/benchmark.js` (`npm run benchmark`) generates a synthetic app and
+  times commands cold and warm.
 - `bca --version`, help, and usage errors start in about 50 instead of 280 ms:
   command modules load only when their command runs.
 - Faster 3D explorer and architecture proposal; on a 2,800-object app with a

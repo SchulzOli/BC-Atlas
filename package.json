@@ -31,6 +31,7 @@
     "docs": "node ./scripts/generate-docs.js",
     "docs:check": "node ./scripts/generate-docs.js --check",
     "examples": "node ./scripts/generate-examples.js",
+    "benchmark": "node ./scripts/benchmark.js",
     "mcp": "node ./src/mcp.js",
     "prepack": "npm run check && npm test",
     "update:grammar": "node ./scripts/update-grammar.js",
