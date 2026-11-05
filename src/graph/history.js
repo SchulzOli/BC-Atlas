@@ -76,7 +76,14 @@ function blobReader(cwd) {
       });
     },
     close() {
-      child.stdin.end();
+      return new Promise((resolve, reject) => {
+        child.once("error", reject);
+        child.once("close", (code) => {
+          if (code === 0) resolve();
+          else reject(new Error(`git cat-file --batch exited with code ${code}`));
+        });
+        child.stdin.end();
+      });
     }
   };
 }
@@ -273,8 +280,11 @@ export async function replayHistory(projectRoot, { by = "commits", maxCommits = 
       previous = commit;
     }
   } finally {
-    reader.close();
-    await fs.rm(directory, { recursive: true, force: true });
+    try {
+      await reader.close();
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
   }
 
   const dirty = git(repository, ["status", "--porcelain", "-z", "--untracked-files=all"])

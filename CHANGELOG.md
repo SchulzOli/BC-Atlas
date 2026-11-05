@@ -12,6 +12,11 @@ follows [Semantic Versioning](https://semver.org/).
   tool calls in Copilot-compatible hosts. The MCP integration test uses the
   same configuration, and the agent guide explains setup and server approval.
 
+### Fixed
+
+- Git-history analysis waits for its `git cat-file` reader to exit before
+  removing temporary snapshots, avoiding file-lock failures on Windows.
+
 ## 0.13.0 - 2026-11-04
 
 ### Added
