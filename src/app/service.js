@@ -16,10 +16,21 @@ function positive(value, name) {
 
 const truthy = (value) => value === true || value === 1 || value === "1" || value === "true";
 
+// Empty means the .bca.json setting (architecture.proposal), else the default.
 function architectureSettings(params = {}) {
-  const groupBy = params.groupBy || "auto";
-  if (!GROUPINGS.includes(groupBy)) throw new Error(`groupBy must be one of: ${GROUPINGS.join(", ")}`);
-  return { propose: truthy(params.propose), groupBy, depth: positive(params.depth, "depth"), minObjects: positive(params.minObjects, "minObjects") };
+  const groupBy = params.groupBy || undefined;
+  if (groupBy && !GROUPINGS.includes(groupBy)) throw new Error(`groupBy must be one of: ${GROUPINGS.join(", ")}`);
+  const optional = (value) => value === undefined || value === null || value === "" ? undefined : value;
+  return {
+    propose: truthy(params.propose),
+    groupBy,
+    depth: positive(params.depth, "depth"),
+    minObjects: positive(params.minObjects, "minObjects"),
+    startFrom: optional(params.startFrom),
+    ignore: optional(params.ignore),
+    granularity: optional(params.granularity),
+    sharedCore: optional(params.sharedCore)
+  };
 }
 
 // A guide or a test case, in a language; empty means the .bca.json setting.

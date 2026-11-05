@@ -6,7 +6,7 @@ import { objectFilter, pathMatcher } from "../views.js";
 import { dependencyLens } from "../graph/lenses/dependency.js";
 import { BASELINE_FILE, compareWithBaseline, readBaseline } from "./baseline.js";
 import { addCheck, evaluateArchitecture } from "./evaluate.js";
-import { couplingWeights } from "../graph/coupling.js";
+import { proposalSettings } from "./settings.js";
 import { compareSurface, componentSurfaces, readSurface, SURFACE_FILE } from "./surface.js";
 import { proposeArchitecture } from "./propose.js";
 
@@ -53,12 +53,16 @@ export async function assessArchitecture(input, values = {}, { model } = {}) {
   let proposal;
   let architecture = configured;
   if (values.propose || !configured?.components?.length) {
-    proposal = proposeArchitecture(levels, {
+    // Defaults, then architecture.proposal in .bca.json, then the options of this call.
+    proposal = proposeArchitecture(levels, proposalSettings(context.options.architecture, {
       groupBy: values.groupBy,
       depth: values.depth,
-      minObjects: values.minObjects === undefined ? 1 : Number(values.minObjects),
-      weights: couplingWeights(context.options.architecture?.couplingWeights)
-    });
+      minObjects: values.minObjects,
+      startFrom: values.startFrom,
+      ignore: values.ignore,
+      granularity: values.granularity,
+      sharedCore: values.sharedCore
+    }));
     // Configured coupling weights also shape and score a proposal.
     architecture = configured?.couplingWeights ? { ...proposal.architecture, couplingWeights: configured.couplingWeights } : proposal.architecture;
   }

@@ -13,9 +13,9 @@
 // relations at a coarser resolution say which components could become an
 // app together, and from that follows a namespace for each component.
 import { coupling, COUPLING_WEIGHTS } from "../graph/coupling.js";
-import { clusterByRelations, deriveSelectors, dominantPrefix, functionalFolder, mostCommon, shapes } from "./cluster.js";
-
-const GROUPINGS = ["auto", "coupling", "namespace", "folder", "module", "app"];
+import { clusterByRelations, deriveSelectors, dominantPrefix, functionalFolder, mostCommon, shaper } from "./cluster.js";
+import { compileSelector, componentAssigner, selectorContext } from "./components.js";
+import { GROUPINGS, PROPOSAL_DEFAULTS, shapingKinds } from "./settings.js";
 
 // With --group-by namespace or folder, a group splits until it holds no more than this share of objects.
 const MAX_SHARE = 0.15;
@@ -75,7 +75,7 @@ function namespaceGroups(nodes, depth) {
   };
 }
 
-function grouping(nodes, levels, { groupBy, depth, weights }) {
+function grouping(nodes, levels, { groupBy, depth, weights, clustering }) {
   const modules = new Map((levels.module?.nodes ?? []).map((node) => [node.id, node]));
   const apps = new Map((levels.app?.nodes ?? []).map((node) => [node.id, node]));
   const byApp = (node) => {
@@ -97,7 +97,7 @@ function grouping(nodes, levels, { groupBy, depth, weights }) {
   }
   const clustered = new Map();
   const cluster = (list) => {
-    for (const [id, group] of clusterByRelations(list, levels, weights, { prefix: `${coarse(list[0]).key}|` })) clustered.set(id, group);
+    for (const [id, group] of clusterByRelations(list, levels, weights, { ...clustering, prefix: `${coarse(list[0]).key}|` })) clustered.set(id, group);
   };
 
   let inner;
@@ -269,7 +269,7 @@ function recommend(kept, nodes, componentOf, levels) {
     const base = existing ?? (app.whole || app.components.length === 1 ? root : qualify(root, segment(appName)));
     const appWords = new Set(appName.toLowerCase().split(/[^a-z0-9]+/u));
     for (const group of app.components) {
-      const role = group.shared ? "shared" : group.key.endsWith("unconnected") ? "review" : app.components.length > 1 ? "component" : "app";
+      const role = group.shared ? "shared" : group.key.endsWith("unconnected") || group.unplaced ? "review" : app.components.length > 1 ? "component" : "app";
       const own = members.get(group.key) ?? [];
       const [namespace, inNamespace] = mostCommon(namespaced(own)) ?? [];
       const keeps = Boolean(namespace) && inNamespace >= own.length * 0.8 && !taken.has(namespace);
@@ -317,7 +317,12 @@ const ROLE_TEXT = {
 // or module holds already gets that app or module; inside one, a more precise name.
 function uniqueNames(groups) {
   const used = new Map();
-  for (const group of [...groups].sort((a, b) => (b.objects ?? 0) - (a.objects ?? 0))) {
+  // Components you named yourself (architecture.proposal.keep) keep their names.
+  for (const group of groups.filter(({ pinned }) => pinned)) {
+    group.name = group.label;
+    used.set(group.name, group.outer?.key);
+  }
+  for (const group of [...groups].filter(({ pinned }) => !pinned).sort((a, b) => (b.objects ?? 0) - (a.objects ?? 0))) {
     const base = group.label || group.key;
     const qualified = group.outer && `${base} (${group.outer.label})`;
     const elsewhere = used.has(base) && group.outer && used.get(base) !== group.outer.key;
@@ -334,27 +339,74 @@ function uniqueNames(groups) {
  * objects of a dependency graph. Returns an `architecture` configuration that
  * evaluateArchitecture and .bca.json accept, plus the evidence behind it.
  */
-export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1, weights = COUPLING_WEIGHTS } = {}) {
+export function proposeArchitecture(levels, settings = {}) {
+  const {
+    groupBy, depth, minObjects = 1, weights = COUPLING_WEIGHTS,
+    startFrom = PROPOSAL_DEFAULTS.startFrom, ignore = PROPOSAL_DEFAULTS.ignore,
+    granularity = PROPOSAL_DEFAULTS.granularity, appGranularity = PROPOSAL_DEFAULTS.appGranularity,
+    sharedCore = PROPOSAL_DEFAULTS.sharedCore, keep = [], exclude = [], moves: moveSettings = PROPOSAL_DEFAULTS.moves
+  } = settings;
   const nodes = levels.object.nodes.filter(({ origin }) => origin === "workspace");
   const mode = groupBy ?? "auto";
   if (!GROUPINGS.includes(mode)) throw new Error(`--group-by must be one of: ${GROUPINGS.join(", ")}`);
-  const groupOf = grouping(nodes, levels, { groupBy: mode, depth: depth === undefined ? undefined : Number(depth), weights });
+  const shapes = shaper(ignore);
+  const ignored = new Set(ignore);
+  const weightOf = (edge) => coupling(ignored.size ? Object.fromEntries(Object.entries(edge.kinds ?? {}).filter(([kind]) => !ignored.has(kind))) : edge.kinds, weights);
+
+  // Components you define yourself take their objects first; excluded objects
+  // do not shape components and join the one they are most coupled to.
+  const context = selectorContext(levels);
+  const assignKept = keep.length ? componentAssigner(keep, levels) : () => undefined;
+  const excluders = exclude.map((selector) => compileSelector(selector, context));
+  const keptOf = new Map();
+  const excluded = new Set();
+  for (const node of nodes) {
+    if (node.outsideSelection) continue;
+    const kept = assignKept(node)?.component;
+    if (kept) keptOf.set(node.id, kept);
+    else if (excluders.some((matches) => matches(node))) excluded.add(node.id);
+  }
+  const shaping = nodes.filter(({ id }) => !keptOf.has(id) && !excluded.has(id));
+  const inner = grouping(shaping, levels, {
+    groupBy: mode,
+    depth: depth === undefined ? undefined : Number(depth),
+    weights,
+    clustering: { ignore: [...ignore], startFrom: [...startFrom], granularity, appGranularity, sharedCore }
+  });
+  const keptGroups = new Map(keep.map(({ name, match, description }) => [name, { key: `keep:${name}`, label: name, fullName: name, pinned: true, derived: true, preset: match, description }]));
+  const groupOf = (node) => keptOf.has(node.id) ? keptGroups.get(keptOf.get(node.id)) : inner(node);
+  groupOf.coarse = inner.coarse;
 
   const groups = new Map();
   const nodeGroup = new Map();
-  for (const node of nodes) {
-    const group = groupOf(node);
+  const place = (node, group) => {
     if (!groups.has(group.key)) groups.set(group.key, { ...group, objects: 0, apps: new Set() });
     groups.get(group.key).objects++;
     groups.get(group.key).apps.add(node.app);
     nodeGroup.set(node.id, group.key);
+  };
+  for (const node of nodes) if (!excluded.has(node.id)) place(node, groupOf(node));
+  // Excluded objects: the component they are most coupled to, else one group to place by hand.
+  const pull = new Map();
+  for (const edge of levels.object.edges) {
+    if (!shapes(edge)) continue;
+    for (const [object, other] of [[edge.source, edge.target], [edge.target, edge.source]]) {
+      const group = nodeGroup.get(other);
+      if (!excluded.has(object) || !group) continue;
+      if (!pull.has(object)) pull.set(object, new Map());
+      pull.get(object).set(group, (pull.get(object).get(group) ?? 0) + weightOf(edge));
+    }
+  }
+  for (const node of nodes.filter(({ id }) => excluded.has(id))) {
+    const [best] = [...(pull.get(node.id) ?? [])].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] ?? [];
+    place(node, best ? groups.get(best) : { key: "excluded", label: "Not placed", fullName: "Not placed", derived: true, unplaced: true });
   }
   // Components formed inside an app or module get selectors that reproduce
   // exactly their objects: namespaces, functional folders, ID ranges, or objects.
   const derived = nodes.filter((node) => groups.get(nodeGroup.get(node.id))?.derived);
   if (derived.length) {
     const targets = new Map([...groups].filter(([, group]) => group.derived));
-    for (const group of targets.values()) group.selectors = [];
+    for (const group of targets.values()) group.selectors = [...(group.preset ?? [])];
     deriveSelectors(derived, nodeGroup, targets, levels, (node) => groupOf.coarse(node));
   }
   // Tiny groups join the group they are most tightly coupled to.
@@ -366,12 +418,12 @@ export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1, we
     const target = nodeGroup.get(edge.target);
     if (!source || !target || source === target) continue;
     const id = `${source}\u0000${target}`;
-    counts.set(id, (counts.get(id) ?? 0) + coupling(edge.kinds, weights));
+    counts.set(id, (counts.get(id) ?? 0) + weightOf(edge));
     objectEdges.set(id, (objectEdges.get(id) ?? 0) + 1);
   }
   const merged = new Map();
   for (const group of groups.values()) {
-    if (group.objects >= minObjects) continue;
+    if (group.objects >= minObjects || group.pinned) continue;
     const best = [...counts].filter(([id]) => id.startsWith(`${group.key}\u0000`))
       .sort((a, b) => b[1] - a[1])[0];
     if (best) merged.set(group.key, best[0].split("\u0000")[1]);
@@ -416,6 +468,7 @@ export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1, we
       name: group.name,
       ...(group.fixed ? { description: "Outside the analyzed path; kept as one component" } : {}),
       ...(recommendationOf.has(group.name) ? { description: `${ROLE_TEXT[recommendationOf.get(group.name).role](recommendationOf.get(group.name))}; namespace ${recommendationOf.get(group.name).namespace}` } : {}),
+      ...(group.pinned && group.description ? { description: group.description } : {}),
       layer: layer.get(group.key),
       match: [...new Set([...(group.selectors ?? [group.selector]), ...(group.absorbed ?? []).flatMap(({ selector, selectors }) => selectors ?? [selector])])],
       dependsOn: forward.filter(({ source }) => source === group.key).map(({ target }) => nameOf.get(target)).sort()
@@ -429,7 +482,7 @@ export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1, we
     const source = nodeGroup.get(edge.source);
     const target = nodeGroup.get(edge.target);
     if (!source || !target) continue;
-    const weight = coupling(edge.kinds, weights);
+    const weight = weightOf(edge);
     for (const [node, group] of [[edge.source, merged.get(target) ?? target], [edge.target, merged.get(source) ?? source]]) {
       if (!affinity.has(node)) affinity.set(node, new Map());
       affinity.get(node).set(group, (affinity.get(node).get(group) ?? 0) + weight);
@@ -437,13 +490,14 @@ export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1, we
   }
   const moves = [];
   for (const node of nodes) {
-    if (node.outsideSelection) continue;
+    // Objects of components you defined stay where you put them.
+    if (node.outsideSelection || keptOf.has(node.id)) continue;
     const own = merged.get(nodeGroup.get(node.id)) ?? nodeGroup.get(node.id);
     const links = affinity.get(node.id);
     if (!links) continue;
     const [best, count] = [...links].filter(([group]) => group !== own).sort((a, b) => b[1] - a[1])[0] ?? [];
     const gain = (count ?? 0) - (links.get(own) ?? 0);
-    if (best && gain >= 2) {
+    if (best && gain >= Math.max(moveSettings.minGain, Number.EPSILON)) {
       const round = (value) => Number(value.toFixed(1));
       moves.push({
         object: { id: node.id, label: node.label, type: node.type, objectId: node.objectId, file: node.file },
@@ -461,7 +515,24 @@ export function proposeArchitecture(levels, { groupBy, depth, minObjects = 1, we
     groupBy: mode,
     architecture: { components, allowSameLayer: false },
     feedback: feedback.map(({ source, target, weight, objectEdges: count }) => ({ source: nameOf.get(source), target: nameOf.get(target), objectEdges: count, coupling: Number(weight.toFixed(1)) })),
-    moves: moves.slice(0, 50),
-    recommendations
+    moves: moves.slice(0, moveSettings.limit),
+    recommendations,
+    // How the proposal was made: what it took into account, and from where.
+    basis: {
+      groupBy: mode,
+      ...(depth === undefined ? {} : { depth: Number(depth) }),
+      minObjects,
+      startFrom: [...startFrom],
+      ignore: [...ignore],
+      shapingKinds: shapingKinds({ ignore, weights }),
+      weights: { ...weights },
+      granularity,
+      appGranularity,
+      sharedCore,
+      moves: { ...moveSettings },
+      objects: { considered: nodes.length, shaping: shaping.length, kept: keptOf.size, excluded: excluded.size, outside: nodes.filter(({ outsideSelection }) => outsideSelection).length },
+      kept: keep.map(({ name }) => ({ name, objects: [...keptOf.values()].filter((value) => value === name).length })),
+      ...(settings.sources ? { sources: settings.sources } : {})
+    }
   };
 }

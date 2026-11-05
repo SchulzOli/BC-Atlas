@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/SchulzOli/BC-Atlas/blob/main/schemas/bca.schema.json",
+  "title": "BC Atlas configuration (.bca.json)",
+  "description": "Settings for bca check, export, architecture, docs, and run. See docs/configuration.md.",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "view": { "description": "Default diagram view.", "enum": ["project", "module", "object", "data", "call", "boundary", "contracts", "events", "ui", "workflow"] },
+    "projectRoot": { "description": "Root of the AL project, relative to this file.", "type": "string" },
+    "paths": { "description": "Analyze only these folders (globs allowed).", "type": "array", "items": { "type": "string" } },
+    "direction": { "enum": ["right", "down", "left", "up"] },
+    "title": { "type": "string" },
+    "groupBy": { "description": "Diagram grouping (not the architecture proposal; see architecture.proposal.groupBy).", "enum": ["namespace", "folder", "type", "role"] },
+    "roleMappings": { "description": "Role lanes for the project view: role name to selectors.", "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } } },
+    "namespaces": { "type": "array", "items": { "type": "string" } },
+    "include": { "type": "array", "items": { "type": "string" } },
+    "exclude": { "description": "Files to leave out of the analysis (globs).", "type": "array", "items": { "type": "string" } },
+    "moduleDepth": { "oneOf": [{ "const": "auto" }, { "type": "integer", "minimum": 1 }] },
+    "folderDepth": { "type": "integer", "minimum": 1 },
+    "includeUnresolvedCalls": { "type": "boolean" },
+    "maxEdges": { "type": "integer", "minimum": 1 },
+    "details": { "type": "boolean" },
+    "noExternal": { "type": "boolean" },
+    "sourceUrl": { "description": "Link template for source locations: {ref}, {file}, {line}.", "type": "string" },
+    "sourceRef": { "type": "string" },
+    "sourcePathPrefix": { "type": "string" },
+    "workflow": { "type": "object" },
+    "forbiddenDependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "severity": { "enum": ["error", "warning", "info"] },
+          "message": { "type": "string" }
+        }
+      }
+    },
+    "architecture": { "$ref": "#/$defs/architecture" },
+    "check": {
+      "type": "object",
+      "properties": {
+        "failOn": { "enum": ["error", "warning", "info", "never"] },
+        "cycles": { "enum": ["error", "warning", "info", "off"] },
+        "maxFanIn": { "type": "integer", "minimum": 1 },
+        "maxFanOut": { "type": "integer", "minimum": 1 },
+        "contractExpectations": { "type": "array" },
+        "contexts": { "type": "array" }
+      }
+    },
+    "al": {
+      "type": "object",
+      "properties": {
+        "compiler": { "description": "auto, off, or a path to alc, al, or the AL extension folder.", "type": "string" },
+        "analyzers": { "type": "array", "items": { "type": "string" } },
+        "errorLog": { "type": "string" },
+        "callGraph": { "type": "boolean" },
+        "workspaceFile": { "type": "string" }
+      }
+    },
+    "report": {
+      "type": "object",
+      "properties": {
+        "outputDir": { "type": "string" },
+        "views": { "type": "array", "items": { "type": "string" } },
+        "format": { "enum": ["svg", "d2"] },
+        "title": { "type": "string" },
+        "codegraph": { "type": "boolean" },
+        "json": { "type": "boolean" }
+      }
+    },
+    "codegraph": { "type": "object" },
+    "docs": { "type": "object" },
+    "automation": { "type": "object" }
+  },
+  "$defs": {
+    "selector": {
+      "description": "namespace:, folder:, file:, app:, module:, type:, object:type:name, id:from..to, or *; join with & so all must match.",
+      "type": "string"
+    },
+    "selectors": {
+      "oneOf": [
+        { "$ref": "#/$defs/selector" },
+        { "type": "array", "items": { "$ref": "#/$defs/selector" }, "minItems": 1 }
+      ]
+    },
+    "relationKind": {
+      "enum": ["writes", "extends", "source", "relates", "implements", "calls", "runs", "part", "reads", "selects", "uses", "subscribes", "permits", "includes"]
+    },
+    "architecture": {
+      "type": "object",
+      "properties": {
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "match"],
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "layer": { "type": "integer", "minimum": 0 },
+              "match": { "$ref": "#/$defs/selectors" },
+              "dependsOn": { "type": "array", "items": { "type": "string" } },
+              "exposes": { "$ref": "#/$defs/selectors" },
+              "maxObjects": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "proposal": { "$ref": "#/$defs/proposal" },
+        "couplingWeights": {
+          "description": "How strongly each relation kind binds two objects (defaults: writes 5, extends 4, source 4, relates 3, implements 3, calls 2, runs 2, part 2, reads 2, selects 1.5, uses 1, subscribes 1, permits 0.1, includes 0.1). 0 drops a kind.",
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/relationKind" },
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        },
+        "allowSameLayer": { "type": "boolean" },
+        "strictLayers": { "type": "boolean" },
+        "maxObjects": { "type": "integer", "minimum": 1 },
+        "severity": { "enum": ["error", "warning", "info", "off"] },
+        "unassigned": { "enum": ["error", "warning", "info", "off"] },
+        "severities": { "type": "object", "additionalProperties": { "enum": ["error", "warning", "info", "off"] } },
+        "rules": { "type": "array" },
+        "baseline": { "type": "string" },
+        "surface": { "type": "string" }
+      }
+    },
+    "proposal": {
+      "description": "What bca architecture --propose takes into account, and how. Options of the command override these.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "$comment": { "type": "string" },
+        "groupBy": {
+          "description": "auto or coupling: the typed, weighted relations decide; namespace or folder: the code structure decides, objects without it follow their relations; module or app: one component each.",
+          "enum": ["auto", "coupling", "namespace", "folder", "module", "app"],
+          "default": "auto"
+        },
+        "depth": { "description": "With groupBy namespace or folder: segments per component; default: split until no component is too large.", "type": "integer", "minimum": 1 },
+        "minObjects": { "description": "Smaller groups join the component they depend on most.", "type": "integer", "minimum": 1, "default": 1 },
+        "startFrom": {
+          "description": "Existing structures that compete with the relations as a starting point. [] for relations only. The relations decide which survives.",
+          "type": "array",
+          "items": { "enum": ["namespace", "folder"] },
+          "uniqueItems": true,
+          "default": ["namespace", "folder"]
+        },
+        "ignore": {
+          "description": "Relation kinds that never shape a component (they still count as dependencies).",
+          "type": "array",
+          "items": { "$ref": "#/$defs/relationKind" },
+          "uniqueItems": true,
+          "default": ["permits", "includes"]
+        },
+        "granularity": { "description": "Above 1: more, smaller components; below 1: fewer, larger ones.", "type": "number", "exclusiveMinimum": 0, "default": 1 },
+        "appGranularity": { "description": "The same for app candidates (which components could become one app together).", "type": "number", "exclusiveMinimum": 0, "default": 0.3 },
+        "sharedCore": { "description": "Pull objects that many components use (setup tables, utilities) into a shared core.", "type": "boolean", "default": true },
+        "keep": {
+          "description": "Components you define yourself. Their objects are not clustered; the proposal arranges everything else around them.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "match"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "match": { "$ref": "#/$defs/selectors" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "exclude": {
+          "description": "Objects that do not shape components (for example type:permissionset or test codeunits). They join the component they are most coupled to afterwards.",
+          "$ref": "#/$defs/selectors"
+        },
+        "moves": {
+          "description": "Objects that belong elsewhere: at least minGain more coupling to another component than to their own; at most limit of them.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "minGain": { "type": "number", "minimum": 0, "default": 2 },
+            "limit": { "type": "integer", "minimum": 0, "default": 50 }
+          }
+        }
+      }
+    }
+  }
+}

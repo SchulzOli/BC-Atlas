@@ -56,6 +56,12 @@
   ],
   "main": "./src/extension.js",
   "contributes": {
+    "jsonValidation": [
+      {
+        "fileMatch": ".bca.json",
+        "url": "./node_modules/bc-atlas/schemas/bca.schema.json"
+      }
+    ],
     "commands": [
       {
         "command": "bcAtlas.open",

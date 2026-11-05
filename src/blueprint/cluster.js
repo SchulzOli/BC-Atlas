@@ -20,8 +20,15 @@ import { coupling } from "../graph/coupling.js";
 import { compileSelector, componentMatcher, selectorContext } from "./components.js";
 import { normalizeIdentifier } from "../resolver.js";
 
-// Permission sets grant access to everything; they never decide where an object belongs.
-export const shapes = (edge) => Object.keys(edge.kinds ?? {}).some((kind) => !["permits", "includes"].includes(kind));
+// Permission sets grant access to everything; they never decide where an
+// object belongs. architecture.proposal.ignore can name other kinds too.
+const DEFAULT_IGNORED = Object.freeze(["permits", "includes"]);
+/** A test whether an edge shapes components: it has a kind that is not ignored. */
+export function shaper(ignore = DEFAULT_IGNORED) {
+  const ignored = new Set(ignore);
+  return (edge) => Object.keys(edge.kinds ?? {}).some((kind) => !ignored.has(kind));
+}
+export const shapes = shaper();
 
 // Folders that sort objects by type say nothing about what they do.
 const TYPE_FOLDERS = new Set([
@@ -285,21 +292,30 @@ const APP_RESOLUTION = 0.3;
 const clusterCache = new Map();
 const CLUSTER_CACHE_SIZE = 64;
 
-export function clusterByRelations(nodes, levels, weights, { prefix = "" } = {}) {
+/**
+ * @param options { prefix, ignore, startFrom, granularity, appGranularity,
+ *   sharedCore } (see settings.js; defaults reproduce the original proposal)
+ */
+export function clusterByRelations(nodes, levels, weights, { prefix = "", ignore, startFrom = ["namespace", "folder"], granularity = 1, appGranularity = APP_RESOLUTION, sharedCore = true } = {}) {
   const ids = new Set(nodes.map(({ id }) => id));
   const edges = [];
+  const shaping = ignore ? shaper(ignore) : shapes;
   for (const edge of levels.object.edges) {
-    if (!ids.has(edge.source) || !ids.has(edge.target) || edge.source === edge.target || !shapes(edge)) continue;
-    const weight = coupling(edge.kinds, weights);
+    if (!ids.has(edge.source) || !ids.has(edge.target) || edge.source === edge.target || !shaping(edge)) continue;
+    // Ignored kinds do not count on an edge that other kinds keep.
+    const kinds = ignore ? Object.fromEntries(Object.entries(edge.kinds ?? {}).filter(([kind]) => !ignore.includes(kind))) : edge.kinds;
+    const weight = coupling(kinds, weights);
     if (weight) edges.push({ source: edge.source, target: edge.target, weight });
   }
+  const options = { startFrom: [...startFrom].sort(), granularity, appGranularity, sharedCore };
   const fingerprint = createHash("sha1");
+  fingerprint.update(JSON.stringify(options));
   for (const { id, label, namespace, file, objectId } of nodes) fingerprint.update(`\u0000${id}\u0001${label}\u0001${namespace}\u0001${file}\u0001${objectId}`);
   for (const { source, target, weight } of edges) fingerprint.update(`\u0002${source}\u0001${target}\u0001${weight}`);
   const key = fingerprint.digest("hex");
   let result = clusterCache.get(key);
   if (result) clusterCache.delete(key);
-  else result = clusterFresh(nodes, edges);
+  else result = clusterFresh(nodes, edges, options);
   clusterCache.set(key, result);
   if (clusterCache.size > CLUSTER_CACHE_SIZE) clusterCache.delete(clusterCache.keys().next().value);
   if (!prefix) return result;
@@ -313,18 +329,20 @@ export function clusterByRelations(nodes, levels, weights, { prefix = "" } = {})
   return prefixed;
 }
 
-function clusterFresh(nodes, edges) {
+function clusterFresh(nodes, edges, { startFrom, granularity, appGranularity, sharedCore }) {
   const prefix = "";
   const ids = new Set(nodes.map(({ id }) => id));
   const byId = new Map(nodes.map((node) => [node.id, node]));
 
   // Today's namespaces and functional folders compete with Louvain; the relations decide.
-  const candidates = [
-    (id) => hasNamespace(byId.get(id)) ? byId.get(id).namespace.toLowerCase() : undefined,
-    (id) => functionalFolder(byId.get(id).file)
-  ];
+  const readers = {
+    namespace: (id) => hasNamespace(byId.get(id)) ? byId.get(id).namespace.toLowerCase() : undefined,
+    folder: (id) => functionalFolder(byId.get(id).file)
+  };
+  const candidates = startFrom.map((structure) => readers[structure]);
+  const resolution = granularity;
   // 1. Communities, 2. hubs out, communities again.
-  const first = communities(ids, edges, { candidates });
+  const first = communities(ids, edges, { candidates, resolution });
   const incoming = new Map();
   for (const { source, target, weight } of edges) {
     if (!incoming.has(target)) incoming.set(target, new Map());
@@ -338,10 +356,10 @@ function clusterFresh(nodes, edges) {
     const total = [...sources.values()].reduce((sum, value) => sum + value, 0);
     const own = sources.get(first[id]) ?? 0;
     const others = [...sources.keys()].filter((community) => community !== first[id]).length;
-    if (others >= 3 && total >= busy && own / total < 0.4) hubs.add(id);
+    if (sharedCore && others >= 3 && total >= busy && own / total < 0.4) hubs.add(id);
   }
   const rest = [...ids].filter((id) => !hubs.has(id));
-  const second = communities(rest, edges.filter(({ source, target }) => !hubs.has(source) && !hubs.has(target)), { candidates });
+  const second = communities(rest, edges.filter(({ source, target }) => !hubs.has(source) && !hubs.has(target)), { candidates, resolution });
   const cluster = new Map(rest.map((id) => [id, second[id] === undefined ? undefined : `c${second[id]}`]));
   for (const id of hubs) cluster.set(id, "shared");
 
@@ -399,7 +417,7 @@ function clusterFresh(nodes, edges) {
   }
 
   // 4. App candidates: whole components, by where most of their objects go at a coarser resolution.
-  const coarse = communities(rest, edges.filter(({ source, target }) => !hubs.has(source) && !hubs.has(target)), { resolution: APP_RESOLUTION });
+  const coarse = communities(rest, edges.filter(({ source, target }) => !hubs.has(source) && !hubs.has(target)), { resolution: appGranularity });
   const appOf = new Map();
   for (const [key, list] of members) {
     if (key === "shared" || key === "unconnected") appOf.set(key, key);

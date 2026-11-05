@@ -6,6 +6,24 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- You decide what the architecture proposal takes into account and how it
+  builds components: `architecture.proposal` in `.bca.json` sets the grouping,
+  the structures it starts from (`startFrom`), relation kinds that never shape
+  components (`ignore`), how finely it splits (`granularity`,
+  `appGranularity`), whether a shared core forms (`sharedCore`), components
+  you define yourself (`keep`), objects that should not shape components
+  (`exclude`), and which moves it lists (`moves`). `bca architecture
+  --propose` has `--start-from`, `--ignore`, `--granularity`, and
+  `--shared-core`, and the MCP tool and the app take the same settings.
+- Every proposal says how it was made (`proposal.basis` in JSON, **How this
+  proposal was made** in the reports, **What was considered** in the app):
+  which objects and relation kinds shaped it, their weights, the settings, and
+  whether each value came from `.bca.json` or an option.
+- `schemas/bca.schema.json` describes `.bca.json`; the VS Code extension
+  applies it, so `.bca.json` gets completion and checks.
+
 ### Fixed
 
 - The AL compiler no longer fails with AL1018 ("Directory could not be
