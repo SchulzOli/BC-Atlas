@@ -21,6 +21,9 @@ inputs:
   node-version:
     description: Node.js version used to run BC Atlas.
     default: "24"
+  cache:
+    description: Keep parse results and diagram layouts between runs with actions/cache, so a run after a small change analyzes and lays out only what changed (true or false).
+    default: "true"
   al-compiler:
     description: Install Microsoft's AL Development Tools so the AL compiler resolves calls and reports compiler and analyzer findings (true or false).
     default: "true"
@@ -39,6 +42,13 @@ runs:
     - uses: actions/setup-node@v7
       with:
         node-version: ${{ inputs.node-version }}
+    - name: Cache BC Atlas analysis
+      if: inputs.cache == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/bc-atlas-cache
+        key: bc-atlas-${{ runner.os }}-${{ github.sha }}
+        restore-keys: bc-atlas-${{ runner.os }}-
     - name: Install BC Atlas
       shell: bash
       run: npm ci --omit=dev --no-audit --no-fund --prefix "$GITHUB_ACTION_PATH"
@@ -56,6 +66,7 @@ runs:
         BCA_TRIGGER: ${{ inputs.trigger }}
         BCA_TASKS: ${{ inputs.tasks }}
         BCA_SYNC: ${{ inputs.sync }}
+        BCA_CACHE_DIR: ${{ runner.temp }}/bc-atlas-cache
       run: |
         args=(run "$BCA_PATH" --trigger "$BCA_TRIGGER")
         if [ -n "$BCA_TASKS" ]; then args+=(--tasks "$BCA_TASKS"); fi

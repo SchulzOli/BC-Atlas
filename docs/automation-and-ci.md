@@ -82,8 +82,8 @@ default `<temp>/bc-atlas`). A second run parses only the files that changed
 and lays out only the diagrams whose content changed; their output is the same
 as without the cache. On a synthetic app with 390 files, the report export
 takes about 0.5 s instead of 5 s once the cache is warm. In CI, keep the folder
-between jobs (for example with `actions/cache` on `BCA_CACHE_DIR`) to get the
-same effect. `BCA_PARSE_CACHE=off` and `BCA_LAYOUT_CACHE=off` turn the caches
+between jobs to get the same effect: the BC Atlas action and the workflows and
+pipelines that `bca setup` writes do that with `actions/cache` or `Cache@2`. `BCA_PARSE_CACHE=off` and `BCA_LAYOUT_CACHE=off` turn the caches
 off; `node scripts/benchmark.js` measures a synthetic app on your machine.
 
 ## VS Code tasks
@@ -125,12 +125,14 @@ schedule. Without a pipeline, run it from any scheduler:
 - pull requests and pushes to `main` run `--trigger ci`;
 - the cron schedule runs `--trigger schedule`;
 - `workflow_dispatch` allows manual runs;
+- `actions/cache` keeps the BC Atlas cache folder between runs, so a run after
+  a small change parses and lays out only what changed;
 - sync steps upload an artifact, open a pull request, or commit, as configured.
 
 You can also use BC Atlas as an action in your own workflows:
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@v7
 - id: atlas
   uses: SchulzOli/BC-Atlas@v0.15.0
   with:
@@ -146,6 +148,7 @@ You can also use BC Atlas as an action in your own workflows:
 | `tasks` | | Comma-separated tasks instead of the trigger's tasks |
 | `sync` | | Override the sync mode |
 | `node-version` | `24` | Node.js version |
+| `cache` | `true` | Keep parse results and diagram layouts between runs with `actions/cache` |
 | `al-compiler` | `true` | Install the AL Development Tools so the AL compiler resolves calls and runs the code analyzers |
 
 Outputs: `outputs` (generated paths) and `passed` (`true` or `false`).
