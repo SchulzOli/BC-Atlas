@@ -9,6 +9,14 @@ DataClassification: "CustomerContent"
 
 # Table 50100 Warehouse Request
 
+## Overview
+
+| Characteristic | Value |
+| --- | --- |
+| Access | public |
+| Data classification | CustomerContent |
+| Size | 19 lines, 3 fields, 1 key |
+
 ## Fields
 
 | No. | Field | Type | Length | Properties | Table relation |

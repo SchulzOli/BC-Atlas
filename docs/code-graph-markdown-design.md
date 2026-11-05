@@ -106,10 +106,11 @@ Every object document uses the same top-level order:
 
 1. YAML metadata front matter
 2. Title
-3. Type-specific structure
-4. Dependencies
-5. Used by
-6. Source
+3. Overview: documentation and characteristics
+4. Type-specific structure
+5. Dependencies
+6. Used by
+7. Source
 
 Empty type-specific sections are omitted. YAML metadata, `Dependencies`, `Used
 by`, and `Source` are always present.
@@ -141,6 +142,39 @@ as required for a valid YAML double-quoted scalar.
 
 Extension objects include `Extends` in metadata and link it when the base
 object is another generated workspace object.
+
+### Overview
+
+The `/// <summary>` comment above the object comes first as a paragraph. The
+`Description` property follows in italics. Then comes a table of what
+characterizes the object, normalized from its properties (`src/metadata.js`).
+Rows without a value are left out.
+
+| Characteristic | Value |
+| --- | --- |
+| Caption | Warehouse Entries (comment: Shown in the role center) |
+| Access | internal |
+| Obsolete | obsolete (pending), tag 25.0, Replaced by Warehouse Ledger |
+| Source table | Warehouse Entry (temporary) |
+| Data classification | CustomerContent |
+| Size | 120 lines, 12 fields, 2 keys, 4 procedures (2 public), 1 trigger |
+| Complexity | 18 in all, at most 7 (Post), 3.6 on average |
+
+The available characteristics are:
+
+- caption, access (public by default), extensible, and obsolete state, reason, and tag
+- page type, table type, query type, and subtype
+- source table, `TableNo`, and single instance
+- data classification, usage category, application area, and API publisher, group, version, and entity
+- permissions and inherent permissions
+- size and complexity
+
+Complexity is the cyclomatic complexity of each procedure: 1, plus 1 for each
+`if`, loop, `case` branch, and `and` or `or` in a condition. The same values
+are in the JSON model as `metadata` on each object, field, and procedure. The
+app's object page shows them under **About**, and the knowledge graph exports
+them as `bca:documentation`, `bca:obsoleteState`, `bca:dataClassification`,
+`bca:pageType`, `bca:lineCount`, and `bca:complexity`.
 
 ### Dependencies
 
@@ -178,8 +212,8 @@ link. Local absolute paths are never written.
 
 ### Tables and table extensions
 
-Tables contain a field matrix and keys. Table extensions additionally show
-field modifications when present.
+Tables contain a field matrix and keys, followed by their procedures and
+triggers. Table extensions additionally show field modifications when present.
 
 | No. | Field | Type | Length | Properties | Table relation |
 | ---: | --- | --- | ---: | --- | --- |
@@ -192,7 +226,8 @@ filters. Keys use a second matrix with name, fields, and key properties.
 
 ### Pages, page extensions, and page customizations
 
-Pages use separate sections for fields, parts, and actions.
+Pages use separate sections for fields, parts, and actions, followed by their
+procedures and triggers.
 
 Fields:
 
@@ -220,15 +255,18 @@ local variables are excluded.
 
 Global variables:
 
-| Variable | Type | Subtype | Properties |
-| --- | --- | --- | --- |
+| Variable | Type | Subtype |
+| --- | --- | --- |
 
 Procedures:
 
-| Visibility | Procedure header | Attributes |
-| --- | --- | --- |
-| Public | `Post(var Header: Record "Warehouse Header"): Boolean` | |
-| Local | `ValidateLines(Header: Record "Warehouse Header")` | `TryFunction` |
+| Visibility | Procedure header | Lines | Complexity | Description |
+| --- | --- | ---: | ---: | --- |
+| Public | `Post(var Header: Record "Warehouse Header"): Boolean` | 42 | 7 | Posts the shipment. |
+| Local | `ValidateLines(Header: Record "Warehouse Header")` | 12 | 3 | `[TryFunction]` |
+
+The Description column holds the procedure's `///` summary, its obsolete
+state, and its attributes.
 
 Triggers and event publishers use separate matrices because they have
 different roles. Procedure headers preserve parameter names, `var`, types,

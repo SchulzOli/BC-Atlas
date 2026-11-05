@@ -439,6 +439,40 @@ bca:access a owl:DatatypeProperty ;
     rdfs:comment "The Access property of an object (public or internal)." ;
     rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
 
+bca:documentation a owl:DatatypeProperty ;
+    rdfs:label "documentation" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The /// summary comment above an object or procedure." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:obsoleteState a owl:DatatypeProperty ;
+    rdfs:label "obsolete state" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "pending, removed, or moved (ObsoleteState or [Obsolete])." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dataClassification a owl:DatatypeProperty ;
+    rdfs:label "data classification" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:pageType a owl:DatatypeProperty ;
+    rdfs:label "page type" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:lineCount a owl:DatatypeProperty ;
+    rdfs:label "line count" ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Source lines of an object or procedure." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:complexity a owl:DatatypeProperty ;
+    rdfs:label "complexity" ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Cyclomatic complexity: of a procedure, or the sum over an object's procedures." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
 bca:fieldNumber a owl:DatatypeProperty ;
     rdfs:label "field number" ;
     rdfs:range xsd:integer ;
@@ -537,6 +571,8 @@ bca:weight a owl:DatatypeProperty ;
     bca:objectType "codeunit" ;
     bca:objectId "50120"^^xsd:integer ;
     dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Automation::codeunit::50120" ;
+    bca:lineCount "12"^^xsd:integer ;
+    bca:complexity "2"^^xsd:integer ;
     bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
     bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Automation> ;
     bca:sourceFile "Automation.al" ;
@@ -549,12 +585,16 @@ bca:weight a owl:DatatypeProperty ;
     rdfs:label "NotifyRequestProcessed" ;
     bca:signature "NotifyRequestProcessed()" ;
     bca:visibility "local" ;
+    bca:lineCount "4"^^xsd:integer ;
+    bca:complexity "1"^^xsd:integer ;
     bca:sourceLine "9"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120:procedure:SendNotification> a bca:Procedure ;
     rdfs:label "SendNotification" ;
     bca:signature "SendNotification()" ;
     bca:visibility "local" ;
+    bca:lineCount "3"^^xsd:integer ;
+    bca:complexity "1"^^xsd:integer ;
     bca:sourceLine "14"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121> a bca:PermissionSet ;
@@ -563,6 +603,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:objectId "50121"^^xsd:integer ;
     dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Automation::permissionset::50121" ;
     bca:access "public" ;
+    bca:lineCount "8"^^xsd:integer ;
     bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
     bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Automation> ;
     bca:sourceFile "Automation.al" ;
@@ -575,6 +616,7 @@ bca:weight a owl:DatatypeProperty ;
     rdfs:label "Handles Warehouse Activity" ;
     bca:objectType "interface" ;
     dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::interface::handles warehouse activity" ;
+    bca:lineCount "4"^^xsd:integer ;
     bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
     bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Inventory> ;
     bca:sourceFile "Inventory.al" ;
@@ -585,6 +627,7 @@ bca:weight a owl:DatatypeProperty ;
     rdfs:label "Process" ;
     bca:signature "Process()" ;
     bca:visibility "public" ;
+    bca:lineCount "1"^^xsd:integer ;
     bca:sourceLine "5"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> a bca:Table ;
@@ -592,6 +635,8 @@ bca:weight a owl:DatatypeProperty ;
     bca:objectType "table" ;
     bca:objectId "50100"^^xsd:integer ;
     dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::table::50100" ;
+    bca:dataClassification "CustomerContent" ;
+    bca:lineCount "19"^^xsd:integer ;
     bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
     bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Inventory> ;
     bca:sourceFile "Inventory.al" ;
@@ -628,6 +673,8 @@ bca:weight a owl:DatatypeProperty ;
     bca:objectType "codeunit" ;
     bca:objectId "50101"^^xsd:integer ;
     dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::codeunit::50101" ;
+    bca:lineCount "32"^^xsd:integer ;
+    bca:complexity "5"^^xsd:integer ;
     bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
     bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Inventory> ;
     bca:sourceFile "Inventory.al" ;
@@ -646,24 +693,32 @@ bca:weight a owl:DatatypeProperty ;
     rdfs:label "Process" ;
     bca:signature "Process()" ;
     bca:visibility "public" ;
+    bca:lineCount "7"^^xsd:integer ;
+    bca:complexity "2"^^xsd:integer ;
     bca:sourceLine "35"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:Process~2> a bca:Procedure ;
     rdfs:label "Process" ;
     bca:signature "Process(Record \"Warehouse Request\")" ;
     bca:visibility "public" ;
+    bca:lineCount "7"^^xsd:integer ;
+    bca:complexity "1"^^xsd:integer ;
     bca:sourceLine "43"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:ValidateRequest> a bca:Procedure ;
     rdfs:label "ValidateRequest" ;
     bca:signature "ValidateRequest(Record \"Warehouse Request\")" ;
     bca:visibility "local" ;
+    bca:lineCount "3"^^xsd:integer ;
+    bca:complexity "1"^^xsd:integer ;
     bca:sourceLine "51"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101:procedure:OnRequestProcessed> a bca:EventPublisher ;
     rdfs:label "OnRequestProcessed" ;
     bca:signature "OnRequestProcessed()" ;
     bca:visibility "public" ;
+    bca:lineCount "3"^^xsd:integer ;
+    bca:complexity "1"^^xsd:integer ;
     bca:sourceLine "56"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102> a bca:Enum ;
@@ -671,6 +726,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:objectType "enum" ;
     bca:objectId "50102"^^xsd:integer ;
     dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Inventory::enum::50102" ;
+    bca:lineCount "7"^^xsd:integer ;
     bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
     bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.Inventory> ;
     bca:sourceFile "Inventory.al" ;
@@ -684,6 +740,9 @@ bca:weight a owl:DatatypeProperty ;
     bca:objectId "50110"^^xsd:integer ;
     dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::page::50110" ;
     bca:caption "Warehouse Requests" ;
+    bca:pageType "List" ;
+    bca:lineCount "58"^^xsd:integer ;
+    bca:complexity "1"^^xsd:integer ;
     bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
     bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.UI> ;
     bca:sourceFile "WarehouseUI.al" ;
@@ -697,19 +756,24 @@ bca:weight a owl:DatatypeProperty ;
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:EntryNo> a bca:Field ;
     rdfs:label "EntryNo" ;
+    bca:caption "Entry No." ;
     bca:sourceLine "19"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Description> a bca:Field ;
     rdfs:label "Description" ;
+    bca:caption "Description" ;
     bca:sourceLine "25"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:field:Processed> a bca:Field ;
     rdfs:label "Processed" ;
+    bca:caption "Processed" ;
     bca:sourceLine "31"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110:trigger:OnAction> a bca:Trigger ;
     rdfs:label "OnAction" ;
     bca:signature "OnAction()" ;
+    bca:lineCount "7"^^xsd:integer ;
+    bca:complexity "1"^^xsd:integer ;
     bca:sourceLine "52"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:pageextension:50111> a bca:PageExtension ;
@@ -717,6 +781,7 @@ bca:weight a owl:DatatypeProperty ;
     bca:objectType "pageextension" ;
     bca:objectId "50111"^^xsd:integer ;
     dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::pageextension::50111" ;
+    bca:lineCount "3"^^xsd:integer ;
     bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
     bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.UI> ;
     bca:sourceFile "WarehouseUI.al" ;
@@ -728,6 +793,10 @@ bca:weight a owl:DatatypeProperty ;
     bca:objectType "codeunit" ;
     bca:objectId "50122"^^xsd:integer ;
     dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::codeunit::50122" ;
+    bca:access "internal" ;
+    bca:documentation "Verifies and documents the primary warehouse request workflows through the user interface." ;
+    bca:lineCount "69"^^xsd:integer ;
+    bca:complexity "4"^^xsd:integer ;
     bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
     bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.UI> ;
     bca:sourceFile "WarehouseUITests.al" ;
@@ -744,12 +813,16 @@ bca:weight a owl:DatatypeProperty ;
     rdfs:label "WarehouseRequests_CreateRequest_PersistsDescription" ;
     bca:signature "WarehouseRequests_CreateRequest_PersistsDescription()" ;
     bca:visibility "public" ;
+    bca:lineCount "26"^^xsd:integer ;
+    bca:complexity "2"^^xsd:integer ;
     bca:sourceLine "18"^^xsd:integer .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_ProcessRequest_MarksRequestProcessed> a bca:Procedure ;
     rdfs:label "WarehouseRequests_ProcessRequest_MarksRequestProcessed" ;
     bca:signature "WarehouseRequests_ProcessRequest_MarksRequestProcessed()" ;
     bca:visibility "public" ;
+    bca:lineCount "29"^^xsd:integer ;
+    bca:complexity "2"^^xsd:integer ;
     bca:sourceLine "46"^^xsd:integer .
 
 <urn:bc-atlas:relation:dcef444346bb9da6> a bca:Relation ;

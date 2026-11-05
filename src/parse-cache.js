@@ -17,7 +17,7 @@ const gunzip = promisify(zlib.gunzip);
 // Parse results depend on the parser and the grammar; a change to either
 // starts over. In the bundled extension the modules are inlined (and the
 // version changes with them), so only the files that exist count.
-const ENGINE_FILES = ["../package.json", "./analyzer.js", "./operation-semantics.js", "./permission-semantics.js", "../vendor/tree-sitter-al.wasm"];
+const ENGINE_FILES = ["../package.json", "./analyzer.js", "./operation-semantics.js", "./permission-semantics.js", "./metadata.js", "../vendor/tree-sitter-al.wasm"];
 let engine;
 function engineFingerprint() {
   if (engine) return engine;

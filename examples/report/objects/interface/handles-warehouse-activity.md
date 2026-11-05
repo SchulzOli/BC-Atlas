@@ -8,11 +8,18 @@ App: "BC Atlas Warehouse Example 1.0.0.0"
 
 # Interface Handles Warehouse Activity
 
+## Overview
+
+| Characteristic | Value |
+| --- | --- |
+| Access | public |
+| Size | 4 lines, 1 procedure (1 public) |
+
 ## Procedures
 
-| Visibility | Procedure header | Attributes |
-| --- | --- | --- |
-| public | `procedure Process()` |  |
+| Visibility | Procedure header | Lines | Complexity | Description |
+| --- | --- | --- | --- | --- |
+| public | `procedure Process()` | 1 |  |  |
 
 ## Dependencies
 

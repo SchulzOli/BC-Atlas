@@ -440,6 +440,40 @@
     <rdfs:comment>The Access property of an object (public or internal).</rdfs:comment>
     <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
   </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#documentation">
+    <rdfs:label>documentation</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>The /// summary comment above an object or procedure.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#obsoleteState">
+    <rdfs:label>obsolete state</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>pending, removed, or moved (ObsoleteState or [Obsolete]).</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#dataClassification">
+    <rdfs:label>data classification</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#pageType">
+    <rdfs:label>page type</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#lineCount">
+    <rdfs:label>line count</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    <rdfs:comment>Source lines of an object or procedure.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#complexity">
+    <rdfs:label>complexity</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
+    <rdfs:comment>Cyclomatic complexity: of a procedure, or the sum over an object's procedures.</rdfs:comment>
+    <rdfs:isDefinedBy rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
+  </owl:DatatypeProperty>
   <owl:DatatypeProperty rdf:about="https://schulzoli.github.io/BC-Atlas/ontology#fieldNumber">
     <rdfs:label>field number</rdfs:label>
     <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>

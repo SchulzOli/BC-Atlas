@@ -439,6 +439,40 @@ bca:access a owl:DatatypeProperty ;
     rdfs:comment "The Access property of an object (public or internal)." ;
     rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
 
+bca:documentation a owl:DatatypeProperty ;
+    rdfs:label "documentation" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The /// summary comment above an object or procedure." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:obsoleteState a owl:DatatypeProperty ;
+    rdfs:label "obsolete state" ;
+    rdfs:range xsd:string ;
+    rdfs:comment "pending, removed, or moved (ObsoleteState or [Obsolete])." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:dataClassification a owl:DatatypeProperty ;
+    rdfs:label "data classification" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:pageType a owl:DatatypeProperty ;
+    rdfs:label "page type" ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:lineCount a owl:DatatypeProperty ;
+    rdfs:label "line count" ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Source lines of an object or procedure." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
+bca:complexity a owl:DatatypeProperty ;
+    rdfs:label "complexity" ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Cyclomatic complexity: of a procedure, or the sum over an object's procedures." ;
+    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
+
 bca:fieldNumber a owl:DatatypeProperty ;
     rdfs:label "field number" ;
     rdfs:range xsd:integer ;

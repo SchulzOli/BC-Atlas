@@ -227,43 +227,100 @@ function elementSections(object) {
   return lines;
 }
 
+const OBSOLETE = { pending: "obsolete (pending)", removed: "obsolete (removed)", moved: "obsolete (moved)" };
+const obsoleteText = (obsolete) => obsolete
+  ? [OBSOLETE[obsolete.state] ?? `obsolete (${obsolete.state})`, obsolete.tag && `tag ${obsolete.tag}`, obsolete.reason].filter(Boolean).join(", ")
+  : undefined;
+
+/** What the object is for and what characterizes it (metadata.js). */
+function overviewSection(object) {
+  const meta = object.metadata;
+  if (!meta) return [];
+  const lines = [];
+  if (meta.documentation) lines.push(meta.documentation, "");
+  if (meta.description && meta.description !== meta.documentation) lines.push(`*${meta.description}*`, "");
+  const size = meta.size ?? {};
+  const count = (value, one, many = `${one}s`) => value && `${value} ${value === 1 ? one : many}`;
+  const sizeText = [
+    count(size.lines, "line"),
+    count(size.fields, "field"),
+    count(size.pageFields, "page field"),
+    count(size.keys, "key"),
+    size.procedures && `${count(size.procedures, "procedure")} (${size.publicProcedures ?? 0} public)`,
+    count(size.triggers, "trigger"),
+    count(size.events, "event"),
+    count(size.actions, "action"),
+    count(size.parts, "part"),
+    count(size.elements, "element"),
+    count(size.globals, "global variable")
+  ].filter(Boolean).join(", ");
+  const rows = [
+    ["Caption", meta.caption && `${meta.caption}${meta.captionComment ? ` (comment: ${meta.captionComment})` : ""}`],
+    ["Access", meta.access],
+    ["Extensible", meta.extensible === undefined ? undefined : meta.extensible ? "yes" : "no"],
+    ["Obsolete", obsoleteText(meta.obsolete)],
+    ["Page type", meta.pageType],
+    ["Table type", meta.tableType],
+    ["Query type", meta.queryType],
+    ["Subtype", meta.subtype],
+    ["Source table", meta.sourceTable && `${meta.sourceTable}${meta.sourceTableTemporary ? " (temporary)" : ""}`],
+    ["Runs on (TableNo)", meta.tableNo],
+    ["Single instance", meta.singleInstance ? "yes" : undefined],
+    ["Data classification", meta.dataClassification],
+    ["Usage category", meta.usageCategory],
+    ["Application area", meta.applicationArea?.join(", ")],
+    ["API", meta.entityName && [meta.apiPublisher, meta.apiGroup, meta.apiVersion, meta.entityName].filter(Boolean).join("/")],
+    ["Permissions", meta.permissions],
+    ["Inherent permissions", meta.inherentPermissions],
+    ["Size", sizeText],
+    ["Complexity", meta.complexity && `${meta.complexity.total} in all, at most ${meta.complexity.max} (${meta.complexity.mostComplex}), ${meta.complexity.average} on average`]
+  ].filter(([, value]) => value !== undefined && value !== "");
+  if (rows.length) lines.push("## Overview", "", ...table(["Characteristic", "Value"], rows));
+  return lines;
+}
+
 function procedureSections(object) {
   const lines = [];
   const globals = (object.variables ?? []).filter(({ global, parameter }) => global && !parameter);
   if (globals.length) {
     lines.push("## Global variables", "", ...table(
-      ["Variable", "Type", "Subtype", "Properties"],
+      ["Variable", "Type", "Subtype"],
       globals.map((variable) => [
         variable.name,
-        variable.type,
-        variable.target,
-        propertyText(variable.properties)
+        `${variable.type ?? ""}${variable.temporary ? " (temporary)" : ""}`,
+        variable.target
       ])
     ));
   }
   const procedures = (object.procedures ?? []).filter(({ kind }) => kind === "procedure");
   if (procedures.length) {
     lines.push("## Procedures", "", ...table(
-      ["Visibility", "Procedure header", "Attributes"],
+      ["Visibility", "Procedure header", "Lines", "Complexity", "Description"],
       procedures.map((procedure) => [
         procedure.visibility,
         `\`${procedure.header}\``,
-        procedure.attributes?.map((attribute) => `\`${attribute}\``).join("<br>")
+        procedure.metadata?.lines,
+        procedure.metadata?.complexity,
+        [
+          procedure.metadata?.documentation,
+          obsoleteText(procedure.metadata?.obsolete),
+          procedure.attributes?.map((attribute) => `\`${attribute}\``).join(" ")
+        ].filter(Boolean).join("<br>")
       ])
     ));
   }
   const triggers = (object.procedures ?? []).filter(({ kind }) => kind === "trigger");
   if (triggers.length) {
     lines.push("## Triggers", "", ...table(
-      ["Trigger", "Attributes"],
-      triggers.map((trigger) => [trigger.header, trigger.attributes?.join("<br>")])
+      ["Trigger", "Lines", "Complexity", "Attributes"],
+      triggers.map((trigger) => [trigger.header, trigger.metadata?.lines, trigger.metadata?.complexity, trigger.attributes?.join("<br>")])
     ));
   }
   const events = (object.procedures ?? []).filter(({ kind }) => kind === "event");
   if (events.length) {
     lines.push("## Events", "", ...table(
-      ["Visibility", "Event header", "Attributes"],
-      events.map((event) => [event.visibility, `\`${event.header}\``, event.attributes?.join("<br>")])
+      ["Visibility", "Event header", "Description", "Attributes"],
+      events.map((event) => [event.visibility, `\`${event.header}\``, event.metadata?.documentation, event.attributes?.join("<br>")])
     ));
   }
   return lines;
@@ -344,13 +401,16 @@ function renderObject(object, currentPath, paths, model, options) {
   const lines = [
     ...propertiesFrontMatter(object),
     `# ${TYPE_LABELS[object.type] ?? object.type} ${object.id ? `${object.id} ` : ""}${object.name}`,
-    ""
+    "",
+    ...overviewSection(object)
   ];
   if (["table", "tableextension"].includes(object.type)) {
     lines.push(...fieldSection(object, currentPath, paths, objectByKey, outgoing));
     lines.push(...keysSection(object));
+    lines.push(...procedureSections(object));
   } else if (["page", "pageextension", "pagecustomization"].includes(object.type)) {
     lines.push(...pageSections(object, currentPath, paths, objectByKey, outgoing));
+    lines.push(...procedureSections(object));
   } else if (["codeunit", "interface"].includes(object.type)) {
     lines.push(...procedureSections(object));
   } else {

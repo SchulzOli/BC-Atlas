@@ -8,6 +8,13 @@ App: "BC Atlas Warehouse Example 1.0.0.0"
 
 # Enum 50102 Warehouse Handler
 
+## Overview
+
+| Characteristic | Value |
+| --- | --- |
+| Access | public |
+| Size | 7 lines, 1 element |
+
 ## Values
 
 | Ordinal | Value | Properties |

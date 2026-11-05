@@ -9,6 +9,7 @@ import {
   COMMENT, DATETIME, INTEGER, LABEL, OBJECT_TYPES, ONTOLOGY, PREFIXES,
   iri, literal, objectClass, relationProperty, term, vocabulary
 } from "./vocabulary.js";
+import { alText } from "../metadata.js";
 
 const DEFAULT_BASE = "urn:bc-atlas:";
 
@@ -113,7 +114,10 @@ export function* knowledgeGraph({ model, assessment, baseIri, title, version, ev
 
   for (const object of objects) {
     const subject = objectIri.get(object.key);
-    const caption = object.properties?.find(({ name }) => name.toLowerCase() === "caption")?.value;
+    const meta = object.metadata ?? {};
+    // Caption without its Comment, Locked, or MaxLength; Access as written (permission sets default to public).
+    const caption = meta.caption ?? alText(object.properties?.find(({ name }) => name.toLowerCase() === "caption")?.value)?.text;
+    const accessProperty = object.properties?.find(({ name }) => name.toLowerCase() === "access")?.value;
     const fields = (object.fields ?? []).map((field) => ({ field, iri: ids.member(subject, "field", field.number ?? field.name) }));
     const fieldIri = new Map(fields.map(({ field, iri: value }) => [String(field.name).toLowerCase(), value]));
     const procedureNames = new Map();
@@ -130,8 +134,14 @@ export function* knowledgeGraph({ model, assessment, baseIri, title, version, ev
       [term("objectType"), text(object.type)],
       [term("objectId"), integer(object.id)],
       [`${PREFIXES.dcterms}identifier`, text(object.key)],
-      [term("caption"), caption ? literal(unquote(caption)) : undefined],
-      [term("access"), text(object.objectAccess)],
+      [term("caption"), caption ? literal(caption) : undefined],
+      [term("access"), text(object.objectAccess ?? (accessProperty ? unquote(accessProperty).toLowerCase() : undefined))],
+      [term("documentation"), text(meta.documentation)],
+      [term("obsoleteState"), text(meta.obsolete?.state)],
+      [term("dataClassification"), text(meta.dataClassification)],
+      [term("pageType"), text(meta.pageType)],
+      [term("lineCount"), integer(meta.size?.lines)],
+      [term("complexity"), integer(meta.complexity?.total)],
       [term("inApp"), object.app?.id ? iri(ids.app(object.app.id)) : undefined],
       [term("inNamespace"), object.namespace ? iri(ids.namespace(object.namespace)) : undefined],
       [term("inComponent"), assignment.has(object.key) ? iri(ids.component(assignment.get(object.key))) : undefined],
@@ -147,6 +157,9 @@ export function* knowledgeGraph({ model, assessment, baseIri, title, version, ev
         [LABEL, text(field.name)],
         [term("fieldNumber"), integer(field.number)],
         [term("dataType"), text(field.type)],
+        [term("caption"), text(field.metadata?.caption)],
+        [term("dataClassification"), text(field.metadata?.dataClassification)],
+        [term("obsoleteState"), text(field.metadata?.obsolete?.state)],
         [term("sourceLine"), integer(field.location?.line)]
       ]);
     }
@@ -162,6 +175,10 @@ export function* knowledgeGraph({ model, assessment, baseIri, title, version, ev
         [LABEL, text(procedure.name)],
         [term("signature"), text(procedure.signature)],
         [term("visibility"), text(procedure.visibility)],
+        [term("documentation"), text(procedure.metadata?.documentation)],
+        [term("obsoleteState"), text(procedure.metadata?.obsolete?.state)],
+        [term("lineCount"), integer(procedure.metadata?.lines)],
+        [term("complexity"), integer(procedure.metadata?.complexity)],
         [term("sourceLine"), integer(procedure.location?.line)]
       ]);
     }

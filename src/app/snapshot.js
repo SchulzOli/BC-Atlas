@@ -23,12 +23,13 @@ function compactDetails(index) {
     details[id] = {
       source: { file: detail.source.file, line: detail.source.line, url: detail.source.url },
       properties: detail.properties.map(({ name, value }) => [name, value]),
+      metadata: detail.metadata,
       uses: detail.uses.map((link) => [ref(link), link.dependency, link.kinds]),
       usedBy: detail.usedBy.map((link) => [ref(link), link.dependency, link.kinds]),
       violations: detail.violations.map(({ rule, target, targetComponent, kinds, resolution }) => ({ rule, target: ref(target), targetComponent, kinds, resolution })),
       members: [
         (members.fields ?? []).map(({ number, name, type }) => [number ?? null, name, type ?? null]),
-        (members.procedures ?? []).map(({ name, signature, visibility, kind, event }) => [signature ?? name, visibility ?? null, kind ?? null, event ? 1 : 0]),
+        (members.procedures ?? []).map(({ name, signature, visibility, kind, event, complexity, lines }) => [signature ?? name, visibility ?? null, kind ?? null, event ? 1 : 0, complexity ?? null, lines ?? null]),
         (members.actions ?? []).map(({ name, container }) => [name, container ?? null]),
         (members.parts ?? []).map(({ name, target }) => [name, target ?? null])
       ]

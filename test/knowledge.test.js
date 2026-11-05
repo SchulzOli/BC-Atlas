@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -191,6 +191,25 @@ test("bca export --view knowledge-graph writes the format of the extension or of
     const wrong = spawnSync(process.execPath, [cli, "export", workspace, "--view", "knowledge-graph", "--format", "svg"], { encoding: "utf8" });
     assert.notEqual(wrong.status, 0);
     assert.match(wrong.stderr, /--view knowledge-graph writes ttl or rdf or owl or nt or jsonld, not svg/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("knowledge graph captions drop their translator comment, and Access comes from the object", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-kg-meta-"));
+  try {
+    writeFileSync(path.join(directory, "app.json"), JSON.stringify({ id: "00000000-0000-0000-0000-0000000000aa", name: "Meta", publisher: "Test", version: "1.0.0.0" }));
+    writeFileSync(path.join(directory, "A.Codeunit.al"), "/// <summary>Does A.</summary>\ncodeunit 50100 \"A\"\n{\n    Caption = 'Sales', Comment = 'translator note';\n    Access = Internal;\n    procedure Run()\n    begin\n        if true then;\n    end;\n}\n");
+    const file = path.join(directory, "atlas.ttl");
+    const result = spawnSync(process.execPath, [cli, "export", directory, "--view", "knowledge-graph", "-o", file], { encoding: "utf8", timeout: 120_000 });
+    assert.equal(result.status, 0, result.stderr);
+    const turtle = readFileSync(file, "utf8");
+    assert.match(turtle, /bca:caption "Sales"/u);
+    assert.doesNotMatch(turtle, /translator note/u);
+    assert.match(turtle, /bca:access "internal"/u);
+    assert.match(turtle, /bca:documentation "Does A\."/u);
+    assert.match(turtle, /bca:complexity "2"\^\^xsd:integer/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
