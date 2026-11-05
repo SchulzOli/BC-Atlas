@@ -646,3 +646,20 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
   assert.equal(set.options.expectedHash.cli, "--expected-hash");
   assert.equal(set.options.dryRun.cli, "--dry-run");
 });
+
+test("every catalog command resolves to a handler, and --version loads no command module", async () => {
+  const { createCapabilities } = await import("../src/capabilities.js");
+  const { loadHandler } = await import("../src/cli/handlers.js");
+  for (const { id } of createCapabilities("0.0.0").commands) {
+    assert.equal(typeof await loadHandler(id, "0.0.0"), "function", id);
+  }
+  await assert.rejects(loadHandler("nope", "0.0.0"), /no handler for command "nope"/u);
+
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const loader = "data:text/javascript," + encodeURIComponent(
+    'import{registerHooks}from"node:module";registerHooks({load(u,c,n){if(/\\/src\\/(commands|docs|analyzer)/.test(u))process.stderr.write("LOADED "+u+"\\n");return n(u,c)}});'
+  );
+  const result = spawnSync(process.execPath, ["--import", loader, cli, "--version"], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.doesNotMatch(result.stderr, /LOADED/u);
+});

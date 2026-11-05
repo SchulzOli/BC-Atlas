@@ -32,6 +32,8 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `bca --version`, help, and usage errors start in about 50 instead of 280 ms:
+  command modules load only when their command runs.
 - Faster 3D explorer and architecture proposal; on a 2,800-object app with a
   Base-Application-sized symbol package, the explorer opens in 0.4 instead of
   2.3 s and a proposal takes 0.4 instead of 1.3 s, with identical results:

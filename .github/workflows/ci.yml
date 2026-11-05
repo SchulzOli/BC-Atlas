@@ -28,6 +28,10 @@ jobs:
         run: |
           npm run examples
           git diff --exit-code -- examples/output examples/report examples/docs examples/explorer examples/knowledge-graph docs/generated/images
+      - name: Vendored 3D explorer bundle matches three and 3d-force-graph
+        run: |
+          npm run update:graph-vendor
+          git diff --exit-code -- vendor/graph-viewer.js
       - run: npm pack --dry-run
       - name: Documentation website builds without dead links
         run: npm run site:build
