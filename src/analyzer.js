@@ -1076,13 +1076,14 @@ function subscriberRelations(procedures) {
   const relations = [];
   for (const procedure of procedures) {
     for (const attribute of procedure.attributes ?? []) {
-      const match = attribute.match(/^\[\s*EventSubscriber\s*\(\s*ObjectType::(Codeunit|Table|Page|Report|XmlPort)\s*,\s*(?:Codeunit|Database|Page|Report|XmlPort)::\s*(?:"((?:""|[^"])*)"|([^,\]\s]+))/iu);
+      const match = attribute.match(/^\[\s*EventSubscriber\s*\(\s*ObjectType::(Codeunit|Table|Page|Report|XmlPort)\s*,\s*(?:Codeunit|Database|Page|Report|XmlPort)::\s*(?:"((?:""|[^"])*)"|([^,\]\s]+))(?:\s*,\s*'((?:''|[^'])*)')?/iu);
       if (!match) continue;
       relations.push({
         target: (match[2] ?? match[3]).replaceAll('""', '"'),
         targetType: match[1].toLowerCase(),
         kind: "subscribes",
         member: procedure.name,
+        ...(match[4] ? { event: match[4].replaceAll("''", "'") } : {}),
         location: procedure.location
       });
     }

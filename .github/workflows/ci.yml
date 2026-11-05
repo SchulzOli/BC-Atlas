@@ -27,7 +27,7 @@ jobs:
       - name: Generated examples are current
         run: |
           npm run examples
-          git diff --exit-code -- examples/output examples/report examples/docs examples/explorer examples/knowledge-graph docs/generated/images
+          git diff --exit-code -- examples/output examples/report examples/handbook examples/docs examples/explorer examples/knowledge-graph docs/generated/images
       - name: Vendored 3D explorer bundle matches three and 3d-force-graph
         run: |
           npm run update:graph-vendor

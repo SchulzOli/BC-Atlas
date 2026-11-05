@@ -22,6 +22,7 @@ export const EXPORTS = Object.freeze([
   ["report", "Markdown report (README.md) with health, diagrams, and an optional object catalog"],
   ["explorer", "Interactive 3D dependency explorer (HTML), replayable over Git history, or its graph as JSON"],
   ["catalog", "One linked Markdown page per AL object"],
+  ["handbook", "System handbook: Markdown pages that explain the system across all objects (events, data, permissions, interfaces, user interface, code health)"],
   ["knowledge-graph", "The analyzed project as RDF with the BC Atlas OWL ontology, for knowledge graphs and triple stores: Turtle, RDF/XML (.rdf, .owl), N-Triples, or JSON-LD"]
 ]);
 // RDF syntaxes of the knowledge-graph export.
@@ -151,20 +152,20 @@ const graphOptions = {
 };
 
 const exportOptions = {
-  view: string("What to write: app, report, explorer, catalog, or a diagram view.", {
+  view: string("What to write: app, report, explorer, catalog, handbook, knowledge-graph, or a diagram view.", {
     group: OUTPUT,
     enum: [...EXPORTS.map(([id]) => id), ...VIEWS.map(([id]) => id)],
     default: "app"
   }),
-  output: string("Output file or folder (default: bc-atlas.html, docs/atlas, bc-atlas-explorer.html, docs/codegraph, bc-atlas.ttl, or bc-atlas-<view>.svg); - writes JSON to stdout.", {
+  output: string("Output file or folder (default: bc-atlas.html, docs/atlas, bc-atlas-explorer.html, docs/codegraph, docs/handbook, bc-atlas.ttl, or bc-atlas-<view>.svg); - writes JSON to stdout.", {
     group: OUTPUT,
     short: "o",
     value: "path"
   }),
-  format: string("app: html; explorer: html or json; report: svg or d2 diagrams; knowledge-graph: ttl, rdf, owl, nt, or jsonld; diagram views: svg, d2, json, png, or pdf. Inferred from the output extension when omitted.", {
+  format: string("app: html; explorer: html or json; report: svg or d2 diagrams; catalog and handbook: md; knowledge-graph: ttl, rdf, owl, nt, or jsonld; diagram views: svg, d2, json, png, or pdf. Inferred from the output extension when omitted.", {
     group: OUTPUT,
     short: "f",
-    enum: ["html", ...FORMATS, ...KNOWLEDGE_FORMATS]
+    enum: ["html", "md", ...FORMATS, ...KNOWLEDGE_FORMATS]
   }),
   baseIri: string("Knowledge graph: base IRI of the exported resources (default urn:bc-atlas:).", { group: OUTPUT, value: "iri" }),
   noEvidence: flag("Knowledge graph: leave out the bca:Relation resources with each relation's file, line, and operations; the direct relation triples stay. About a third of the size.", { group: OUTPUT }),

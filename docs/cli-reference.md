@@ -22,7 +22,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Analyze | `architecture` | Find a target architecture, list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
 | Analyze | `refactor move` | Move an AL object to another component, with its file, namespace, and the usings of referencing files. |
 | Analyze | `refactor surface` | Lock the public surface of components: `Access = Internal` for what nobody outside uses, `exposes` for what others use. |
-| Export | `export` | Write files: the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, a diagram, or the resolved model as JSON. |
+| Export | `export` | Write files: the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, the system handbook, a diagram, or the resolved model as JSON. |
 | Export | `docs list` | List documented UI-test scenarios. |
 | Export | `docs show` | Show one scenario, its prerequisites, and its diagnostics. |
 | Export | `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
@@ -361,6 +361,7 @@ Writes what the VS Code extension shows as files. `--view` selects what:
 | `report` | Markdown report: `README.md` with an at-a-glance table, one section and diagram per view, the health summary, and a regeneration command. See [Architecture reports](./reports.md). | `docs/atlas` | `svg` or `d2` diagrams |
 | `explorer` | The interactive 3D dependency explorer, or its graph document. See [Dependency explorer](./dependency-explorer.md). | `bc-atlas-explorer.html` | `html` or `json` |
 | `catalog` | One linked Markdown page per AL object. See [Code Graph](./code-graph-markdown-design.md). | `docs/codegraph` | Markdown |
+| `handbook` | System handbook: pages that explain the system across all objects (events, data, permissions, interfaces, user interface, code health). See [System handbook](./handbook.md). | `docs/handbook` | Markdown |
 | `knowledge-graph` | The project as RDF with the BC Atlas OWL ontology, for triple stores, graph databases, and ontology editors. See [Knowledge graph](./knowledge-graph.md). | `bc-atlas.ttl` | `ttl`, `rdf`, `owl` (RDF/XML), `nt`, `jsonld` |
 | `project`, `module`, `object`, `data`, `call`, `boundary`, `contracts`, `events`, `ui`, `workflow` | One diagram view, or its resolved model as JSON. See [Architecture diagrams](./architecture-diagrams.md). | `bc-atlas-<view>.svg` | `svg`, `d2`, `json`, `png`, `pdf` |
 
@@ -373,6 +374,7 @@ bca export ./app --view module -o modules.svg
 bca export ./app --view workflow --entry ProcessDocument -o workflow.svg --watch
 bca export ./app --view project --format json > model.json
 bca export ./app --view catalog -o docs/codegraph
+bca export ./app --view handbook -o docs/handbook
 bca export ./app --view knowledge-graph -o atlas.owl
 ```
 
@@ -380,7 +382,7 @@ bca export ./app --view knowledge-graph -o atlas.owl
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--view` | what | `app`, `report`, `explorer`, `catalog`, `knowledge-graph`, or a diagram view. Default: `app`. |
+| `--view` | what | `app`, `report`, `explorer`, `catalog`, `handbook`, `knowledge-graph`, or a diagram view. Default: `app`. |
 | `-o`, `--output` | path | Output file or folder (defaults above). `-` writes JSON to stdout. |
 | `-f`, `--format` | format | `html`, `d2`, `json`, `svg`, `png`, or `pdf`, as the view allows; `ttl`, `rdf`, `owl`, `nt`, or `jsonld` for the knowledge graph. Inferred from the output extension when omitted. |
 | `--base-iri` | IRI | Knowledge graph: base IRI of the exported resources. Default: `urn:bc-atlas:`. |

@@ -75,7 +75,7 @@ export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24, l
     // Parse results and diagram layouts by content: a run after a small
     // change parses and lays out only what changed (docs/automation-and-ci.md).
     "      - name: Cache BC Atlas analysis",
-    "        uses: actions/cache@v4",
+    "        uses: actions/cache@v6",
     "        with:",
     "          path: ${{ runner.temp }}/bc-atlas-cache",
     "          key: bc-atlas-${{ runner.os }}-${{ github.sha }}",
