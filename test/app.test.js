@@ -23,6 +23,33 @@ function copyWorkspace({ architecture = true } = {}) {
   return directory;
 }
 
+function deepFreeze(value, seen = new Set()) {
+  if (!value || typeof value !== "object" || seen.has(value)) return value;
+  seen.add(value);
+  for (const key of Reflect.ownKeys(value)) deepFreeze(value[key], seen);
+  return Object.freeze(value);
+}
+
+// The architecture pages and the explorer share the one resolved model
+// instead of copying it; a write to it would throw here (modules are strict).
+test("the architecture pages and the 3D explorer only read the shared model", async () => {
+  for (const architecture of [true, false]) {
+    const directory = copyWorkspace({ architecture });
+    try {
+      const shared = new Workspace(directory);
+      deepFreeze((await shared.model()).model);
+      await shared.overview();
+      await shared.architecture();
+      await shared.architecture({ propose: true });
+      await shared.components({ propose: true });
+      assert.match(await shared.explorer(), /<html/iu);
+      assert.match(await shared.explorer({ propose: true }), /<html/iu);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }
+});
+
 test("the service answers every page from one analysis", async () => {
   const service = createService(new Workspace(workspace));
   const overview = await service.call("overview");

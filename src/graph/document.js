@@ -4,6 +4,7 @@ import { analyze } from "../analyzer.js";
 import { analyzeProject, mergeArchitectureOptions, positiveInteger } from "../architecture.js";
 import { loadConfig } from "../config.js";
 import { resolveModel } from "../resolver.js";
+import { alOptions } from "../al/index.js";
 import { loadProjectSymbols } from "../symbols.js";
 import { objectFilter, pathMatcher } from "../views.js";
 import { findLens } from "./lenses/index.js";
@@ -54,8 +55,9 @@ function addClusters(levels, weights) {
       clusters.set(`${owner}|all`, { label, alternatives: [], owner: label, size: nodes.length });
       continue;
     }
+    const byId = new Map(nodes.map((node) => [node.id, node]));
     for (const [id, cluster] of clusterByRelations(nodes, levels, weights, { prefix: `${owner}|` })) {
-      const node = nodes.find((candidate) => candidate.id === id);
+      const node = byId.get(id);
       node.cluster = cluster.key;
       const entry = clusters.get(cluster.key) ?? {
         label: cluster.label,
@@ -88,7 +90,7 @@ function addClusters(levels, weights) {
  * Creates a temporal graph document for one lens: object and app levels with
  * metrics, plus one frame per sampled commit when `history` is set.
  */
-export async function createGraphDocument(input, values = {}, { onFrame, parseCache: snapshotCache } = {}) {
+export async function createGraphDocument(input, values = {}, { onFrame, parseCache: snapshotCache, model: resolvedModel } = {}) {
   const config = await loadConfig(values.projectRoot ?? input, values.config);
   const options = mergeArchitectureOptions(config.values, values);
   // A single AL file is analyzed as the focus of its folder.
@@ -103,13 +105,20 @@ export async function createGraphDocument(input, values = {}, { onFrame, parseCa
   const paths = [options.paths ?? []].flat().filter(Boolean);
   const fileFilter = paths.length ? pathMatcher(paths) : undefined;
   const parseCache = new Map();
-  const symbols = await loadProjectSymbols(projectRoot);
+  // Symbols for the timeline's source-level frames, loaded once when needed.
+  const al = alOptions(options);
+  let loadedSymbols;
+  const symbols = () => (loadedSymbols ??= loadProjectSymbols(projectRoot, {
+    workspaceFile: al.workspaceFile, settings: al.settings, editorSettings: al.editorSettings
+  }));
   // A snapshot goes through the AL compiler when it is available. A timeline
   // stays source-level throughout so frames compare like with like.
   const compiled = !(options.history || options.historyBy);
+  // `model`: the resolved model of this project, already analyzed by the
+  // caller (the app) with the same options; lenses do not change it.
   const graph = async (root) => lens.build(compiled && root === projectRoot
-    ? await analyzeProject(projectRoot, options, { fileFilter, parseCache: snapshotCache })
-    : resolveModel(await analyze(root, { parseCache, symbols, fileFilter })), { filter });
+    ? resolvedModel ?? await analyzeProject(projectRoot, options, { fileFilter, parseCache: snapshotCache })
+    : resolveModel(await analyze(root, { parseCache, symbols: await symbols(), fileFilter })), { filter });
 
   // The target architecture: from .bca.json, or proposed from the current
   // source. Every frame is checked against the same one.

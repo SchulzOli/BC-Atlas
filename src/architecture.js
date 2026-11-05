@@ -36,7 +36,7 @@ export function mergeArchitectureOptions(config, values) {
  */
 export async function analyzeProject(projectRoot, options = {}, { fileFilter, parseCache, onProgress, onAlUpdate } = {}) {
   const al = alOptions(options);
-  const model = await analyze(projectRoot, { fileFilter, parseCache, al: { workspaceFile: al.workspaceFile, settings: al.settings } });
+  const model = await analyze(projectRoot, { fileFilter, parseCache, al: { workspaceFile: al.workspaceFile, settings: al.settings, editorSettings: al.editorSettings } });
   await applyAlResults(model, await loadAlResults(projectRoot, options, { onProgress, onUpdate: onAlUpdate }));
   return resolveModel(model);
 }

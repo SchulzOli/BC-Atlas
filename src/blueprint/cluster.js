@@ -18,6 +18,7 @@ import Graph from "graphology";
 import louvain from "graphology-communities-louvain";
 import { coupling } from "../graph/coupling.js";
 import { compileSelector, componentMatcher, selectorContext } from "./components.js";
+import { normalizeIdentifier } from "../resolver.js";
 
 // Permission sets grant access to everything; they never decide where an object belongs.
 export const shapes = (edge) => Object.keys(edge.kinds ?? {}).some((kind) => !["permits", "includes"].includes(kind));
@@ -573,12 +574,29 @@ export function deriveSelectors(nodes, assignment, groups, levels, outer) {
   // A selector gets its app or module in front only when it would match objects elsewhere too.
   const context = selectorContext(levels);
   const scopes = new Map();
+  // Nodes by normalized label and object ID, for object: selectors, which
+  // fixUp adds one per misplaced object; testing each against every node of
+  // the model (symbols included) was quadratic.
+  let named;
+  const candidatesFor = (matches) => {
+    if (!matches.object) return levels.object.nodes;
+    if (!named) {
+      named = new Map();
+      for (const other of levels.object.nodes) {
+        for (const value of new Set([other.label, other.objectId].filter(Boolean).map(normalizeIdentifier))) {
+          if (!named.has(value)) named.set(value, []);
+          named.get(value).push(other);
+        }
+      }
+    }
+    return named.get(matches.object.name) ?? [];
+  };
   const scoped = (node, selector) => {
     const { key, selector: prefix } = outer(node);
     const id = `${key}\u0000${selector}`;
     if (!scopes.has(id)) {
       const matches = compileSelector(selector, context);
-      const foreign = levels.object.nodes.some((other) => matches(other) && (other.origin !== "workspace" || outer(other).key !== key));
+      const foreign = candidatesFor(matches).some((other) => matches(other) && (other.origin !== "workspace" || outer(other).key !== key));
       scopes.set(id, foreign ? `${prefix} & ${selector}` : selector);
     }
     return scopes.get(id);

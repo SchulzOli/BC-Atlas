@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -79,7 +79,19 @@ test("reads AL settings like the AL Language extension: folder over workspace, p
     assert.deepEqual(dependencyOrder([sales, core]).map(({ relative }) => relative), ["core", "sales"]);
 
     const editor = await readAlWorkspace(workspace, { settings: { packageCachePath: "./cache" } });
-    assert.deepEqual(editor.apps[1].settings.packageCachePaths, [path.join(workspace, "sales", "cache")], "editor settings override every layer");
+    assert.deepEqual(editor.apps[1].settings.packageCachePaths, [path.join(workspace, "sales", "cache")], "explicit settings override every layer");
+
+    // Editor settings rank below a project's own .vscode/settings.json, as in VS Code.
+    const layered = await readAlWorkspace(workspace, { editorSettings: {
+      user: { packageCachePath: "./user-cache", assemblyProbingPaths: ["./dotnet"] },
+      workspaceFolder: { ruleSetPath: "editor.json", codeAnalyzers: ["${UICop}"] }
+    } });
+    const [layeredCore, layeredSales] = layered.apps;
+    assert.deepEqual(layeredCore.settings.packageCachePaths, core.settings.packageCachePaths, "the workspace file wins over user settings");
+    assert.deepEqual(layeredCore.settings.assemblyProbingPaths, [path.join(workspace, "core", "dotnet")], "user settings fill what nothing else sets");
+    assert.deepEqual(layeredCore.settings.codeAnalyzers, ["${UICop}"], "the editor's folder settings win over the workspace file");
+    assert.equal(layeredSales.settings.ruleSetPath, path.join(workspace, "sales", "ruleset.json"), "a project's own settings win over the editor");
+    assert.deepEqual(layeredSales.settings.codeAnalyzers, ["${CodeCop}", "${UICop}"]);
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
@@ -102,6 +114,32 @@ test("loads symbols from configured package caches and each app version once", a
     rmSync(path.join(workspace, "app", ".alpackages"), { recursive: true });
     const configured = await analyze(path.join(workspace, "app"));
     assert.equal(configured.symbolPackages.length, 1, "al.packageCachePath outside the project");
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("symbol packages are parsed once and handed out as independent copies", async () => {
+  const workspace = temp("symbol-cache");
+  try {
+    write(path.join(workspace, "app", "app.json"), JSON.stringify({ id: "a", name: "App" }));
+    const file = path.join(workspace, "app", ".alpackages", "Microsoft_Base Application_27.0.0.0.app");
+    symbolPackage(file, { id: "437dbf0e-84ff-417a-965d-ed2bb9650972", name: "Base Application", version: "27.0.0.0" });
+    const first = await loadSymbolPackages(path.join(workspace, "app"));
+    first.objects[0].name = "Changed";
+    first.objects[0].relations.push({ kind: "uses" });
+    first.packages[0].name = "Changed";
+    const second = await loadSymbolPackages(path.join(workspace, "app"));
+    assert.equal(second.objects[0].name, "Customer", "a caller's change does not reach the cache");
+    assert.deepEqual(second.objects[0].relations, []);
+    assert.equal(second.packages[0].name, "Base Application");
+    assert.equal(second.objects[0].app, second.packages[0], "objects point to their package's app");
+    assert.notEqual(second.objects[0], first.objects[0]);
+
+    // A new download (other size or time) is parsed again.
+    symbolPackage(file, { id: "437dbf0e-84ff-417a-965d-ed2bb9650972", name: "Base Application", version: "28.0.0.0" });
+    utimesSync(file, new Date(), new Date(Date.now() + 5000));
+    assert.equal((await loadSymbolPackages(path.join(workspace, "app"))).packages[0].version, "28.0.0.0");
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
@@ -442,4 +480,131 @@ test("health reports omit absent architecture origin and keep Markdown evidence 
   assert.match(markdown, /Primary location: `a\\\|b\.al:2`/u);
   assert.match(markdown, /Limitations: x \\\| y/u);
   assert.match(markdown, /\| \| \| 1 more finding\(s\) \| \|/u);
+});
+
+// A stand-in for alc: records its arguments and, like alc, fails with AL1018
+// on a missing directory and with an error on a missing rule set or analyzer.
+function fakeAlc(folder) {
+  const argsFile = path.join(folder, "args.json");
+  const script = path.join(folder, "alc.cjs");
+  writeFileSync(script, `
+    const fs = require("node:fs");
+    const args = process.argv.slice(2);
+    fs.writeFileSync(${JSON.stringify(argsFile)}, JSON.stringify(args));
+    const values = (name) => args.filter((arg) => arg.startsWith("/" + name + ":"))
+      .flatMap((arg) => arg.slice(name.length + 2).split(";"));
+    const issues = [
+      ...values("packagecachepath").concat(values("assemblyprobingpaths")).filter((dir) => !fs.existsSync(dir))
+        .map((dir) => ({ ruleId: "AL1018", fullMessage: "Directory '" + dir + "' could not be found.", properties: { severity: "Error" } })),
+      ...values("ruleset").concat(values("analyzer")).filter((file) => !fs.existsSync(file))
+        .map((file) => ({ ruleId: "AL1000", fullMessage: "File '" + file + "' could not be found.", properties: { severity: "Error" } })),
+      ...(values("packagecachepath").some((dir) => fs.existsSync(dir) && fs.readdirSync(dir).some((name) => name.endsWith(".app")))
+        ? [] : [{ ruleId: "AL1022", fullMessage: "A package with publisher 'Microsoft' could not be found.", properties: { severity: "Error" } }])
+    ];
+    const log = values("errorlog")[0];
+    fs.writeFileSync(log, JSON.stringify({ issues }));
+    process.exit(issues.length ? 1 : 0);
+  `);
+  return {
+    toolchain: { source: "config", location: script, alc: { command: process.execPath, args: [script] } },
+    args: () => JSON.parse(readFileSync(argsFile, "utf8"))
+  };
+}
+
+async function withAlCache(folder, run) {
+  const cache = process.env.BCA_CACHE_DIR;
+  process.env.BCA_CACHE_DIR = path.join(folder, "cache");
+  try {
+    return await run();
+  } finally {
+    if (cache === undefined) delete process.env.BCA_CACHE_DIR;
+    else process.env.BCA_CACHE_DIR = cache;
+  }
+}
+
+function alProject(folder) {
+  const app = path.join(folder, "app");
+  cpSync(example, app, { recursive: true });
+  mkdirSync(path.join(app, ".alpackages"), { recursive: true });
+  writeFileSync(path.join(app, ".alpackages", "Microsoft_System_27.0.0.0.app"), "");
+  return app;
+}
+
+test("alc only receives probing and package folders that exist (AL1018)", async () => {
+  const folder = temp("probing");
+  await withAlCache(folder, async () => {
+    const app = alProject(folder);
+    mkdirSync(path.join(app, "dotnet"));
+    const alc = fakeAlc(folder);
+    const result = await runAlTools(app, {
+      toolchain: alc.toolchain,
+      graph: false,
+      cache: false,
+      al: { settings: { assemblyProbingPaths: ["./.netpackages", "./dotnet"], packageCachePath: ["./.alpackages", "./missing"] } }
+    });
+    const args = alc.args();
+    assert.deepEqual(result.diagnostics, []);
+    assert.ok(result.projects.every(({ succeeded }) => succeeded));
+    assert.ok(args.some((arg) => arg === `/assemblyprobingpaths:${path.join(app, "dotnet")}`), args.join(" "));
+    assert.ok(!args.some((arg) => arg.includes(".netpackages") || arg.includes("missing")), args.join(" "));
+  });
+});
+
+test("a missing rule set or analyzer is reported and left out instead of stopping alc", async () => {
+  const folder = temp("ruleset");
+  await withAlCache(folder, async () => {
+    const app = alProject(folder);
+    writeFileSync(path.join(app, "present.dll"), "");
+    const alc = fakeAlc(folder);
+    const result = await runAlTools(app, {
+      toolchain: alc.toolchain,
+      graph: false,
+      cache: false,
+      al: { settings: { ruleSetPath: "./missing.ruleset.json", enableCodeAnalysis: true, codeAnalyzers: ["./present.dll", "./absent.dll"] } }
+    });
+    const args = alc.args();
+    assert.ok(result.projects.every(({ succeeded }) => succeeded));
+    assert.deepEqual(result.diagnostics.map(({ code, severity }) => `${severity} ${code}`).sort(), [
+      "warning al-analyzer-missing",
+      "warning al-ruleset-missing"
+    ]);
+    assert.match(result.diagnostics.find(({ code }) => code === "al-ruleset-missing").message, /missing\.ruleset\.json does not exist; compiled with the default rules/u);
+    assert.ok(args.includes(`/analyzer:${path.join(app, "present.dll")}`), args.join(" "));
+    assert.ok(!args.some((arg) => arg.startsWith("/ruleset:") || arg.includes("absent.dll")), args.join(" "));
+  });
+});
+
+test("a compile without any symbol packages explains how to get them", async () => {
+  const folder = temp("symbols");
+  await withAlCache(folder, async () => {
+    const app = path.join(folder, "app");
+    cpSync(example, app, { recursive: true });
+    rmSync(path.join(app, ".alpackages"), { recursive: true, force: true });
+    const result = await runAlTools(app, { toolchain: fakeAlc(folder).toolchain, graph: false, cache: false });
+    const hint = result.diagnostics.find(({ code }) => code === "al-symbols-missing");
+    assert.ok(hint, JSON.stringify(result.diagnostics));
+    assert.equal(hint.file, "app.json");
+    assert.match(hint.message, /no symbol packages were found \(\.alpackages\).*AL: Download Symbols/u);
+  });
+});
+
+test("VS Code variables in al.* settings resolve against the folder that sets them", async () => {
+  const folder = temp("variables");
+  const root = path.join(folder, "repo");
+  const app = path.join(root, "app");
+  mkdirSync(path.join(root, ".vscode"), { recursive: true });
+  mkdirSync(path.join(app, ".vscode"), { recursive: true });
+  writeFileSync(path.join(app, "app.json"), JSON.stringify({ id: "1", name: "App", publisher: "Me", version: "1.0.0.0" }));
+  writeFileSync(path.join(root, ".vscode", "settings.json"), JSON.stringify({ "al.packageCachePath": "${workspaceFolder}/symbols" }));
+  writeFileSync(path.join(app, ".vscode", "settings.json"), JSON.stringify({ "al.ruleSetPath": "${workspaceFolder}/rules.json" }));
+  let workspace = await readAlWorkspace(root);
+  assert.deepEqual(workspace.apps[0].settings.packageCachePaths, [path.join(root, "symbols")]);
+  assert.equal(workspace.apps[0].settings.ruleSetPath, path.join(app, "rules.json"));
+  process.env.BCA_TEST_PROBE = path.join(folder, "probe");
+  try {
+    workspace = await readAlWorkspace(root, { settings: { assemblyProbingPaths: ["~/probe", "${env:BCA_TEST_PROBE}/x"] } });
+  } finally {
+    delete process.env.BCA_TEST_PROBE;
+  }
+  assert.deepEqual(workspace.apps[0].settings.assemblyProbingPaths, [path.join(os.homedir(), "probe"), path.join(folder, "probe", "x")]);
 });

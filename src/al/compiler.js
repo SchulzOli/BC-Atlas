@@ -17,7 +17,7 @@ import { analyzerPaths, describeToolchain, runTool } from "./toolchain.js";
 
 const SEVERITY = { error: "error", warning: "warning", info: "info", information: "info" };
 const COPY_SKIPPED = new Set([".git", "node_modules", ".alpackages", ".alcache", ".snapshots", ".bca", "dist", "out", ".output"]);
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 function toPosix(value) {
   return value.replaceAll("\\", "/");
@@ -147,38 +147,84 @@ function cacheFolder(root) {
   return path.join(process.env.BCA_CACHE_DIR ?? path.join(os.tmpdir(), "bc-atlas"), "al", hash(path.resolve(root)).slice(0, 16));
 }
 
+async function isFile(file) {
+  return fs.stat(file).then((stat) => stat.isFile(), () => false);
+}
+
+/**
+ * The analyzers and rule set one project asks for, each with whether it
+ * exists. alc stops on a missing one, so a missing one is left out of the
+ * call and reported instead; the result is part of the cache key.
+ */
+async function projectInputs(app, { toolchain, analyzers }) {
+  const settings = app.settings;
+  const names = analyzers ?? (settings.enableCodeAnalysis ? settings.codeAnalyzers : []);
+  let analyzerFiles = [];
+  let analyzerError;
+  try {
+    analyzerFiles = names.length ? analyzerPaths(names, toolchain, app.folder) : [];
+  } catch (error) {
+    analyzerError = error.message;
+  }
+  return {
+    analyzers: await Promise.all(analyzerFiles.map(async (file) => ({ file, exists: await isFile(file) }))),
+    analyzerError,
+    ruleSet: settings.ruleSetPath
+      ? { file: settings.ruleSetPath, exists: await isFile(settings.ruleSetPath) }
+      : undefined
+  };
+}
+
 /** Compiles one project with alc; returns its diagnostics and whether it produced an app. */
-async function compileProject(app, { toolchain, copyRoot, root, output, caches, analyzers, log }) {
+async function compileProject(app, { toolchain, copyRoot, root, output, caches, inputs, log }) {
   const copy = path.join(copyRoot, app.relative);
   const errorLog = path.join(log, `${hash(app.folder).slice(0, 12)}.errorLog.json`);
   const settings = app.settings;
+  const manifestFile = toPosix(path.join(app.relative, "app.json"));
+  const name = app.manifest.name ?? app.relative;
+  const notes = [];
+  const note = (code, message) => notes.push({ severity: "warning", code, message, file: manifestFile, origin: "al" });
+  const symbolFolders = settings.packageCachePaths.filter((folder) => caches.has(folder));
   const args = [
     `/project:${copy}`,
-    `/packagecachepath:${[...settings.packageCachePaths.filter((folder) => caches.has(folder)), output].join(";")}`,
+    `/packagecachepath:${[...symbolFolders, output].join(";")}`,
     `/outfolder:${output}`,
     `/errorlog:${errorLog}`,
     "/generatereportlayout-"
   ];
-  const analyzerList = analyzers ?? (settings.enableCodeAnalysis ? settings.codeAnalyzers : []);
-  if (analyzerList.length) args.push(`/analyzer:${analyzerPaths(analyzerList, toolchain, app.folder).join(";")}`);
-  if (settings.ruleSetPath) args.push(`/ruleset:${settings.ruleSetPath}`);
-  if (settings.assemblyProbingPaths.length) args.push(`/assemblyprobingpaths:${settings.assemblyProbingPaths.join(";")}`);
+  if (inputs.analyzerError) note("al-analyzer-missing", `${name}: code analysis skipped, ${inputs.analyzerError}`);
+  for (const { file } of inputs.analyzers.filter(({ exists }) => !exists)) {
+    note("al-analyzer-missing", `${name}: the analyzer ${file} does not exist; compiled without it. Check al.codeAnalyzers.`);
+  }
+  const analyzerFiles = inputs.analyzers.filter(({ exists }) => exists).map(({ file }) => file);
+  if (analyzerFiles.length) args.push(`/analyzer:${analyzerFiles.join(";")}`);
+  if (inputs.ruleSet?.exists) args.push(`/ruleset:${inputs.ruleSet.file}`);
+  else if (inputs.ruleSet) {
+    note("al-ruleset-missing", `${name}: the rule set ${inputs.ruleSet.file} does not exist; compiled with the default rules. Check al.ruleSetPath.`);
+  }
+  // alc stops with AL1018 ("Directory could not be found") on a missing
+  // folder; VS Code reports the AL default ./.netpackages even when it is absent.
+  const probingPaths = settings.assemblyProbingPaths.filter((folder) => caches.has(folder));
+  if (probingPaths.length) args.push(`/assemblyprobingpaths:${probingPaths.join(";")}`);
   const started = Date.now();
   const result = await runTool(toolchain.alc, args, { cwd: copy });
-  let diagnostics = [];
+  if (result.code !== 0 && !symbolFolders.length) {
+    note("al-symbols-missing", `${name}: no symbol packages were found (${settings.packageCachePaths.map((folder) => toPosix(path.relative(root, folder)) || ".").join(", ")}), so the compiler cannot resolve the base application. Run "AL: Download Symbols" or set al.packageCachePath.`);
+  }
+  let diagnostics = [...notes];
   try {
     const logContent = JSON.parse((await fs.readFile(errorLog, "utf8")).replace(/^﻿/u, ""));
-    diagnostics = parseErrorLog(logContent, {
+    diagnostics = [...notes, ...parseErrorLog(logContent, {
       root,
       mapPath: (file) => path.join(root, path.relative(copyRoot, path.resolve(copy, file)))
-    });
+    })];
   } catch {
     if (result.code !== 0) {
       diagnostics.push({
         severity: "error",
         code: "al-compiler-failed",
-        message: `The AL compiler could not compile ${app.manifest.name ?? app.relative}: ${(result.stderr || result.stdout).trim().split(/\r?\n/u).slice(-3).join(" ")}`,
-        file: toPosix(path.join(app.relative, "app.json")),
+        message: `The AL compiler could not compile ${name}: ${(result.stderr || result.stdout).trim().split(/\r?\n/u).slice(-3).join(" ")}`,
+        file: manifestFile,
         origin: "al"
       });
     }
@@ -267,14 +313,18 @@ export async function runAlTools(root, { toolchain, al, analyzers, graph = true,
   const files = await fingerprintFiles(workspace);
   const caches = new Set();
   for (const app of workspace.apps) {
-    for (const folder of app.settings.packageCachePaths) {
+    for (const folder of [...app.settings.packageCachePaths, ...app.settings.assemblyProbingPaths]) {
       if (await fs.stat(folder).then((stat) => stat.isDirectory(), () => false)) caches.add(folder);
     }
   }
+  const inputs = new Map();
+  for (const app of workspace.apps) inputs.set(app, await projectInputs(app, { toolchain, analyzers }));
   const key = hash(JSON.stringify({
     version: CACHE_VERSION,
     files,
+    inputs: [...inputs.values()],
     settings: workspace.apps.map(({ relative, settings, manifest }) => ({ relative, settings, manifest })),
+    folders: [...caches].sort(),
     packages: await packageFingerprint([...caches]),
     tool: [toolchain.source, toolchain.location, toolchain.version],
     analyzers,
@@ -300,7 +350,7 @@ export async function runAlTools(root, { toolchain, al, analyzers, graph = true,
 
   const projects = [];
   for (const app of dependencyOrder(workspace.apps)) {
-    projects.push(await compileProject(app, { toolchain, copyRoot, root: absoluteRoot, output, caches, analyzers, log }));
+    projects.push(await compileProject(app, { toolchain, copyRoot, root: absoluteRoot, output, caches, inputs: inputs.get(app), log }));
   }
 
   let callGraph;

@@ -80,3 +80,31 @@ test("builds page addresses and export arguments", () => {
   const graph = logic.EXPORTS.find(({ view }) => view === "knowledge-graph");
   assert.deepEqual(Object.values(graph.filters).flat(), ["ttl", "owl", "rdf", "nt", "jsonld"]);
 });
+
+test("resolves ${workspaceFolder} in al.* settings to the VS Code workspace folder", () => {
+  const folder = path.resolve("/work");
+  assert.equal(logic.expandWorkspaceFolder("${workspaceFolder}/.alpackages", folder), `${folder}/.alpackages`);
+  assert.deepEqual(logic.expandWorkspaceFolder(["${workspaceRoot}/a", "${CodeCop}"], folder), [`${folder}/a`, "${CodeCop}"]);
+  assert.equal(logic.expandWorkspaceFolder("${workspaceFolder}/x", undefined), "${workspaceFolder}/x");
+  assert.equal(logic.expandWorkspaceFolder(true, folder), true);
+});
+
+test("passes only al.* settings someone set, by layer, without the AL defaults", () => {
+  const folder = path.resolve("/work");
+  const values = {
+    packageCachePath: { defaultValue: "./.alpackages", workspaceFolderValue: "${workspaceFolder}/symbols" },
+    assemblyProbingPaths: { defaultValue: ["./.netpackages"] },
+    codeAnalyzers: { defaultValue: [], globalValue: ["${CodeCop}"] },
+    enableCodeAnalysis: { defaultValue: false, workspaceValue: true },
+    ruleSetPath: { defaultValue: "", workspaceValue: "${workspaceFolder}/rules.json" }
+  };
+  assert.deepEqual(logic.editorAlSettings((key) => values[key], { workspaceFolder: folder }), {
+    user: { codeAnalyzers: ["${CodeCop}"] },
+    workspace: { enableCodeAnalysis: true, ruleSetPath: `${folder}/rules.json` },
+    workspaceFolder: { packageCachePath: `${folder}/symbols` }
+  });
+  // In a multi-root workspace, ${workspaceFolder} in the .code-workspace is resolved per project by the engine.
+  assert.equal(logic.editorAlSettings((key) => values[key], { workspaceFolder: folder, multiRoot: true }).workspace.ruleSetPath,
+    "${workspaceFolder}/rules.json");
+  assert.deepEqual(logic.editorAlSettings(() => undefined), {});
+});

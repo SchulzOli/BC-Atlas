@@ -125,8 +125,12 @@ function compileSingle(selector, { apps, modules, componentOf, layerOf }) {
   if (kind === "object") {
     const [type, identity] = value.includes(":") ? value.split(/:(.*)/su, 2) : [undefined, value];
     const name = normalizeIdentifier(identity);
-    return (node) => (!type || node.type === type.toLowerCase()) &&
+    const objectType = type?.toLowerCase();
+    const matcher = (node) => (!objectType || node.type === objectType) &&
       [node.label, node.objectId].filter(Boolean).some((candidate) => normalizeIdentifier(candidate) === name) && 1000;
+    // Lets componentAssigner and deriveSelectors look these up by name instead of testing every node.
+    matcher.object = { type: objectType, name };
+    return matcher;
   }
   throw new Error(`Unsupported selector kind "${kind}"; use namespace, folder, file, app, module, type, object, or id${componentOf ? ", component, or layer" : ""}`);
 }
@@ -179,18 +183,38 @@ export function componentAssigner(components, levels) {
       }
     }
   }
+  // object: selectors are looked up by name (a proposal has hundreds of them);
+  // the rest are tested in order. The first selector with the highest score wins.
+  const byName = new Map();
+  const general = [];
+  let order = 0;
+  for (const { name, selectors, matchers } of compiled) {
+    matchers.forEach((matcher, index) => {
+      const entry = { component: name, selector: selectors[index], matcher, order: order++ };
+      if (matcher.object) {
+        if (!byName.has(matcher.object.name)) byName.set(matcher.object.name, []);
+        byName.get(matcher.object.name).push(entry);
+      } else {
+        general.push(entry);
+      }
+    });
+  }
   return (node) => {
     let best;
     let bestScore = 0;
-    for (const { name, selectors, matchers } of compiled) {
-      matchers.forEach((matcher, index) => {
-        const score = matcher(node) || 0;
-        if (score > bestScore) {
-          best = { component: name, selector: selectors[index] };
-          bestScore = score;
-        }
-      });
+    let bestOrder = Infinity;
+    const consider = (entry) => {
+      const score = entry.matcher(node) || 0;
+      if (score > bestScore || (score === bestScore && score > 0 && entry.order < bestOrder)) {
+        best = entry;
+        bestScore = score;
+        bestOrder = entry.order;
+      }
+    };
+    for (const candidate of new Set([node.label, node.objectId].filter(Boolean).map(normalizeIdentifier))) {
+      for (const entry of byName.get(candidate) ?? []) consider(entry);
     }
-    return best;
+    for (const entry of general) consider(entry);
+    return best && { component: best.component, selector: best.selector };
   };
 }
