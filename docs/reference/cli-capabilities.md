@@ -25,6 +25,7 @@ Gate CI on architecture health and keep a target architecture in place.
 | Command | Invocation | Purpose |
 | --- | --- | --- |
 | `check` | `bca check [app-root]` | Score architecture health and fail CI on cycles, policy violations, or diagnostics. |
+| `graph.query` | `bca graph query <graph.json>` | Query a saved Atlas graph or nodes/edges snapshot without analyzing AL; retain IDs and evidence as reusable JSON. |
 | `architecture` | `bca architecture [app-root]` | Find a target architecture (components, layers, allowed dependencies), list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
 | `refactor.move` | `bca refactor move [app-root]` | Move an AL object to another component: its file goes to the component's folder (cut out of a shared file), its namespace becomes the component's, and referencing files get the using they need. |
 | `refactor.surface` | `bca refactor surface [app-root]` | Lock the public surface of components: objects no other component uses get Access = Internal, and .bca.json lists what others use in exposes. |
@@ -35,6 +36,7 @@ Write what the app shows as files, and user guides from AL UI tests.
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
+| `graph.render` | `bca graph render <graph.json>` | Render a saved graph selection as local SVG/HTML, Graphviz DOT, or reusable JSON without analyzing AL. |
 | `export` | `bca export [app-root]` | Write files: the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view. |
 | `docs.list` | `bca docs list <test-root>` | List documented UI-test scenarios. |
 | `docs.show` | `bca docs show <test-root>` | Show one scenario, its prerequisites, and its diagnostics. |

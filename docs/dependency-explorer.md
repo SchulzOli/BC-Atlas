@@ -249,6 +249,68 @@ Use it for your own scripts or other graph tools.
 `[first frame, end frame]` pairs; `null` means it still exists. `changes`
 lists the frames in which its source file or its relation kinds changed.
 
+## Query and render saved graphs
+
+Use the graph as a reusable platform: **analyze once, query many times,
+render for the use case**. The CLI and MCP use the same saved-graph API, so
+an agent does not need to build an ORDERS-specific script or install Graphviz.
+The source files need not be present when querying or rendering.
+
+```sh
+bca export ./workspace --view explorer --format json -o graph.json
+bca graph query graph.json --root "Sales-Post" --depth 2 -o posting.json
+bca graph render posting.json -o posting.svg
+bca graph render posting.json -o posting.html
+```
+
+For existing snapshots such as an EDI migration graph, provide a JSON object
+with `schemaVersion: 1`, `nodes` (unique `id`, `label`), and `edges` (unique
+`id`, `source`, `target`). Extra node and edge attributes, including
+evidence, unresolved origins, and sampling flags, are retained unchanged.
+Optional `roots` maps names to arrays of node IDs:
+
+```json
+{
+  "schemaVersion": 1,
+  "roots": { "legacy": ["orders"], "target": ["new-orders"] },
+  "nodes": [
+    { "id": "orders", "label": "Legacy ORDERS", "type": "codeunit" },
+    { "id": "new-orders", "label": "New ORDERS", "type": "codeunit" }
+  ],
+  "edges": [
+    { "id": "migration", "source": "orders", "target": "new-orders", "kinds": { "calls": 1 } }
+  ]
+}
+```
+
+```sh
+bca graph render ORDERS-Dependencies.json --root-group legacy -o orders-direct.svg
+bca graph query ORDERS-Dependencies.json --root-group legacy --depth 2 -o orders-migration.json
+bca graph render ORDERS-Dependencies.json --root-group legacy --direction incoming -o orders-callers.dot
+```
+
+Query output is a versioned `bc-atlas.graph.slice` document with `nodes`,
+`edges`, surviving named `roots`, the `selection`, and original document
+`metadata`. It can be queried again or consumed by custom renderers. Traversal
+is breadth-first and cycle-safe; depth limits expansion, so direct outgoing
+dependencies contain only edges from the selected roots, not every edge
+between their neighbors. `--kind` selects whole aggregated edges, not a
+rewritten subset of their evidence. With no roots the entire selected level
+is returned. Invalid roots, dangling edges, and unsupported versions fail.
+
+For temporal documents, `--level` selects object/app/module/component and
+`--frame` selects presence at a timeline index (latest by default). The
+document stores last-seen labels and evidence, not complete per-frame
+attribute snapshots; this command does not claim to reconstruct those.
+
+SVG and static HTML are self-contained and use Atlas's built-in local
+renderer. Roots are blue and unresolved boundaries orange. Every selected
+node and edge is drawn; excessive SVG/HTML selections fail explicitly at
+`--max-nodes`/`--max-edges` rather than silently losing dependencies. JSON and
+DOT retain large selections for downstream tools. See the
+[CLI options](./cli-reference.md#saved-graph-platform) and
+[MCP tools](./agent-integration.md#saved-graph-tools).
+
 ## Open source
 
 The explorer is built only on MIT-licensed open source:

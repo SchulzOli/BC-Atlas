@@ -198,10 +198,10 @@ test("overview help groups every command by feature area", () => {
     for (const heading of ["Get started", "Analyze", "Export", "Integrate"]) {
       assert.match(result.stdout, new RegExp(`^${heading}$`, "mu"));
     }
-    for (const command of ["setup", "check", "architecture", "refactor", "export", "docs", "run", "update", "mcp"]) {
+    for (const command of ["setup", "check", "architecture", "refactor", "graph", "export", "docs", "run", "update", "mcp"]) {
       assert.match(result.stdout, new RegExp(`^  ${command} `, "mu"));
     }
-    for (const removed of ["init", "graph", "watch", "explore", "inspect", "codegraph", "capabilities"]) {
+    for (const removed of ["init", "watch", "explore", "inspect", "codegraph", "capabilities"]) {
       assert.doesNotMatch(result.stdout, new RegExp(`^  ${removed} `, "mu"));
     }
     assert.doesNotMatch(result.stdout, /\bserve\b/u);
@@ -625,7 +625,7 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
   assert.deepEqual(contract.areas.map(({ id }) => id), ["start", "analyze", "export", "integrate"]);
   assert.ok(contract.commands.every(({ area }) => contract.areas.some(({ id }) => id === area)));
   assert.deepEqual([...new Set(contract.commands.map(({ id }) => id.split(".")[0]))],
-    ["setup", "check", "architecture", "refactor", "export", "docs", "run", "update", "mcp"]);
+    ["setup", "check", "graph", "architecture", "refactor", "export", "docs", "run", "update", "mcp"]);
   assert.ok(contract.commands.some(({ argv }) =>
     argv.join(" ") === "bca docs validate <test-root>"));
   assert.ok(!contract.commands.some(({ id }) => id === "app"), "the app lives in the VS Code extension");

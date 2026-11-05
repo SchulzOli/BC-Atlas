@@ -17,6 +17,7 @@ import { runAutomation } from "./automation/run.js";
 import { applySetup, createPlan } from "./automation/setup.js";
 import { checkForUpdate } from "./commands/update.js";
 import { writeExplorer } from "./commands/explore.js";
+import { queryGraph, renderGraph } from "./graph/platform.js";
 import { assessArchitecture } from "./blueprint/index.js";
 import { architectureJson } from "./blueprint/report.js";
 import { planExtraction } from "./blueprint/extract.js";
@@ -125,6 +126,17 @@ const projectFields = {
   compilerLog: z.string().optional().describe("Import diagnostics from an AL compiler error log file or folder")
 };
 
+const graphFields = {
+  path: z.string().min(1).describe("Saved version 1 Atlas graph or nodes/edges JSON file; no AL analysis is performed"),
+  root: z.array(z.string().min(1)).optional().describe("Exact node IDs, labels, or Atlas keys"),
+  rootGroup: z.string().min(1).optional().describe("Named root group in the saved graph"),
+  depth: z.number().int().nonnegative().optional(),
+  direction: z.enum(["outgoing", "incoming", "both"]).optional(),
+  kind: z.array(z.string().min(1)).optional(),
+  level: z.string().min(1).optional(),
+  frame: z.number().int().nonnegative().optional()
+};
+
 export function createMcpServer(version = pkg.version) {
   const server = new McpServer({ name: "bc-atlas", version });
 
@@ -139,6 +151,25 @@ export function createMcpServer(version = pkg.version) {
     inputSchema: z.object(architectureFields),
     annotations: { readOnlyHint: true, idempotentHint: true }
   }, tool(async (args) => (await createArchitectureModel(args.path, architectureOptions(args))).model));
+
+  server.registerTool("bc_atlas_graph_query", {
+    description: "Query a saved graph without analyzing AL. Return a reusable graph slice with original IDs, directions, unresolved boundaries and evidence; select roots, relation kinds, traversal depth and temporal presence.",
+    inputSchema: z.object(graphFields),
+    annotations: { readOnlyHint: true, idempotentHint: true }
+  }, tool(async ({ path: input, ...values }) => queryGraph(input, values)));
+
+  server.registerTool("bc_atlas_graph_render", {
+    description: "Render a saved graph query as self-contained SVG/HTML, DOT, or JSON using the local Atlas renderer. No Graphviz installation or AL analysis is required.",
+    inputSchema: z.object({
+      ...graphFields,
+      output: z.string().min(1),
+      format: z.enum(["json", "dot", "svg", "html"]).optional(),
+      title: z.string().optional(),
+      maxNodes: z.number().int().nonnegative().optional(),
+      maxEdges: z.number().int().nonnegative().optional()
+    }),
+    annotations: { idempotentHint: true }
+  }, tool(async ({ path: input, ...values }) => renderGraph(input, values)));
 
   server.registerTool("bc_atlas_generate_diagram", {
     description: "Analyze AL source and write a D2, JSON, or SVG architecture file.",

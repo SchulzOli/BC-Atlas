@@ -140,6 +140,16 @@ const pathsOption = string("Only analyze AL files in this folder or matching thi
   value: "path"
 });
 
+const graphOptions = {
+  root: string("Exact node ID, label, or Atlas key; repeat for multiple roots.", { group: FILTERS, repeatable: true, value: "selector" }),
+  rootGroup: string("Named root group in the saved graph, e.g. legacy.", { group: FILTERS, value: "name" }),
+  depth: string("Traversal depth; 0 selects only roots. Without roots the entire graph is returned.", { group: FILTERS, value: "n", default: "1" }),
+  direction: string("Follow dependencies, callers, or both; edge directions remain unchanged.", { group: FILTERS, enum: ["outgoing", "incoming", "both"], default: "outgoing" }),
+  kind: string("Traverse edges containing this relation kind; aggregated evidence stays intact.", { group: FILTERS, repeatable: true, value: "kind" }),
+  level: string("Temporal graph level: object, app, module, or component.", { group: FILTERS, value: "name", default: "object" }),
+  frame: string("Temporal presence frame index (default: latest); labels/evidence reflect the saved document.", { group: FILTERS, value: "n" })
+};
+
 const exportOptions = {
   view: string("What to write: app, report, explorer, catalog, or a diagram view.", {
     group: OUTPUT,
@@ -343,6 +353,42 @@ export function createCapabilities(version) {
           "bca check ./app",
           "bca check ./app --fail-on warning",
           "bca check ./app --format markdown -o health.md"
+        ]
+      }),
+      command({
+        id: "graph.query",
+        area: "analyze",
+        argv: ["bca", "graph", "query", "<graph.json>"],
+        purpose: "Query a saved Atlas graph or nodes/edges snapshot without analyzing AL; retain IDs and evidence as reusable JSON.",
+        options: {
+          ...graphOptions,
+          output: string("Write the reusable graph slice to this file; otherwise JSON goes to stdout.", { group: OUTPUT, value: "path", short: "o" })
+        },
+        output: { type: "json", schema: "bc-atlas.graph.slice" },
+        rules: ["Input must be a version 1 graph with valid nodes and edges; output never overwrites the input.", "Depth limits traversal, not an induced subgraph: only edges visited from expanded roots are retained."],
+        examples: [
+          "bca graph query graph.json --root-group legacy --depth 2 -o orders.json",
+          "bca graph query graph.json --root \"Sales-Post\" --direction incoming"
+        ]
+      }),
+      command({
+        id: "graph.render",
+        area: "export",
+        argv: ["bca", "graph", "render", "<graph.json>"],
+        purpose: "Render a saved graph selection as local SVG/HTML, Graphviz DOT, or reusable JSON without analyzing AL.",
+        options: {
+          ...graphOptions,
+          output: string("Output file; its extension selects the format when --format is omitted.", { group: OUTPUT, value: "path", short: "o", default: "bc-atlas-graph.svg" }),
+          format: string("Output format.", { group: OUTPUT, enum: ["json", "dot", "svg", "html"], short: "f" }),
+          title: string("Graph title.", { group: OUTPUT, value: "text" }),
+          maxNodes: string("SVG/HTML node limit; oversized selections fail explicitly instead of being truncated.", { group: RENDERING, value: "n", default: "1500" }),
+          maxEdges: string("SVG/HTML edge limit.", { group: RENDERING, value: "n", default: "5000" })
+        },
+        output: { type: "file", pathOption: "output" },
+        rules: ["SVG and HTML use the built-in local renderer; Graphviz is not required.", "Roots are blue, unresolved boundaries orange; every selected edge keeps its original direction."],
+        examples: [
+          "bca graph render graph.json --root-group legacy -o orders.svg",
+          "bca graph render orders.json -o orders.html"
         ]
       }),
       command({
