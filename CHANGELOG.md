@@ -32,6 +32,13 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The BC Atlas GitHub Action (new `cache` input, on by default) and the
+  workflows and pipelines that `bca setup` writes keep the BC Atlas cache
+  folder between runs (`actions/cache`, Azure `Cache@2`), so CI benefits from
+  the parse and layout caches too. Generated GitHub workflows use
+  `actions/checkout@v7`, `actions/setup-node@v7`, and
+  `actions/upload-artifact@v7`.
+- Dependabot also updates the VS Code extension's dependencies.
 - Repeated `bca check`, `bca export`, and `bca run` calls are several times
   faster with identical output: diagram layouts are cached by their exact
   content, the CLI reuses the parse results of unchanged files (as VS Code

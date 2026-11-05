@@ -68,10 +68,18 @@ export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24, l
     ? "${{ github.event_name == 'schedule' && 'schedule' || 'ci' }}"
     : schedule ? "schedule" : "ci";
   const steps = [
-    "      - uses: actions/checkout@v4",
-    "      - uses: actions/setup-node@v4",
+    "      - uses: actions/checkout@v7",
+    "      - uses: actions/setup-node@v7",
     "        with:",
     `          node-version: ${nodeVersion}`,
+    // Parse results and diagram layouts by content: a run after a small
+    // change parses and lays out only what changed (docs/automation-and-ci.md).
+    "      - name: Cache BC Atlas analysis",
+    "        uses: actions/cache@v4",
+    "        with:",
+    "          path: ${{ runner.temp }}/bc-atlas-cache",
+    "          key: bc-atlas-${{ runner.os }}-${{ github.sha }}",
+    "          restore-keys: bc-atlas-${{ runner.os }}-",
     ...(local ? [
       "      - name: Install BC Atlas from package.json",
       "        run: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi",
@@ -84,12 +92,13 @@ export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24, l
     "      - name: Run BC Atlas",
     "        env:",
     `          BCA_TRIGGER: ${trigger}`,
+    "          BCA_CACHE_DIR: ${{ runner.temp }}/bc-atlas-cache",
     `        run: ${runner({ version, local })} run ${shellQuote(appPath)} --trigger "$BCA_TRIGGER"`
   ];
   const artifact = (condition, paths, name) => [
     `      - name: Upload ${name}`,
     `        if: always() && ${condition}`,
-    "        uses: actions/upload-artifact@v4",
+    "        uses: actions/upload-artifact@v7",
     "        with:",
     `          name: ${name}`,
     "          if-no-files-found: ignore",
@@ -183,6 +192,12 @@ export function azurePipeline({ appPath, version, triggers, nodeVersion = 24, lo
     "  - task: NodeTool@0",
     "    inputs:",
     `      versionSpec: ${nodeVersion}.x`,
+    "  - task: Cache@2",
+    "    inputs:",
+    "      key: 'bc-atlas | \"$(Agent.OS)\" | $(Build.SourceVersion)'",
+    "      restoreKeys: 'bc-atlas | \"$(Agent.OS)\"'",
+    "      path: $(Pipeline.Workspace)/bc-atlas-cache",
+    "    displayName: Cache BC Atlas analysis",
     ...(local ? [
       "  - bash: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi",
       "    displayName: Install BC Atlas from package.json"
@@ -194,7 +209,9 @@ export function azurePipeline({ appPath, version, triggers, nodeVersion = 24, lo
     "  - bash: |",
     "      if [ \"$BUILD_REASON\" = \"Schedule\" ]; then trigger=schedule; else trigger=ci; fi",
     `      ${runner({ version, local })} run ${shellQuote(appPath)} --trigger "$trigger"`,
-    "    displayName: Run BC Atlas"
+    "    displayName: Run BC Atlas",
+    "    env:",
+    "      BCA_CACHE_DIR: $(Pipeline.Workspace)/bc-atlas-cache"
   );
   const publish = (trigger, condition, prefix) => {
     for (const output of trigger?.outputs ?? []) {
