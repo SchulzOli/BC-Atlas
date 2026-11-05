@@ -4,6 +4,14 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## 0.14.0 - 2026-11-05
+
+### Added
+
+- A root `.mcp.json` starts BC Atlas from the local checkout for direct MCP
+  tool calls in Copilot-compatible hosts. The MCP integration test uses the
+  same configuration, and the agent guide explains setup and server approval.
+
 ## 0.13.0 - 2026-11-04
 
 ### Added

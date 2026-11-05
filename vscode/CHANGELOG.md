@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0
+
+- A root `.mcp.json` registers BC Atlas for direct MCP tool calls in
+  Copilot-compatible workspaces; run `npm ci` and approve the server when
+  prompted.
+
 ## 0.13.0
 
 - The engine is BC Atlas 0.13.0: health checks find interface methods that
