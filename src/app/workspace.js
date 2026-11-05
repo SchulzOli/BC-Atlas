@@ -111,8 +111,9 @@ export class Workspace {
   }
 
   /** The configured architecture, or a proposal when there is none or `propose` is set. */
-  assessment({ propose = false, groupBy = "auto", depth, minObjects } = {}) {
-    const settings = { propose: Boolean(propose), groupBy, depth: depth || undefined, minObjects: minObjects || undefined };
+  assessment({ propose = false, groupBy, depth, minObjects, startFrom, ignore, granularity, sharedCore } = {}) {
+    // Unset values fall back to architecture.proposal in .bca.json, then the defaults.
+    const settings = { propose: Boolean(propose), groupBy: groupBy || undefined, depth: depth || undefined, minObjects: minObjects || undefined, startFrom, ignore, granularity, sharedCore };
     return this.remember(`architecture:${JSON.stringify(settings)}`, async () => {
       // A path selection needs its own parse; otherwise reuse the shared one
       // as it is: the architecture pages only read it (a test freezes it).

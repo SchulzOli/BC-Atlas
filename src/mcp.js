@@ -217,8 +217,13 @@ export function createMcpServer(version = pkg.version) {
     inputSchema: z.object({
       ...projectFields,
       propose: z.boolean().optional().describe("Propose an architecture even when .bca.json defines one"),
-      groupBy: z.enum(["auto", "coupling", "namespace", "folder", "module", "app"]).optional().describe("auto: modules or apps, too large ones split by namespace; coupling: namespaces that are tightly coupled to each other"),
+      groupBy: z.enum(["auto", "coupling", "namespace", "folder", "module", "app"]).optional().describe("auto or coupling: the typed, weighted relations decide; namespace or folder: the code structure decides, objects without it follow their relations; module or app: one component each"),
       depth: z.number().int().positive().optional(),
+      minObjects: z.number().int().positive().optional().describe("Merge smaller groups into the component they depend on most"),
+      startFrom: z.array(z.enum(["namespace", "folder"])).optional().describe("Existing structures that compete with the relations as a starting point; [] for relations only"),
+      ignore: z.array(z.string()).optional().describe("Relation kinds that never shape a component, e.g. [\"permits\", \"includes\", \"uses\"]"),
+      granularity: z.number().positive().optional().describe("Above 1: more, smaller components; below 1: fewer, larger ones"),
+      sharedCore: z.boolean().optional().describe("Pull objects that many components use into a shared core"),
       paths: z.array(z.string()).optional(),
       limit: z.number().int().positive().default(50).describe("Most work items to return")
     }),

@@ -81,7 +81,7 @@ export function architectureJson(assessment) {
     ...rest,
     mode: proposal ? "proposal" : "configured",
     architecture,
-    ...(proposal ? { proposal: { groupBy: proposal.groupBy, feedback: proposal.feedback, moves: proposal.moves, recommendations: proposal.recommendations } } : {}),
+    ...(proposal ? { proposal: { groupBy: proposal.groupBy, feedback: proposal.feedback, moves: proposal.moves, recommendations: proposal.recommendations, basis: proposal.basis } } : {}),
     baseline: {
       used: baseline.baselined,
       new: baseline.new.map(({ id }) => id),
@@ -159,6 +159,29 @@ function headline(assessment) {
   return lines;
 }
 
+/** What a proposal took into account, as label and text pairs; `(.bca.json)` or `(option)` where a setting was changed. */
+export function proposalBasis(basis) {
+  if (!basis) return [];
+  const from = (key) => basis.sources?.[key] && basis.sources[key] !== "default" ? ` (${basis.sources[key]})` : "";
+  const objects = basis.objects ?? {};
+  return [
+    ["Grouping", `${basis.groupBy}${basis.depth ? `, depth ${basis.depth}` : ""}${from("groupBy")}`],
+    ["Objects", [
+      `${objects.shaping} shape components`,
+      objects.kept ? `${objects.kept} in components you defined` : "",
+      objects.excluded ? `${objects.excluded} excluded and placed by coupling` : "",
+      objects.outside ? `${objects.outside} outside the analyzed path` : ""
+    ].filter(Boolean).join(", ")],
+    ["Relations", `${basis.shapingKinds.map((kind) => `${kind} ${basis.weights[kind]}`).join(", ")}${from("weights")}`],
+    ...(basis.ignore.length ? [["Ignored", `${basis.ignore.join(", ")}${from("ignore")}`]] : []),
+    ["Start from", `${basis.startFrom.length ? basis.startFrom.join(", ") : "relations only"}${from("startFrom")}`],
+    ["Granularity", `${basis.granularity}, app candidates ${basis.appGranularity}${from("granularity") || from("appGranularity")}`],
+    ["Shared core", `${basis.sharedCore ? "yes" : "no"}${from("sharedCore")}`],
+    ["Merge below", `${basis.minObjects} object(s)${from("minObjects")}`],
+    ...(basis.kept.length ? [["Your components", basis.kept.map(({ name, objects: count }) => `${name} (${count})`).join(", ")]] : [])
+  ];
+}
+
 export function formatArchitectureText(assessment, { limit = 15 } = {}) {
   const { result, baseline } = assessment;
   const lines = [`BC Atlas architecture - ${assessment.proposal ? "proposal" : "check"}`, "", ...headline(assessment).map((line) => `  ${line}`), ""];
@@ -166,6 +189,11 @@ export function formatArchitectureText(assessment, { limit = 15 } = {}) {
   for (const component of [...result.components].sort((a, b) => (a.layer ?? 0) - (b.layer ?? 0) || a.name.localeCompare(b.name))) {
     const cohesion = component.metrics.cohesion === undefined ? "   -" : `${String(Math.round(component.metrics.cohesion * 100)).padStart(3)}%`;
     lines.push(`  ${String(component.layer ?? "-").padStart(3)}  ${component.name.padEnd(32)} ${String(component.metrics.objects).padStart(6)}  ${cohesion}  I ${component.metrics.instability.toFixed(2)}  ${String(component.violations).padStart(5)}${component.extractable ? "  ready to extract" : ""}`);
+  }
+  const basis = proposalBasis(assessment.proposal?.basis);
+  if (basis.length) {
+    lines.push("", "How this proposal was made (architecture.proposal in .bca.json)");
+    for (const [label, text] of basis) lines.push(`  ${label.padEnd(16)} ${text}`);
   }
   if (assessment.proposal?.recommendations?.length) {
     lines.push("", "App candidates and namespaces");
@@ -230,6 +258,14 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
     lines.push(`| ${component.layer ?? ""} | ${cell(component.name)} | ${metrics.objects} | ${cell((component.dependsOn ?? component.dependsOnActual).join(", ") || "-")} | ${metrics.cohesion === undefined ? "-" : `${Math.round(metrics.cohesion * 100)}%`} | ${metrics.instability.toFixed(2)} | ${metrics.abstractness.toFixed(2)} | ${metrics.distance.toFixed(2)} | ${component.violations} | ${component.extractable ? "yes" : "no"} |`);
   }
   lines.push("", "Layer 0 is the core. Cohesion is the share of a component's coupling that stays inside it. Instability is outgoing / (incoming + outgoing) coupling; components should depend on more stable ones. Distance measures how far a component is from the balance of abstractness and stability.", "");
+  const basis = proposalBasis(proposal?.basis);
+  if (basis.length) {
+    lines.push("## How this proposal was made", "",
+      "What the proposal took into account. Change it in `architecture.proposal` in .bca.json, or with the options of `bca architecture --propose`.", "",
+      "| Setting | Value |", "| --- | --- |");
+    for (const [label, text] of basis) lines.push(`| ${label} | ${cell(text)} |`);
+    lines.push("");
+  }
   if (proposal?.recommendations?.length) {
     lines.push("## App candidates and namespaces", "",
       "Components that are coupled more to each other than to the rest could become one app together; a component on its own could become an app by itself. The shared core holds objects that many components use.", "",

@@ -109,6 +109,55 @@ Type folders such as `Tables`, `Pages`, `Codeunits`, `src`, or `app` say
 nothing about what objects do and are skipped: `src/Sales/Tables` is the
 functional folder `src/Sales`.
 
+### Decide what the proposal considers
+
+Everything above is a default. `architecture.proposal` in `.bca.json` decides
+what the proposal takes into account and how it builds components; the options
+of `bca architecture --propose` (and the MCP tool and the app) override it for
+one run. `schemas/bca.schema.json` describes every setting, and VS Code
+completes and checks them in `.bca.json`.
+
+```json
+{
+  "$schema": "./node_modules/bc-atlas/schemas/bca.schema.json",
+  "architecture": {
+    "couplingWeights": { "subscribes": 0.5 },
+    "proposal": {
+      "groupBy": "auto",
+      "startFrom": ["namespace"],
+      "ignore": ["permits", "includes", "uses"],
+      "granularity": 1.5,
+      "sharedCore": true,
+      "keep": [
+        { "name": "Logistics", "match": ["namespace:Contoso.Warehouse"], "description": "Owned by the logistics team" }
+      ],
+      "exclude": ["type:permissionset", "folder:src/Test"],
+      "moves": { "minGain": 2, "limit": 50 }
+    }
+  }
+}
+```
+
+| Setting | Option | Default | What it decides |
+| --- | --- | --- | --- |
+| `groupBy`, `depth`, `minObjects` | `--group-by`, `--depth`, `--min-objects` | `auto`, split, `1` | How objects are grouped; see [Compare groupings](#compare-groupings). |
+| `startFrom` | `--start-from` | `["namespace", "folder"]` | Which existing structures compete with the relations as a starting point. `[]` (`--start-from none`) lets only the relations decide. |
+| `ignore` | `--ignore` | `["permits", "includes"]` | Relation kinds that never shape a component. They still count as dependencies when the architecture is checked. |
+| `couplingWeights` | | see above | How strongly each relation kind binds; `0` drops a kind. |
+| `granularity` | `--granularity` | `1` | Above 1 gives more, smaller components; below 1 fewer, larger ones. |
+| `appGranularity` | | `0.3` | The same for app candidates. |
+| `sharedCore` | `--shared-core` | `true` | Whether objects that many components use form a shared core. |
+| `keep` | | none | Components you define yourself: their objects are not clustered, keep your name and description, and are never proposed for a move. The proposal arranges everything else around them. |
+| `exclude` | | none | Objects that do not shape components, for example permission sets or test codeunits. Afterwards they join the component they are most coupled to, or *Not placed*. |
+| `moves` | | `{ "minGain": 2, "limit": 50 }` | Which objects are listed as belonging elsewhere. |
+
+Every proposal says how it was made: the text and Markdown reports have a
+**How this proposal was made** section, the app shows **What was
+considered**, and the JSON has `proposal.basis`. That section lists the
+objects that shaped components, kept ones, and excluded ones; the relation
+kinds and weights; the settings; and, for each one changed, whether the
+value came from `.bca.json` or an option.
+
 ### Namespaces
 
 Every component of a proposal gets a role and a namespace (JSON

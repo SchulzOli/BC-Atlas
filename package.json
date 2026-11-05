@@ -18,6 +18,7 @@
   "files": [
     "src/",
     "vendor/",
+    "schemas/",
     ".bca.example.json",
     "CHANGELOG.md",
     "LICENSE",

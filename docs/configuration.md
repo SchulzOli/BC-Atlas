@@ -92,6 +92,18 @@ Rules that work with the components and layers of a target architecture
 (`component:Sales`, `layer:0`, relation kinds such as `writes`) go into
 `architecture.rules`; see [Rules of your own](./clean-architecture.md#rules-of-your-own).
 
+## Shape the architecture proposal
+
+`architecture.proposal` decides what `bca architecture --propose` takes into
+account: which relation kinds count, which existing structures it starts from,
+how finely it splits, components you define yourself, and objects that should
+not shape components. See
+[Decide what the proposal considers](./clean-architecture.md#decide-what-the-proposal-considers).
+
+Add `"$schema": "./node_modules/bc-atlas/schemas/bca.schema.json"` (or the
+schema's GitHub URL) to `.bca.json` for completion and checks in editors; the
+VS Code extension applies the schema to `.bca.json` on its own.
+
 ## Configure health checks and reports
 
 ```json

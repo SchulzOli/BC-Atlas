@@ -737,15 +737,20 @@
     return `<svg xmlns="http://www.w3.org/2000/svg" class="component-graph" viewBox="0 0 ${width.toFixed(0)} ${height.toFixed(0)}" width="${width.toFixed(0)}" height="${height.toFixed(0)}">${islands}${outside}${inside}${nodes}${groupLabels}${otherNodes}</svg>`;
   }
 
+  // Proposal settings in the URL; unset ones fall back to .bca.json (architecture.proposal).
+  const PROPOSAL_PARAMS = ["groupBy", "depth", "minObjects", "startFrom", "granularity", "sharedCore"];
+  function proposalParams(params) {
+    return Object.fromEntries(PROPOSAL_PARAMS.map((key) => [key, params.get(key) ?? undefined]));
+  }
+  const proposalQuery = (settings) => Object.fromEntries(PROPOSAL_PARAMS.map((key) => [key, settings[key]]));
+
   async function componentPage(page, { arg, params }) {
     $("#main").classList.remove("full");
     const settings = {
       propose: params.get("propose") === "1" || undefined,
-      groupBy: params.get("groupBy") ?? undefined,
-      depth: params.get("depth") ?? undefined,
-      minObjects: params.get("minObjects") ?? undefined
+      ...proposalParams(params)
     };
-    const query = new URLSearchParams(Object.entries({ propose: settings.propose ? 1 : undefined, groupBy: settings.groupBy, depth: settings.depth, minObjects: settings.minObjects }).filter(([, value]) => value !== undefined && value !== "")).toString();
+    const query = new URLSearchParams(Object.entries({ propose: settings.propose ? 1 : undefined, ...proposalQuery(settings) }).filter(([, value]) => value !== undefined && value !== "")).toString();
     const componentHref = (name) => `#/component/${encodeURIComponent(name)}${query ? `?${query}` : ""}`;
     const [detail, architecture] = await Promise.all([api.component(arg, settings), api.architecture(settings)]);
     const groups = new Map(detail.groups.map((group, index) => [group.key, { ...group, color: group.key === "loose" ? LOOSE_COLOR : GROUP_COLORS[index % GROUP_COLORS.length] }]));
@@ -907,12 +912,25 @@
     }
   }
 
+  /** What a proposal took into account, and where each setting came from. */
+  function basisFacts(basis) {
+    const from = (key) => basis.sources?.[key] && basis.sources[key] !== "default" ? ` <span class="muted small">(${esc(basis.sources[key])})</span>` : "";
+    const objects = basis.objects ?? {};
+    return `<h3 class="small muted">What was considered</h3><dl class="facts">
+      <dt>Objects</dt><dd>${fmt(objects.shaping ?? 0)} shape components${objects.kept ? `, ${fmt(objects.kept)} in components you defined` : ""}${objects.excluded ? `, ${fmt(objects.excluded)} excluded and placed by coupling` : ""}${objects.outside ? `, ${fmt(objects.outside)} outside the path` : ""}</dd>
+      <dt>Relations</dt><dd>${(basis.shapingKinds ?? []).map((kind) => `${esc(kind)} ${esc(basis.weights?.[kind])}`).join(", ")}${from("weights")}</dd>
+      ${basis.ignore?.length ? `<dt>Ignored</dt><dd>${basis.ignore.map(esc).join(", ")}${from("ignore")}</dd>` : ""}
+      <dt>Start from</dt><dd>${basis.startFrom?.length ? basis.startFrom.map(esc).join(", ") : "relations only"}${from("startFrom")}</dd>
+      <dt>Granularity</dt><dd>${esc(basis.granularity)} (app candidates ${esc(basis.appGranularity)})${from("granularity")}</dd>
+      <dt>Shared core</dt><dd>${basis.sharedCore ? "yes" : "no"}${from("sharedCore")}</dd>
+      ${basis.kept?.length ? `<dt>Your components</dt><dd>${basis.kept.map(({ name, objects: count }) => `${esc(name)} (${fmt(count)})`).join(", ")}</dd>` : ""}
+    </dl><p class="muted small">Change these in <code>architecture.proposal</code> in .bca.json; see the BC Atlas docs on clean architecture.</p>`;
+  }
+
   async function architecturePage(page, { params }) {
     const settings = {
       propose: params.get("propose") === "1" || undefined,
-      groupBy: params.get("groupBy") ?? undefined,
-      depth: params.get("depth") ?? undefined,
-      minObjects: params.get("minObjects") ?? undefined
+      ...proposalParams(params)
     };
     const data = await api.architecture(settings);
     const proposal = data.mode === "proposal";
@@ -934,6 +952,9 @@
           <label class="field"><span>Group objects by</span><select id="group-by">${["auto", "module", "app", "namespace", "folder"].map((value) => `<option${value === (data.proposal.groupBy ?? "auto") ? " selected" : ""}>${value}</option>`).join("")}</select></label>
           <label class="field"><span>Namespace depth</span><input type="number" id="depth" min="1" placeholder="auto" value="${esc(settings.depth ?? "")}"></label>
           <label class="field"><span>Merge groups below</span><input type="number" id="min-objects" min="1" placeholder="1" value="${esc(settings.minObjects ?? "")}"></label>
+          <label class="field" title="Existing structures that compete with the relations as a starting point"><span>Start from</span><select id="start-from">${[["namespace,folder", "namespaces and folders"], ["namespace", "namespaces"], ["folder", "folders"], ["none", "relations only"]].map(([value, label]) => `<option value="${value}"${value === ((data.proposal.basis?.startFrom ?? []).join(",") || "none") ? " selected" : ""}>${label}</option>`).join("")}</select></label>
+          <label class="field" title="Above 1: more, smaller components; below 1: fewer, larger ones"><span>Granularity</span><input type="number" id="granularity" min="0.1" step="0.1" value="${esc(data.proposal.basis?.granularity ?? 1)}"></label>
+          <label class="field" title="Objects that many components use form a shared core"><span>Shared core</span><input type="checkbox" id="shared-core"${data.proposal.basis?.sharedCore === false ? "" : " checked"}></label>
           <button class="btn" data-action="apply">Propose again</button>` : ""}
         <span class="muted small" style="margin-left:auto">CLI: <code>bca architecture${proposal ? " --propose" : ""}</code></span>
       </div></section>` : "";
@@ -970,6 +991,7 @@
               module: "Each module is a component.",
               app: "Each app is a component."
             })[data.proposal.groupBy] ?? ""} Components are ordered so that as little coupling as possible points the wrong way, and each one sits one layer above the deepest component it uses. Try another grouping and compare the coupling inside components.</p>
+            ${data.proposal.basis ? basisFacts(data.proposal.basis) : ""}
             ${data.proposal.feedback.length ? `<h3 class="small muted">Dependencies against the order</h3><ul class="list">${data.proposal.feedback.slice(0, 8).map((edge) => `<li><span class="grow">${esc(edge.source)} → ${esc(edge.target)}</span><span class="muted small nowrap">${plural(edge.objectEdges, "object link")}</span></li>`).join("")}</ul>` : ""}`
             : `<dl class="facts">
                 <dt>Cohesion</dt><dd>${summary.coupling ? `${Math.round(summary.coupling.share * 100)}% of the coupling stays inside components (modularity ${summary.coupling.modularity.toFixed(2)}); weights per relation kind in architecture.couplingWeights` : "–"}</dd>
@@ -1045,7 +1067,7 @@
       });
     }
     $("#extract-component")?.addEventListener("change", (event) => {
-      go("architecture", { propose: settings.propose ? 1 : undefined, groupBy: settings.groupBy, depth: settings.depth, minObjects: settings.minObjects, extract: event.target.value || undefined });
+      go("architecture", { propose: settings.propose ? 1 : undefined, ...proposalQuery(settings), extract: event.target.value || undefined });
     });
     if ($("#moves")) {
       dataTable($("#moves"), {
@@ -1059,7 +1081,7 @@
         ]
       });
     }
-    const query = { propose: settings.propose ? 1 : undefined, groupBy: settings.groupBy, depth: settings.depth, minObjects: settings.minObjects };
+    const query = { propose: settings.propose ? 1 : undefined, ...proposalQuery(settings) };
     const openComponent = (name) => go(`component/${encodeURIComponent(name)}`, query);
     if ($("#dependency-view")) {
       const show = (mode) => {
@@ -1108,7 +1130,18 @@
       const mode = event.target.closest("[data-mode]")?.dataset.mode;
       if (mode) return go("architecture", { propose: mode === "proposal" ? 1 : undefined });
       if (event.target.closest('[data-action="apply"]')) {
-        return go("architecture", { propose: data.configured ? 1 : undefined, groupBy: $("#group-by").value === "auto" ? undefined : $("#group-by").value, depth: $("#depth").value, minObjects: $("#min-objects").value });
+        const basis = data.proposal.basis ?? {};
+        // Only what differs from what the proposal used is put in the URL.
+        const changed = (value, current) => String(value) === String(current) ? undefined : value;
+        return go("architecture", {
+          propose: data.configured ? 1 : undefined,
+          groupBy: changed($("#group-by").value, basis.groupBy ?? "auto"),
+          depth: $("#depth").value,
+          minObjects: $("#min-objects").value,
+          startFrom: changed($("#start-from").value, (basis.startFrom ?? []).join(",") || "none"),
+          granularity: changed($("#granularity").value, basis.granularity ?? 1),
+          sharedCore: changed(String($("#shared-core").checked), String(basis.sharedCore ?? true))
+        });
       }
     });
     $("#page-actions").onclick = async (event) => {

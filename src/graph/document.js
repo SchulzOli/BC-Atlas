@@ -14,6 +14,7 @@ import { replayHistory } from "./history.js";
 import { createTemporalGraph, frameStatistics } from "./temporal.js";
 import { annotateLevels } from "../blueprint/annotate.js";
 import { proposeArchitecture } from "../blueprint/propose.js";
+import { proposalSettings } from "../blueprint/settings.js";
 import { clusterByRelations } from "../blueprint/cluster.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
@@ -126,7 +127,7 @@ export async function createGraphDocument(input, values = {}, { onFrame, parseCa
   let current;
   if (values.propose) {
     current = await graph(projectRoot);
-    architecture = proposeArchitecture(current, { groupBy: values.groupBy, depth: values.depth, weights: couplingWeights(options.architecture?.couplingWeights) }).architecture;
+    architecture = proposeArchitecture(current, proposalSettings(options.architecture, { groupBy: values.groupBy, depth: values.depth })).architecture;
   }
   let assessment;
   const build = async (root) => {

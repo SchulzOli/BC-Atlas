@@ -229,6 +229,15 @@ bca architecture ./app --extract Sales --format markdown -o extract-sales.md
 | `--group-by` | mode | `auto`, `coupling`, `namespace`, `folder`, `module`, or `app`. Default `auto`: the typed, weighted relations decide the components, the shared core, and the app candidates, with or without namespaces (`coupling` is the same). `namespace`, `folder`: the code structure decides; objects without it follow their relations. `module`, `app`: one component each. |
 | `--depth` | integer | With `--group-by namespace` or `folder`: segments per component. Default: split until no component holds more than 15% of the objects. |
 | `--min-objects` | integer | Merge smaller groups into the component they depend on most. Default: `1`. |
+| `--start-from` | list | Existing structures that compete with the relations as a starting point: `namespace`, `folder`, both (comma-separated), or `none` for relations only. Default: `namespace,folder`. |
+| `--ignore` | kinds | Relation kinds that never shape a component, comma-separated (for example `permits,includes,uses`). Default: `permits,includes`. |
+| `--granularity` | number | Above 1: more, smaller components; below 1: fewer, larger ones. Default: `1`. |
+| `--shared-core` | `true` or `false` | Pull objects that many components use into a shared core. Default: `true`. |
+
+These options override `architecture.proposal` in `.bca.json`, which also takes components you define yourself (`keep`), objects that do not shape components (`exclude`), `appGranularity`, and `moves`; see [Decide what the proposal considers](./clean-architecture.md#decide-what-the-proposal-considers).
+
+| Option | Value | Description |
+| --- | --- | --- |
 | `--extract` | component | Plan extracting this component as an app: blockers, dependencies, `app.json`, tables whose data moves, and steps. Never fails the command. |
 | `--write` | flag | Save the architecture to the `architecture` section of `.bca.json`. |
 | `--update-baseline` | flag | Accept today's violations in `.bca-architecture-baseline.json`; only new ones fail afterwards. |
