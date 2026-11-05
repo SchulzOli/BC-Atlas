@@ -9,6 +9,7 @@ import { checkCommand } from "./commands/check.js";
 import { architectureCommand } from "./commands/blueprint.js";
 import { refactorMoveCommand, refactorSurfaceCommand } from "./commands/refactor.js";
 import { exportCommand } from "./commands/export.js";
+import { graphQueryCommand, graphRenderCommand } from "./commands/graph.js";
 import { runCommand } from "./commands/run.js";
 import { updateCommand } from "./commands/update.js";
 import { maybeNotifyUpdate } from "./update.js";
@@ -33,6 +34,8 @@ const HANDLERS = {
   "refactor.move": refactorMoveCommand,
   "refactor.surface": refactorSurfaceCommand,
   export: exportCommand,
+  "graph.query": graphQueryCommand,
+  "graph.render": graphRenderCommand,
   run: runCommand,
   update: updateCommand,
   mcp: mcpCommand,
@@ -61,6 +64,11 @@ function resolveCommand(args) {
     return { id, args: rest };
   }
   if (first === "setup" && findCommand(capabilities, `setup.${second}`)) return { id: `setup.${second}`, args: rest };
+  if (first === "graph") {
+    if (findCommand(capabilities, `graph.${second}`)) return { id: `graph.${second}`, args: rest };
+    if (!second || ["-h", "--help", "help"].includes(second)) return { id: "graph.query", args: ["--help"] };
+    throw new UsageError(`unknown graph command "${second}"; use "bca graph query" or "bca graph render"`);
+  }
   if (first === "refactor") {
     if (findCommand(capabilities, `refactor.${second}`)) return { id: `refactor.${second}`, args: rest };
     if (["-h", "--help", "help"].includes(second)) return { id: "refactor.move", args: ["--help"] };

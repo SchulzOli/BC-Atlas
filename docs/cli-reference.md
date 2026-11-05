@@ -17,6 +17,8 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Get started | `setup apply` | Write `.bca.json`, Git hooks, and a pipeline from setup answers. |
 | Get started | `setup agent` | Add a `/bca-setup` command for Claude Code, Copilot, or Cursor. |
 | Analyze | `check` | Score architecture health and fail CI on cycles, policy violations, architecture violations, or diagnostics. |
+| Analyze | `graph query` | Query a saved graph as reusable JSON without analyzing AL. |
+| Export | `graph render` | Render a saved graph selection as SVG, HTML, DOT, or JSON. |
 | Analyze | `architecture` | Find a target architecture, list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
 | Analyze | `refactor move` | Move an AL object to another component, with its file, namespace, and the usings of referencing files. |
 | Analyze | `refactor surface` | Lock the public surface of components: `Access = Internal` for what nobody outside uses, `exposes` for what others use. |
@@ -39,6 +41,8 @@ bca setup plan [app-root] [options]
 bca setup apply [app-root] [options]
 bca setup agent [app-root] [options]
 bca check [app-root] [options]
+bca graph query <graph.json> [options]
+bca graph render <graph.json> [-o <path>] [options]
 bca architecture [app-root] [options]
 bca refactor move [app-root] --object <selector> --to <component> [--apply]
 bca refactor surface [app-root] [--component <component>] [--apply]
@@ -59,7 +63,7 @@ Several commands are now part of `export` and the [VS Code extension](./vscode.m
 | --- | --- |
 | `bca init` | `bca setup` (it writes `.bca.json`), or `bca setup apply --hooks none --ci none --editor none --schedule none` for the file alone |
 | `bca report` | `bca export --view report` (`--output-dir` is now `-o`) |
-| `bca graph`, `bca <app-root>` | `bca export --view <view>` |
+| `bca graph <app-root>`, `bca <app-root>` | `bca export --view <view>`; the new `graph query` and `graph render` operate on saved JSON, not AL source |
 | `bca watch` | `bca export --view <view> --watch`, or the VS Code extension, which updates itself |
 | `bca explore` | `bca export --view explorer`, or the Dependencies page in VS Code |
 | `bca inspect` | `bca export --view <view> --format json` (stdout) |
@@ -75,6 +79,36 @@ Several commands are now part of `export` and the [VS Code extension](./vscode.m
 | `2` | Invalid usage: unknown command, unknown option, invalid enum value, or missing required value. |
 
 Global flags: `-h`, `--help` shows help; `-V`, `--version` shows the version.
+
+## Saved graph platform
+
+`graph query` and `graph render` share the same selection and work without AL
+source, symbol packages, or a compiler. First save the dependency graph with
+`bca export ./workspace --view explorer --format json -o graph.json`, then
+reuse it for message migrations, impact analysis, or custom visualizations.
+Version 1 Atlas graph documents and flat `nodes`/`edges` snapshots (including
+named `roots` groups) are accepted. See [Dependency explorer](./dependency-explorer.md#query-and-render-saved-graphs).
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--root` | repeatable selector | Exact node ID, label, or Atlas key. Ambiguous labels fail; use IDs. |
+| `--root-group` | name | Named root group, such as `legacy`. Can be combined with explicit roots. |
+| `--depth` | nonnegative integer | Default 1; 0 keeps only roots. Without roots, selects the entire graph. |
+| `--direction` | outgoing, incoming, both | Default outgoing; original edge directions are never reversed. |
+| `--kind` | repeatable kind | Traverse only edges containing this kind; all evidence on selected aggregates is preserved. |
+| `--level` | name | Temporal level: object (default), app, module, or component. |
+| `--frame` | nonnegative integer | Temporal presence frame; default latest. Labels and evidence are the saved document's, not reconstructed historical values. |
+| `--output` (`-o`) | path | Query: write JSON instead of stdout. Render: output file, default `bc-atlas-graph.svg`. Never overwrites the input. |
+| `--format` (`-f`) | json, dot, svg, html | Render only; inferred from the output extension when omitted. |
+| `--title` | text | Render only; diagram title. |
+| `--max-nodes` | nonnegative integer | Render only; SVG/HTML limit, default 1500. Oversized selections fail instead of being truncated. |
+| `--max-edges` | nonnegative integer | Render only; SVG/HTML edge limit, default 5000. |
+
+```sh
+bca graph query graph.json --root-group legacy --depth 2 -o orders.json
+bca graph render graph.json --root-group legacy --direction incoming -o callers.svg
+bca graph render orders.json -o orders.html
+```
 
 ## Get started
 

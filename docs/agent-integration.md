@@ -12,7 +12,7 @@ The command writes versioned JSON to standard output. It defines command IDs, ar
 
 1. Pass each argument as a separate array item.
 2. Do not construct a shell command string.
-3. Use `export --view <view> --format json`, `check --format json`, `architecture --format json`, or `docs ... --format json` for machine reads.
+3. Use `graph query`, `export --view <view> --format json`, `check --format json`, `architecture --format json`, or `docs ... --format json` for machine reads.
 4. Check for exit code `0` before you parse standard output.
 5. Run `docs set` and `docs unset` with `--dry-run` first.
 6. Pass `--expected-hash` when you write AL metadata.
@@ -105,6 +105,9 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_run` runs the tasks configured for a trigger and reports sync status.
 - `bc_atlas_update_check` reports whether a newer BC Atlas version exists, with release notes.
 - `bc_atlas_generate_diagram` writes D2, JSON, or SVG.
+- `bc_atlas_explore` writes the interactive explorer or the temporal graph document.
+- `bc_atlas_graph_query` queries a saved graph as reusable JSON without analyzing AL.
+- `bc_atlas_graph_render` renders a saved graph selection as SVG, HTML, DOT, or JSON.
 - `bc_atlas_docs_list` lists documented scenarios.
 - `bc_atlas_docs_show` reads one scenario and its source hash.
 - `bc_atlas_docs_validate` validates a documentation corpus.
@@ -113,6 +116,45 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_docs_glossary` reads supported documentation tags.
 
 `bc_atlas_docs_edit` uses preview mode by default. A real write requires `dryRun: false` and the latest `expectedFileHash`.
+
+### Saved graph tools
+
+Separate analysis from use-case selection and rendering:
+
+1. `bc_atlas_explore` with `path`, `format: "json"`, and `output` saves the
+   native dependency graph once.
+2. `bc_atlas_graph_query` reads that file (or an existing version 1
+   nodes/edges snapshot), returning `bc-atlas.graph.slice` JSON with original
+   IDs, directions, evidence, boundaries, and metadata.
+3. `bc_atlas_graph_render` writes the same selection using the local renderer.
+
+Both graph tools accept `path`, `root` (array of exact node IDs, labels, or
+Atlas keys), `rootGroup`, `depth` (default 1), `direction` (outgoing, incoming,
+both), `kind` (array), `level` (default object), and `frame` (latest by
+default). Query is read-only. Render additionally requires `output` and
+accepts `format` (json, dot, svg, html), `title`, `maxNodes`, and `maxEdges`.
+Neither tool re-analyzes AL or requires Graphviz. They never overwrite the
+input graph.
+
+For an ORDERS snapshot with `roots.legacy`:
+
+```json
+{
+  "name": "bc_atlas_graph_render",
+  "arguments": {
+    "path": "C:\\work\\ORDERS-Dependencies.json",
+    "rootGroup": "legacy",
+    "depth": 1,
+    "direction": "outgoing",
+    "output": "C:\\work\\orders-direct.svg"
+  }
+}
+```
+
+The result reports `output`, `format`, `nodes`, `edges`, and `roots`. The
+equivalent CLI is `bca graph render <file> --root-group legacy -o orders-direct.svg`.
+See [Saved graph queries](./dependency-explorer.md#query-and-render-saved-graphs)
+for traversal and temporal-presence semantics.
 
 ## Test with MCP Inspector
 
