@@ -1,4 +1,5 @@
 import path from "node:path";
+import { openParseCache } from "./parse-cache.js";
 import { alOptions, applyAlResults, loadAlResults } from "./al/index.js";
 import { analyze } from "./analyzer.js";
 import { loadConfig } from "./config.js";
@@ -36,7 +37,14 @@ export function mergeArchitectureOptions(config, values) {
  */
 export async function analyzeProject(projectRoot, options = {}, { fileFilter, parseCache, onProgress, onAlUpdate } = {}) {
   const al = alOptions(options);
-  const model = await analyze(projectRoot, { fileFilter, parseCache, al: { workspaceFile: al.workspaceFile, settings: al.settings, editorSettings: al.editorSettings } });
+  // Without a cache from the caller (the CLI, a Git hook), the one on disk:
+  // a second run parses only changed files. Not for a subset of the files,
+  // whose save would drop the others.
+  const own = parseCache === undefined && !fileFilter && process.env.BCA_PARSE_CACHE !== "off"
+    ? await openParseCache(projectRoot)
+    : undefined;
+  const model = await analyze(projectRoot, { fileFilter, parseCache: parseCache ?? own, al: { workspaceFile: al.workspaceFile, settings: al.settings, editorSettings: al.editorSettings } });
+  if (own) await own.save().catch(() => false);
   await applyAlResults(model, await loadAlResults(projectRoot, options, { onProgress, onUpdate: onAlUpdate }));
   return resolveModel(model);
 }
@@ -44,7 +52,10 @@ export async function analyzeProject(projectRoot, options = {}, { fileFilter, pa
 async function resolvedProject(projectRoot, cache, options, context) {
   if (!cache) return analyzeProject(projectRoot, options, context);
   if (!cache.has(projectRoot)) cache.set(projectRoot, await analyzeProject(projectRoot, options, context));
-  return structuredClone(cache.get(projectRoot));
+  // Views only read the shared model (test/architecture-cache.test.js freezes
+  // it to make sure); the copy takes the per-view projectRoot and
+  // selectedPath. A deep copy per view took about 0.25 s on 400 files.
+  return { ...cache.get(projectRoot) };
 }
 
 /**
