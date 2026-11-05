@@ -1,11 +1,23 @@
 version: 2
 updates:
+  # One PR per run instead of one per package: separate PRs all touch
+  # package-lock.json and conflict with each other after the first merge.
+  # Updates of three or 3d-force-graph also need `npm run update:graph-vendor`
+  # (CI fails until vendor/graph-viewer.js is rebuilt).
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+      npm-major:
+        update-types: [major]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]

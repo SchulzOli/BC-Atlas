@@ -5,42 +5,11 @@ import { createCapabilities, findCommand } from "./capabilities.js";
 import { parseCommandArgs } from "./cli/args.js";
 import { describeError, UsageError } from "./cli/errors.js";
 import { commandHelp, docsOverviewHelp, overviewHelp } from "./cli/help.js";
-import { checkCommand } from "./commands/check.js";
-import { architectureCommand } from "./commands/blueprint.js";
-import { refactorMoveCommand, refactorSurfaceCommand } from "./commands/refactor.js";
-import { exportCommand } from "./commands/export.js";
-import { graphQueryCommand, graphRenderCommand } from "./commands/graph.js";
-import { runCommand } from "./commands/run.js";
-import { updateCommand } from "./commands/update.js";
+import { loadHandler } from "./cli/handlers.js";
 import { maybeNotifyUpdate } from "./update.js";
-import { setupAgentCommand, setupApplyCommand, setupCommand, setupPlanCommand } from "./commands/setup.js";
-import { DOCS_COMMANDS } from "./docs/cli.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const capabilities = createCapabilities(pkg.version);
-
-async function mcpCommand() {
-  const { startMcpServer } = await import("./mcp.js");
-  await startMcpServer(pkg.version);
-}
-
-const HANDLERS = {
-  setup: setupCommand,
-  "setup.plan": setupPlanCommand,
-  "setup.apply": setupApplyCommand,
-  "setup.agent": setupAgentCommand,
-  check: checkCommand,
-  architecture: architectureCommand,
-  "refactor.move": refactorMoveCommand,
-  "refactor.surface": refactorSurfaceCommand,
-  export: exportCommand,
-  "graph.query": graphQueryCommand,
-  "graph.render": graphRenderCommand,
-  run: runCommand,
-  update: updateCommand,
-  mcp: mcpCommand,
-  ...DOCS_COMMANDS
-};
 
 const TOP_LEVEL = new Set(capabilities.commands
   .filter(({ variantOf }) => !variantOf)
@@ -110,7 +79,8 @@ async function main(args) {
   const definition = findCommand(capabilities, resolved.id);
   const parsed = parseCommandArgs(definition, resolved.args);
   if (parsed.help) return process.stdout.write(commandHelp(definition));
-  await HANDLERS[definition.id](parsed.input, parsed.values);
+  const run = await loadHandler(definition.id, pkg.version);
+  await run(parsed.input, parsed.values);
   await maybeNotifyUpdate(pkg.version, { command: definition.id.split(".")[0], values: parsed.values });
 }
 
