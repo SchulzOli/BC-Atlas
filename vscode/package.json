@@ -306,7 +306,7 @@
     "package": "node scripts/package.js"
   },
   "devDependencies": {
-    "@vscode/vsce": "4.0.0",
+    "@vscode/vsce": "4.1.0",
     "esbuild": "0.28.2"
   }
 }
