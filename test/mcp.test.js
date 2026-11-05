@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -10,7 +10,19 @@ import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+function loadLocalMcpServer() {
+  return JSON.parse(readFileSync(path.join(root, ".mcp.json"), "utf8")).mcpServers["bc-atlas"];
+}
+
+test("provides a portable MCP config for direct local tool calls", () => {
+  assert.deepEqual(loadLocalMcpServer(), {
+    command: "node",
+    args: ["src/mcp.js"]
+  });
+});
+
 test("serves BC Atlas tools over MCP stdio", async () => {
+  const mcpServer = loadLocalMcpServer();
   const config = path.join(root, "test", `task3-mcp-policy-${process.pid}.json`);
   const contextConfig = path.join(root, "test", `task5-mcp-context-${process.pid}.json`);
   writeFileSync(config, JSON.stringify({
@@ -31,8 +43,8 @@ test("serves BC Atlas tools over MCP stdio", async () => {
   }));
   const client = new Client({ name: "bc-atlas-test", version: "1.0.0" });
   const transport = new StdioClientTransport({
-    command: process.execPath,
-    args: [path.join(root, "src", "mcp.js")],
+    command: mcpServer.command,
+    args: mcpServer.args,
     cwd: root,
     env: { ...process.env },
     stderr: "pipe"

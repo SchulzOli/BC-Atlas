@@ -42,6 +42,10 @@ In VS Code, the [BC Atlas extension](./vscode.md) registers the server for you: 
 
 Copy [the MCP JSON example](./examples/mcp.json) to the configuration location for your MCP host.
 
+When you open this repository in a Copilot-compatible host, its root `.mcp.json`
+starts the local checkout with `node src/mcp.js`. Run `npm ci` first so the
+server dependencies are available, then approve the server when prompted.
+
 Architecture tools accept `projectRoot` separately from `path`. Set `path` to
 the folder that the agent should render and `projectRoot` to the app or
 multi-app workspace that it should analyze.
