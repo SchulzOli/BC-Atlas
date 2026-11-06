@@ -16,6 +16,13 @@ follows [Semantic Versioning](https://semver.org/).
   in the `.alpackages` of App B), the source wins and the package is listed
   as `symbol-package-shadowed`. A reference that is still ambiguous now names
   the objects it matches: type, ID, namespace, app, and version.
+- `internal-access` ("uses 1 internal object(s) of …; use a public object of
+  the other component") no longer fires for `Access = Internal` objects used
+  by another component of the same app. `Access = Internal` hides an object
+  from other apps only, and the AL compiler allows it within the app. Set
+  `architecture.internalAccess` to `"component"` for the strict reading, when
+  you plan to split components into apps of their own (the monolith example
+  does). `exposes` still limits what other components may use either way.
 
 ## 0.16.0 - 2026-11-06
 

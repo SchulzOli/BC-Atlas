@@ -591,6 +591,19 @@ test("exposes limits what other components may use; severities turn rules off", 
   assert.throws(() => evaluate({ rules: [{ from: "*", to: "*", kinds: ["eats"] }] }), /unknown relation kind\(s\) eats/u);
 });
 
+test("Access = Internal binds across apps; within one app only with internalAccess component", async () => {
+  const assessment = await assessArchitecture(path.join(root, "examples", "monolith"));
+  const internal = (architecture) => evaluateArchitecture(assessment.levels, architecture).violations
+    .filter(({ rule }) => rule === "internal-access").map(({ source, target }) => `${source.label} -> ${target.label}`);
+  const { internalAccess, ...defaults } = assessment.architecture;
+  assert.equal(internalAccess, "component", "the monolith example plans to split into apps");
+  assert.deepEqual(internal(defaults), [], "one app: the AL compiler allows every component to use an internal codeunit");
+  assert.deepEqual(internal(assessment.architecture), ["CON Sales-Post -> CON Item Mgt."]);
+  const strict = evaluateArchitecture(assessment.levels, assessment.architecture).violations.find(({ rule }) => rule === "internal-access");
+  assert.match(strict.resolution.steps[1], /set Access = Public/u);
+  assert.throws(() => evaluateArchitecture(assessment.levels, { ...defaults, internalAccess: "module" }), /internalAccess must be "app" or "component"/u);
+});
+
 test("permission grants to internal objects are not internal-access violations", async () => {
   const assessment = await assessArchitecture(path.join(root, "examples", "monolith"));
   const { levels } = assessment;

@@ -70,8 +70,11 @@ function readSettings(architecture) {
   if (maxObjects !== undefined && !(Number.isInteger(maxObjects) && maxObjects > 0)) {
     throw new Error("architecture.maxObjects must be a positive integer");
   }
+  const internalAccess = architecture.internalAccess ?? "app";
+  if (!["app", "component"].includes(internalAccess)) throw new Error('architecture.internalAccess must be "app" or "component"');
   return {
     allowSameLayer: Boolean(architecture.allowSameLayer),
+    internalAccess,
     strictLayers: Boolean(architecture.strictLayers),
     ...(maxObjects ? { maxObjects } : {}),
     severities: {
@@ -329,8 +332,15 @@ export function evaluateArchitecture(levels, architecture = {}, { architectureOr
   };
   const exposes = new Map([...components.values()].filter(({ exposes: list }) => list)
     .map(({ name, exposes: list }) => [name, list.map((selector) => compileSelector(selector, context))]));
-  // Part of a component's public surface: not Access = Internal, and listed in exposes if it has one.
-  const isPublic = (node, component) => node.access !== "internal" && (!exposes.has(component) || matchesAny(exposes.get(component), node));
+  // Part of a component's public surface: listed in exposes if it has one,
+  // and not Access = Internal when used from another app. Access = Internal
+  // hides an object from other apps only; within its own app every component
+  // may use it, as the AL compiler allows. internalAccess "component" treats
+  // it as private to its component, for components that are to become apps.
+  const hidden = (node, from) => node.access === "internal" && (settings.internalAccess === "component" || from?.app !== node.app);
+  const isPublic = (node, component, from) =>
+    !hidden(node, from) &&
+    (!exposes.has(component) || matchesAny(exposes.get(component), node));
   const policies = (architecture.rules ?? []).map((rule, index) => compilePolicy(rule, index, context))
     .filter(({ severity }) => severity !== "off" && settings.severities["dependency-rule"] !== "off");
   if (new Set(policies.map(({ name }) => name)).size !== policies.length) throw new Error("architecture.rules: rule names must be unique");
@@ -386,7 +396,7 @@ export function evaluateArchitecture(levels, architecture = {}, { architectureOr
 
     const direction = enabled(ruleFor(components.get(sourceComponent), components.get(targetComponent), settings));
     const usesTarget = Object.keys(edge.kinds ?? {}).some((kind) => !["permits", "includes"].includes(kind));
-    const rule = direction ?? enabled(usesTarget && !isPublic(target, targetComponent) ? "internal-access" : undefined);
+    const rule = direction ?? enabled(usesTarget && !isPublic(target, targetComponent, nodes.get(edge.source)) ? "internal-access" : undefined);
     const id = `${sourceComponent}->${targetComponent}`;
     const aggregate = componentEdges.get(id) ?? {
       id, source: sourceComponent, target: targetComponent, objectEdges: 0, weight: 0, kinds: {}, evidence: [], violations: 0, allowed: !direction
@@ -419,6 +429,8 @@ export function evaluateArchitecture(levels, architecture = {}, { architectureOr
       sourceComponent: violation.sourceComponent,
       targetComponent: violation.targetComponent,
       rule: violation.rule,
+      // Access = Internal is what makes the target private (not only exposes).
+      hidden: violation.rule === "internal-access" && hidden(nodes.get(violation.target.id), nodes.get(violation.source.id)),
       inward: source.layer !== undefined && target.layer !== undefined && target.layer < source.layer,
       // A declared dependency that itself may use the target can act as facade.
       via: (source.dependsOn ?? []).find((name) => components.get(name)?.dependsOn?.includes(violation.targetComponent)),

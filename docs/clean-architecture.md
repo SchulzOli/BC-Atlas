@@ -250,7 +250,7 @@ selectors as you like:
 | `match` | Selectors that assign objects to the component. The most specific matching selector wins. |
 | `layer` | 0 is the core. Without `dependsOn`, a component may use components in lower layers. |
 | `dependsOn` | The components this one may use directly. When set, it replaces the layer rule. |
-| `exposes` | Selectors for the objects other components may use, its public surface. Without it, every object that is not `Access = Internal` is public. |
+| `exposes` | Selectors for the objects other components may use, its public surface. Without it, every object is public, except `Access = Internal` objects used from another app (see `internalAccess`). |
 | `maxObjects` | Most objects the component may hold before `bca check` reports it as too large. |
 
 For the whole architecture:
@@ -259,6 +259,7 @@ For the whole architecture:
 | --- | --- |
 | `allowSameLayer` | Allow dependencies between different components of the same layer. Default: `false`, because siblings that use each other cannot become separate apps. |
 | `strictLayers` | A component without `dependsOn` may use only the layer directly below it, not deeper ones. Default: `false`. |
+| `internalAccess` | Who may use an `Access = Internal` object. `app` (default): every component of the same app, as the AL compiler allows. `component`: only its own component, for components you plan to split into apps of their own. |
 | `maxObjects` | Most objects per component (a component's own `maxObjects` wins). |
 | `couplingWeights` | Weight per relation kind; see [Relation types and weights](#relation-types-and-weights). |
 | `rules` | Dependency rules of your own, see [Rules of your own](#rules-of-your-own). |
@@ -312,11 +313,14 @@ A proposal sets `dependsOn` on every component, so its violations always come
 from rule 1.
 
 **Public objects.** A dependency the rules allow must still use a public object
-of B; otherwise it is an `internal-access` violation. An object is public
-unless it has `Access = Internal` (which no other app can see, so the
-dependency would break the moment B becomes an app of its own), or B lists
-`exposes` and the object matches none of them. The AL compiler reports the
-same case between apps that already exist as `AL0161`.
+of B; otherwise it is an `internal-access` violation. An object is not public
+when B lists `exposes` and the object matches none of them, or when it has
+`Access = Internal` and A lies in another app (the AL compiler reports that
+case as `AL0161`). Within one app, `Access = Internal` objects may be used by
+every component, as the compiler allows. If you plan to make B an app of its
+own, set `"internalAccess": "component"`: then every use of an internal object
+from outside its component counts, because it would break the moment B
+becomes an app.
 
 **Rules of your own** (`rules`, below) report `dependency-rule` violations.
 

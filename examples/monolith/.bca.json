@@ -1,5 +1,6 @@
 {
   "architecture": {
+    "internalAccess": "component",
     "components": [
       { "name": "Core", "layer": 0, "match": ["folder:src/Core"] },
       { "name": "Sales", "layer": 1, "match": ["folder:src/Sales"], "dependsOn": ["Core"] },
