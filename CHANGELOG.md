@@ -24,6 +24,19 @@ follows [Semantic Versioning](https://semver.org/).
   you plan to split components into apps of their own (the monolith example
   does). `exposes` still limits what other components may use either way.
 
+### Removed
+
+- The quality rules of `bca check` that the AL analyzers already report:
+  `missing-data-classification`, `missing-tooltip`, `obsolete-without-tag`,
+  `obsolete-without-reason`, and `high-complexity` (with
+  `check.maxComplexity`). With the AL compiler available, `bca check` runs
+  the analyzers of `al.codeAnalyzers` (CodeCop, UICop, AppSourceCop,
+  PerTenantExtensionCop, LinterCop) and reports their diagnostics, so the same
+  problem no longer shows up twice. `undocumented-public-api` stays, as no
+  analyzer checks `///` summaries. The metadata (captions, ToolTips,
+  complexity, obsolete state) stays in the model, the catalog, and the
+  handbook.
+
 ## 0.16.0 - 2026-11-06
 
 ### Added

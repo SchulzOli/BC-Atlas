@@ -95,37 +95,25 @@ function check(settings) {
   }
 }
 
-test("quality rules report what the metadata shows, once per object, and leave the exceptions alone", () => {
+test("undocumented-public-api is the one quality rule; what the AL analyzers check is not repeated", () => {
   const report = check();
-  const by = (rule) => report.findings.filter((finding) => finding.rule === rule);
-
-  // No. has no classification; FlowFields and temporary tables (and their extensions) need none.
-  assert.deepEqual(by("missing-data-classification").map(({ message }) => message), ["table 50100 Q Item: 1 field(s) without DataClassification: No."]);
-  assert.equal(by("missing-data-classification")[0].severity, "warning");
-  assert.equal(by("missing-data-classification")[0].file, "Quality.al");
-  assert.equal(by("missing-data-classification")[0].line, 7);
-
-  // The table field's ToolTip counts; the label field is no data field.
-  assert.deepEqual(by("missing-tooltip").map(({ message }) => message), ["page 50103 Q Item Card: 1 field(s) without a ToolTip: No."]);
-  assert.equal(by("missing-tooltip")[0].severity, "info");
-
-  assert.deepEqual(by("obsolete-without-tag").map(({ message }) => message).sort(), [
-    "codeunit 50104 Q Item API: obsolete without an ObsoleteTag (the version it was marked in): procedure Legacy",
-    "table 50100 Q Item: obsolete without an ObsoleteTag (the version it was marked in): field Old"
-  ]);
-  assert.deepEqual(by("obsolete-without-reason").map(({ message }) => message), ["table 50100 Q Item: obsolete without an ObsoleteReason (what to use instead): field Old"]);
-
+  const rules = new Set(report.findings.map(({ rule }) => rule));
+  for (const rule of ["missing-data-classification", "missing-tooltip", "obsolete-without-tag", "obsolete-without-reason", "high-complexity"]) {
+    assert.equal(rules.has(rule), false, `${rule} is left to the AL analyzers`);
+  }
   // GetItem's summary survives the #pragma and the attribute; internal codeunits are no API.
-  assert.deepEqual(by("undocumented-public-api").map(({ message }) => message), ["codeunit 50104 Q Item API: 2 public procedure(s) without a /// summary: Undocumented, Legacy"]);
-  assert.deepEqual(by("high-complexity"), [], "complexity 5 is below the default of 25");
-  assert.equal(report.thresholds.maxComplexity, 25);
+  const [finding, ...rest] = report.findings.filter(({ rule }) => rule === "undocumented-public-api");
+  assert.deepEqual(rest, []);
+  assert.equal(finding.message, "codeunit 50104 Q Item API: 2 public procedure(s) without a /// summary: Undocumented, Legacy");
+  assert.equal(finding.severity, "info");
+  assert.equal(finding.file, "Quality.al");
+  assert.equal(report.thresholds.maxComplexity, undefined);
 });
 
-test("check.severities and check.maxComplexity tune the quality rules", () => {
-  const report = check({ maxComplexity: 4, severities: { "missing-tooltip": "error", "undocumented-public-api": "off" } });
-  const by = (rule) => report.findings.filter((finding) => finding.rule === rule);
-  assert.equal(by("missing-tooltip")[0].severity, "error");
-  assert.equal(report.passed, false, "an error fails the check");
-  assert.deepEqual(by("undocumented-public-api"), []);
-  assert.deepEqual(by("high-complexity").map(({ message }) => message), ["codeunit 50104 Q Item API: 1 procedure(s) above complexity 4: Branchy (5)"]);
+test("check.severities tunes undocumented-public-api", () => {
+  const error = check({ severities: { "undocumented-public-api": "error" } });
+  assert.equal(error.findings.find(({ rule }) => rule === "undocumented-public-api").severity, "error");
+  assert.equal(error.passed, false, "an error fails the check");
+  const off = check({ severities: { "undocumented-public-api": "off" } });
+  assert.deepEqual(off.findings.filter(({ rule }) => rule === "undocumented-public-api"), []);
 });

@@ -1,4 +1,4 @@
-import { qualityFindings, qualitySettings } from "./quality-rules.js";
+import { qualityFindings } from "./quality-rules.js";
 import { FAIL_LEVELS, SEVERITIES } from "./capabilities.js";
 import { analyzeContractFallbacks } from "./contract-analysis.js";
 import { analyzeContextResponsibilities } from "./context-analysis.js";
@@ -195,9 +195,8 @@ export function assessHealth(model, settings = {}) {
   findings.push(...analyzeContractFallbacks(model, settings.contractExpectations));
   const contextResponsibilities = analyzeContextResponsibilities(model, settings.contexts);
   findings.push(...contextResponsibilities.findings);
-  // Tooltips, data classification, obsolete markings, complexity, documentation.
-  const quality = qualitySettings(settings);
-  findings.push(...qualityFindings(objects, model.objects, settings));
+  // Documentation of the public API (what the AL analyzers do not check).
+  findings.push(...qualityFindings(objects, settings));
 
   findings.sort((left, right) =>
     SEVERITY_RANK[right.severity] - SEVERITY_RANK[left.severity] ||
@@ -223,7 +222,7 @@ export function assessHealth(model, settings = {}) {
     schemaVersion: 1,
     passed: failing.length === 0,
     failOn,
-    thresholds: { maxFanIn, maxFanOut, cycles: cycleSeverity, maxComplexity: quality.maxComplexity },
+    thresholds: { maxFanIn, maxFanOut, cycles: cycleSeverity },
     summary: {
       apps: (model.apps ?? []).map(({ name, publisher, version }) => ({ name, publisher, version })),
       files: model.files,
