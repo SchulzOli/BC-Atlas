@@ -43,24 +43,23 @@ Result: PASSED - 0 error(s), 0 warning(s), 1 info (fail on: error)
 | `high-fan-out` | warning | One object depends on more than `maxFanOut` distinct objects. |
 | `contract-fallback` | info; warning for configured expectations | A resolved enum implementation or inherited interface default has an empty body, a constant `true` return, or a conditional path that can complete without an error. Configure `check.contractExpectations` to make the selected methods warnings. |
 | `context-responsibility` | info; warning for direct effects forbidden by policy | An explicitly selected context has record reads/writes, temporary writes, commits, resolved calls, selected role responsibilities, in-memory global assignments, or bounded indirect effect candidates. Configure `check.contexts` and its `forbid` list to assert selected responsibilities. |
-| `missing-data-classification` | warning | Table or table extension fields without `DataClassification`, neither on the field nor on the table (or, for an extension, on its base table). FlowFields, FlowFilters, and temporary tables need none. |
-| `obsolete-without-tag` | warning | `ObsoleteState` or `[Obsolete]` on an object, field, or procedure without an `ObsoleteTag`, the version it was marked in. |
-| `high-complexity` | warning | Procedures whose cyclomatic complexity is above `check.maxComplexity` (default 25). |
-| `missing-tooltip` | info | Page fields bound to the record (`Rec."No."`) without a `ToolTip`, neither on the page field nor on the table field. Labels, links, and API pages are left out, and so are fields of tables from symbol packages, whose ToolTips are not known. |
-| `obsolete-without-reason` | info | `ObsoleteState` without an `ObsoleteReason` (what to use instead). |
 | `undocumented-public-api` | info | Public procedures of public codeunits and interfaces without a `///` summary. `Access = Internal` objects and test codeunits are not API. |
 | `orphan-objects` | info | Objects without any relationship. |
 | `unresolved-references` | info | References to objects outside the analyzed source. Add `.alpackages` symbols to resolve them. |
 
-The quality rules (`missing-data-classification` to `undocumented-public-api`)
-report once per object and list what they concern, so a large app does not
-flood the results. Set each one to `error`, `warning`, `info`, or `off` in
-`check.severities`, for example to make missing ToolTips fail an AppSource
-build:
+`undocumented-public-api` reports once per object and lists the procedures,
+so a large app does not flood the results. Set it to `error`, `warning`,
+`info`, or `off` in `check.severities`:
 
 ```json
-{ "check": { "severities": { "missing-tooltip": "error", "undocumented-public-api": "off" }, "maxComplexity": 20 } }
+{ "check": { "severities": { "undocumented-public-api": "warning" } } }
 ```
+
+BC Atlas does not repeat what the AL analyzers check: DataClassification,
+ToolTips, `ObsoleteTag` and `ObsoleteReason`, or cyclomatic complexity. With
+the AL compiler available, `bca check` runs it with the analyzers of
+`al.codeAnalyzers` (CodeCop, UICop, AppSourceCop, PerTenantExtensionCop, or
+LinterCop) and reports their diagnostics.
 
 `contract-fallback` is based on supported source structure, not a proof of
 runtime behavior or a business obligation. Direct `Error` calls,
@@ -124,8 +123,7 @@ location for the finding and emits file-backed supporting evidence as
     "cycles": "error",
     "maxFanIn": 30,
     "maxFanOut": 20,
-    "maxComplexity": 20,
-    "severities": { "missing-tooltip": "warning" },
+    "severities": { "undocumented-public-api": "warning" },
     "contractExpectations": [
       {
         "interface": "object:interface:IPipelineStep",
