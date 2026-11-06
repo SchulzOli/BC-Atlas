@@ -43,8 +43,8 @@ function crud(edge) {
 
 // The generated-file marker goes in front only when the pages are written
 // (generateHandbook); the app renders the pages without it.
-function header(title, intro) {
-  return [`# ${title}`, "", ...(intro ? [intro, ""] : [])];
+function header(title, intro, basedOn, label) {
+  return [`# ${title}`, "", ...(intro ? [intro, ""] : []), ...(basedOn ? [`**${label}:** ${basedOn}`, ""] : [])];
 }
 
 function overviewPage(context) {
@@ -52,7 +52,7 @@ function overviewPage(context) {
   const text = t.overview;
   const counts = new Map();
   for (const object of workspace) counts.set(object.type, (counts.get(object.type) ?? 0) + 1);
-  const lines = header(context.title, text.intro);
+  const lines = header(context.title, text.intro, t.pages["README.md"].basedOn, t.basedOn);
   lines.push(`## ${text.contents}`, "", ...pages.filter(({ file }) => file !== "README.md").map(({ file }) => `- [${t.pages[file].title}](${context.pageLink(file)}): ${t.pages[file].summary}`), "");
 
   lines.push(`## ${text.apps}`, "", ...table([text.app, text.publisher, text.version, `>${text.objects}`], (model.apps ?? []).map((app) => [
@@ -84,13 +84,33 @@ function overviewPage(context) {
     lines.push(`## ${text.central}`, "", text.centralIntro, "",
       ...table([text.object, `>${text.usedBy}`, text.purpose], central.map(({ object, users }) => [context.link(object), users, object.metadata?.documentation ?? object.metadata?.caption])));
   }
+  lines.push(...sources(context));
   return lines;
+}
+
+/** Where the handbook's content comes from: source, app.json, symbols, compiler, architecture, settings. */
+function sources({ model, workspace, assessment, t }) {
+  const text = t.overview;
+  const root = assessment?.context.options.projectRoot;
+  const relative = (file) => root ? path.relative(root, file).replaceAll("\\", "/") || file : file;
+  const apps = (model.apps ?? []).filter(({ external }) => !external).map(({ name, version }) => [name, version].filter(Boolean).join(" "));
+  const packages = (model.symbolPackages ?? []).map(({ name, version, publisher }) => [publisher, name, version].filter(Boolean).join(" ")).sort();
+  const config = assessment?.context.config?.path;
+  const configured = Boolean(assessment?.context.options.architecture?.components?.length);
+  return [`## ${text.sources}`, "", text.sourcesIntro, "", ...table([text.source, text.details], [
+    [text.alSource, text.alSourceDetail(model.files ?? 0, workspace.length)],
+    [text.appJson, text.appJsonDetail(apps)],
+    [text.symbols, packages.length ? `${packages.length}: ${packages.join(", ")}` : text.symbolsNone],
+    [text.compiler, model.al?.description ?? text.compilerNone],
+    [text.architecture, configured && config ? text.architectureConfigured(`\`${relative(config)}\``) : text.architectureProposed],
+    [text.settings, config ? `\`${relative(config)}\`` : text.settingsNone]
+  ])];
 }
 
 function eventsPage(context) {
   const { workspace, model, t } = context;
   const text = t.events;
-  const lines = header(t.pages["events.md"].title, text.intro);
+  const lines = header(t.pages["events.md"].title, text.intro, t.pages["events.md"].basedOn, t.basedOn);
   const subscriptions = model.edges.filter(({ kind }) => kind === "subscribes");
   const subscribersOf = new Map();
   for (const edge of subscriptions) {
@@ -130,7 +150,7 @@ function eventsPage(context) {
 function dataPage(context) {
   const { workspace, model, t } = context;
   const text = t.data;
-  const lines = header(t.pages["data.md"].title, text.intro);
+  const lines = header(t.pages["data.md"].title, text.intro, t.pages["data.md"].basedOn, t.basedOn);
   const tables = workspace.filter(({ type }) => type === "table").sort(byName);
   const access = new Map();
   for (const edge of model.edges) {
@@ -188,7 +208,7 @@ function dataPage(context) {
 function permissionsPage(context) {
   const { workspace, model, t } = context;
   const text = t.permissions;
-  const lines = header(t.pages["permissions.md"].title, text.intro);
+  const lines = header(t.pages["permissions.md"].title, text.intro, t.pages["permissions.md"].basedOn, t.basedOn);
   const sets = workspace.filter(({ type }) => ["permissionset", "permissionsetextension"].includes(type)).sort(byName);
   const grants = model.edges.filter(({ kind }) => kind === "permits");
   const includes = model.edges.filter(({ kind }) => kind === "includes");
@@ -216,7 +236,7 @@ function permissionsPage(context) {
 function interfacesPage(context) {
   const { model, t } = context;
   const text = t.interfaces;
-  const lines = header(t.pages["interfaces.md"].title, text.intro);
+  const lines = header(t.pages["interfaces.md"].title, text.intro, t.pages["interfaces.md"].basedOn, t.basedOn);
   const interfaces = model.objects.filter(({ type }) => type === "interface")
     .filter((object) => context.isWorkspace(object.key) || model.edges.some(({ kind, to, from }) => kind === "implements" && to === object.key && context.isWorkspace(from)))
     .sort(byName);
@@ -239,7 +259,7 @@ function interfacesPage(context) {
 function uiPage(context) {
   const { workspace, t } = context;
   const text = t.ui;
-  const lines = header(t.pages["ui.md"].title, text.intro);
+  const lines = header(t.pages["ui.md"].title, text.intro, t.pages["ui.md"].basedOn, t.basedOn);
   const pages = workspace.filter(({ type }) => type === "page");
   const reports = workspace.filter(({ type }) => type === "report");
   const api = pages.filter(({ metadata }) => /^api$/iu.test(metadata?.pageType ?? ""));
@@ -268,7 +288,7 @@ function uiPage(context) {
 function healthPage(context) {
   const { workspace, t } = context;
   const text = t.health;
-  const lines = header(t.pages["code-health.md"].title, text.intro);
+  const lines = header(t.pages["code-health.md"].title, text.intro, t.pages["code-health.md"].basedOn, t.basedOn);
   const procedures = workspace.flatMap((object) => (object.procedures ?? []).filter(({ hasBody }) => hasBody).map((procedure) => ({ object, procedure })));
   const complex = procedures.filter(({ procedure }) => (procedure.metadata?.complexity ?? 0) > 1)
     .sort((a, b) => b.procedure.metadata.complexity - a.procedure.metadata.complexity || (b.procedure.metadata.lines ?? 0) - (a.procedure.metadata.lines ?? 0)).slice(0, 25);
@@ -375,6 +395,7 @@ export async function renderHandbook(input, values = {}, { assessment: given, mo
   const pages = PAGES.map((page) => ({
     file: page.file,
     title: page.file === "README.md" ? context.title : t.pages[page.file].title,
+    summary: t.pages[page.file].summary,
     content: `${page.render(context).join("\n").replace(/\n{3,}/gu, "\n\n").trim()}\n`
   }));
   return { pages, objects: workspace.length };

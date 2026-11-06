@@ -4,6 +4,8 @@
 
 Events are how objects react to each other without depending on each other directly. For every event: who raises it and who reacts to it.
 
+**Based on:** `[IntegrationEvent]`, `[BusinessEvent]`, and `[InternalEvent]` procedures and `[EventSubscriber]` attributes in the AL source; events of other apps come from their symbol packages.
+
 1 event published here, 1 subscription.
 
 ## Events published in this system

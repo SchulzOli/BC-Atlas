@@ -20,6 +20,15 @@ bca export ./app --view handbook -o wiki/system --title "Contoso Sales"
 | `ui.md` | What can users open? Pages and reports by usage category (as Tell Me lists them), with caption, page type, source table, and application area. It also lists pages that are only opened from other pages, and API endpoints. |
 | `code-health.md` | Where is the code hard to change? The most complex procedures (cyclomatic complexity), the largest objects, obsolete objects, procedures and fields, and how many public procedures have a `///` summary. |
 
+## Sources
+
+Every page starts with **Based on:**, the parts of the AL code it reads, and
+the overview ends with a **Sources** table: how many AL files and objects,
+the apps from `app.json`, the symbol packages (name and version), whether the
+AL compiler resolved the calls, whether the architecture is configured or
+proposed, and the `.bca.json` used. Nothing in the handbook is entered by
+hand.
+
 Everything comes from the AL source and the [metadata](./code-graph-markdown-design.md#overview)
 that BC Atlas reads from it: captions, `///` comments, `UsageCategory`,
 `PageType`, `SourceTable`, `ObsoleteState`, data operations, event
@@ -29,10 +38,11 @@ shows up in the handbook.
 
 ## In VS Code, the offline app, the report, and for agents
 
-- **VS Code and the offline app:** the BC Atlas panel and the file from
-  `bca export` have a **Handbook** page with the same content. Object names
-  there open their object page, and **Download page** saves the page as
-  Markdown. In VS Code, **English** and **Deutsch** switch the language.
+- **VS Code and the offline app:** the **Docs** page of the BC Atlas panel
+  and of the file from `bca export` lists the handbook pages first, then the
+  user guides from UI tests. Object names open their object page,
+  **Markdown** saves the page, and **Sources** on the left says what the page
+  is read from. In VS Code, **English** and **Deutsch** switch the language.
 - **Report:** `bca export --view report --handbook` writes the handbook to
   `<output>/handbook`. With `--codegraph`, object names link to the catalog
   in `<output>/objects`. In `.bca.json` this is `report.handbook`.

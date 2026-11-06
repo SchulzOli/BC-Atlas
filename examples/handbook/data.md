@@ -4,6 +4,8 @@
 
 Which tables this system has, who reads and writes them, and how. I = insert, M = modify, D = delete, R = read.
 
+**Based on:** tables and table extensions, the record operations in the code (`Insert`, `Modify`, `Delete`, `Get`, `FindSet`, ...), and the `SourceTable` of pages.
+
 ## Tables
 
 | Table | Caption | Classification | Fields | Written by | Read by | Shown on |

@@ -188,7 +188,7 @@ export class Workspace {
   }
 
   /**
-   * The system handbook (src/handbook.js) for the Handbook page: object names
+   * The system handbook (src/handbook.js) for the Docs page: object names
    * link to object pages, page links to the other handbook pages.
    */
   handbook({ language } = {}) {
@@ -196,17 +196,18 @@ export class Workspace {
       const objects = new Set((await this.objectIndex()).list.map(({ id }) => id));
       // A language asked for, else handbook.language in .bca.json, else English.
       const chosen = language || (await this.model()).options.handbook?.language;
-      const query = language ? `?language=${encodeURIComponent(language)}` : "";
+      // The Docs page knows en and de (de-DE and the like are German).
+      const query = language ? `&hl=${/^de\b/iu.test(language) ? "de" : "en"}` : "";
       const { pages, objects: count } = await renderHandbook(this.input, {
         ...this.values,
         language: chosen,
         linkTo: (object) => objects.has(object.key) ? `#/object/${encodeURIComponent(object.key)}` : undefined,
-        pageLink: (file) => `#/handbook/${file.replace(/\.md$/u, "")}${query}`
+        pageLink: (file) => `#/docs?page=${encodeURIComponent(file.replace(/\.md$/u, ""))}${query}`
       }, { assessment: await this.assessment() });
       return {
         objects: count,
         language: /^de\b/iu.test(chosen ?? "") ? "de" : "en",
-        pages: pages.map(({ file, title, content }) => ({ id: file.replace(/\.md$/u, ""), file, title, markdown: content }))
+        pages: pages.map(({ file, title, summary, content }) => ({ id: file.replace(/\.md$/u, ""), file, title, summary, markdown: content }))
       };
     });
   }
@@ -482,6 +483,8 @@ export class Workspace {
       return {
         ...browser,
         path: docs.path,
+        // The app whose captions and translations the guides use.
+        appPath: docs.settings.app ?? ".",
         languages: [...new Set([browser.language, "en-US", "de-DE"])],
         scenarios: browser.scenarios.map((scenario) => {
           const found = files.get(scenario.id);

@@ -322,7 +322,10 @@ test("the Handbook page links object names to object pages and pages to each oth
   const handbook = await service.call("handbook");
   assert.equal(handbook.objects, 12);
   const readme = handbook.pages.find(({ id }) => id === "README").markdown;
-  assert.match(readme, /\(#\/handbook\/events\)/u, "contents link to the other pages in the app");
+  assert.match(readme, /\(#\/docs\?page=events\)/u, "contents link to the other pages in the app");
+  assert.match(readme, /## Sources\n/u, "the overview lists where the handbook is read from");
+  assert.match(handbook.pages.find(({ id }) => id === "events").markdown, /\*\*Based on:\*\* `\[IntegrationEvent\]`/u);
+  assert.equal(handbook.pages.find(({ id }) => id === "data").summary, "tables, who reads and writes them, and how");
   const objects = new Set((await service.call("objects")).map(({ id }) => id));
   const links = handbook.pages.flatMap(({ markdown }) => [...markdown.matchAll(/\]\(#\/object\/([^)]+)\)/gu)].map(([, id]) => decodeURIComponent(id)));
   assert.ok(links.length > 0);
@@ -334,7 +337,7 @@ test("the Handbook page is available in German", async () => {
   const german = await service.call("handbook", { language: "de-DE" });
   assert.equal(german.language, "de");
   assert.equal(german.pages.find(({ id }) => id === "data").title, "Daten");
-  assert.match(german.pages.find(({ id }) => id === "README").markdown, /\(#\/handbook\/events\?language=de-DE\)/u, "page links keep the language");
+  assert.match(german.pages.find(({ id }) => id === "README").markdown, /\(#\/docs\?page=events&hl=de\)/u, "page links keep the language");
   await assert.rejects(service.call("handbook", { language: "fr" }), /language must be en or de/u);
 });
 

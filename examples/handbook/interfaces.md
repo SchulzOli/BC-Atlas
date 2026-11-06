@@ -4,6 +4,8 @@
 
 Contracts that let one object call another without knowing which implementation runs, and the enum values that choose an implementation.
 
+**Based on:** `interface` objects, the `implements` of codeunits and enums, and the `Implementation` of enum values.
+
 ## [Interface Handles Warehouse Activity](../report/objects/interface/handles-warehouse-activity.md)
 
 Methods: `Process`

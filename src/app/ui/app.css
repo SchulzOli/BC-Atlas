@@ -294,7 +294,13 @@ table.matrix td.self { background: var(--surface-2); }
 .wb-form select, .wb-form input:not([type="checkbox"]) { width: 100%; }
 .wb-form .field i { font-style: normal; font-weight: 400; }
 .wb-form .segmented { display: flex; }
-.wb-form .segmented button { flex: 1; }
+.wb-form .segmented button, .wb-form .segmented .btn { flex: 1; text-align: center; }
+.wb-form + .wb-form { margin-top: 14px; }
+.wb-form p { margin: 0; line-height: 1.45; }
+.sources { display: grid; gap: 4px 0; margin: 0; font-size: 12px; line-height: 1.45; }
+.sources dt { font-weight: 600; }
+.sources dd { margin: 0 0 6px; color: var(--muted); }
+.wb-body > article.prose { padding: 16px 20px; }
 .wb-main { display: flex; flex-direction: column; overflow: hidden; }
 .wb-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .wb-heading { flex: 1 1 280px; min-width: 0; }
@@ -423,9 +429,8 @@ dialog p { color: var(--muted); margin: 0 0 16px; }
   .bar { grid-template-columns: 96px 1fr 44px; }
 }
 
-/* Handbook: Markdown pages rendered by markdownToHtml in app.js. */
-.handbook-tabs { flex-wrap: wrap; }
-.handbook-tabs a { text-decoration: none; }
+/* Handbook pages in Docs: Markdown rendered by markdownToHtml in app.js. */
+.wb-form .segmented a { text-decoration: none; }
 .prose h3 { font-size: 16px; margin: 22px 0 10px; }
 .prose h3:first-child { margin-top: 0; }
 .prose h4 { font-size: 14px; margin: 18px 0 8px; }
@@ -433,5 +438,5 @@ dialog p { color: var(--muted); margin: 0 0 16px; }
 .prose .prose-list { margin: 0 0 12px; padding-left: 20px; line-height: 1.6; }
 .prose .table-scroll { margin: 0 0 16px; }
 .prose code { font-size: 12px; }
-.handbook-tabs a[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+.wb-form .segmented a[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
 .coupling-bar { display: inline-block; height: 6px; border-radius: 3px; background: var(--accent); margin: 0 8px; vertical-align: middle; }
