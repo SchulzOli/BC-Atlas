@@ -15,7 +15,8 @@ BC Atlas (`bca`) parses AL with
 objects, calls, events, data access, and permissions into an architecture
 model, and shows it in one app: overview, health, a target architecture with
 the work to reach it, a 3D dependency explorer, diagrams, one page per object,
-and documentation from UI tests. The same results are files for Git and CI.
+a system handbook, and documentation from UI tests. The same results are
+files for Git and CI.
 Parser and renderer are WebAssembly: Node.js is the only requirement.
 
 **Documentation: [schulzoli.github.io/BC-Atlas](https://schulzoli.github.io/BC-Atlas/)**
@@ -26,6 +27,7 @@ cd path/to/al-project
 bca setup                   # .bca.json, Husky hooks, VS Code tasks, pipeline, schedule (or: bca setup agent)
 bca check                   # architecture gate for CI
 bca export --view report    # docs/atlas/README.md: overview, diagrams, health
+bca export --view handbook  # docs/handbook: events, data, permissions, UI, code health
 bca update                  # new version? see what changed and update everything in one step
 ```
 
@@ -37,16 +39,17 @@ In VS Code, install the **BC Atlas** extension and open an AL project:
 
 | Area | Command | What you get |
 | --- | --- | --- |
-| **In VS Code** | BC Atlas extension | Everything below in the editor: a panel with overview, health, architecture, 3D dependencies, diagrams, objects, and docs; findings in the Problems panel; CodeLens above AL objects; the MCP server for agents. [Guide](./docs/vscode.md) |
+| **In VS Code** | BC Atlas extension | Everything below in the editor: a panel with overview, health, architecture, 3D dependencies, diagrams, objects, the handbook, and docs; findings in the Problems panel; CodeLens above AL objects; the MCP server for agents. [Guide](./docs/vscode.md) |
 | **Get started** | `bca setup` | Guided setup in the terminal or through your AI agent (Claude Code, Copilot, Cursor): a starter `.bca.json`, features, Husky or Git hooks, GitHub Actions or Azure Pipelines, cron schedule, and sync. |
-| **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, architecture violations, hot spots, diagnostics, and AL compiler and CodeCop/UICop/AppSourceCop findings - with a CI exit code, also as SARIF for code scanning. |
-| | `bca architecture` | Find a target architecture (components, layers), list every dependency that blocks it with how to resolve it, and enforce it with a shrinking baseline. [Guide](./docs/clean-architecture.md) |
+| **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, architecture violations, hot spots, missing DataClassification or ToolTips, obsolete markings without a tag, complex procedures, undocumented public API, diagnostics, and AL compiler and CodeCop/UICop/AppSourceCop findings - with a CI exit code, also as SARIF for code scanning. [Rules](./docs/health-checks.md) |
+| | `bca architecture` | Find a target architecture (components, layers), list every dependency that blocks it with how to resolve it, and enforce it with a shrinking baseline. You decide what the proposal considers (`architecture.proposal`: relation kinds, starting structures, granularity, components you keep, objects you exclude), it says how it was made, and `--explain` says why an object is where it is. [Guide](./docs/clean-architecture.md) |
 | | `bca graph query` | Reuse a saved graph for impact analysis or message migrations without re-analyzing AL; keep IDs, directions, evidence, and metadata. [Guide](./docs/dependency-explorer.md#query-and-render-saved-graphs) |
 | **Export** | `bca export` | Everything the extension shows, as files: the BC Atlas pages as one offline HTML file to share (default), the Markdown report ([example](./examples/report/README.md)), the 3D explorer, one Markdown page per object, any of ten diagram views as D2, SVG, PNG, PDF, or JSON, with `--watch`, and the project as a knowledge graph in RDF with an OWL ontology ([Turtle, RDF/XML, OWL, N-Triples, JSON-LD](./docs/knowledge-graph.md)). |
+| | `bca export --view handbook` | The system handbook: what the app consists of, its events, data (who inserts, modifies, deletes, reads each table), permissions, interfaces, user interface, and code health, across all objects, in English or German, linked to the object catalog. [Guide](./docs/handbook.md), [example](./examples/handbook/README.md) |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations, a flow diagram per scenario, and BPMN 2.0 processes per use case. [Example](./examples/docs/index.md) |
 | | `bca graph render` | Render saved graph selections as SVG, static HTML, DOT, or JSON through the CLI or MCP, locally and without Graphviz. |
 | **Integrate** | `bca run` | One entry point for Git hooks, schedules, and pipelines; verifies, stages, or publishes generated files. Also available as a [GitHub Action](./docs/automation-and-ci.md#github-actions). |
-| | `bca update` | "BC Atlas 0.15.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
+| | `bca update` | "BC Atlas 0.16.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
 | | `bca mcp` | A Model Context Protocol server for AI agents; `bca help --format json` is the versioned command contract. |
 
 Run `bca` for the same overview in your terminal and `bca help <command>` for
@@ -125,6 +128,10 @@ Generated from the checked-in [warehouse example](./examples/README.md).
 - permission sets: table-data `RIMD` rights, execute rights, and composed sets
   across dependent apps;
 - pages, parts, actions, and navigation;
+- what characterizes each object, field, and procedure: captions, `///`
+  summaries, access, obsolete state, data classification, page and table
+  types, size, and cyclomatic complexity, also for objects in symbol
+  packages;
 - `app.json` metadata, `.alpackages` symbols and `al.packageCachePath`,
   `.code-workspace` multi-root workspaces, cycles, hubs, orphans, and
   unresolved references.
@@ -182,10 +189,10 @@ search, or browse them here, starting with the [table of contents](./docs/_TOC_.
 - [Architecture reports](./docs/reports.md) and [health checks](./docs/health-checks.md)
 - [Architecture diagrams and views](./docs/architecture-diagrams.md)
 - [Configuration](./docs/configuration.md) and the complete [`.bca.example.json`](./.bca.example.json)
-- [Documentation from AL UI tests](./docs/al-ui-test-documentation.md) and [Code Graph](./docs/code-graph-markdown-design.md)
+- [System handbook](./docs/handbook.md), [documentation from AL UI tests](./docs/al-ui-test-documentation.md), and [Code Graph](./docs/code-graph-markdown-design.md)
 - [Agent integration and MCP](./docs/agent-integration.md)
 - [CLI reference](./docs/cli-reference.md) and [troubleshooting](./docs/troubleshooting.md)
-- Generated examples: [architecture report](./examples/report/README.md) and [user guides](./examples/docs/index.md)
+- Generated examples: [architecture report](./examples/report/README.md), [system handbook](./examples/handbook/README.md), and [user guides](./examples/docs/index.md)
 
 ## AI agents and tools
 
@@ -196,8 +203,8 @@ bca mcp                  # MCP stdio server (also installed as bca-mcp)
 
 Agents should read the contract first, pass arguments as arrays, parse stdout
 only after a successful exit code, and preview changes with `--dry-run`. The
-MCP server exposes inspect, check, report, diagram, documentation, setup, run,
-and update-check tools. `bca setup agent --agent claude|copilot|cursor` adds a
+MCP server exposes inspect, check, architecture, report, handbook, diagram,
+documentation, setup, run, and update-check tools. `bca setup agent --agent claude|copilot|cursor` adds a
 `/bca-setup` command that lets your agent guide the setup. See
 [agent integration](./docs/agent-integration.md).
 
