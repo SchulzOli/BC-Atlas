@@ -67,7 +67,7 @@ test("summarizes health in the status bar and the side bar", () => {
   assert.match(status.tooltip, /Contoso: 1,200 objects in 2 apps/u);
   assert.equal(logic.statusFor(undefined).tone, "busy");
   assert.equal(logic.statusFor({ ...overview, health: { passed: true, counts: { error: 0, warning: 0, info: 0 } } }).text, "$(pass) BC Atlas");
-  assert.deepEqual(logic.pages(overview).map(({ id }) => id), ["overview", "health", "architecture", "dependencies", "diagrams", "objects", "docs"]);
+  assert.deepEqual(logic.pages(overview).map(({ id }) => id), ["overview", "health", "architecture", "dependencies", "diagrams", "objects", "handbook", "docs"]);
   assert.ok(!logic.pages({ ...overview, docs: { scenarios: 0 } }).some(({ id }) => id === "docs"));
 });
 

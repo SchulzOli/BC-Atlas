@@ -20,6 +20,7 @@ import { loadCorpus } from "../docs/model.js";
 import { createGraphDocument } from "../graph/document.js";
 import { renderExplorerHtml } from "../graph/html.js";
 import { openParseCache } from "../parse-cache.js";
+import { renderHandbook } from "../handbook.js";
 import { MAX_DIAGRAM_NODES, prepareScene, sceneToSvg } from "../diagram/index.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
@@ -181,6 +182,22 @@ export class Workspace {
         }
       }))
     };
+  }
+
+  /**
+   * The system handbook (src/handbook.js) for the Handbook page: object names
+   * link to object pages, page links to the other handbook pages.
+   */
+  handbook() {
+    return this.remember("handbook", async () => {
+      const objects = new Set((await this.objectIndex()).list.map(({ id }) => id));
+      const { pages, objects: count } = await renderHandbook(this.input, {
+        ...this.values,
+        linkTo: (object) => objects.has(object.key) ? `#/object/${encodeURIComponent(object.key)}` : undefined,
+        pageLink: (file) => `#/handbook/${file.replace(/\.md$/u, "")}`
+      }, { assessment: await this.assessment() });
+      return { objects: count, pages: pages.map(({ file, title, content }) => ({ id: file.replace(/\.md$/u, ""), file, title, markdown: content })) };
+    });
   }
 
   /** One component up close: objects, groups inside it, and its dependencies, allowed or wrong-way. */

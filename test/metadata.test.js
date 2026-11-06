@@ -113,3 +113,31 @@ test("AL text properties and documentation comments are read like the AL compile
   const further = "/// <summary>Old</summary>\nvar x;\nprocedure X()";
   assert.equal(documentationComment(further, further.indexOf("procedure")), undefined, "a comment further up belongs to something else");
 });
+
+test("objects from symbol packages carry metadata too, also in nested namespaces", async () => {
+  const { testing: symbols } = await import("../src/symbols.js");
+  const objects = symbols.objectsFor({
+    Tables: [{
+      Id: 18, Name: "Customer",
+      Properties: [{ Name: "Caption", Value: "Customer" }, { Name: "DataClassification", Value: "CustomerContent" }],
+      Fields: [{ Id: 1, Name: "No." }, { Id: 2, Name: "Name" }],
+      Keys: [{ Name: "PK" }],
+      Methods: [{ Name: "GetName" }, { Name: "OnAfterInsert", Attributes: [{ Name: "IntegrationEvent" }] }, { Name: "Helper", IsInternal: true }]
+    }],
+    Namespaces: [{ Name: "Microsoft", Namespaces: [{ Name: "Sales", Codeunits: [{
+      Id: 80, Name: "Sales-Post",
+      Properties: [{ Name: "TableNo", Value: "Sales Header" }, { Name: "Access", Value: "Internal" }, { Name: "ObsoleteState", Value: "Pending" }, { Name: "ObsoleteReason", Value: "Use Sales Post v2" }]
+    }] }] }]
+  }, { name: "Base Application" }, "Base.app");
+  const [customer, post] = objects;
+  assert.deepEqual(customer.metadata, {
+    caption: "Customer",
+    access: "public",
+    dataClassification: "CustomerContent",
+    size: { fields: 2, keys: 1, procedures: 2, publicProcedures: 1, events: 1 }
+  });
+  assert.equal(post.namespace, "Microsoft.Sales");
+  assert.equal(post.metadata.access, "internal");
+  assert.deepEqual(post.metadata.obsolete, { state: "pending", reason: "Use Sales Post v2" });
+  assert.ok(Object.isFrozen(customer.metadata.size), "the cached metadata cannot be changed by a caller");
+});

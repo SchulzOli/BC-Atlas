@@ -27,6 +27,27 @@ subscribers, and permission sets. The text improves as the code is
 documented. A `/// <summary>` above an event, an interface, or a codeunit
 shows up in the handbook.
 
+## In VS Code and the offline app
+
+The **Handbook** page of the BC Atlas panel and of `bca export` (the offline
+HTML file) shows the same pages. There, object names open their object page,
+and **Download page** saves the page as Markdown.
+
+## Link to the object catalog
+
+With `--catalog`, every object name links to its page in the
+[object catalog](./code-graph-markdown-design.md), so you can go from the overview to
+the details:
+
+```sh
+bca export ./app --view catalog -o docs/codegraph
+bca export ./app --view handbook -o docs/handbook --catalog docs/codegraph
+```
+
+`bca run` links the two on its own when the same run writes the catalog (the
+`codegraph` task). Otherwise set `handbook.catalog` in `.bca.json` to the
+catalog's folder.
+
 ## Keep it up to date
 
 Add the `handbook` task to a trigger in `.bca.json`, and the pages are
@@ -40,7 +61,7 @@ regenerated with every run, or verified in CI:
       "schedule": { "cron": "0 6 * * 1", "tasks": ["report", "handbook"], "sync": "pull-request" }
     }
   },
-  "handbook": { "outputDir": "docs/handbook", "title": "Contoso Sales" }
+  "handbook": { "outputDir": "docs/handbook", "title": "Contoso Sales", "catalog": "docs/codegraph" }
 }
 ```
 

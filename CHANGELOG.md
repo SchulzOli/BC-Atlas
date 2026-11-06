@@ -35,6 +35,15 @@ follows [Semantic Versioning](https://semver.org/).
   - its code health: complexity, size, obsolete code, documentation coverage
 
   See `docs/handbook.md` and `examples/handbook`.
+- The handbook links object names to their pages in the object catalog: use
+  `--catalog <folder>`, or `handbook.catalog` in `.bca.json`. `bca run` links
+  them on its own when the same run writes the catalog.
+- The app and the VS Code panel have a **Handbook** page. Object names there
+  open their object page.
+- Objects from symbol packages (`.app`) carry metadata too: caption, access,
+  obsolete state, data classification, kind, and size, read from
+  `SymbolReference.json`. Objects that newer symbol files nest under
+  `Namespaces` are read as well.
 - Event subscriber relations record the event they subscribe to (`event` on
   `subscribes` edges).
 - Objects, fields, and procedures carry `metadata` that describes what they

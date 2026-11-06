@@ -57,6 +57,7 @@ export function createService(workspace) {
       return object;
     },
     views: () => workspace.views(),
+    handbook: () => workspace.handbook(),
     diagram: (params = {}) => workspace.diagram(params),
     docs: async () => {
       const docs = await workspace.docs();

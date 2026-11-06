@@ -10,4 +10,4 @@ What users can open, grouped the way Business Central offers it (usage category)
 
 | Object | Caption | Type | Source table | Application area |
 | --- | --- | --- | --- | --- |
-| Page 50110 Warehouse Requests | Warehouse Requests | List | Warehouse Request | All |
+| [Page 50110 Warehouse Requests](../report/objects/page/50110-warehouse-requests.md) | Warehouse Requests | List | Warehouse Request | All |

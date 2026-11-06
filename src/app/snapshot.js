@@ -40,13 +40,14 @@ function compactDetails(index) {
 
 export async function createSnapshot(workspace, { log = () => {}, history = false, last, title } = {}) {
   const overview = { ...await workspace.overview(), ...(title ? { title } : {}) };
-  const [health, architecture, components, index, docs, docsHtml] = await Promise.all([
+  const [health, architecture, components, index, docs, docsHtml, handbook] = await Promise.all([
     workspace.healthReport(),
     workspace.architecture(),
     workspace.components(),
     workspace.objectIndex(),
     workspace.docsBrowser(),
-    workspace.docsHtml()
+    workspace.docsHtml(),
+    workspace.handbook()
   ]);
   const { nodes, details } = compactDetails(index);
   const views = [];
@@ -78,7 +79,8 @@ export async function createSnapshot(workspace, { log = () => {}, history = fals
     // The Docs page in the settings of .bca.json; the whole page for download.
     docs: docs ? { ...docs, languages: [docs.language] } : undefined,
     explorerHtml,
-    docsHtml
+    docsHtml,
+    handbook
   };
 }
 

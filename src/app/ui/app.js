@@ -100,6 +100,11 @@
     objects: () => LIVE ? read("objects") : SNAPSHOT.objects,
     object: async (id) => (LIVE ? read("object", { id }) : snapshotObject(id)),
     views: () => LIVE ? read("views") : SNAPSHOT.views,
+    handbook: () => {
+      if (LIVE) return read("handbook");
+      if (!SNAPSHOT.handbook) throw new Error("The handbook is not part of the export.");
+      return SNAPSHOT.handbook;
+    },
     diagram: async (settings) => {
       if (LIVE) return read("diagram", settings);
       const diagram = SNAPSHOT.diagrams[settings.view];
@@ -257,7 +262,8 @@
     dependencies: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7.2l7.6 0.4M7.3 8.2l3.6 7.7M16.8 9.2l-3.6 6.8"/>',
     diagrams: '<rect x="3" y="4" width="7" height="5" rx="1"/><rect x="14" y="4" width="7" height="5" rx="1"/><rect x="8.5" y="15" width="7" height="5" rx="1"/><path d="M6.5 9v3h11V9M12 12v3"/>',
     objects: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
-    docs: '<path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4M8 12h8M8 16h6"/>'
+    docs: '<path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4M8 12h8M8 16h6"/>',
+    handbook: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6M9 11h6"/>'
   };
   const PAGES = [
     ["overview", "Overview"],
@@ -266,6 +272,7 @@
     ["dependencies", "Dependencies"],
     ["diagrams", "Diagrams"],
     ["objects", "Objects"],
+    ["handbook", "Handbook"],
     ["docs", "Docs"]
   ];
 
@@ -1836,6 +1843,74 @@
     });
   }
 
+  // ------------------------------------------------------------- handbook
+  // The Markdown the handbook writes (src/handbook.js): headings, tables,
+  // lists, paragraphs, inline code, emphasis, and links. Text is escaped
+  // first; links may only go to pages of this app or to http(s) addresses.
+  function inlineMarkdown(text) {
+    const codes = [];
+    let html = esc(text).replace(/`([^`]+)`/gu, (_, code) => `\u0000${codes.push(code) - 1}\u0000`);
+    html = html
+      .replace(/\[((?:\\\]|[^\]])+)\]\(([^)\s]+)\)/gu, (match, label, href) => {
+        const target = href.replaceAll("&amp;", "&");
+        if (!/^(#\/|https?:\/\/)/iu.test(target)) return label.replaceAll("\\]", "]").replaceAll("\\[", "[");
+        return `<a href="${esc(target)}"${target.startsWith("#") ? "" : ' target="_blank" rel="noopener"'}>${label.replaceAll("\\]", "]").replaceAll("\\[", "[")}</a>`;
+      })
+      .replace(/\*\*([^*]+)\*\*/gu, "<b>$1</b>")
+      .replace(/(^|[\s(])\*([^*\s][^*]*)\*/gu, "$1<i>$2</i>")
+      .replace(/\\\|/gu, "|");
+    return html.replace(/\u0000(\d+)\u0000/gu, (_, index) => `<code>${codes[Number(index)]}</code>`);
+  }
+
+  function markdownToHtml(markdown) {
+    const lines = markdown.split(/\r?\n/u);
+    const html = [];
+    const cells = (line) => line.trim().replace(/^\||\|$/gu, "").split(/(?<!\\)\|/u).map((cell) => cell.trim());
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index];
+      if (!line.trim()) continue;
+      const heading = /^(#{1,4})\s+(.*)$/u.exec(line);
+      if (heading) {
+        if (heading[1].length > 1) html.push(`<h${heading[1].length + 1}>${inlineMarkdown(heading[2])}</h${heading[1].length + 1}>`);
+        continue;
+      }
+      if (line.trim().startsWith("|") && /^\s*\|?\s*:?-{3,}/u.test(lines[index + 1] ?? "")) {
+        const header = cells(line);
+        const align = cells(lines[index + 1]).map((cell) => cell.endsWith(":") ? ' class="num"' : "");
+        const rows = [];
+        index += 2;
+        while (index < lines.length && lines[index].trim().startsWith("|")) rows.push(cells(lines[index++]));
+        index--;
+        html.push(`<div class="table-scroll"><table class="data"><thead><tr>${header.map((cell, column) => `<th${align[column]}>${inlineMarkdown(cell)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell, column) => `<td${align[column]}>${inlineMarkdown(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
+        continue;
+      }
+      if (/^\s*-\s+/u.test(line)) {
+        const items = [];
+        while (index < lines.length && /^\s*-\s+/u.test(lines[index])) items.push(lines[index++].replace(/^\s*-\s+/u, ""));
+        index--;
+        html.push(`<ul class="prose-list">${items.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ul>`);
+        continue;
+      }
+      const paragraph = [line.trim()];
+      while (index + 1 < lines.length && lines[index + 1].trim() && !/^(#|\||\s*-\s)/u.test(lines[index + 1])) paragraph.push(lines[++index].trim());
+      html.push(`<p>${inlineMarkdown(paragraph.join(" "))}</p>`);
+    }
+    return html.join("");
+  }
+
+  async function handbookPage(page, { arg }) {
+    const data = await api.handbook();
+    const current = data.pages.find(({ id }) => id === (arg ?? "README")) ?? data.pages[0];
+    setHeader(data.pages[0].title, `What the system consists of and how it hangs together, across ${plural(data.objects, "object")}. Generated from the AL source; <code>bca export --view handbook</code> writes the same pages as Markdown.`,
+      `<button class="btn" data-action="download">Download page (Markdown)</button>`);
+    $("#page-actions").onclick = (event) => {
+      if (event.target.closest('[data-action="download"]')) download(current.file, current.markdown, "text/markdown");
+    };
+    page.innerHTML = `
+      <section class="card"><div class="segmented handbook-tabs">${data.pages.map(({ id, title }) => `<a class="btn" href="#/handbook/${encodeURIComponent(id)}" aria-pressed="${id === current.id}">${esc(id === "README" ? "Overview" : title)}</a>`).join("")}</div></section>
+      <section class="card prose">${markdownToHtml(current.markdown)}</section>`;
+  }
+
   const RENDERERS = {
     overview: overviewPage,
     health: healthPage,
@@ -1845,6 +1920,7 @@
     diagrams: diagramsPage,
     objects: objectsPage,
     object: objectPage,
+    handbook: handbookPage,
     docs: docsPage
   };
 

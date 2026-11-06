@@ -12,4 +12,4 @@ Every event has a subscriber here.
 
 | Publisher | Event | Kind | Description | Subscribers |
 | --- | --- | --- | --- | --- |
-| Codeunit 50101 Warehouse Processor | `OnRequestProcessed` | integration |  | Codeunit 50120 Warehouse Notifications (`NotifyRequestProcessed`) |
+| [Codeunit 50101 Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md) | `OnRequestProcessed` | integration |  | [Codeunit 50120 Warehouse Notifications](../report/objects/codeunit/50120-warehouse-notifications.md) (`NotifyRequestProcessed`) |

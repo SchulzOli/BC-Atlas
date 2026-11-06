@@ -36,7 +36,7 @@ configure it is [`bca setup`](./setup.md).
 | `report` | `report.outputDir` (default `docs/atlas`) | `report` section |
 | `docs` | `docs.outputDir` (default `docs/guides`) | `docs`: `tests`, `app`, `export`, `as`, `language`, `title` |
 | `codegraph` | `codegraph.outputDir` (default `docs/codegraph`) | `codegraph` section |
-| `handbook` | `handbook.outputDir` (default `docs/handbook`) | `handbook`: `outputDir`, `title`; see [System handbook](./handbook.md) |
+| `handbook` | `handbook.outputDir` (default `docs/handbook`) | `handbook`: `outputDir`, `title`, `catalog` (links object names to the catalog; automatic when the run has the `codegraph` task); see [System handbook](./handbook.md) |
 | `diagrams` | each `diagrams[].output` | `diagrams`: list of `graph` options, e.g. `{ "view": "data", "output": "docs/data.svg" }` |
 
 ## Sync modes

@@ -8,4 +8,4 @@ Which tables this system has, who reads and writes them, and how. I = insert, M 
 
 | Table | Caption | Classification | Fields | Written by | Read by | Shown on |
 | --- | --- | --- | ---: | --- | --- | --- |
-| Table 50100 Warehouse Request |  | CustomerContent | 3 | Warehouse Processor (MR), WarehouseUITests (IDR) | Warehouse Requests | Warehouse Requests |
+| [Table 50100 Warehouse Request](../report/objects/table/50100-warehouse-request.md) |  | CustomerContent | 3 | [Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md) (MR), [WarehouseUITests](../report/objects/codeunit/50122-warehouseuitests.md) (IDR) | [Warehouse Requests](../report/objects/page/50110-warehouse-requests.md) | [Warehouse Requests](../report/objects/page/50110-warehouse-requests.md) |

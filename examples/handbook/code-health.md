@@ -10,23 +10,23 @@ Where the code is hard to change: complex procedures, large objects, obsolete co
 
 | Procedure | Object | Complexity | Lines |
 | --- | --- | ---: | ---: |
-| `WarehouseRequests_ProcessRequest_MarksRequestProcessed` | Codeunit 50122 WarehouseUITests | 2 | 29 |
-| `WarehouseRequests_CreateRequest_PersistsDescription` | Codeunit 50122 WarehouseUITests | 2 | 26 |
-| `Process` | Codeunit 50101 Warehouse Processor | 2 | 7 |
+| `WarehouseRequests_ProcessRequest_MarksRequestProcessed` | [Codeunit 50122 WarehouseUITests](../report/objects/codeunit/50122-warehouseuitests.md) | 2 | 29 |
+| `WarehouseRequests_CreateRequest_PersistsDescription` | [Codeunit 50122 WarehouseUITests](../report/objects/codeunit/50122-warehouseuitests.md) | 2 | 26 |
+| `Process` | [Codeunit 50101 Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md) | 2 | 7 |
 
 ## Largest objects
 
 | Object | Lines | Procedures | Complexity |
 | --- | ---: | ---: | ---: |
-| Codeunit 50122 WarehouseUITests | 69 | 2 | 4 |
-| Page 50110 Warehouse Requests | 58 | 0 | 1 |
-| Codeunit 50101 Warehouse Processor | 32 | 3 | 5 |
-| Table 50100 Warehouse Request | 19 | 0 |  |
-| Codeunit 50120 Warehouse Notifications | 12 | 2 | 2 |
-| Permission set 50121 WAREHOUSE PROCESS | 8 | 0 |  |
-| Enum 50102 Warehouse Handler | 7 | 0 |  |
-| Interface Handles Warehouse Activity | 4 | 1 |  |
-| Page extension 50111 Warehouse Request Ext. | 3 | 0 |  |
+| [Codeunit 50122 WarehouseUITests](../report/objects/codeunit/50122-warehouseuitests.md) | 69 | 2 | 4 |
+| [Page 50110 Warehouse Requests](../report/objects/page/50110-warehouse-requests.md) | 58 | 0 | 1 |
+| [Codeunit 50101 Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md) | 32 | 3 | 5 |
+| [Table 50100 Warehouse Request](../report/objects/table/50100-warehouse-request.md) | 19 | 0 |  |
+| [Codeunit 50120 Warehouse Notifications](../report/objects/codeunit/50120-warehouse-notifications.md) | 12 | 2 | 2 |
+| [Permission set 50121 WAREHOUSE PROCESS](../report/objects/permissionset/50121-warehouse-process.md) | 8 | 0 |  |
+| [Enum 50102 Warehouse Handler](../report/objects/enum/50102-warehouse-handler.md) | 7 | 0 |  |
+| [Interface Handles Warehouse Activity](../report/objects/interface/handles-warehouse-activity.md) | 4 | 1 |  |
+| [Page extension 50111 Warehouse Request Ext.](../report/objects/pageextension/50111-warehouse-request-ext.md) | 3 | 0 |  |
 
 ## Documentation coverage
 
@@ -34,6 +34,6 @@ Where the code is hard to change: complex procedures, large objects, obsolete co
 
 Codeunits and interfaces without a `///` summary:
 
-- Interface Handles Warehouse Activity
-- Codeunit 50120 Warehouse Notifications
-- Codeunit 50101 Warehouse Processor
+- [Interface Handles Warehouse Activity](../report/objects/interface/handles-warehouse-activity.md)
+- [Codeunit 50120 Warehouse Notifications](../report/objects/codeunit/50120-warehouse-notifications.md)
+- [Codeunit 50101 Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md)

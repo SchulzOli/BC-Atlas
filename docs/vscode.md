@@ -25,7 +25,8 @@ itself has no second navigation.
 | Dependencies | The 3D dependency explorer: objects, modules, apps, and components; inside one app vs. across apps; a timeline by commit, pull request, or release. | `bca export --view explorer` |
 | Diagrams | Every diagram view with zoom and pan: hover an object to light up its relations, click it to open its page, find objects by name, and click the legend to hide a kind of relation. Large views start with every group as one box: click a box to open the group, its name to close it, or **Open groups** and **Close groups**. **SVG**, **PNG**, and **D2** save the file. | `bca export --view <view>` |
 | Objects | Every AL object, searchable and sortable, filtered by type, app, component, or violations. | |
-| Object | One object: what it uses and what uses it, its wrong-way dependencies with steps to resolve them, fields, procedures, actions, and properties. **Open source** opens the file at the declaration; a procedure opens at its line. | `bca export --view object --object <selector>` |
+| Object | One object: what characterizes it (**About**: documentation, caption, access, obsolete state, page or table type, size, complexity), what it uses and what uses it, its wrong-way dependencies with steps to resolve them, fields, procedures, actions, and properties. **Open source** opens the file at the declaration; a procedure opens at its line. | `bca export --view object --object <selector>` |
+| Handbook | The system handbook: what the system consists of, its events, data, permissions, interfaces, user interface, and code health, across all objects. Object names open their object page; **Download page** saves the Markdown. | `bca export --view handbook` |
 | Docs | The guides from your AL UI tests, when the project has documented UI tests: the overview, every use case with its process, and every scenario, as a user guide or a test case, in English or German. **Open test** opens the AL test; **Markdown**, **DITA**, **BPMN**, and **SVG** save the page, **All as HTML** the whole documentation. | `bca docs generate` |
 
 Diagrams and Docs work the same way: on the left, a list of the views or of
@@ -52,8 +53,10 @@ On the Architecture page:
   `.bca-architecture-baseline.json`, like
   `bca architecture --propose --write --update-baseline`.
 - **Propose again** with a different grouping (`auto`, `module`, `app`,
-  `namespace`, `folder`), namespace depth, or minimum component size shows a
-  new proposal; nothing is written until you adopt it.
+  `namespace`, `folder`), namespace depth, minimum component size, the
+  structures to start from, granularity, or without a shared core shows a new
+  proposal; nothing is written until you adopt it. `architecture.proposal` in
+  `.bca.json` sets the defaults and **What was considered** shows them.
 - **Accept current violations** updates the baseline, like
   `bca architecture --update-baseline`. Afterwards `bca check` fails only on
   new violations.

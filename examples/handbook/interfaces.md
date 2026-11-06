@@ -4,11 +4,11 @@
 
 Contracts that let one object call another without knowing which implementation runs, and the enum values that choose an implementation.
 
-## Interface Handles Warehouse Activity
+## [Interface Handles Warehouse Activity](../report/objects/interface/handles-warehouse-activity.md)
 
 Methods: `Process`
 
 | Implementation | Selected by |
 | --- | --- |
-| Enum 50102 Warehouse Handler |  |
-| Codeunit 50101 Warehouse Processor | Warehouse Handler::Default |
+| [Enum 50102 Warehouse Handler](../report/objects/enum/50102-warehouse-handler.md) |  |
+| [Codeunit 50101 Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md) | [Warehouse Handler](../report/objects/enum/50102-warehouse-handler.md)::Default |

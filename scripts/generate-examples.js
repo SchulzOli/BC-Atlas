@@ -68,7 +68,7 @@ for (const [name, image] of [["project", "project-view"], ["workflow", "workflow
 }
 
 await run(["export", input, "--view", "report", "-o", path.join("examples", "report"), "--codegraph"]);
-await run(["export", input, "--view", "handbook", "-o", path.join("examples", "handbook")]);
+await run(["export", input, "--view", "handbook", "-o", path.join("examples", "handbook"), "--catalog", path.join("examples", "report", "objects")]);
 await run([
   "docs", "generate", input,
   "--app", input,

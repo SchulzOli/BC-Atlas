@@ -10,6 +10,6 @@ Assignable to users.
 
 | Object | Kind | Rights |
 | --- | --- | --- |
-| Codeunit 50101 Warehouse Processor | execute | X |
-| Page 50110 Warehouse Requests | execute | X |
-| Table 50100 Warehouse Request | tabledata | RIMD |
+| [Codeunit 50101 Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md) | execute | X |
+| [Page 50110 Warehouse Requests](../report/objects/page/50110-warehouse-requests.md) | execute | X |
+| [Table 50100 Warehouse Request](../report/objects/table/50100-warehouse-request.md) | tabledata | RIMD |

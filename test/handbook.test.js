@@ -58,3 +58,22 @@ test("bca export --view handbook and the bca run handbook task write the handboo
   assert.equal(run.status, 0, run.stderr + run.stdout);
   assert.match(readFileSync(path.join(directory, "app", "wiki", "README.md"), "utf8"), /# Warehouse\n/u);
 });
+
+test("with a catalog, object names in the handbook link to their catalog pages", async (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bca-handbook-links-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const catalog = path.join(directory, "codegraph");
+  const written = spawnSync(process.execPath, [cli, "export", warehouse, "--view", "catalog", "-o", catalog], { encoding: "utf8" });
+  assert.equal(written.status, 0, written.stderr);
+  const result = await generateHandbook(warehouse, { outputDir: path.join(directory, "handbook"), catalog });
+  assert.ok(result.linked > 0);
+  const data = readFileSync(path.join(directory, "handbook", "data.md"), "utf8");
+  assert.match(data, /\| \[Table 50100 Warehouse Request\]\(\.\.\/codegraph\/table\/50100-warehouse-request\.md\) \|/u);
+  // Every link points to a page the catalog wrote.
+  for (const file of result.pages) {
+    const content = readFileSync(path.join(directory, "handbook", file), "utf8");
+    for (const [, target] of content.matchAll(/\]\((\.\.\/codegraph\/[^)]+)\)/gu)) {
+      assert.ok(existsSync(path.join(directory, "handbook", decodeURIComponent(target))), `${file} links ${target}`);
+    }
+  }
+});
