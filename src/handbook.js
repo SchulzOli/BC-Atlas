@@ -49,8 +49,10 @@ function crud(edge) {
   return "R";
 }
 
+// The generated-file marker goes in front only when the pages are written
+// (generateHandbook); the app renders the pages without it.
 function header(title, intro) {
-  return [MARKER, "", `# ${title}`, "", ...(intro ? [intro, ""] : [])];
+  return [`# ${title}`, "", ...(intro ? [intro, ""] : [])];
 }
 
 function overviewPage(context) {
@@ -401,6 +403,6 @@ export async function generateHandbook(input, values = {}) {
   for (const name of await fs.readdir(outputDirectory)) {
     if (name.endsWith(".md")) await fs.rm(path.join(outputDirectory, name), { force: true });
   }
-  for (const page of pages) await fs.writeFile(path.join(outputDirectory, page.file), page.content);
+  for (const page of pages) await fs.writeFile(path.join(outputDirectory, page.file), `${MARKER}\n\n${page.content}`);
   return { outputDirectory, pages: pages.map(({ file }) => file), objects, linked };
 }

@@ -1868,8 +1868,7 @@
     const cells = (line) => line.trim().replace(/^\||\|$/gu, "").split(/(?<!\\)\|/u).map((cell) => cell.trim());
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index];
-      // Blank lines and comment lines (the generated-file marker) show nothing; all other text is escaped.
-      if (!line.trim() || /^\s*<!--.*-->\s*$/u.test(line)) continue;
+      if (!line.trim()) continue;
       const heading = /^(#{1,4})\s+(.*)$/u.exec(line);
       if (heading) {
         if (heading[1].length > 1) html.push(`<h${heading[1].length + 1}>${inlineMarkdown(heading[2])}</h${heading[1].length + 1}>`);
