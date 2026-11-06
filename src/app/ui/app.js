@@ -1863,12 +1863,13 @@
   }
 
   function markdownToHtml(markdown) {
-    const lines = markdown.replace(/<!--[\s\S]*?-->/gu, "").split(/\r?\n/u);
+    const lines = markdown.split(/\r?\n/u);
     const html = [];
     const cells = (line) => line.trim().replace(/^\||\|$/gu, "").split(/(?<!\\)\|/u).map((cell) => cell.trim());
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index];
-      if (!line.trim()) continue;
+      // Blank lines and comment lines (the generated-file marker) show nothing; all other text is escaped.
+      if (!line.trim() || /^\s*<!--.*-->\s*$/u.test(line)) continue;
       const heading = /^(#{1,4})\s+(.*)$/u.exec(line);
       if (heading) {
         if (heading[1].length > 1) html.push(`<h${heading[1].length + 1}>${inlineMarkdown(heading[2])}</h${heading[1].length + 1}>`);
