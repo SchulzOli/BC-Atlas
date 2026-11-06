@@ -15,14 +15,15 @@ const EN = {
   plural: (count, one, many = `${one}s`) => `${number("en")(count)} ${count === 1 ? one : many}`,
   defaultTitle: (name) => `${name}: system handbook`,
   pages: {
-    "README.md": { title: "System handbook" },
-    "events.md": { title: "Events", summary: "who raises which event and who reacts to it" },
-    "data.md": { title: "Data", summary: "tables, who reads and writes them, and how" },
-    "permissions.md": { title: "Permissions", summary: "what each permission set grants, and what nothing covers" },
-    "interfaces.md": { title: "Interfaces", summary: "contracts, implementations, and the enum values that choose them" },
-    "ui.md": { title: "User interface", summary: "pages and reports by usage category, APIs, and their source tables" },
-    "code-health.md": { title: "Code health", summary: "complexity, size, obsolete code, and documentation coverage" }
+    "README.md": { title: "System handbook", basedOn: "the AL source of the workspace, its `app.json`, the symbol packages, and the architecture (see Sources below)." },
+    "events.md": { title: "Events", summary: "who raises which event and who reacts to it", basedOn: "`[IntegrationEvent]`, `[BusinessEvent]`, and `[InternalEvent]` procedures and `[EventSubscriber]` attributes in the AL source; events of other apps come from their symbol packages." },
+    "data.md": { title: "Data", summary: "tables, who reads and writes them, and how", basedOn: "tables and table extensions, the record operations in the code (`Insert`, `Modify`, `Delete`, `Get`, `FindSet`, ...), and the `SourceTable` of pages." },
+    "permissions.md": { title: "Permissions", summary: "what each permission set grants, and what nothing covers", basedOn: "the `Permissions` and `IncludedPermissionSets` of the permission sets and permission set extensions in the AL source." },
+    "interfaces.md": { title: "Interfaces", summary: "contracts, implementations, and the enum values that choose them", basedOn: "`interface` objects, the `implements` of codeunits and enums, and the `Implementation` of enum values." },
+    "ui.md": { title: "User interface", summary: "pages and reports by usage category, APIs, and their source tables", basedOn: "the `Caption`, `PageType`, `UsageCategory`, `ApplicationArea`, and `SourceTable` of pages and reports, and the `APIPublisher`, `APIGroup`, `APIVersion`, and `EntityName` of API pages." },
+    "code-health.md": { title: "Code health", summary: "complexity, size, obsolete code, and documentation coverage", basedOn: "the procedures' code (cyclomatic complexity counted from `if`, `case`, loops, `and`, and `or`), line counts, `ObsoleteState` and `[Obsolete]`, and `///` comments." }
   },
+  basedOn: "Based on",
   overview: {
     intro: "What this system consists of and how it hangs together, generated from its AL source. Each page below answers one question across all objects.",
     contents: "Contents", apps: "Apps", app: "App", publisher: "Publisher", version: "Version", objects: "Objects",
@@ -32,7 +33,15 @@ const EN = {
     proposed: "No architecture is configured yet; these components are what `bca architecture --propose` derives from today's dependencies.",
     layer: "Layer", component: "Component", dependsOn: "Depends on", purpose: "Purpose",
     central: "Objects everything relies on", centralIntro: "Used by the most other objects; a change to them reaches furthest.",
-    object: "Object", usedBy: "Used by"
+    object: "Object", usedBy: "Used by",
+    sources: "Sources", sourcesIntro: "Everything in this handbook is read from these sources; nothing is entered by hand.",
+    source: "Source", details: "Details",
+    alSource: "AL source", alSourceDetail: (files, objects) => `${EN.plural(files, "file")}, ${EN.plural(objects, "object")}`,
+    appJson: "`app.json`", appJsonDetail: (apps) => apps.length ? apps.join(", ") : "none found",
+    symbols: "Symbol packages", symbolsNone: "none: references to other apps stay unresolved. Download symbols to `.alpackages` to include them.",
+    compiler: "AL compiler", compilerNone: "not used: calls are resolved from the syntax only.",
+    architecture: "Architecture", architectureConfigured: (file) => `configured in ${file}`, architectureProposed: "proposed from the dependencies (none configured)",
+    settings: "Settings", settingsNone: "no `.bca.json`"
   },
   events: {
     intro: "Events are how objects react to each other without depending on each other directly. For every event: who raises it and who reacts to it.",
@@ -101,14 +110,15 @@ const DE = {
   plural: (count, one, many) => `${number("de")(count)} ${count === 1 ? one : many}`,
   defaultTitle: (name) => `${name}: Systemhandbuch`,
   pages: {
-    "README.md": { title: "Systemhandbuch" },
-    "events.md": { title: "Ereignisse", summary: "wer welches Ereignis auslöst und wer darauf reagiert" },
-    "data.md": { title: "Daten", summary: "Tabellen, wer sie liest und schreibt, und wie" },
-    "permissions.md": { title: "Berechtigungen", summary: "was jeder Berechtigungssatz gewährt und was keiner abdeckt" },
-    "interfaces.md": { title: "Interfaces", summary: "Verträge, Implementierungen und die Enum-Werte, die sie auswählen" },
-    "ui.md": { title: "Benutzeroberfläche", summary: "Seiten und Berichte nach Verwendungskategorie, APIs und ihre Quelltabellen" },
-    "code-health.md": { title: "Codequalität", summary: "Komplexität, Größe, veralteter Code und Dokumentationsabdeckung" }
+    "README.md": { title: "Systemhandbuch", basedOn: "der AL-Quellcode des Workspace, seine `app.json`, die Symbolpakete und die Architektur (siehe Quellen unten)." },
+    "events.md": { title: "Ereignisse", summary: "wer welches Ereignis auslöst und wer darauf reagiert", basedOn: "Prozeduren mit `[IntegrationEvent]`, `[BusinessEvent]` und `[InternalEvent]` und `[EventSubscriber]`-Attribute im AL-Quellcode; Ereignisse anderer Apps stammen aus deren Symbolpaketen." },
+    "data.md": { title: "Daten", summary: "Tabellen, wer sie liest und schreibt, und wie", basedOn: "Tabellen und Tabellenerweiterungen, die Datensatzoperationen im Code (`Insert`, `Modify`, `Delete`, `Get`, `FindSet`, ...) und die `SourceTable` der Seiten." },
+    "permissions.md": { title: "Berechtigungen", summary: "was jeder Berechtigungssatz gewährt und was keiner abdeckt", basedOn: "`Permissions` und `IncludedPermissionSets` der Berechtigungssätze und Berechtigungssatzerweiterungen im AL-Quellcode." },
+    "interfaces.md": { title: "Interfaces", summary: "Verträge, Implementierungen und die Enum-Werte, die sie auswählen", basedOn: "`interface`-Objekte, die `implements` von Codeunits und Enums und die `Implementation` von Enum-Werten." },
+    "ui.md": { title: "Benutzeroberfläche", summary: "Seiten und Berichte nach Verwendungskategorie, APIs und ihre Quelltabellen", basedOn: "`Caption`, `PageType`, `UsageCategory`, `ApplicationArea` und `SourceTable` der Seiten und Berichte sowie `APIPublisher`, `APIGroup`, `APIVersion` und `EntityName` der API-Seiten." },
+    "code-health.md": { title: "Codequalität", summary: "Komplexität, Größe, veralteter Code und Dokumentationsabdeckung", basedOn: "der Code der Prozeduren (zyklomatische Komplexität aus `if`, `case`, Schleifen, `and` und `or`), Zeilenzahlen, `ObsoleteState` und `[Obsolete]` sowie `///`-Kommentare." }
   },
+  basedOn: "Grundlage",
   overview: {
     intro: "Woraus dieses System besteht und wie es zusammenhängt, erzeugt aus seinem AL-Quellcode. Jede Seite unten beantwortet eine Frage über alle Objekte hinweg.",
     contents: "Inhalt", apps: "Apps", app: "App", publisher: "Herausgeber", version: "Version", objects: "Objekte",
@@ -118,7 +128,15 @@ const DE = {
     proposed: "Noch ist keine Architektur festgelegt; diese Komponenten leitet `bca architecture --propose` aus den heutigen Abhängigkeiten ab.",
     layer: "Schicht", component: "Komponente", dependsOn: "Hängt ab von", purpose: "Zweck",
     central: "Objekte, auf die sich alles stützt", centralIntro: "Von den meisten anderen Objekten verwendet; eine Änderung an ihnen wirkt am weitesten.",
-    object: "Objekt", usedBy: "Verwendet von"
+    object: "Objekt", usedBy: "Verwendet von",
+    sources: "Quellen", sourcesIntro: "Alles in diesem Handbuch wird aus diesen Quellen gelesen; nichts ist von Hand eingetragen.",
+    source: "Quelle", details: "Details",
+    alSource: "AL-Quellcode", alSourceDetail: (files, objects) => `${DE.plural(files, "Datei", "Dateien")}, ${DE.plural(objects, "Objekt", "Objekte")}`,
+    appJson: "`app.json`", appJsonDetail: (apps) => apps.length ? apps.join(", ") : "keine gefunden",
+    symbols: "Symbolpakete", symbolsNone: "keine: Verweise auf andere Apps bleiben unaufgelöst. Laden Sie die Symbole nach `.alpackages` herunter, um sie einzubeziehen.",
+    compiler: "AL-Compiler", compilerNone: "nicht verwendet: Aufrufe werden nur aus der Syntax aufgelöst.",
+    architecture: "Architektur", architectureConfigured: (file) => `festgelegt in ${file}`, architectureProposed: "aus den Abhängigkeiten vorgeschlagen (keine festgelegt)",
+    settings: "Einstellungen", settingsNone: "keine `.bca.json`"
   },
   events: {
     intro: "Über Ereignisse reagieren Objekte aufeinander, ohne direkt voneinander abzuhängen. Für jedes Ereignis: wer es auslöst und wer darauf reagiert.",

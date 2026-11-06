@@ -4,6 +4,8 @@
 
 What each permission set grants, and the tables and objects no permission set covers.
 
+**Based on:** the `Permissions` and `IncludedPermissionSets` of the permission sets and permission set extensions in the AL source.
+
 ## Permission set 50121 WAREHOUSE PROCESS
 
 Assignable to users.

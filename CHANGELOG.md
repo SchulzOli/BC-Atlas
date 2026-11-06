@@ -4,6 +4,20 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- **Docs** and **Handbook** are one page in VS Code and the offline app. The
+  list shows the system handbook first, then the user guides and test cases
+  from UI tests. **Sources** beside each page says what it is read from. The
+  page is there without UI tests too. Old `#/handbook/...` links open the
+  same page in Docs.
+- Every handbook page starts with **Based on:**, the parts of the AL code it
+  reads. The overview ends with a **Sources** table: AL files and objects,
+  apps, symbol packages with versions, the AL compiler, the architecture, and
+  `.bca.json`.
+
 ## 0.17.0 - 2026-11-06
 
 ### Fixed

@@ -101,9 +101,9 @@ function pages(overview) {
     { id: "dependencies", label: "Dependencies (3D)", icon: "type-hierarchy", description: overview ? `${overview.summary.apps.length} apps` : undefined },
     { id: "diagrams", label: "Diagrams", icon: "graph" },
     { id: "objects", label: "Objects", icon: "symbol-class", description: overview ? overview.summary.objects.toLocaleString("en-US") : undefined },
-    { id: "handbook", label: "Handbook", icon: "notebook", description: "events, data, permissions, UI" }
+    // The system handbook and, when there are documented UI tests, their user guides.
+    { id: "docs", label: "Docs", icon: "book", description: overview?.docs?.scenarios ? `handbook, ${overview.docs.scenarios} user guides` : "system handbook" }
   ];
-  if (overview?.docs?.scenarios) list.push({ id: "docs", label: "Docs", icon: "book", description: `${overview.docs.scenarios} scenarios` });
   return list;
 }
 

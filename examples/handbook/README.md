@@ -4,6 +4,8 @@
 
 What this system consists of and how it hangs together, generated from its AL source. Each page below answers one question across all objects.
 
+**Based on:** the AL source of the workspace, its `app.json`, the symbol packages, and the architecture (see Sources below).
+
 ## Contents
 
 - [Events](./events.md): who raises which event and who reacts to it
@@ -49,3 +51,16 @@ Used by the most other objects; a change to them reaches furthest.
 | [Table 50100 Warehouse Request](../report/objects/table/50100-warehouse-request.md) | 3 |  |
 | [Interface Handles Warehouse Activity](../report/objects/interface/handles-warehouse-activity.md) | 2 |  |
 | [Page 50110 Warehouse Requests](../report/objects/page/50110-warehouse-requests.md) | 2 | Warehouse Requests |
+
+## Sources
+
+Everything in this handbook is read from these sources; nothing is entered by hand.
+
+| Source | Details |
+| --- | --- |
+| AL source | 4 files, 9 objects |
+| `app.json` | BC Atlas Warehouse Example 1.0.0.0 |
+| Symbol packages | none: references to other apps stay unresolved. Download symbols to `.alpackages` to include them. |
+| AL compiler | not used: calls are resolved from the syntax only. |
+| Architecture | proposed from the dependencies (none configured) |
+| Settings | no `.bca.json` |

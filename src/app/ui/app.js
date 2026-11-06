@@ -263,8 +263,7 @@
     dependencies: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7.2l7.6 0.4M7.3 8.2l3.6 7.7M16.8 9.2l-3.6 6.8"/>',
     diagrams: '<rect x="3" y="4" width="7" height="5" rx="1"/><rect x="14" y="4" width="7" height="5" rx="1"/><rect x="8.5" y="15" width="7" height="5" rx="1"/><path d="M6.5 9v3h11V9M12 12v3"/>',
     objects: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
-    docs: '<path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4M8 12h8M8 16h6"/>',
-    handbook: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6M9 11h6"/>'
+    docs: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6M9 11h6"/>'
   };
   const PAGES = [
     ["overview", "Overview"],
@@ -273,7 +272,6 @@
     ["dependencies", "Dependencies"],
     ["diagrams", "Diagrams"],
     ["objects", "Objects"],
-    ["handbook", "Handbook"],
     ["docs", "Docs"]
   ];
 
@@ -282,10 +280,9 @@
       health: overview ? [overview.health.counts.error + overview.health.counts.warning, overview.health.counts.error > 0] : undefined,
       architecture: overview ? [overview.architecture.violations, overview.architecture.mode === "configured" && overview.architecture.baseline.new > 0] : undefined,
       objects: overview ? [overview.summary.objects, false] : undefined,
-      docs: overview?.docs.scenarios ? [overview.docs.scenarios, false] : undefined
+      docs: undefined
     };
     $("#nav").innerHTML = PAGES
-      .filter(([id]) => id !== "docs" || !overview || overview.docs.scenarios)
       .map(([id, label]) => `<a href="#/${id}" data-page="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg>${label}${counts[id] && counts[id][0] ? `<span class="count${counts[id][1] ? " bad" : ""}">${fmt(counts[id][0])}</span>` : ""}</a>`)
       .join("");
     markNav();
@@ -293,7 +290,7 @@
 
   let shownPage;
   function markNav() {
-    const page = ({ object: "objects", component: "architecture" })[route().page] ?? route().page;
+    const page = ({ object: "objects", component: "architecture", handbook: "docs" })[route().page] ?? route().page;
     for (const link of $$("#nav a")) {
       if (link.dataset.page === page) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
@@ -1793,61 +1790,131 @@
   const LANGUAGE_NAMES = { en: "English", de: "Deutsch" };
   const languageName = (tag) => `${LANGUAGE_NAMES[tag.split("-")[0]] ?? tag} (${tag})`;
 
+  // Docs: the system handbook (src/handbook.js, from the AL source) and the
+  // user guides and test cases from AL UI tests (src/docs), in one list.
+  // ?page=<handbook page>&hl=<en|de> shows a handbook page; ?guide&id=<item>
+  // (with mode and language) a guide. Each says which sources it is read from.
+  const HANDBOOK_LANGUAGES = [["en", "English"], ["de", "Deutsch"]];
+
   async function docsPage(page, { params }) {
     const overview = await api.overview();
     $("#main").classList.add("full");
-    const where = overview.docs.path === "." ? "the app folder" : `<span class="mono">${esc(overview.docs.path)}</span>`;
-    setHeader("Docs", overview.docs.scenarios ? `User guides and test cases from ${plural(overview.docs.scenarios, "AL UI test")} in ${where}, the same as <code>bca docs generate</code>.` : "User guides and test cases from AL UI tests.");
-    if (!overview.docs.scenarios) {
-      page.innerHTML = `<div class="card empty"><h2>No documented UI tests found</h2><p>Add <code>// [FEATURE]</code> and <code>// [SCENARIO]</code> comments to your AL UI tests, or point <code>docs.tests</code> in .bca.json at their folder.</p><pre class="code">bca docs list ./test\nbca docs generate ./test --app . --export markdown,html</pre></div>`;
-      return;
-    }
+    const hl = HANDBOOK_LANGUAGES.some(([value]) => value === params.get("hl")) ? params.get("hl") : undefined;
     const mode = DOC_MODES.some(([value]) => value === params.get("mode")) ? params.get("mode") : undefined;
     const language = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u.test(params.get("language") ?? "") ? params.get("language") : undefined;
-    page.innerHTML = loading("Writing the guides…");
-    const docs = await api.docs({ mode, language });
+    const guideView = params.has("guide") || params.has("id");
+    const where = overview.docs.path === "." ? "the app folder" : `<span class="mono">${esc(overview.docs.path ?? "")}</span>`;
+    setHeader("Docs", `The system handbook, generated from the AL source${overview.docs.scenarios ? `, and user guides and test cases from ${plural(overview.docs.scenarios, "AL UI test")} in ${where}` : ""}. The panel on the left says which sources each page is read from.`);
+    page.innerHTML = loading(guideView ? "Writing the guides…" : "Writing the handbook…");
+    const [handbook, docs] = await Promise.all([
+      api.handbook({ language: hl }),
+      overview.docs.scenarios ? api.docs({ mode, language }) : undefined
+    ]);
+
+    const handbookHref = (id) => `#/docs?${new URLSearchParams(Object.entries({ page: id === "README" ? "" : id, hl }).filter(([, value]) => value))}`;
+    const guideHref = (target) => `#/docs?${new URLSearchParams([["guide", "1"], ...Object.entries({ id: target, mode, language }).filter(([, value]) => value)])}`;
+    const current = guideView ? undefined : handbook.pages.find(({ id }) => id === (params.get("page") || "README")) ?? handbook.pages[0];
     const requested = params.get("id") ?? "";
-    const id = Object.hasOwn(docs.items, requested) ? requested : "";
-    const keep = { mode, language };
-    const href = (target) => `#/docs?${new URLSearchParams(Object.entries({ id: target, ...keep }).filter(([, value]) => value))}`;
-    const scenarios = new Map(docs.scenarios.map((scenario) => [scenario.id, scenario]));
-    const inUseCase = new Set(docs.useCases.flatMap(({ scenarios: main, alternatives }) => [...main, ...alternatives]));
-    const scenarioItem = (scenario) => ({
-      href: href(scenario.id), title: scenario.title, current: scenario.id === id,
-      detail: scenario.goal ?? plural(scenario.steps, "step"),
-      search: [scenario.id, scenario.title, scenario.goal, ...scenario.features].join(" ")
-    });
-    const groups = [
-      { title: docs.title, items: [{ href: href(""), title: "Overview", detail: "Use cases, journey, pages, and coverage", current: id === "" }] },
-      ...docs.useCases.map((useCase) => ({
-        title: useCase.title,
-        items: [
-          { href: href(useCase.id), title: "Process", detail: "The use case from start to end", count: useCase.scenarios.length + useCase.alternatives.length, current: useCase.id === id, search: `${useCase.title} process use case` },
-          ...[...useCase.scenarios, ...useCase.alternatives].map((target) => scenarios.get(target)).filter(Boolean).map(scenarioItem)
-        ]
-      })),
-      { title: docs.useCases.length ? "Other scenarios" : "Scenarios", items: docs.scenarios.filter(({ id: target }) => !inUseCase.has(target)).map(scenarioItem) }
-    ];
-    const languages = docs.languages ?? [docs.language];
-    const settings = LIVE ? `<form class="wb-form" id="docs-form">
+    const id = docs && Object.hasOwn(docs.items, requested) ? requested : "";
+
+    const groups = [{
+      title: handbook.language === "de" ? "Systemhandbuch" : "System handbook",
+      items: handbook.pages.map((entry) => ({
+        href: handbookHref(entry.id),
+        title: entry.id === "README" ? (handbook.language === "de" ? "Überblick" : "Overview") : entry.title,
+        detail: entry.id === "README" ? (handbook.language === "de" ? "Apps, Komponenten, Quellen" : "Apps, components, sources") : entry.summary,
+        current: entry === current,
+        search: `handbook ${entry.title} ${entry.summary ?? ""}`
+      }))
+    }];
+    if (docs) {
+      const scenarios = new Map(docs.scenarios.map((scenario) => [scenario.id, scenario]));
+      const inUseCase = new Set(docs.useCases.flatMap(({ scenarios: main, alternatives }) => [...main, ...alternatives]));
+      const scenarioItem = (scenario) => ({
+        href: guideHref(scenario.id), title: scenario.title, current: guideView && scenario.id === id,
+        detail: scenario.goal ?? plural(scenario.steps, "step"),
+        search: [scenario.id, scenario.title, scenario.goal, ...scenario.features].join(" ")
+      });
+      groups.push(
+        { title: `User guides: ${docs.title}`, items: [{ href: guideHref(""), title: "Overview", detail: "Use cases, journey, pages, and coverage", current: guideView && id === "", search: "guides overview" }] },
+        ...docs.useCases.map((useCase) => ({
+          title: useCase.title,
+          items: [
+            { href: guideHref(useCase.id), title: "Process", detail: "The use case from start to end", count: useCase.scenarios.length + useCase.alternatives.length, current: guideView && useCase.id === id, search: `${useCase.title} process use case` },
+            ...[...useCase.scenarios, ...useCase.alternatives].map((target) => scenarios.get(target)).filter(Boolean).map(scenarioItem)
+          ]
+        })),
+        { title: docs.useCases.length ? "Other scenarios" : "Scenarios", items: docs.scenarios.filter(({ id: target }) => !inUseCase.has(target)).map(scenarioItem) }
+      );
+    }
+
+    // What the page on the right is read from.
+    const sourceList = (rows) => `<dl class="sources">${rows.map(([term, value]) => `<dt>${esc(term)}</dt><dd>${value}</dd>`).join("")}</dl>`;
+    const handbookSources = () => {
+      const lines = current.markdown.split("\n");
+      const basedOn = lines.find((line) => /^\*\*[^*]+:\*\* /u.test(line));
+      if (current.id === "README") return `<h3>Sources</h3><p class="small">Read from the AL source of the workspace, its app.json, the symbol packages, and the architecture. The <b>Sources</b> table at the end of this page lists which files, apps, packages, compiler, and settings were used.</p>`;
+      return `<h3>Sources</h3>
+        ${basedOn ? `<p class="small">${inlineMarkdown(basedOn.replace(/^\*\*[^*]+:\*\* /u, "Read from "))}</p>` : ""}
+        <p class="muted small">The overview lists the files, apps, symbol packages, compiler, and architecture used. <a href="${esc(handbookHref("README"))}">Show</a></p>`;
+    };
+    const folder = (relative) => !relative || relative === "." ? "the app folder" : `<span class="mono">${esc(relative)}</span>`;
+    const guideSources = () => sourceList([
+      ["UI tests", `${plural(docs.scenarios.length, "scenario")} in ${folder(docs.path)}: the <code>// [FEATURE]</code>, <code>[SCENARIO]</code>, <code>[GIVEN]</code>, <code>[WHEN]</code>, and <code>[THEN]</code> comments and the <code>TestPage</code> steps`],
+      ["Captions", `page and field captions and ToolTips from the AL source in ${folder(docs.appPath)}`],
+      ["Language", `${esc(languageName(docs.language))}: built-in wording for instructions, captions from the app's XLIFF translation when there is one`]
+    ]);
+
+    let settings;
+    if (!guideView) {
+      settings = `<div class="wb-form">
+        ${LIVE ? `<div class="field"><span>Handbook language</span><div class="segmented" role="group">${HANDBOOK_LANGUAGES.map(([value, text]) =>
+          `<a class="btn" href="${esc(`#/docs?${new URLSearchParams(Object.entries({ page: current.id === "README" ? "" : current.id, hl: value }).filter(([, entry]) => entry))}`)}" aria-pressed="${handbook.language === value}">${text}</a>`).join("")}</div></div>` : ""}
+        ${handbookSources()}
+        ${docs ? "" : `<h3>User guides</h3><p class="muted small">No documented UI tests found. Add <code>// [FEATURE]</code> and <code>// [SCENARIO]</code> comments to your AL UI tests, or point <code>docs.tests</code> in .bca.json at their folder, to get user guides and test cases here.</p>`}
+      </div>`;
+    } else {
+      const languages = docs.languages ?? [docs.language];
+      settings = (LIVE ? `<form class="wb-form" id="docs-form">
         <h3>Settings</h3>
         <div class="field"><span>Write as</span><div class="segmented" role="group">${DOC_MODES.map(([value, label]) =>
           `<button type="button" data-mode="${value}" aria-pressed="${docs.mode === value}">${label}</button>`).join("")}</div></div>
         <label class="field"><span>Language</span><select name="language">${languages.map((tag) => `<option value="${esc(tag)}"${tag === docs.language ? " selected" : ""}>${esc(languageName(tag))}</option>`).join("")}</select></label>
         ${docs.warnings?.length ? `<p class="muted small">${docs.warnings.map(esc).join("<br>")}</p>` : ""}
-      </form>` : `<p class="muted small">Exported docs are written ${docs.mode === "testcase" ? "as test cases" : "as user guides"} in ${esc(languageName(docs.language))}, as set in .bca.json. Open the project in VS Code with the BC Atlas extension to switch.</p>`;
-    const bar = workbench(page, { name: "docs", placeholder: "Filter scenarios", groups, settings });
+      </form>` : `<p class="muted small">Exported docs are written ${docs.mode === "testcase" ? "as test cases" : "as user guides"} in ${esc(languageName(docs.language))}, as set in .bca.json. Open the project in VS Code with the BC Atlas extension to switch.</p>`) +
+        `<div class="wb-form"><h3>Sources</h3>${guideSources()}</div>`;
+    }
+
+    const bar = workbench(page, { name: "docs", placeholder: "Filter pages and scenarios", groups, settings });
+    bar.body.classList.add("scroll");
+
+    if (!guideView) {
+      bar.set(current.id === "README" ? (handbook.language === "de" ? "Überblick" : "Overview") : current.title,
+        `${handbook.language === "de" ? "Systemhandbuch" : "System handbook"} · ${plural(handbook.objects, "object")}${current.summary ? ` · ${esc(current.summary)}` : ""}`,
+        `<button class="icon-button" data-download="md" title="Save this page as Markdown; bca export --view handbook writes all pages">Markdown</button>`);
+      const article = document.createElement("article");
+      article.className = "prose";
+      article.lang = handbook.language;
+      article.innerHTML = markdownToHtml(current.markdown);
+      bar.body.replaceChildren(article);
+      bar.onAction((data) => {
+        if (data.download === "md") download(current.file, current.markdown, "text/markdown");
+      });
+      return;
+    }
+
     const form = $("#docs-form", page);
     if (form) {
+      const keep = (extra) => ({ guide: "1", id: id || undefined, mode, language, ...extra });
       form.addEventListener("click", (event) => {
         const value = event.target.closest("[data-mode]")?.dataset.mode;
-        if (value) go("docs", { id: id || undefined, mode: value === "guide" ? undefined : value, language });
+        if (value) go("docs", keep({ mode: value === "guide" ? undefined : value }));
       });
-      form.language.addEventListener("change", () => go("docs", { id: id || undefined, mode, language: form.language.value }));
+      form.language.addEventListener("change", () => go("docs", keep({ language: form.language.value })));
     }
 
     const item = docs.items[id];
-    const scenario = scenarios.get(id);
+    const scenario = docs.scenarios.find((entry) => entry.id === id);
     const useCase = docs.useCases.find((entry) => entry.id === id);
     const subtitle = scenario
       ? [scenario.features.length ? esc(scenario.features.join(", ")) : "", plural(scenario.steps, "step"), scenario.source?.procedure ? `<span class="mono">${esc(scenario.source.procedure)}</span>` : ""].filter(Boolean).join(" · ")
@@ -1859,7 +1926,6 @@
       `<span class="wb-tools"><button class="icon-button" data-download="md" title="Save as Markdown">Markdown</button>${item.dita ? '<button class="icon-button" data-download="dita" title="Save as a DITA task">DITA</button>' : ""}${item.bpmn ? '<button class="icon-button" data-download="bpmn" title="Save the process as BPMN 2.0">BPMN</button>' : ""}${item.svg ? '<button class="icon-button" data-download="svg" title="Save the flow as SVG">SVG</button>' : ""}</span>`,
       `<button class="icon-button" data-download="html" title="Save all guides as one HTML page">All as HTML</button>`
     ].join(""));
-    bar.body.classList.add("scroll");
     const article = document.createElement("article");
     article.className = `doc${docs.mode === "testcase" ? " testcase" : ""}`;
     article.lang = docs.language;
@@ -1872,7 +1938,7 @@
       const target = decodeURIComponent(link.getAttribute("href").slice(1));
       if (!Object.hasOwn(docs.items, target)) return;
       event.preventDefault();
-      location.hash = href(target);
+      location.hash = guideHref(target);
     });
     bar.onAction(async (data) => {
       if (data.open) api.openFile(scenario.source.file, scenario.source.line).catch((error) => toast(error.message));
@@ -1945,20 +2011,10 @@
     return html.join("");
   }
 
+  // Old links (#/handbook/<page>) open the page in Docs.
   async function handbookPage(page, { arg, params }) {
-    const language = params.get("language") ?? undefined;
-    const data = await api.handbook({ language });
-    const languageQuery = language ? `?language=${encodeURIComponent(language)}` : "";
-    const current = data.pages.find(({ id }) => id === (arg ?? "README")) ?? data.pages[0];
-    setHeader(data.pages[0].title, `What the system consists of and how it hangs together, across ${plural(data.objects, "object")}. Generated from the AL source; <code>bca export --view handbook</code> writes the same pages as Markdown.`,
-      `<button class="btn" data-action="download">Download page (Markdown)</button>`);
-    $("#page-actions").onclick = (event) => {
-      if (event.target.closest('[data-action="download"]')) download(current.file, current.markdown, "text/markdown");
-    };
-    page.innerHTML = `
-      <section class="card"><div class="controls"><div class="segmented handbook-tabs">${data.pages.map(({ id, title }) => `<a class="btn" href="#/handbook/${encodeURIComponent(id)}${languageQuery}" aria-pressed="${id === current.id}">${esc(id === "README" ? (data.language === "de" ? "Überblick" : "Overview") : title)}</a>`).join("")}</div>
-        ${LIVE ? `<div class="segmented" style="margin-left:auto">${[["en", "English"], ["de", "Deutsch"]].map(([value, text]) => `<a class="btn" href="#/handbook/${encodeURIComponent(current.id)}?language=${value}" aria-pressed="${data.language === value}">${text}</a>`).join("")}</div>` : ""}</div></section>
-      <section class="card prose">${markdownToHtml(current.markdown)}</section>`;
+    const language = params.get("language");
+    location.replace(`#/docs?${new URLSearchParams(Object.entries({ page: arg && arg !== "README" ? arg : "", hl: language ? language.slice(0, 2) : "" }).filter(([, value]) => value))}`);
   }
 
   const RENDERERS = {

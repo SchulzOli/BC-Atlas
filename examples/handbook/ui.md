@@ -4,6 +4,8 @@
 
 What users can open, grouped the way Business Central offers it (usage category), with the data behind each page.
 
+**Based on:** the `Caption`, `PageType`, `UsageCategory`, `ApplicationArea`, and `SourceTable` of pages and reports, and the `APIPublisher`, `APIGroup`, `APIVersion`, and `EntityName` of API pages.
+
 1 page (1 page found by search), 0 reports, 0 API pages.
 
 ## Lists

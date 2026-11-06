@@ -4,6 +4,8 @@
 
 Where the code is hard to change: complex procedures, large objects, obsolete code, and what is not documented.
 
+**Based on:** the procedures' code (cyclomatic complexity counted from `if`, `case`, loops, `and`, and `or`), line counts, `ObsoleteState` and `[Obsolete]`, and `///` comments.
+
 9 procedures and triggers with code; cyclomatic complexity 12 in all. Complexity counts the paths through a procedure: 1, plus 1 for each `if`, loop, `case` branch, and `and` or `or`. Above 10, a procedure is hard to test; above 20, hard to change safely.
 
 ## Most complex procedures
