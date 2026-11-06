@@ -65,6 +65,30 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+Found by running BC Atlas on Microsoft's System Application source (1,345
+files) and on the real Base Application 29 symbols:
+
+- Symbol packages:
+  - objects nested under `Namespaces` are read (with #85); before, almost
+    every object of the Base Application was missing
+  - enums (`EnumTypes`, `EnumExtensionTypes`), profiles, profile extensions,
+    and control add-ins load too
+  - page field counts read the numeric control kinds, action counts include
+    the actions inside groups, and local methods count as local
+  - a page's source table is named instead of given by ID, and application
+    areas lose their `#`
+- An object that refers to itself (a variable of its own type) is no longer
+  reported as a dependency cycle.
+- The architecture proposal keeps an app or module whose objects have no
+  relations to each other (a module of only permission sets or control
+  add-ins) as one component named after it, not "Unconnected". Permission
+  sets the relations leave unconnected join the component, within their own
+  app or module, that holds most of the objects they grant.
+- The handbook's documentation coverage counts only public procedures of
+  public objects (the API other apps can call); on the System Application,
+  96% instead of a misleading 47%.
+- The handbook with `--catalog` analyzes the project once instead of twice.
+
 - Knowledge graph captions no longer include `Comment = ...` and other options
   of the Caption property. `bca:access` now comes from the `Access` property of
   every object, not only permission sets.

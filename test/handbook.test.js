@@ -33,7 +33,7 @@ test("the handbook explains the system across all objects, one question per page
   assert.match(page("ui.md"), /## Lists[\s\S]*\| Page 50110 Warehouse Requests \| Warehouse Requests \| List \| Warehouse Request \| All \|/u);
   const health = page("code-health.md");
   assert.match(health, /## Most complex procedures/u);
-  assert.match(health, /0 of 5 public procedures have a `\/\/\/` summary/u);
+  assert.match(health, /0 of 3 public procedures of public objects \(the API other apps can call\) have a `\/\/\/` summary/u, "internal objects (the UI tests) are not API");
 
   // Generating again replaces the earlier handbook; a foreign folder is never touched.
   await generateHandbook(warehouse, { outputDir: output });

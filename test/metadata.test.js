@@ -141,3 +141,37 @@ test("objects from symbol packages carry metadata too, also in nested namespaces
   assert.deepEqual(post.metadata.obsolete, { state: "pending", reason: "Use Sales Post v2" });
   assert.ok(Object.isFrozen(customer.metadata.size), "the cached metadata cannot be changed by a caller");
 });
+
+// The shape of a real SymbolReference.json (Base Application 29): objects in
+// nested namespaces, EnumTypes, page controls with numeric kinds, actions in
+// groups, the source table by ID, application areas with #, local methods.
+test("symbol packages in the format the AL compiler writes are read completely", async () => {
+  const { testing: symbols } = await import("../src/symbols.js");
+  const objects = symbols.objectsFor({
+    Namespaces: [{ Name: "Microsoft", Namespaces: [{ Name: "Sales", Namespaces: [{
+      Name: "Customer",
+      Tables: [{ Id: 18, Name: "Customer", Properties: [{ Name: "Caption", Value: "Customer" }], Fields: [{ Id: 1, Name: "No." }] }],
+      Pages: [{
+        Id: 22, Name: "Customer List",
+        Properties: [{ Name: "PageType", Value: "List" }, { Name: "SourceTable", Value: "18" }, { Name: "UsageCategory", Value: "Lists" }, { Name: "ApplicationArea", Value: "#Basic, #Suite" }],
+        Controls: [{ Kind: 0, Controls: [{ Kind: 1, Controls: [
+          { Kind: 8, Name: "No.", Properties: [{ Name: "SourceExpression", Value: "Rec.\"No.\"" }] },
+          { Kind: 8, Name: "Name", Properties: [{ Name: "SourceExpression", Value: "Rec.Name" }] }
+        ] }] }],
+        Actions: [{ Kind: 1, Actions: [{ Kind: 2, Name: "Ledger" }, { Kind: 2, Name: "Statistics" }] }],
+        Methods: [{ Name: "GetSelection" }, { Name: "Helper", IsLocal: true }]
+      }],
+      EnumTypes: [{ Id: 36, Name: "Customer Type", Values: [{ Name: "Person" }, { Name: "Company" }], Properties: [{ Name: "Extensible", Value: "true" }] }],
+      Profiles: [{ Name: "SALES MANAGER" }],
+      ControlAddIns: [{ Name: "Chart" }]
+    }] }] }]
+  }, { name: "Base Application" }, "Base.app");
+  const byName = new Map(objects.map((object) => [object.name, object]));
+  assert.deepEqual(objects.map(({ type }) => type).sort(), ["controladdin", "enum", "page", "profile", "table"]);
+  const list = byName.get("Customer List");
+  assert.equal(list.namespace, "Microsoft.Sales.Customer");
+  assert.equal(list.metadata.sourceTable, "Customer", "the source table ID is resolved to its name");
+  assert.deepEqual(list.metadata.applicationArea, ["Basic", "Suite"]);
+  assert.deepEqual(list.metadata.size, { pageFields: 2, procedures: 2, publicProcedures: 1, actions: 2 });
+  assert.deepEqual(byName.get("Customer Type").metadata.size, { elements: 2 });
+});

@@ -18,6 +18,12 @@ const SYMBOL_TYPES = new Map([
   ["xmlports", "xmlport"],
   ["enums", "enum"],
   ["enumextensions", "enumextension"],
+  // The names SymbolReference.json uses.
+  ["enumtypes", "enum"],
+  ["enumextensiontypes", "enumextension"],
+  ["profiles", "profile"],
+  ["profileextensions", "profileextension"],
+  ["controladdins", "controladdin"],
   ["interfaces", "interface"],
   ["permissionsets", "permissionset"],
   ["permissionsetextensions", "permissionsetextension"]
@@ -57,39 +63,56 @@ function deepFreeze(value) {
  * keys, and methods SymbolReference.json lists. Only the summary is kept: the
  * Base Application has tens of thousands of fields and methods.
  */
+// Page control kinds in SymbolReference.json: 8 is a field.
+const FIELD_CONTROL = 8;
+
 function symbolMetadata(symbol, type) {
-  const properties = list(valueFor(symbol, "Properties")).map((property) => ({
-    name: valueFor(property, "Name"),
-    value: valueFor(property, "Value") === undefined ? undefined : String(valueFor(property, "Value"))
-  })).filter(({ name }) => name);
-  // Symbols list no local methods; internal ones are flagged.
+  const properties = list(valueFor(symbol, "Properties")).map((property) => {
+    const name = valueFor(property, "Name");
+    let value = valueFor(property, "Value") === undefined ? undefined : String(valueFor(property, "Value"));
+    // Symbols write application areas as #Basic, #Suite.
+    if (value && /^applicationarea$/iu.test(name ?? "")) value = value.replace(/#/gu, "");
+    return { name, value };
+  }).filter(({ name }) => name);
   const procedures = list(valueFor(symbol, "Methods")).map((method) => {
     const attributes = list(valueFor(method, "Attributes")).map((attribute) => String(valueFor(attribute, "Name") ?? ""));
     return {
       name: valueFor(method, "Name"),
       kind: attributes.some((name) => /^(Integration|Business|Internal)Event$/iu.test(name)) ? "event" : "procedure",
-      visibility: valueFor(method, "IsInternal") ? "internal" : valueFor(method, "IsProtected") ? "protected" : "public",
+      visibility: valueFor(method, "IsLocal") ? "local" : valueFor(method, "IsInternal") ? "internal" : valueFor(method, "IsProtected") ? "protected" : "public",
       hasBody: false
     };
   });
   const fields = list(valueFor(symbol, "Fields")).map(() => ({ kind: "field" }));
   const controls = [];
-  const walk = (items) => {
+  const walkControls = (items) => {
     for (const control of list(items)) {
-      if (String(valueFor(control, "Kind") ?? "").toLowerCase() === "field" || valueFor(control, "SourceExpression")) controls.push({ kind: "page-field" });
-      walk(valueFor(control, "Controls"));
+      const kind = valueFor(control, "Kind");
+      const sourced = list(valueFor(control, "Properties")).some((property) => /^sourceexpression$/iu.test(valueFor(property, "Name") ?? ""));
+      if (kind === FIELD_CONTROL || String(kind).toLowerCase() === "field" || sourced) controls.push({ kind: "page-field" });
+      walkControls(valueFor(control, "Controls"));
     }
   };
-  walk(valueFor(symbol, "Controls"));
-  return deepFreeze(objectMetadata({
+  walkControls(valueFor(symbol, "Controls"));
+  // Actions sit in groups; only the ones without children are actions.
+  const actions = [];
+  const walkActions = (items) => {
+    for (const action of list(items)) {
+      const children = list(valueFor(action, "Actions"));
+      if (children.length) walkActions(children);
+      else actions.push({ kind: "action" });
+    }
+  };
+  walkActions(valueFor(symbol, "Actions"));
+  return objectMetadata({
     type,
     properties,
     procedures,
     fields: type === "page" || type === "pageextension" ? controls : fields,
     keys: list(valueFor(symbol, "Keys")),
-    actions: list(valueFor(symbol, "Actions")),
+    actions,
     elements: list(valueFor(symbol, "Values"))
-  }));
+  });
 }
 
 // Newer symbol files nest objects in namespaces:
@@ -107,6 +130,7 @@ function* collections(symbols, namespace) {
 
 function objectsFor(symbols, app, packagePath) {
   const objects = [];
+  const tableNames = new Map();
   for (const { type, collection, namespace } of collections(symbols)) {
     for (const symbol of collection) {
       const name = valueFor(symbol, "Name");
@@ -136,7 +160,14 @@ function objectsFor(symbols, app, packagePath) {
         app,
         externalSymbol: true
       });
+      if (type === "table") tableNames.set(String(valueFor(symbol, "Id") ?? ""), name);
     }
+  }
+  // Symbols name a page's source table by its ID.
+  for (const object of objects) {
+    const source = object.metadata.sourceTable;
+    if (source && /^\d+$/u.test(source) && tableNames.has(source)) object.metadata.sourceTable = tableNames.get(source);
+    deepFreeze(object.metadata);
   }
   return objects;
 }

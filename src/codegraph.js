@@ -478,8 +478,8 @@ async function assertReplaceable(directory) {
  * folder), exactly as generateCodeGraph writes them, so other documents (the
  * handbook) can link to object pages.
  */
-export async function catalogLayout(input, values = {}) {
-  const architecture = await createArchitectureModel(input, { ...values, view: "project" });
+export async function catalogLayout(input, values = {}, { cache } = {}) {
+  const architecture = await createArchitectureModel(input, { ...values, view: "project" }, { cache });
   const { model } = architecture;
   const selectedStat = await fs.stat(model.selectedPath);
   const sourceRoot = selectedStat.isDirectory() ? model.selectedPath : path.dirname(model.selectedPath);

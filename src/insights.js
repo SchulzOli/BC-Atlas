@@ -43,7 +43,9 @@ export function findCycles(objects, edges) {
       state.get(current).onStack = false;
       component.push(current);
     } while (current !== key);
-    if (component.length > 1 || graph.get(key).includes(key)) cycles.push(component.sort());
+    // An object that refers to itself (a variable of its own type, a recursive
+    // call) depends on nothing else; a cycle needs at least two objects.
+    if (component.length > 1) cycles.push(component.sort());
   }
   for (const key of keys) if (!state.has(key)) connect(key);
   return cycles.sort((a, b) => a[0].localeCompare(b[0]));

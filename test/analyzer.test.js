@@ -1939,3 +1939,10 @@ test("models execute, tabledata, composed, internal, and dependent permission se
   assert.equal(inclusion.targetOrigin, "declared-dependency");
   assert.deepEqual(dependencySet.permissionSetRoles, ["internal", "included"]);
 });
+
+test("an object that refers to itself is not a dependency cycle", async () => {
+  const { findCycles } = await import("../src/insights.js");
+  const objects = [{ key: "a" }, { key: "b" }, { key: "c" }];
+  assert.deepEqual(findCycles(objects, [{ from: "a", to: "a" }]), []);
+  assert.deepEqual(findCycles(objects, [{ from: "a", to: "b" }, { from: "b", to: "a" }, { from: "c", to: "c" }]), [["a", "b"]]);
+});
