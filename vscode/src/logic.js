@@ -100,7 +100,8 @@ function pages(overview) {
     { id: "architecture", label: "Architecture", icon: "layers", description: overview ? `${overview.architecture.mode}, ${overview.architecture.violations.toLocaleString("en-US")} wrong-way` : undefined },
     { id: "dependencies", label: "Dependencies (3D)", icon: "type-hierarchy", description: overview ? `${overview.summary.apps.length} apps` : undefined },
     { id: "diagrams", label: "Diagrams", icon: "graph" },
-    { id: "objects", label: "Objects", icon: "symbol-class", description: overview ? overview.summary.objects.toLocaleString("en-US") : undefined }
+    { id: "objects", label: "Objects", icon: "symbol-class", description: overview ? overview.summary.objects.toLocaleString("en-US") : undefined },
+    { id: "handbook", label: "Handbook", icon: "notebook", description: "events, data, permissions, UI" }
   ];
   if (overview?.docs?.scenarios) list.push({ id: "docs", label: "Docs", icon: "book", description: `${overview.docs.scenarios} scenarios` });
   return list;
@@ -112,6 +113,7 @@ const EXPORTS = [
   { view: "report", label: "Markdown report", detail: "README.md with health, diagrams, and an optional object catalog", folder: "docs/atlas" },
   { view: "explorer", label: "3D dependency explorer (HTML)", detail: "One offline file, replayable over Git history", file: "bc-atlas-explorer.html", filters: { HTML: ["html"] } },
   { view: "catalog", label: "Object catalog (Markdown)", detail: "One linked page per AL object", folder: "docs/codegraph" },
+  { view: "handbook", label: "System handbook (Markdown)", detail: "Events, data, permissions, interfaces, UI, and code health across all objects", folder: "docs/handbook" },
   { view: "knowledge-graph", label: "Knowledge graph (RDF, OWL)", detail: "For triple stores, graph databases, and Protégé: Turtle, RDF/XML, N-Triples, or JSON-LD", file: "bc-atlas.ttl", filters: { Turtle: ["ttl"], OWL: ["owl"], "RDF/XML": ["rdf"], "N-Triples": ["nt"], "JSON-LD": ["jsonld"] } },
   ...["project", "module", "data", "contracts", "events", "ui"].map((view) => ({
     view, label: `Diagram: ${view} view`, detail: "SVG, PNG, PDF, or the D2 source", file: `${view}.svg`, filters: { SVG: ["svg"], PNG: ["png"], PDF: ["pdf"], D2: ["d2"] }

@@ -166,9 +166,9 @@ function dataPage(context) {
       object.metadata?.caption,
       object.metadata?.dataClassification,
       object.metadata?.size?.fields ?? 0,
-      writers.map(({ object: user, set }) => `${user.name} (${letters(set)})`).join(", ") || "nobody",
-      readers.map(({ object: user }) => user.name).join(", "),
-      (sourced.get(String(object.name).toLowerCase()) ?? []).map((user) => user.name).join(", ")
+      writers.map(({ object: user, set }) => `${context.name(user)} (${letters(set)})`).join(", ") || "nobody",
+      readers.map(({ object: user }) => context.name(user)).join(", "),
+      (sourced.get(String(object.name).toLowerCase()) ?? []).map((user) => context.name(user)).join(", ")
     ];
   })));
 
@@ -178,7 +178,7 @@ function dataPage(context) {
     .filter(({ users }) => users.length).sort((a, b) => byName(a.object, b.object));
   if (foreign.length) {
     lines.push("## Tables of other apps this system writes", "", "Data owned by a dependency that this system changes directly.", "",
-      ...table(["Table", "Written by"], foreign.map(({ object, users }) => [context.link(object), users.map(([key, set]) => `${context.objectOf(key)?.name} (${letters(set)})`).join(", ")])));
+      ...table(["Table", "Written by"], foreign.map(({ object, users }) => [context.link(object), users.map(([key, set]) => `${context.name(context.objectOf(key))} (${letters(set)})`).join(", ")])));
   }
   const extended = [...extensions].map(([key, list]) => [context.objectOf(key), list]).filter(([object]) => object);
   if (extended.length) {
@@ -234,7 +234,7 @@ function interfacesPage(context) {
       ...((contract.procedures ?? []).length ? ["Methods: " + contract.procedures.map(({ name }) => `\`${name}\``).join(", "), ""] : []),
       ...table(["Implementation", "Selected by"], implementations.map((implementation) => [
         context.link(implementation),
-        bindings.filter(({ to }) => to === implementation.key).map((edge) => `${context.objectOf(edge.from)?.name}::${edge.member}`).join(", ")
+        bindings.filter(({ to }) => to === implementation.key).map((edge) => `${context.name(context.objectOf(edge.from))}::${edge.member}`).join(", ")
       ])),
       ...(implementations.length ? [] : ["No implementation in this system.", ""]));
   }
@@ -339,10 +339,11 @@ async function assertReplaceable(directory) {
  * The handbook pages as Markdown, without writing them.
  * @param values.linkTo object => link target of its page, or undefined
  * @param values.pageLink file => link to another handbook page (default ./file)
+ * @param context.assessment an assessArchitecture result to reuse (the app's)
  * @returns { pages: [{ file, title, content }], objects }
  */
-export async function renderHandbook(input, values = {}) {
-  const assessment = await assessArchitecture(input, values);
+export async function renderHandbook(input, values = {}, { assessment: given } = {}) {
+  const assessment = given ?? await assessArchitecture(input, values);
   const model = assessment.model;
   const workspace = model.objects.filter(({ externalSymbol }) => !externalSymbol);
   const keys = new Set(workspace.map(({ key }) => key));
@@ -357,11 +358,12 @@ export async function renderHandbook(input, values = {}) {
     isWorkspace: (key) => keys.has(key),
     objectOf: (key) => objects.get(key),
     pageLink: values.pageLink ?? ((file) => `./${file}`),
-    // An object's name, linked where values.linkTo knows a page for it.
-    link: (object) => {
+    // An object's label (or just its name), linked where values.linkTo knows a page for it.
+    link: (object, text = label(object)) => {
       const target = object && values.linkTo?.(object);
-      return target ? `[${label(object).replaceAll("[", "\\[").replaceAll("]", "\\]")}](${target})` : label(object);
-    }
+      return target ? `[${String(text).replaceAll("[", "\\[").replaceAll("]", "\\]")}](${target})` : text;
+    },
+    name: (object) => context.link(object, object?.name ?? "")
   };
   const pages = PAGES.map((page) => ({
     file: page.file,

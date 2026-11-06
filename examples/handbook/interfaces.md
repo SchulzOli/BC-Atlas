@@ -11,4 +11,4 @@ Methods: `Process`
 | Implementation | Selected by |
 | --- | --- |
 | [Enum 50102 Warehouse Handler](../report/objects/enum/50102-warehouse-handler.md) |  |
-| [Codeunit 50101 Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md) | Warehouse Handler::Default |
+| [Codeunit 50101 Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md) | [Warehouse Handler](../report/objects/enum/50102-warehouse-handler.md)::Default |

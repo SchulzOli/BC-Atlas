@@ -27,6 +27,12 @@ subscribers, and permission sets. The text improves as the code is
 documented. A `/// <summary>` above an event, an interface, or a codeunit
 shows up in the handbook.
 
+## In VS Code and the offline app
+
+The **Handbook** page of the BC Atlas panel and of `bca export` (the offline
+HTML file) shows the same pages. There, object names open their object page,
+and **Download page** saves the page as Markdown.
+
 ## Link to the object catalog
 
 With `--catalog`, every object name links to its page in the

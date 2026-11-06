@@ -42,6 +42,7 @@ test("the architecture pages and the 3D explorer only read the shared model", as
       await shared.architecture();
       await shared.architecture({ propose: true });
       await shared.components({ propose: true });
+      await shared.handbook();
       assert.match(await shared.explorer(), /<html/iu);
       assert.match(await shared.explorer({ propose: true }), /<html/iu);
     } finally {
@@ -308,9 +309,22 @@ test("bca export writes the app as one offline file with every page's data", () 
     assert.equal(snapshot.docs, undefined, "without documented UI tests there is no Docs page");
     assert.deepEqual(Object.keys(snapshot.components).sort(), ["Core", "Integration", "Sales"], "every component page is in the export");
     assert.ok(snapshot.architecture.matrix.cells.length === 3);
+    assert.deepEqual(snapshot.handbook.pages.map(({ id }) => id), ["README", "events", "data", "permissions", "interfaces", "ui", "code-health"], "the Handbook page is in the export");
     const explorer = gunzipSync(Buffer.from(packed("BCA_EXPLORER_GZIP"), "base64")).toString("utf8");
     assert.match(explorer, /^<!doctype html>/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("the Handbook page links object names to object pages and pages to each other", async () => {
+  const service = createService(new Workspace(workspace));
+  const handbook = await service.call("handbook");
+  assert.equal(handbook.objects, 12);
+  const readme = handbook.pages.find(({ id }) => id === "README").markdown;
+  assert.match(readme, /\(#\/handbook\/events\)/u, "contents link to the other pages in the app");
+  const objects = new Set((await service.call("objects")).map(({ id }) => id));
+  const links = handbook.pages.flatMap(({ markdown }) => [...markdown.matchAll(/\]\(#\/object\/([^)]+)\)/gu)].map(([, id]) => decodeURIComponent(id)));
+  assert.ok(links.length > 0);
+  for (const id of links) assert.ok(objects.has(id), `${id} has an object page`);
 });

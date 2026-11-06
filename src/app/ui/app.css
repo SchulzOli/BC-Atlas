@@ -422,3 +422,15 @@ dialog p { color: var(--muted); margin: 0 0 16px; }
   .layer { grid-template-columns: 1fr; }
   .bar { grid-template-columns: 96px 1fr 44px; }
 }
+
+/* Handbook: Markdown pages rendered by markdownToHtml in app.js. */
+.handbook-tabs { flex-wrap: wrap; }
+.handbook-tabs a { text-decoration: none; }
+.prose h3 { font-size: 16px; margin: 22px 0 10px; }
+.prose h3:first-child { margin-top: 0; }
+.prose h4 { font-size: 14px; margin: 18px 0 8px; }
+.prose p { margin: 0 0 12px; line-height: 1.55; max-width: 80ch; }
+.prose .prose-list { margin: 0 0 12px; padding-left: 20px; line-height: 1.6; }
+.prose .table-scroll { margin: 0 0 16px; }
+.prose code { font-size: 12px; }
+.handbook-tabs a[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
