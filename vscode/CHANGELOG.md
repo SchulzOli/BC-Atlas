@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.17.0
+
+- The engine is BC Atlas 0.17.0.
+- Far fewer "references ambiguous" warnings: only the newest version of an
+  app in the package caches loads, and the source of a workspace app wins
+  over its own `.app`. A warning that remains names the objects it matches.
+- `Access = Internal` objects used by another component of the same app are
+  no longer reported; set `architecture.internalAccess` to `"component"` for
+  components you plan to split into apps.
+- Findings the AL analyzers already report (DataClassification, ToolTips,
+  ObsoleteTag and ObsoleteReason, complexity) are no longer repeated.
+
 ## 0.16.0
 
 - The engine is BC Atlas 0.16.0.
