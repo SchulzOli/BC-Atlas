@@ -119,6 +119,61 @@ test("loads symbols from configured package caches and each app version once", a
   }
 });
 
+test("several versions of an app load only the newest, and workspace source wins over its own .app", async () => {
+  const workspace = temp("symbol-versions");
+  try {
+    const base = { id: "437dbf0e-84ff-417a-965d-ed2bb9650972", name: "Base Application" };
+    write(path.join(workspace, "app", "app.json"), JSON.stringify({ id: "a", name: "App", dependencies: [{ id: base.id, name: base.name }] }));
+    write(path.join(workspace, "app", "src", "Use.Codeunit.al"), [
+      "codeunit 50100 \"Use Customer\"",
+      "{",
+      "    var Customer: Record Customer;",
+      "    Mine: Record \"My Table\";",
+      "}"
+    ].join("\n"));
+    write(path.join(workspace, "app", "src", "My.Table.al"), "table 50100 \"My Table\"\n{\n    fields { field(1; \"No.\"; Code[20]) { } }\n}\n");
+    symbolPackage(path.join(workspace, "app", ".alpackages", "Microsoft_Base Application_9.0.0.0.app"), { ...base, version: "9.0.0.0" });
+    symbolPackage(path.join(workspace, "app", ".alpackages", "Microsoft_Base Application_27.0.0.0.app"), { ...base, version: "27.0.0.0" });
+    symbolPackage(path.join(workspace, "app", ".alpackages", "Microsoft_Base Application_26.5.0.0.app"), { ...base, version: "26.5.0.0" });
+    // The app's own compiled package, as it lands in the cache of a dependent app.
+    const own = zipSync({ "SymbolReference.json": strToU8(JSON.stringify({ AppId: "a", Name: "App", Version: "1.0.0.0", Tables: [{ Id: 50100, Name: "My Table" }] })) });
+    write(path.join(workspace, "app", ".alpackages", "Me_App_1.0.0.0.app"), Buffer.concat([new Uint8Array(40), own]));
+
+    const loaded = await loadSymbolPackages(path.join(workspace, "app"));
+    assert.deepEqual(loaded.packages.map(({ name, version }) => `${name} ${version}`).sort(), ["App 1.0.0.0", "Base Application 27.0.0.0"],
+      "27.0 is newer than 26.5 and 9.0 (numeric, not text, order)");
+    assert.equal(loaded.diagnostics.filter(({ code }) => code === "symbol-package-superseded").length, 2);
+
+    const model = resolveModel(await analyze(path.join(workspace, "app")));
+    assert.deepEqual(model.diagnostics.filter(({ code }) => code === "ambiguous-reference"), []);
+    assert.equal(model.objects.filter(({ name }) => name === "My Table").length, 1, "the source of the app, not its .app as well");
+    assert.equal(model.objects.find(({ name }) => name === "My Table").externalSymbol, undefined);
+    assert.ok(model.diagnostics.some(({ code }) => code === "symbol-package-shadowed"));
+    assert.equal(model.apps.find(({ id }) => id === "a").external, undefined, "the app stays the workspace app");
+    const customer = model.objects.find(({ name }) => name === "Customer");
+    assert.equal(customer.app.version, "27.0.0.0");
+    const use = model.objects.find(({ name }) => name === "Use Customer");
+    assert.ok(model.edges.some(({ from, to }) => from === use.key && to === customer.key));
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("an ambiguous reference names the objects it matches", () => {
+  const app = (id, version) => ({ id, name: `App ${id}`, version });
+  const table = (owner, namespace) => ({ type: "table", id: 18, name: "Customer", namespace, app: owner, externalSymbol: true, relations: [] });
+  const model = resolveModel({
+    objects: [
+      { type: "codeunit", id: 50100, name: "Use", app: app("me"), relations: [{ kind: "uses", target: "Customer", targetType: "table" }] },
+      table(app("x", "1.0"), "X.Sales"),
+      table(app("y", "2.0"), "Y.Sales")
+    ],
+    diagnostics: []
+  });
+  const [warning] = model.diagnostics.filter(({ code }) => code === "ambiguous-reference");
+  assert.match(warning.message, /matches table 18 "Customer", namespace X\.Sales, app App x 1\.0; and table 18 "Customer", namespace Y\.Sales, app App y 2\.0/u);
+});
+
 test("symbol packages are parsed once and handed out as independent copies", async () => {
   const workspace = temp("symbol-cache");
   try {

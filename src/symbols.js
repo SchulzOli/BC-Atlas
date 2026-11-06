@@ -262,23 +262,44 @@ function copyPackage({ app, objects }) {
   };
 }
 
+/** 26.0.12345.0 > 26.0.9999.0 > 25.5: numeric parts, left to right. */
+export function compareVersions(a, b) {
+  const parts = (value) => String(value ?? "").split(/[.\-+]/u).map((part) => /^\d+$/u.test(part) ? Number(part) : part);
+  const left = parts(a);
+  const right = parts(b);
+  for (let index = 0; index < Math.max(left.length, right.length); index++) {
+    const x = left[index] ?? 0;
+    const y = right[index] ?? 0;
+    if (x === y) continue;
+    if (typeof x === "number" && typeof y === "number") return x - y;
+    return String(x).localeCompare(String(y));
+  }
+  return 0;
+}
+
+/**
+ * Every .app once per app: when a cache holds several versions of the same
+ * app (Base Application 26.0 and 27.0), only the newest loads, as the AL
+ * compiler picks it. Otherwise every reference to Customer or Item would
+ * match two tables and be reported as ambiguous.
+ */
 export async function loadSymbolPackages(root, { folders = [] } = {}) {
-  const packages = [];
-  const objects = [];
   const diagnostics = [];
   const files = new Set(await findPackages(root));
   for (const folder of folders) for (const file of await packagesIn(folder)) files.add(file);
-  const loaded = new Set();
+  const newest = new Map();
   for (const packageFile of [...files].sort()) {
     const reportedPath = path.relative(root, packageFile).replaceAll("\\", "/");
     try {
       const parsed = await readPackage(packageFile, reportedPath);
-      const identity = `${parsed.app.id ?? parsed.app.name}@${parsed.app.version ?? ""}`.toLowerCase();
-      if (loaded.has(identity)) continue;
-      loaded.add(identity);
-      const { app, objects: packageObjects } = copyPackage(parsed);
-      packages.push(app);
-      for (const object of packageObjects) objects.push(object);
+      const identity = String(parsed.app.id ?? parsed.app.name).toLowerCase();
+      const current = newest.get(identity);
+      if (current && compareVersions(current.app.version, parsed.app.version) >= 0) {
+        if (current.app.version !== parsed.app.version) diagnostics.push(superseded(parsed.app, current.app));
+        continue;
+      }
+      if (current) diagnostics.push(superseded(current.app, parsed.app));
+      newest.set(identity, parsed);
     } catch (error) {
       diagnostics.push({
         severity: "warning",
@@ -288,7 +309,23 @@ export async function loadSymbolPackages(root, { folders = [] } = {}) {
       });
     }
   }
+  const packages = [];
+  const objects = [];
+  for (const parsed of newest.values()) {
+    const { app, objects: packageObjects } = copyPackage(parsed);
+    packages.push(app);
+    for (const object of packageObjects) objects.push(object);
+  }
   return { packages, objects, diagnostics };
+}
+
+function superseded(older, newer) {
+  return {
+    severity: "info",
+    code: "symbol-package-superseded",
+    message: `Symbol package ${older.path} (${older.name} ${older.version}) is ignored: ${newer.path} has the newer version ${newer.version}`,
+    file: older.path
+  };
 }
 
 /** Symbols for a project: `.alpackages` below it plus the configured package caches. */

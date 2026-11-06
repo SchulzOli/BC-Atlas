@@ -1365,9 +1365,27 @@ export async function analyze(input, { parseCache, symbols: preloadedSymbols, fi
   }
 
   const symbols = preloadedSymbols ?? await loadProjectSymbols(base, al);
-  objects.push(...symbols.objects);
+  // An app of the workspace may also lie compiled in a package cache (App A's
+  // .app in the .alpackages of App B that depends on it). The source is what
+  // is analyzed; its symbols would only duplicate every object of the app.
+  const appKey = (app) => String(app?.id ?? app?.name ?? "").toLowerCase();
+  const sourceApps = new Set([...apps.values()].map(appKey).filter(Boolean));
+  const shadowed = new Set();
+  for (const app of symbols.packages) {
+    if (sourceApps.has(appKey(app))) {
+      shadowed.add(appKey(app));
+      diagnostics.push({
+        severity: "info",
+        code: "symbol-package-shadowed",
+        message: `Symbol package ${app.path} (${[app.name, app.version].filter(Boolean).join(" ")}) is ignored: the workspace contains the source of this app`,
+        file: app.path
+      });
+    } else {
+      apps.set(app.id ?? app.name, app);
+    }
+  }
+  for (const object of symbols.objects) if (!shadowed.has(appKey(object.app))) objects.push(object);
   diagnostics.push(...symbols.diagnostics);
-  for (const app of symbols.packages) apps.set(app.id ?? app.name, app);
 
   return {
     schemaVersion: 1,
@@ -1375,7 +1393,7 @@ export async function analyze(input, { parseCache, symbols: preloadedSymbols, fi
     files: files.length,
     apps: [...apps.values()],
     ...(modules.size ? { modules: [...modules.values()] } : {}),
-    symbolPackages: symbols.packages,
+    symbolPackages: symbols.packages.filter((app) => !shadowed.has(appKey(app))),
     objects,
     parseErrors,
     diagnostics

@@ -4,6 +4,19 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- Far fewer "references ambiguous table ..." warnings. When a package cache
+  holds several versions of the same app (Base Application 26.5 and 27.0),
+  only the newest loads, as the AL compiler picks it; the older ones are
+  listed as `symbol-package-superseded` info. When the workspace contains the
+  source of an app whose compiled `.app` also lies in a package cache (App A
+  in the `.alpackages` of App B), the source wins and the package is listed
+  as `symbol-package-shadowed`. A reference that is still ambiguous now names
+  the objects it matches: type, ID, namespace, app, and version.
+
 ## 0.16.0 - 2026-11-06
 
 ### Added
