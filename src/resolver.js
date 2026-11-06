@@ -120,12 +120,23 @@ export function resolveModel(model) {
       );
       if (dependencyCandidates.length) candidates = dependencyCandidates;
     }
+    // Source in the workspace over a compiled copy from a symbol package.
+    if (candidates.length > 1) {
+      const fromSource = candidates.filter((candidate) => !candidate.externalSymbol);
+      if (fromSource.length) candidates = fromSource;
+    }
     if (candidates.length === 1) return candidates[0];
     if (candidates.length > 1) {
+      const describe = (candidate) => [
+        `${candidate.type} ${candidate.id ? `${candidate.id} ` : ""}"${candidate.name}"`,
+        candidate.namespace ? `namespace ${candidate.namespace}` : undefined,
+        candidate.app ? `app ${[candidate.app.name ?? candidate.app.id, candidate.app.version].filter(Boolean).join(" ")}` : undefined,
+        candidate.externalSymbol ? undefined : candidate.file
+      ].filter(Boolean).join(", ");
       diagnostics.push({
         severity: "warning",
         code: "ambiguous-reference",
-        message: `${source.type} "${source.name}" references ambiguous ${relation.targetType ?? "object"} "${relation.target}"`,
+        message: `${source.type} "${source.name}" references ambiguous ${relation.targetType ?? "object"} "${relation.target}": it matches ${candidates.map((candidate) => `${describe(candidate)}`).join("; and ")}`,
         file: relation.location?.file ?? source.file,
         line: relation.location?.line ?? source.location?.line,
         candidates: candidates.map(({ key }) => key)
