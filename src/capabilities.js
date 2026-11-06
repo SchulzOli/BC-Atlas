@@ -168,6 +168,7 @@ const exportOptions = {
     enum: ["html", "md", ...FORMATS, ...KNOWLEDGE_FORMATS]
   }),
   baseIri: string("Knowledge graph: base IRI of the exported resources (default urn:bc-atlas:).", { group: OUTPUT, value: "iri" }),
+  catalog: string("Handbook: link object names to the object catalog in this folder (as bca export --view catalog writes it).", { group: OUTPUT, value: "folder" }),
   noEvidence: flag("Knowledge graph: leave out the bca:Relation resources with each relation's file, line, and operations; the direct relation triples stay. About a third of the size.", { group: OUTPUT }),
   title: string("Title of the report, explorer, or diagram.", { group: OUTPUT, value: "text" }),
   watch: flag("Write again whenever AL source, app.json, or .bca.json changes.", { group: OUTPUT }),

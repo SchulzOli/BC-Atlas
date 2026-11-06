@@ -72,7 +72,16 @@
         "json": { "type": "boolean" }
       }
     },
-    "codegraph": { "type": "object" },
+    "codegraph": { "type": "object", "properties": { "outputDir": { "type": "string" } } },
+    "handbook": {
+      "description": "The system handbook (bca export --view handbook, the handbook task of bca run).",
+      "type": "object",
+      "properties": {
+        "outputDir": { "type": "string", "default": "docs/handbook" },
+        "title": { "type": "string" },
+        "catalog": { "description": "Folder of the object catalog that object names link to; bca run uses the codegraph task's folder when the same run writes it.", "type": "string" }
+      }
+    },
     "docs": { "type": "object" },
     "automation": { "type": "object" }
   },

@@ -45,7 +45,7 @@ Used by the most other objects; a change to them reaches furthest.
 
 | Object | Used by | Purpose |
 | --- | ---: | --- |
-| Codeunit 50101 Warehouse Processor | 3 |  |
-| Table 50100 Warehouse Request | 3 |  |
-| Interface Handles Warehouse Activity | 2 |  |
-| Page 50110 Warehouse Requests | 2 | Warehouse Requests |
+| [Codeunit 50101 Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md) | 3 |  |
+| [Table 50100 Warehouse Request](../report/objects/table/50100-warehouse-request.md) | 3 |  |
+| [Interface Handles Warehouse Activity](../report/objects/interface/handles-warehouse-activity.md) | 2 |  |
+| [Page 50110 Warehouse Requests](../report/objects/page/50110-warehouse-requests.md) | 2 | Warehouse Requests |

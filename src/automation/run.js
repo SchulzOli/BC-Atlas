@@ -18,7 +18,7 @@ import { changedPaths, findGitRoot, stagePaths } from "./git.js";
 
 const ORDER = ["check", "report", "diagrams", "docs", "codegraph", "handbook"];
 
-async function runTask(task, root, config, log, appPath, values = {}) {
+async function runTask(task, root, config, log, appPath, values = {}, tasks = []) {
   const at = (relative) => path.resolve(root, relative);
   if (task === "check") {
     const { report } = await runHealthCheck(root, values);
@@ -61,7 +61,9 @@ async function runTask(task, root, config, log, appPath, values = {}) {
   }
   if (task === "handbook") {
     const outputDir = config.handbook?.outputDir ?? DEFAULTS.handbook.outputDir;
-    const result = await generateHandbook(root, { ...values, outputDir: at(outputDir), title: config.handbook?.title });
+    // Object names link to the catalog: handbook.catalog, else the catalog this run writes too.
+    const catalog = config.handbook?.catalog ?? (tasks.includes("codegraph") ? config.codegraph?.outputDir ?? DEFAULTS.codegraph.outputDir : undefined);
+    const result = await generateHandbook(root, { ...values, outputDir: at(outputDir), title: config.handbook?.title, catalog: catalog ? at(catalog) : undefined });
     log(`handbook: ${result.pages.length} page(s) in ${outputDir}`);
     return { ok: true, summary: `${result.pages.length} page(s)` };
   }
@@ -112,7 +114,7 @@ export async function runAutomation(input, options = {}) {
   const results = [];
   for (const task of tasks) {
     try {
-      results.push({ task, ...(await runTask(task, root, config, log, appPath, values)) });
+      results.push({ task, ...(await runTask(task, root, config, log, appPath, values, tasks)) });
     } catch (error) {
       log(`${task}: failed: ${error.message}`);
       results.push({ task, ok: false, summary: error.message });

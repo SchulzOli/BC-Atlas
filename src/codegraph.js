@@ -473,9 +473,14 @@ async function assertReplaceable(directory) {
   }
 }
 
-export async function generateCodeGraph(input, values = {}) {
+/**
+ * The catalog's objects and the page of each (relative to the catalog
+ * folder), exactly as generateCodeGraph writes them, so other documents (the
+ * handbook) can link to object pages.
+ */
+export async function catalogLayout(input, values = {}) {
   const architecture = await createArchitectureModel(input, { ...values, view: "project" });
-  const { model, options } = architecture;
+  const { model } = architecture;
   const selectedStat = await fs.stat(model.selectedPath);
   const sourceRoot = selectedStat.isDirectory() ? model.selectedPath : path.dirname(model.selectedPath);
   const objects = model.objects
@@ -487,7 +492,12 @@ export async function generateCodeGraph(input, values = {}) {
       (Number(left.id) || Number.MAX_SAFE_INTEGER) - (Number(right.id) || Number.MAX_SAFE_INTEGER) ||
       left.name.localeCompare(right.name)
     );
-  const paths = allocatePaths(objects, sourceRoot);
+  return { architecture, objects, paths: allocatePaths(objects, sourceRoot) };
+}
+
+export async function generateCodeGraph(input, values = {}) {
+  const { architecture, objects, paths } = await catalogLayout(input, values);
+  const { model, options } = architecture;
   const outputDirectory = path.resolve(values["output-dir"] ?? values.outputDir ?? "docs/codegraph");
   await assertReplaceable(outputDirectory);
   const parent = path.dirname(outputDirectory);
