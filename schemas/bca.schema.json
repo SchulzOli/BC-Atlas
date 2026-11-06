@@ -142,6 +142,10 @@
         },
         "allowSameLayer": { "type": "boolean" },
         "strictLayers": { "type": "boolean" },
+        "internalAccess": {
+          "description": "Who may use an Access = Internal object: \"app\" (default) any component of the same app, as the AL compiler allows; \"component\" only its own component, for components that are to become apps.",
+          "enum": ["app", "component"]
+        },
         "maxObjects": { "type": "integer", "minimum": 1 },
         "severity": { "enum": ["error", "warning", "info", "off"] },
         "unassigned": { "enum": ["error", "warning", "info", "off"] },

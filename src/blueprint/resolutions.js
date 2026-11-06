@@ -113,7 +113,7 @@ export function suggestCycleResolution(cyclePath) {
  * `usage` maps an object id to the components that depend on it, which tells
  * whether a target object really belongs further down.
  */
-export function suggestResolution({ source, target, kinds, sourceComponent, targetComponent, rule, inward, via, policy, between }, { usage } = {}) {
+export function suggestResolution({ source, target, kinds, sourceComponent, targetComponent, rule, inward, via, policy, between, hidden }, { usage } = {}) {
   const has = (kind) => (kinds?.[kind] ?? 0) > 0;
   const from = `component ${sourceComponent}`;
   const to = `component ${targetComponent}`;
@@ -127,9 +127,10 @@ export function suggestResolution({ source, target, kinds, sourceComponent, targ
   }
 
   // The direction is right, but the target is not part of the other
-  // component's public surface (Access = Internal, or not in its exposes).
+  // component's public surface (not in its exposes, or Access = Internal and
+  // used from another app).
   if (rule === "internal-access") {
-    const exposed = target.access !== "internal";
+    const exposed = !(hidden ?? (target.access === "internal" && source?.app !== target.app));
     return suggestion("use-public-api", "S", [
       `Use a public codeunit, interface, or event of ${to} instead of ${name(target)}.`,
       exposed
