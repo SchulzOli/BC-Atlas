@@ -109,6 +109,8 @@ test("AL text properties and documentation comments are read like the AL compile
   assert.deepEqual(alText("'Plain'"), { text: "Plain" });
   const source = "/// <summary>\n/// Line one\n/// and <paramref name=\"A\"/>.\n/// </summary>\n/// <param name=\"A\">x</param>\n[Scope('OnPrem')]\nprocedure X()";
   assert.equal(documentationComment(source, source.indexOf("[Scope")), "Line one and A.");
+  const pragma = "/// <summary>Requests feedback.</summary>\n#pragma warning disable AS0022\n[Scope('OnPrem')]\nprocedure X()";
+  assert.equal(documentationComment(pragma, pragma.indexOf("[Scope")), "Requests feedback.", "pragmas between the comment and the declaration");
   assert.equal(documentationComment("// plain comment\nprocedure X()", "// plain comment\n".length), undefined, "only /// comments document");
   const further = "/// <summary>Old</summary>\nvar x;\nprocedure X()";
   assert.equal(documentationComment(further, further.indexOf("procedure")), undefined, "a comment further up belongs to something else");

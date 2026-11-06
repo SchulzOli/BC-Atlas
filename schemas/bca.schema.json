@@ -47,6 +47,19 @@
         "cycles": { "enum": ["error", "warning", "info", "off"] },
         "maxFanIn": { "type": "integer", "minimum": 1 },
         "maxFanOut": { "type": "integer", "minimum": 1 },
+        "maxComplexity": { "description": "high-complexity: procedures above this cyclomatic complexity (default 25).", "type": "integer", "minimum": 1 },
+        "severities": {
+          "description": "Severity of the quality rules: error, warning, info, or off.",
+          "type": "object",
+          "properties": {
+            "missing-data-classification": { "enum": ["error", "warning", "info", "off"], "default": "warning" },
+            "obsolete-without-tag": { "enum": ["error", "warning", "info", "off"], "default": "warning" },
+            "high-complexity": { "enum": ["error", "warning", "info", "off"], "default": "warning" },
+            "missing-tooltip": { "enum": ["error", "warning", "info", "off"], "default": "info" },
+            "obsolete-without-reason": { "enum": ["error", "warning", "info", "off"], "default": "info" },
+            "undocumented-public-api": { "enum": ["error", "warning", "info", "off"], "default": "info" }
+          }
+        },
         "contractExpectations": { "type": "array" },
         "contexts": { "type": "array" }
       }

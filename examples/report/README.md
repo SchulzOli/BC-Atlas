@@ -71,7 +71,7 @@ Pages, source tables, parts, actions, and navigation.
 
 ## Architecture health
 
-**Passed** - 0 error(s), 0 warning(s), 0 info. Fails on: `error`.
+**Passed** - 0 error(s), 0 warning(s), 2 info. Fails on: `error`.
 
 | Metric | Value |
 | --- | --- |
@@ -106,7 +106,10 @@ Pages, source tables, parts, actions, and navigation.
 | codeunit 50120 Warehouse Notifications | 0 | 1 |
 | pageextension 50111 Warehouse Request Ext. | 0 | 1 |
 
-No findings.
+| Severity | Rule | Finding | Evidence |
+| --- | --- | --- | --- |
+| Info | `undocumented-public-api` | codeunit 50101 Warehouse Processor: 2 public procedure(s) without a /// summary: Process, Process (`Inventory.al:35`) |  |
+| Info | `undocumented-public-api` | interface Handles Warehouse Activity: 1 public procedure(s) without a /// summary: Process (`Inventory.al:5`) |  |
 
 ## Regenerate
 
@@ -114,4 +117,4 @@ No findings.
 bca export examples/warehouse-app --view report -o examples/report --codegraph
 ```
 
-_4 AL file(s) analyzed. Result: PASSED - 0 error(s), 0 warning(s), 0 info (fail on: error)._
+_4 AL file(s) analyzed. Result: PASSED - 0 error(s), 0 warning(s), 2 info (fail on: error)._

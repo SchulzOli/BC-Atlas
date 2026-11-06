@@ -56,6 +56,17 @@ follows [Semantic Versioning](https://semver.org/).
 - The app edits what the proposal considers. **Keep component** and
   **Release component** change `architecture.proposal.keep`; **Exclude from
   shaping** and **Shape components again** change `architecture.proposal.exclude`.
+- `bca check` has quality rules that read the objects' metadata:
+  - `missing-data-classification` and `obsolete-without-tag` (warning)
+  - `high-complexity` above `check.maxComplexity`, default 25 (warning)
+  - `missing-tooltip`, `obsolete-without-reason`, and
+    `undocumented-public-api` (info)
+
+  Each rule reports once per object, and `check.severities` sets it to
+  error, warning, info, or off. On Microsoft's System Application they find 17
+  public codeunits with undocumented procedures and 5 codeunits with
+  procedures above complexity 25, and no false positives in the samples
+  checked against the source.
 - Event subscriber relations record the event they subscribe to (`event` on
   `subscribes` edges).
 - Objects, fields, and procedures carry `metadata` that describes what they
@@ -100,6 +111,8 @@ files) and on the real Base Application 29 symbols:
   public objects (the API other apps can call); on the System Application,
   96% instead of a misleading 47%.
 - The handbook with `--catalog` analyzes the project once instead of twice.
+- `///` summaries are found above `#pragma` and other preprocessor lines,
+  as the System Application writes them.
 
 - Knowledge graph captions no longer include `Comment = ...` and other options
   of the Caption property. `bca:access` now comes from the `Access` property of

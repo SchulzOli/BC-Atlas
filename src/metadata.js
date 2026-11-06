@@ -43,8 +43,8 @@ const word = (value) => value === undefined ? undefined : unquote(value).replace
 
 /**
  * `/// <summary>Posts the order.</summary>` directly above a declaration
- * (attributes may sit in between), as plain text: the summary when there is
- * one, else every line.
+ * (attributes and preprocessor lines may sit in between), as plain text: the
+ * summary when there is one, else every line.
  */
 export function documentationComment(source, startIndex) {
   const lines = source.slice(Math.max(0, startIndex - 8000), startIndex).split(/\r?\n/u);
@@ -53,7 +53,8 @@ export function documentationComment(source, startIndex) {
   for (let index = lines.length - 1; index >= 0; index--) {
     const line = lines[index].trim();
     if (line.startsWith("///")) docs.unshift(line.slice(3).trim());
-    else if (!line || /^\[.*\]$/u.test(line)) {
+    // Attributes and preprocessor lines (#pragma warning disable ...) may sit in between.
+    else if (!line || /^\[.*\]$/u.test(line) || /^#(pragma|if|elif|else|endif|region|endregion)\b/iu.test(line)) {
       if (docs.length && !line) break;
     } else break;
   }
