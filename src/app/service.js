@@ -57,7 +57,10 @@ export function createService(workspace) {
       return object;
     },
     views: () => workspace.views(),
-    handbook: () => workspace.handbook(),
+    handbook: ({ language } = {}) => {
+      if (language && !/^(en|de)\b/iu.test(String(language))) throw new Error("language must be en or de");
+      return workspace.handbook({ language: language || undefined });
+    },
     diagram: (params = {}) => workspace.diagram(params),
     docs: async () => {
       const docs = await workspace.docs();
@@ -79,6 +82,12 @@ export function createService(workspace) {
     },
     adoptArchitecture: (params = {}) => workspace.adoptArchitecture(architectureSettings(params), { updateBaseline: params.updateBaseline !== false }),
     updateBaseline: () => workspace.updateBaseline(),
+    updateProposal: (params = {}) => workspace.updateProposal({
+      keep: params.keep,
+      release: params.release || undefined,
+      exclude: params.exclude || undefined,
+      include: params.include || undefined
+    }),
     refresh: () => {
       workspace.reset();
       return { generation: workspace.generation, updatedAt: workspace.updatedAt };

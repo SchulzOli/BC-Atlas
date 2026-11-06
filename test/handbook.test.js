@@ -77,3 +77,24 @@ test("with a catalog, object names in the handbook link to their catalog pages",
     }
   }
 });
+
+test("the handbook speaks German with a de language tag", async () => {
+  const { renderHandbook } = await import("../src/handbook.js");
+  const { pages } = await renderHandbook(warehouse, { language: "de-DE" });
+  const page = (file) => pages.find((item) => item.file === file);
+  assert.equal(page("README.md").title, "BC Atlas Warehouse Example: Systemhandbuch");
+  assert.match(page("data.md").content, /\| Tabelle \| Bezeichnung \| Klassifizierung \| Felder \| Geschrieben von \| Gelesen von \| Angezeigt auf \|/u);
+  assert.match(page("data.md").content, /\| Tabelle 50100 Warehouse Request \|/u, "object types follow the Business Central client");
+  assert.match(page("code-health.md").content, /0 von 3 öffentlichen Prozeduren öffentlicher Objekte/u);
+  assert.doesNotMatch(pages.map(({ content }) => content).join("\n"), /\b(Written by|Used by|Contents)\b/u, "no English left");
+});
+
+test("bca export --view report --codegraph --handbook links the report, the handbook, and the catalog", (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bca-report-handbook-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const result = spawnSync(process.execPath, [cli, "export", warehouse, "--view", "report", "-o", directory, "--codegraph", "--handbook"], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(readFileSync(path.join(directory, "README.md"), "utf8"), /- \[System handbook\]\(handbook\/README\.md\)/u);
+  const data = readFileSync(path.join(directory, "handbook", "data.md"), "utf8");
+  assert.match(data, /\]\(\.\.\/objects\/table\/50100-warehouse-request\.md\)/u, "object names link to the catalog in objects/");
+});

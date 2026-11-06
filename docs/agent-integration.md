@@ -99,7 +99,8 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_extraction_plan` plans extracting one component as an app: blockers, `app.json`, data moves, and steps.
 - `bc_atlas_refactor_surface` sets `Access = Internal` on objects no other component uses and writes `exposes` to `.bca.json`; `dryRun` by default.
 - `bc_atlas_refactor_move` moves an object to another component with namespace and using fixes; `dryRun` (default) returns the diff, `dryRun: false` writes it. See [Split a monolith into apps](./modularization.md).
-- `bc_atlas_report` writes the Markdown architecture report (`bca export --view report`).
+- `bc_atlas_report` writes the Markdown architecture report (`bca export --view report`); `handbook: true` adds the system handbook.
+- `bc_atlas_handbook` reads the [system handbook](./handbook.md) (one page or all, in English or German): who writes a table, who subscribes to an event, what a permission set grants, which pages users can open, where the code is complex.
 - `bc_atlas_setup_plan` detects the project and returns setup questions with recommendations.
 - `bc_atlas_setup_apply` previews (default) or writes `.bca.json`, Git hooks, and a pipeline.
 - `bc_atlas_run` runs the tasks configured for a trigger and reports sync status.

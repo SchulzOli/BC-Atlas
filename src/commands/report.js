@@ -3,6 +3,7 @@ import path from "node:path";
 import { REPORT_VIEWS, VIEWS } from "../capabilities.js";
 import { createArchitectureModel } from "../architecture.js";
 import { generateCodeGraph } from "../codegraph.js";
+import { generateHandbook } from "../handbook.js";
 import { formatHealthMarkdown, healthResultLine } from "../health.js";
 import { displayPath, resolveOutput, writeArchitecture } from "../output.js";
 import { MAX_DIAGRAM_NODES } from "../diagram/index.js";
@@ -47,7 +48,7 @@ function anchor(title) {
   return title.toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
 }
 
-function renderReadme({ title, health, diagrams, codegraph, model, json, format, command }) {
+function renderReadme({ title, health, diagrams, codegraph, handbook, model, json, format, command }) {
   const { summary } = health;
   const app = summary.apps[0];
   const lines = [
@@ -71,6 +72,7 @@ function renderReadme({ title, health, diagrams, codegraph, model, json, format,
   );
   for (const diagram of diagrams) lines.push(`- [${diagram.title}](#${anchor(diagram.title)})`);
   lines.push("- [Architecture health](#architecture-health)");
+  if (handbook) lines.push(`- [System handbook](${relativeLink(handbook.link)}) - events, data, permissions, interfaces, user interface, and code health`);
   if (codegraph) lines.push(`- [Object catalog](${relativeLink(codegraph.link)}) - ${codegraph.objects} object pages`);
   if (json) lines.push("- [Resolved model (JSON)](model.json)");
   lines.push("");
@@ -115,6 +117,7 @@ function commandLine(input, values) {
   if (values.views) parts.push("--views", values.views);
   if (values.format && values.format !== "svg") parts.push("--format", values.format);
   if (values.codegraph) parts.push("--codegraph");
+  if (values.handbook) parts.push("--handbook");
   if (values.json) parts.push("--json");
   return parts.map((part) => (/^[\w./:@,=-]+$/u.test(part) ? part : `"${part.replaceAll("\"", "\\\"")}"`)).join(" ");
 }
@@ -171,6 +174,19 @@ export async function generateReport(input, values = {}, { log = () => {} } = {}
     log(`Generated ${result.objects} object page(s)`);
   }
 
+  // The handbook in handbook/, linked to the catalog in objects/ when there is one.
+  let handbook;
+  if (values.handbook ?? configured.handbook) {
+    const result = await generateHandbook(input, {
+      ...shared,
+      outputDir: path.join(outputDirectory, "handbook"),
+      catalog: codegraph ? path.join(outputDirectory, "objects") : undefined,
+      language: values.language ?? architecture.options.handbook?.language
+    });
+    handbook = { pages: result.pages.length, link: "handbook/README.md" };
+    log(`Generated the handbook (${result.pages.length} pages)`);
+  }
+
   const json = values.json ?? configured.json ?? false;
   if (json) {
     await fs.writeFile(path.join(outputDirectory, "model.json"), `${JSON.stringify(architecture.model, null, 2)}\n`);
@@ -183,10 +199,11 @@ export async function generateReport(input, values = {}, { log = () => {} } = {}
     health,
     diagrams,
     codegraph,
+    handbook,
     model: architecture.model,
     json,
     format,
     command: values.regenerate ?? commandLine(displayPath(path.resolve(input)), displayValues)
   }));
-  return { outputDirectory, readme, health, diagrams, codegraph };
+  return { outputDirectory, readme, health, diagrams, codegraph, handbook };
 }

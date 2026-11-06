@@ -559,6 +559,7 @@ export function proposeArchitecture(levels, settings = {}) {
       moves: { ...moveSettings },
       objects: { considered: nodes.length, shaping: shaping.length, kept: keptOf.size, excluded: excluded.size, outside: nodes.filter(({ outsideSelection }) => outsideSelection).length },
       kept: keep.map(({ name }) => ({ name, objects: [...keptOf.values()].filter((value) => value === name).length })),
+      exclude: [...exclude],
       ...(settings.sources ? { sources: settings.sources } : {})
     }
   };

@@ -25,6 +25,7 @@ import { planObjectMove } from "./commands/refactor.js";
 import { applyRefactoring } from "./refactor/move.js";
 import { planSurface } from "./refactor/surface.js";
 import { generateReport } from "./commands/report.js";
+import { renderHandbook } from "./handbook.js";
 import { resolveOutput, writeArchitecture } from "./output.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
 import { documentationGlossary } from "./docs/tags.js";
@@ -304,6 +305,7 @@ export function createMcpServer(version = pkg.version) {
       views: z.array(z.enum([...REPORT_VIEWS, "call"])).optional(),
       format: z.enum(["svg", "d2"]).default("svg"),
       codegraph: z.boolean().optional(),
+      handbook: z.boolean().optional().describe("Also write the system handbook to <outputDir>/handbook"),
       json: z.boolean().optional(),
       title: z.string().optional()
     }),
@@ -317,6 +319,20 @@ export function createMcpServer(version = pkg.version) {
       counts: result.health.counts,
       diagrams: result.diagrams.map(({ view, skipped, tooLarge, nodes, edges }) => ({ view, skipped, d2Only: tooLarge || undefined, nodes, edges }))
     };
+  }));
+
+  server.registerTool("bc_atlas_handbook", {
+    description: "Read the system handbook: pages that explain the app across all objects. README (apps, components, central objects), events (publishers, subscribers, events of other apps the app hooks into), data (who inserts, modifies, deletes, and reads each table), permissions, interfaces (implementations, enum bindings), ui (pages by usage category, APIs), code-health (complexity, obsolete code, documentation coverage). Answers questions such as who writes a table or who subscribes to an event.",
+    inputSchema: z.object({
+      ...projectFields,
+      page: z.enum(["README", "events", "data", "permissions", "interfaces", "ui", "code-health"]).optional().describe("One page; all pages when omitted"),
+      language: z.string().optional().describe("en (default) or de")
+    }),
+    annotations: { readOnlyHint: true, idempotentHint: true }
+  }, tool(async ({ path: input, page, ...values }) => {
+    const { pages, objects } = await renderHandbook(input, values);
+    const selected = page ? pages.filter(({ file }) => file === `${page}.md`) : pages;
+    return { objects, pages: selected.map(({ file, title, content }) => ({ page: file.replace(/\.md$/u, ""), title, markdown: content })) };
   }));
 
   server.registerTool("bc_atlas_setup_plan", {

@@ -151,6 +151,20 @@ completes and checks them in `.bca.json`.
 | `exclude` | | none | Objects that do not shape components, for example permission sets or test codeunits. Afterwards they join the component they are most coupled to, or *Not placed*. |
 | `moves` | | `{ "minGain": 2, "limit": 50 }` | Which objects are listed as belonging elsewhere. |
 
+`bca architecture --explain <object>` (and **Why in …** on the object page of
+the app) says why an object is where it is: the selector that assigns it, and
+its coupling to each component by relation kind. An object coupled more to
+another component than to its own is a candidate to move.
+
+```text
+codeunit 50001 CON Warehouse Hooks
+  Component: Core (assigned by folder:src/Core)
+
+  Coupling by component (weighted like the proposal):
+         8  Core (own)  1 object(s): uses 1, reads 1, writes 1
+       1.6  Warehouse  1 object(s): subscribes 2
+```
+
 Every proposal says how it was made: the text and Markdown reports have a
 **How this proposal was made** section, the app shows **What was
 considered**, and the JSON has `proposal.basis`. That section lists the

@@ -238,6 +238,7 @@ These options override `architecture.proposal` in `.bca.json`, which also takes 
 
 | Option | Value | Description |
 | --- | --- | --- |
+| `--explain` | object | Explain why an object is in its component: the selector that assigns it, and its coupling to each component by relation kind. Accepts a name, an ID, or `type:name`. |
 | `--extract` | component | Plan extracting this component as an app: blockers, dependencies, `app.json`, tables whose data moves, and steps. Never fails the command. |
 | `--write` | flag | Save the architecture to the `architecture` section of `.bca.json`. |
 | `--update-baseline` | flag | Accept today's violations in `.bca-architecture-baseline.json`; only new ones fail afterwards. |
@@ -386,6 +387,7 @@ bca export ./app --view knowledge-graph -o atlas.owl
 | `-o`, `--output` | path | Output file or folder (defaults above). `-` writes JSON to stdout. |
 | `-f`, `--format` | format | `html`, `d2`, `json`, `svg`, `png`, or `pdf`, as the view allows; `ttl`, `rdf`, `owl`, `nt`, or `jsonld` for the knowledge graph. Inferred from the output extension when omitted. |
 | `--catalog` | folder | Handbook: link object names to the object catalog in this folder, as `bca export --view catalog` (or `--view report --codegraph`, in `objects/`) writes it. |
+| `--language` | tag | Handbook: language of the pages, `en` (default) or `de` (`de-DE`). |
 | `--base-iri` | IRI | Knowledge graph: base IRI of the exported resources. Default: `urn:bc-atlas:`. |
 | `--no-evidence` | flag | Knowledge graph: leave out the `bca:Relation` resources with each relation's file, line, and operations; the direct relation triples stay. |
 | `--title` | text | Title of the report, explorer, or diagram. |
@@ -410,6 +412,7 @@ bca export ./app --view knowledge-graph -o atlas.owl
 | --- | --- | --- |
 | `--views` | list | Comma-separated views: `project`, `module`, `data`, `contracts`, `events`, `ui`, `call`. Default: all except `call`. |
 | `--codegraph` | flag | Also write the linked object catalog to `<output>/objects`. |
+| `--handbook` | flag | Also write the [system handbook](./handbook.md) to `<output>/handbook`; with `--codegraph`, its object names link to the catalog. |
 | `--json` | flag | Also write the resolved project model to `model.json`. |
 
 `--format svg` (default) or `d2` selects the diagram format; `d2` skips SVG

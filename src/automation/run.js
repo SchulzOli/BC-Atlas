@@ -63,7 +63,7 @@ async function runTask(task, root, config, log, appPath, values = {}, tasks = []
     const outputDir = config.handbook?.outputDir ?? DEFAULTS.handbook.outputDir;
     // Object names link to the catalog: handbook.catalog, else the catalog this run writes too.
     const catalog = config.handbook?.catalog ?? (tasks.includes("codegraph") ? config.codegraph?.outputDir ?? DEFAULTS.codegraph.outputDir : undefined);
-    const result = await generateHandbook(root, { ...values, outputDir: at(outputDir), title: config.handbook?.title, catalog: catalog ? at(catalog) : undefined });
+    const result = await generateHandbook(root, { ...values, outputDir: at(outputDir), title: config.handbook?.title, language: config.handbook?.language, catalog: catalog ? at(catalog) : undefined });
     log(`handbook: ${result.pages.length} page(s) in ${outputDir}`);
     return { ok: true, summary: `${result.pages.length} page(s)` };
   }

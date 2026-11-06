@@ -69,6 +69,7 @@
         "format": { "enum": ["svg", "d2"] },
         "title": { "type": "string" },
         "codegraph": { "type": "boolean" },
+        "handbook": { "description": "Also write the system handbook to <outputDir>/handbook.", "type": "boolean" },
         "json": { "type": "boolean" }
       }
     },
@@ -79,6 +80,7 @@
       "properties": {
         "outputDir": { "type": "string", "default": "docs/handbook" },
         "title": { "type": "string" },
+        "language": { "description": "Language of the pages: en (default) or de (de-DE).", "type": "string" },
         "catalog": { "description": "Folder of the object catalog that object names link to; bca run uses the codegraph task's folder when the same run writes it.", "type": "string" }
       }
     },
