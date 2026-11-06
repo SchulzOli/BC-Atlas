@@ -42,6 +42,7 @@
       source: compact.source,
       properties: compact.properties.map(([name, value]) => ({ name, value })),
       metadata: compact.metadata,
+      placement: compact.placement,
       uses: compact.uses.map(link),
       usedBy: compact.usedBy.map(link),
       violations: compact.violations.map((violation) => ({ ...violation, target: node(violation.target) })),
@@ -100,8 +101,8 @@
     objects: () => LIVE ? read("objects") : SNAPSHOT.objects,
     object: async (id) => (LIVE ? read("object", { id }) : snapshotObject(id)),
     views: () => LIVE ? read("views") : SNAPSHOT.views,
-    handbook: () => {
-      if (LIVE) return read("handbook");
+    handbook: (settings = {}) => {
+      if (LIVE) return read("handbook", settings);
       if (!SNAPSHOT.handbook) throw new Error("The handbook is not part of the export.");
       return SNAPSHOT.handbook;
     },
@@ -771,7 +772,8 @@
     const workItems = architecture.workItems.filter((item) => item.sourceComponent === detail.name || item.targetComponent === detail.name);
     setHeader(detail.name,
       `${rolePill} Layer ${esc(detail.layer ?? "–")} · ${plural(detail.objects.length, "object")} in ${plural(detail.groups.length, "group")}${detail.namespace ? ` · namespace <code>${esc(detail.namespace)}</code>` : ""}${detail.app ? ` · app candidate ${esc(detail.app)}` : ""}`,
-      `<a class="btn" href="#/architecture${query ? `?${query}` : ""}">All components</a>${query ? "" : `<a class="btn" href="#/objects?${new URLSearchParams({ component: detail.name })}">In the object list</a>`}`);
+      `${keepButton(architecture, detail.name)}<a class="btn" href="#/architecture${query ? `?${query}` : ""}">All components</a>${query ? "" : `<a class="btn" href="#/objects?${new URLSearchParams({ component: detail.name })}">In the object list</a>`}`);
+    $("#page-actions").onclick = (event) => proposalAction(event, architecture, detail.name);
     page.innerHTML = `
       <div class="stats">
         ${stat({ label: "Objects", value: fmt(detail.objects.length), sub: `${plural(detail.groups.length, "group")} inside` })}
@@ -1677,9 +1679,52 @@
     return `<section class="card"><h2>About</h2>${meta.documentation ? `<p>${esc(meta.documentation)}</p>` : ""}${meta.description && meta.description !== meta.documentation ? `<p class="muted">${esc(meta.description)}</p>` : ""}<dl class="facts">${rows.map(([label, value]) => `<dt>${esc(label)}</dt><dd>${esc(value)}</dd>`).join("")}</dl></section>`;
   }
 
+  // Proposal edits (architecture.proposal in .bca.json), in the live app only.
+  function keepButton(architecture, name) {
+    if (!LIVE || architecture.mode !== "proposal") return "";
+    const kept = (architecture.proposal?.basis?.kept ?? []).some((entry) => entry.name === name);
+    return kept
+      ? `<button class="btn" data-proposal="release" title="Let the proposal regroup these objects again">Release component</button>`
+      : `<button class="btn" data-proposal="keep" title="Save this component in architecture.proposal.keep; the proposal arranges everything else around it">Keep component</button>`;
+  }
+
+  async function proposalAction(event, architecture, name) {
+    const action = event.target.closest("[data-proposal]")?.dataset.proposal;
+    if (!action) return;
+    const change = action === "keep"
+      ? { keep: { name, match: architecture.architecture.components.find((component) => component.name === name)?.match ?? [] } }
+      : action === "release" ? { release: name }
+        : action === "exclude" ? { exclude: event.target.closest("[data-proposal]").dataset.selector }
+          : { include: event.target.closest("[data-proposal]").dataset.selector };
+    const result = await call("updateProposal", change).catch((error) => toast(error.message));
+    if (!result) return;
+    toast(({ keep: `Kept ${name} in ${result.file}`, release: `Released ${name}`, exclude: "Excluded from shaping components", include: "Shapes components again" })[action]);
+    refresh();
+    render();
+  }
+
+  /** Why the object is in its component (src/blueprint/explain.js). */
+  function placementCard(placement) {
+    if (!placement?.component) return "";
+    const kinds = (entry) => Object.entries(entry.kinds).sort((a, b) => b[1] - a[1]).map(([kind, count]) => `${esc(kind)} ${fmt(count)}`).join(", ");
+    const most = Math.max(...placement.coupling.map(({ weight }) => weight), 1);
+    return `<section class="card"><h2>Why in ${esc(placement.component)}</h2>
+      <p class="muted small">${placement.selector ? `Assigned by <code>${esc(placement.selector)}</code>.` : "Assigned by the proposal."} Coupling to each component, weighted by relation type like the proposal:</p>
+      ${placement.coupling.length ? `<ul class="list">${placement.coupling.slice(0, 8).map((entry) => `<li><span class="grow"><a href="#/component/${encodeURIComponent(entry.component)}">${esc(entry.component)}</a>${entry.component === placement.component ? ' <span class="pill ok">own</span>' : ""}<div class="muted small">${plural(entry.links, "object")}: ${kinds(entry)}</div></span><span class="coupling-bar" style="width:${Math.round(80 * entry.weight / most)}px" aria-hidden="true"></span><span class="nowrap">${fmt(entry.weight)}</span></li>`).join("")}</ul>` : '<p class="muted">It relates to no other object in a component.</p>'}
+      ${placement.suggestion ? `<p class="warn small">Coupled more to <b>${esc(placement.suggestion.component)}</b> than to its own component (+${fmt(placement.suggestion.gain)}): a candidate to move.</p>` : ""}
+    </section>`;
+  }
+
   async function objectPage(page, { arg }) {
     const object = await api.object(arg);
+    // In a proposal: whether the object shapes components (architecture.proposal.exclude).
+    const architecture = LIVE ? await api.architecture().catch(() => undefined) : undefined;
+    const selector = `object:${object.type}:${object.objectId ?? object.label}`;
+    const excluded = (architecture?.proposal?.basis?.exclude ?? []).includes(selector);
     const actions = [
+      architecture?.mode === "proposal" ? (excluded
+        ? `<button class="btn" data-proposal="include" data-selector="${esc(selector)}" title="Remove it from architecture.proposal.exclude">Shape components again</button>`
+        : `<button class="btn" data-proposal="exclude" data-selector="${esc(selector)}" title="Add it to architecture.proposal.exclude: it no longer shapes components and joins the one it is most coupled to">Exclude from shaping</button>`) : "",
       LIVE && object.source.file ? '<button class="btn primary" data-action="open-source">Open source</button>' : "",
       object.source.url && /^https?:/iu.test(object.source.url) ? `<a class="btn" href="${esc(object.source.url)}" target="_blank" rel="noopener">View source</a>` : "",
       `<a class="btn" href="#/dependencies?${new URLSearchParams({ select: object.id })}">Show in 3D</a>`,
@@ -1689,11 +1734,13 @@
       `<span class="type">${esc(object.type)}</span>${object.objectId ? ` ${esc(object.objectId)}` : ""} · ${esc(object.namespace ?? "no namespace")}${object.app ? ` · ${esc(object.app)}` : ""} · <span class="mono">${esc(object.source.file ?? "")}${object.source.line ? `:${object.source.line}` : ""}</span>`,
       actions);
     $("#page-actions").onclick = (event) => {
+      if (architecture && event.target.closest("[data-proposal]")) return proposalAction(event, architecture, object.label);
       if (event.target.closest('[data-action="open-source"]')) api.openFile(object.source.file, object.source.line).catch((error) => toast(error.message));
     };
     const members = object.members ?? {};
     const memberCards = [
       aboutCard(object.metadata),
+      placementCard(object.placement),
       members.fields?.length ? `<section class="card"><h2>Fields <span class="muted">${fmt(members.fields.length)}</span></h2><div class="table-scroll"><table class="data"><thead><tr><th class="num">No.</th><th>Name</th><th>Type</th></tr></thead><tbody>${members.fields.map((field) => `<tr><td class="num">${esc(field.number ?? "")}</td><td>${esc(field.name)}</td><td class="mono">${esc(field.type ?? field.kind ?? "")}</td></tr>`).join("")}</tbody></table></div></section>` : "",
       members.procedures?.length ? `<section class="card"><h2>Procedures and triggers <span class="muted">${fmt(members.procedures.length)}</span></h2><ul class="list">${members.procedures.map((procedure) => `<li><span class="grow mono">${LIVE && procedure.line ? `<button class="link mono" data-open-line="${esc(procedure.line)}" title="Open in the editor">${esc(procedure.signature ?? procedure.name)}</button>` : esc(procedure.signature ?? procedure.name)}</span>${procedure.event ? '<span class="pill accent">event</span>' : ""}<span class="muted small nowrap">${esc([procedure.visibility, procedure.kind, procedure.lines && `${procedure.lines} lines`, procedure.complexity > 1 && `complexity ${procedure.complexity}`].filter(Boolean).join(" · "))}</span>${procedure.documentation ? `<div class="muted small" style="flex-basis:100%">${esc(procedure.documentation)}</div>` : ""}</li>`).join("")}</ul></section>` : "",
       members.actions?.length ? `<section class="card"><h2>Actions <span class="muted">${fmt(members.actions.length)}</span></h2><ul class="list">${members.actions.map((action) => `<li><span class="grow">${esc(action.name)}</span><span class="muted small">${esc(action.container ?? "")}</span></li>`).join("")}</ul></section>` : "",
@@ -1898,8 +1945,10 @@
     return html.join("");
   }
 
-  async function handbookPage(page, { arg }) {
-    const data = await api.handbook();
+  async function handbookPage(page, { arg, params }) {
+    const language = params.get("language") ?? undefined;
+    const data = await api.handbook({ language });
+    const languageQuery = language ? `?language=${encodeURIComponent(language)}` : "";
     const current = data.pages.find(({ id }) => id === (arg ?? "README")) ?? data.pages[0];
     setHeader(data.pages[0].title, `What the system consists of and how it hangs together, across ${plural(data.objects, "object")}. Generated from the AL source; <code>bca export --view handbook</code> writes the same pages as Markdown.`,
       `<button class="btn" data-action="download">Download page (Markdown)</button>`);
@@ -1907,7 +1956,8 @@
       if (event.target.closest('[data-action="download"]')) download(current.file, current.markdown, "text/markdown");
     };
     page.innerHTML = `
-      <section class="card"><div class="segmented handbook-tabs">${data.pages.map(({ id, title }) => `<a class="btn" href="#/handbook/${encodeURIComponent(id)}" aria-pressed="${id === current.id}">${esc(id === "README" ? "Overview" : title)}</a>`).join("")}</div></section>
+      <section class="card"><div class="controls"><div class="segmented handbook-tabs">${data.pages.map(({ id, title }) => `<a class="btn" href="#/handbook/${encodeURIComponent(id)}${languageQuery}" aria-pressed="${id === current.id}">${esc(id === "README" ? (data.language === "de" ? "Überblick" : "Overview") : title)}</a>`).join("")}</div>
+        ${LIVE ? `<div class="segmented" style="margin-left:auto">${[["en", "English"], ["de", "Deutsch"]].map(([value, text]) => `<a class="btn" href="#/handbook/${encodeURIComponent(current.id)}?language=${value}" aria-pressed="${data.language === value}">${text}</a>`).join("")}</div>` : ""}</div></section>
       <section class="card prose">${markdownToHtml(current.markdown)}</section>`;
   }
 

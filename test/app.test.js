@@ -328,3 +328,33 @@ test("the Handbook page links object names to object pages and pages to each oth
   assert.ok(links.length > 0);
   for (const id of links) assert.ok(objects.has(id), `${id} has an object page`);
 });
+
+test("the Handbook page is available in German", async () => {
+  const service = createService(new Workspace(workspace));
+  const german = await service.call("handbook", { language: "de-DE" });
+  assert.equal(german.language, "de");
+  assert.equal(german.pages.find(({ id }) => id === "data").title, "Daten");
+  assert.match(german.pages.find(({ id }) => id === "README").markdown, /\(#\/handbook\/events\?language=de-DE\)/u, "page links keep the language");
+  await assert.rejects(service.call("handbook", { language: "fr" }), /language must be en or de/u);
+});
+
+test("the app keeps a component and excludes an object in architecture.proposal of .bca.json", async () => {
+  const directory = copyWorkspace({ architecture: false });
+  try {
+    const service = createService(new Workspace(directory));
+    const proposed = await service.call("architecture", { propose: true });
+    const component = proposed.architecture.components[0];
+    const kept = await service.call("updateProposal", { keep: { name: component.name, match: component.match } });
+    assert.deepEqual(kept.keep, [component.name]);
+    await service.call("updateProposal", { exclude: "type:permissionset" });
+    const config = JSON.parse(readFileSync(path.join(directory, ".bca.json"), "utf8"));
+    assert.deepEqual(config.architecture.proposal, { keep: [{ name: component.name, match: component.match }], exclude: ["type:permissionset"] });
+    const again = await service.call("architecture", { propose: true });
+    assert.deepEqual(again.proposal.basis.kept.map(({ name }) => name), [component.name], "the next proposal keeps it");
+    await service.call("updateProposal", { release: component.name, include: "type:permissionset" });
+    assert.deepEqual(JSON.parse(readFileSync(path.join(directory, ".bca.json"), "utf8")).architecture.proposal, {});
+    await assert.rejects(service.call("updateProposal", { keep: { name: "X" } }), /keep needs a name and match selectors/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

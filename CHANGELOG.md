@@ -44,6 +44,18 @@ follows [Semantic Versioning](https://semver.org/).
   obsolete state, data classification, kind, and size, read from
   `SymbolReference.json`. Objects that newer symbol files nest under
   `Namespaces` are read as well.
+- The handbook in German: `--language de` (`handbook.language`). The terms
+  follow the German Business Central client, and the app and the VS Code
+  panel switch between English and German.
+- `bca export --view report --handbook` (`report.handbook`) adds the handbook
+  to the report, linked to the catalog with `--codegraph`. The new MCP tool
+  `bc_atlas_handbook` lets agents read it.
+- `bca architecture --explain <object>` and **Why in …** on the app's object
+  page explain where an object belongs: the selector that assigns it and its
+  coupling to each component.
+- The app edits what the proposal considers. **Keep component** and
+  **Release component** change `architecture.proposal.keep`; **Exclude from
+  shaping** and **Shape components again** change `architecture.proposal.exclude`.
 - Event subscriber relations record the event they subscribe to (`event` on
   `subscribes` edges).
 - Objects, fields, and procedures carry `metadata` that describes what they

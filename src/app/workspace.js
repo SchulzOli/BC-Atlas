@@ -2,6 +2,7 @@
 // static export. Every page reads from here, so the app, `bca check`,
 // `bca architecture`, and `bca export` always show the same numbers.
 import { readFileSync } from "node:fs";
+import fs from "node:fs/promises";
 import path from "node:path";
 import { createArchitectureModel } from "../architecture.js";
 import { assessArchitecture } from "../blueprint/index.js";
@@ -21,6 +22,8 @@ import { createGraphDocument } from "../graph/document.js";
 import { renderExplorerHtml } from "../graph/html.js";
 import { openParseCache } from "../parse-cache.js";
 import { renderHandbook } from "../handbook.js";
+import { explainPlacement, placementIndex } from "../blueprint/explain.js";
+import { proposalSettings } from "../blueprint/settings.js";
 import { MAX_DIAGRAM_NODES, prepareScene, sceneToSvg } from "../diagram/index.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
@@ -188,15 +191,23 @@ export class Workspace {
    * The system handbook (src/handbook.js) for the Handbook page: object names
    * link to object pages, page links to the other handbook pages.
    */
-  handbook() {
-    return this.remember("handbook", async () => {
+  handbook({ language } = {}) {
+    return this.remember(`handbook:${language ?? ""}`, async () => {
       const objects = new Set((await this.objectIndex()).list.map(({ id }) => id));
+      // A language asked for, else handbook.language in .bca.json, else English.
+      const chosen = language || (await this.model()).options.handbook?.language;
+      const query = language ? `?language=${encodeURIComponent(language)}` : "";
       const { pages, objects: count } = await renderHandbook(this.input, {
         ...this.values,
+        language: chosen,
         linkTo: (object) => objects.has(object.key) ? `#/object/${encodeURIComponent(object.key)}` : undefined,
-        pageLink: (file) => `#/handbook/${file.replace(/\.md$/u, "")}`
+        pageLink: (file) => `#/handbook/${file.replace(/\.md$/u, "")}${query}`
       }, { assessment: await this.assessment() });
-      return { objects: count, pages: pages.map(({ file, title, content }) => ({ id: file.replace(/\.md$/u, ""), file, title, markdown: content })) };
+      return {
+        objects: count,
+        language: /^de\b/iu.test(chosen ?? "") ? "de" : "en",
+        pages: pages.map(({ file, title, content }) => ({ id: file.replace(/\.md$/u, ""), file, title, markdown: content }))
+      };
     });
   }
 
@@ -219,6 +230,47 @@ export class Workspace {
     return { file, accepted: updateBaseline ? assessment.result.violations.length : 0 };
   }
 
+  /**
+   * Changes what the proposal takes into account, in architecture.proposal of
+   * .bca.json: keep a component as it is (or release it), exclude an object
+   * from shaping components (or include it again).
+   * @param change { keep: { name, match, description }, release: name, exclude: selector, include: selector }
+   */
+  async updateProposal(change = {}) {
+    const assessment = await this.assessment();
+    const file = assessment.context.config.path ?? path.join(assessment.context.projectRoot, ".bca.json");
+    let config = {};
+    try {
+      config = JSON.parse(await fs.readFile(file, "utf8"));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    const proposal = { ...(config.architecture?.proposal ?? {}) };
+    const keep = [...(proposal.keep ?? [])];
+    const exclude = [proposal.exclude ?? []].flat();
+    if (change.keep) {
+      if (!change.keep.name || ![change.keep.match].flat().filter(Boolean).length) throw new Error("keep needs a name and match selectors");
+      const index = keep.findIndex(({ name }) => name === change.keep.name);
+      const entry = { name: change.keep.name, match: [change.keep.match].flat(), ...(change.keep.description ? { description: change.keep.description } : {}) };
+      if (index >= 0) keep[index] = entry;
+      else keep.push(entry);
+    }
+    if (change.release) keep.splice(0, keep.length, ...keep.filter(({ name }) => name !== change.release));
+    if (change.exclude && !exclude.includes(change.exclude)) exclude.push(change.exclude);
+    if (change.include) exclude.splice(0, exclude.length, ...exclude.filter((selector) => selector !== change.include));
+    if (keep.length) proposal.keep = keep;
+    else delete proposal.keep;
+    if (exclude.length) proposal.exclude = exclude;
+    else delete proposal.exclude;
+    // Fails before anything is written when the result is not valid.
+    proposalSettings({ ...(config.architecture ?? {}), proposal });
+    config.architecture = { ...(config.architecture ?? {}), proposal };
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, `${JSON.stringify(config, null, 2)}\n`);
+    this.reset();
+    return { file, keep: keep.map(({ name }) => name), exclude };
+  }
+
   async updateBaseline() {
     const assessment = await this.assessment();
     if (assessment.proposal) throw new Error("no architecture is configured yet; adopt a proposal first");
@@ -232,6 +284,7 @@ export class Workspace {
     return this.remember("objects", async () => {
       const [{ model, options }, assessment] = await Promise.all([this.model(), this.assessment()]);
       const { levels, result } = assessment;
+      let placements;
       const raw = new Map(model.objects.map((object) => [object.key, object]));
       const nodes = new Map(levels.object.nodes.map((node) => [node.id, node]));
       const links = new Map([...nodes.keys()].map((id) => [id, { uses: [], usedBy: [] }]));
@@ -288,6 +341,8 @@ export class Workspace {
           })),
           properties: (object?.properties ?? []).map(({ name, value }) => ({ name, value })),
           metadata: object?.metadata,
+          // Why it is in its component: the selector and its coupling to each component.
+          placement: explainPlacement(assessment, id, (placements ??= placementIndex(assessment))),
           members: object ? {
             fields: members(object.fields, ({ name, number, type, kind }) => ({ name, number, type, kind })),
             keys: members(object.keys, (key) => ({ name: key.name, fields: key.fields })),

@@ -27,11 +27,24 @@ subscribers, and permission sets. The text improves as the code is
 documented. A `/// <summary>` above an event, an interface, or a codeunit
 shows up in the handbook.
 
-## In VS Code and the offline app
+## In VS Code, the offline app, the report, and for agents
 
-The **Handbook** page of the BC Atlas panel and of `bca export` (the offline
-HTML file) shows the same pages. There, object names open their object page,
-and **Download page** saves the page as Markdown.
+- **VS Code and the offline app:** the BC Atlas panel and the file from
+  `bca export` have a **Handbook** page with the same content. Object names
+  there open their object page, and **Download page** saves the page as
+  Markdown. In VS Code, **English** and **Deutsch** switch the language.
+- **Report:** `bca export --view report --handbook` writes the handbook to
+  `<output>/handbook`. With `--codegraph`, object names link to the catalog
+  in `<output>/objects`. In `.bca.json` this is `report.handbook`.
+- **AI agents:** the MCP tool `bc_atlas_handbook` returns one page or all of
+  them.
+
+## German
+
+`--language de` (or `de-DE`) writes the handbook in German, with the terms of
+the German Business Central client: Tabelle, Seite, Bericht,
+Berechtigungssatz. In `.bca.json` this is `handbook.language`. Names from the
+code (objects, captions, `///` comments) stay as they are written.
 
 ## Link to the object catalog
 

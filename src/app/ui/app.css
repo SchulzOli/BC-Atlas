@@ -434,3 +434,4 @@ dialog p { color: var(--muted); margin: 0 0 16px; }
 .prose .table-scroll { margin: 0 0 16px; }
 .prose code { font-size: 12px; }
 .handbook-tabs a[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+.coupling-bar { display: inline-block; height: 6px; border-radius: 3px; background: var(--accent); margin: 0 8px; vertical-align: middle; }

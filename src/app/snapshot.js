@@ -24,6 +24,7 @@ function compactDetails(index) {
       source: { file: detail.source.file, line: detail.source.line, url: detail.source.url },
       properties: detail.properties.map(({ name, value }) => [name, value]),
       metadata: detail.metadata,
+      placement: detail.placement,
       uses: detail.uses.map((link) => [ref(link), link.dependency, link.kinds]),
       usedBy: detail.usedBy.map((link) => [ref(link), link.dependency, link.kinds]),
       violations: detail.violations.map(({ rule, target, targetComponent, kinds, resolution }) => ({ rule, target: ref(target), targetComponent, kinds, resolution })),

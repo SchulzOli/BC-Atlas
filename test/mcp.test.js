@@ -70,6 +70,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_generate_diagram",
         "bc_atlas_graph_query",
         "bc_atlas_graph_render",
+        "bc_atlas_handbook",
         "bc_atlas_inspect",
         "bc_atlas_refactor_move",
         "bc_atlas_refactor_surface",
@@ -93,6 +94,15 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     const model = JSON.parse(inspection.content[0].text);
     assert.ok(model.files > 0);
     assert.ok(model.objects.length > 0);
+
+    const handbook = await client.callTool({
+      name: "bc_atlas_handbook",
+      arguments: { path: path.join(root, "examples", "warehouse-app"), page: "data", language: "de" }
+    });
+    assert.equal(handbook.isError, undefined);
+    const { pages } = JSON.parse(handbook.content[0].text);
+    assert.deepEqual(pages.map(({ page }) => page), ["data"]);
+    assert.match(pages[0].markdown, /Geschrieben von/u, "an agent reads who writes each table");
 
     const health = await client.callTool({
       name: "bc_atlas_check",

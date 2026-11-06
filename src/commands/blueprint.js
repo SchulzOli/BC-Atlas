@@ -7,6 +7,7 @@ import { writeBaseline } from "../blueprint/baseline.js";
 import { architectureJson, formatArchitectureMarkdown, formatArchitectureText } from "../blueprint/report.js";
 import { formatExtractionMarkdown, formatExtractionText, planExtraction } from "../blueprint/extract.js";
 import { writeSurface } from "../blueprint/surface.js";
+import { explainPlacement, findObject, formatPlacement } from "../blueprint/explain.js";
 
 export function renderArchitecture(assessment, format = "text") {
   if (format === "json") return `${JSON.stringify(architectureJson(assessment), null, 2)}\n`;
@@ -34,8 +35,20 @@ function renderExtraction(plan, format = "text") {
   return formatExtractionText(plan);
 }
 
+function renderPlacement(assessment, query, format = "text") {
+  const matches = findObject(assessment.levels, query);
+  if (!matches.length) throw new Error(`no object "${query}" in the analyzed source`);
+  const placements = matches.map(({ id }) => explainPlacement(assessment, id));
+  if (format === "json") return `${JSON.stringify(placements.length === 1 ? placements[0] : placements, null, 2)}\n`;
+  return `${placements.map((placement) => formatPlacement(placement).join("\n")).join("\n\n")}\n`;
+}
+
 export async function architectureCommand(input, values) {
   const assessment = await assessArchitecture(input, values);
+  if (values.explain) {
+    process.stdout.write(renderPlacement(assessment, values.explain, values.format));
+    return;
+  }
   const content = values.extract
     ? renderExtraction(planExtraction(assessment, values.extract), values.format ?? "text")
     : renderArchitecture(assessment, values.format ?? "text");
