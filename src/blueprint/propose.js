@@ -97,7 +97,12 @@ function grouping(nodes, levels, { groupBy, depth, weights, clustering }) {
   }
   const clustered = new Map();
   const cluster = (list) => {
-    for (const [id, group] of clusterByRelations(list, levels, weights, { ...clustering, prefix: `${coarse(list[0]).key}|` })) clustered.set(id, group);
+    const result = clusterByRelations(list, levels, weights, { ...clustering, prefix: `${coarse(list[0]).key}|` });
+    // Nothing inside relates to anything else (a module of only permission
+    // sets or control add-ins): the app or module stays one component, named
+    // after it, instead of one "Unconnected" group.
+    if ([...result.values()].every(({ key }) => key.endsWith("|unconnected"))) return;
+    for (const [id, group] of result) clustered.set(id, group);
   };
 
   let inner;
@@ -386,6 +391,28 @@ export function proposeArchitecture(levels, settings = {}) {
     nodeGroup.set(node.id, group.key);
   };
   for (const node of nodes) if (!excluded.has(node.id)) place(node, groupOf(node));
+  // Objects the relations left unconnected that only grant or include
+  // (permission sets) move with what they grant: to the component that holds
+  // most of it.
+  const grants = new Map();
+  for (const edge of levels.object.edges) {
+    if (!Object.keys(edge.kinds ?? {}).some((kind) => kind === "permits" || kind === "includes")) continue;
+    const from = nodeGroup.get(edge.source);
+    const to = nodeGroup.get(edge.target);
+    if (!from || !to || !groups.get(from)?.key.endsWith("unconnected") || groups.get(to)?.key.endsWith("unconnected")) continue;
+    // Apps and modules are boundaries: a permission set stays in its own.
+    if (groups.get(from).outer?.key !== groups.get(to).outer?.key) continue;
+    if (!grants.has(edge.source)) grants.set(edge.source, new Map());
+    grants.get(edge.source).set(to, (grants.get(edge.source).get(to) ?? 0) + 1);
+  }
+  for (const [id, targets] of grants) {
+    const [best] = [...targets].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+    const from = groups.get(nodeGroup.get(id));
+    from.objects--;
+    groups.get(best).objects++;
+    nodeGroup.set(id, best);
+    if (!from.objects) groups.delete(from.key);
+  }
   // Excluded objects: the component they are most coupled to, else one group to place by hand.
   const pull = new Map();
   for (const edge of levels.object.edges) {

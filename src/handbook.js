@@ -299,14 +299,16 @@ function healthPage(context) {
     lines.push("## Obsolete", "", "Marked for removal; plan the work before the tag's version.", "",
       ...table(["What", "State", "Tag", "Reason"], obsolete.map(([what, info]) => [what, info.state, info.tag, info.reason])));
   }
-  const publicProcedures = workspace.filter(({ type }) => ["codeunit", "table", "page", "report", "query", "xmlport", "interface"].includes(type))
+  // The public API: public procedures of objects other apps may use (Access = Public).
+  const isPublic = (object) => (object.metadata?.access ?? "public") === "public";
+  const publicProcedures = workspace.filter((object) => ["codeunit", "table", "page", "report", "query", "xmlport", "interface"].includes(object.type) && isPublic(object))
     .flatMap((object) => (object.procedures ?? []).filter(({ kind, visibility }) => kind === "procedure" && (visibility ?? "public") === "public").map((procedure) => ({ object, procedure })));
   const documented = publicProcedures.filter(({ procedure }) => procedure.metadata?.documentation).length;
-  const undocumentedObjects = workspace.filter(({ type, metadata }) => ["codeunit", "interface"].includes(type) && !metadata?.documentation);
+  const undocumentedObjects = workspace.filter((object) => ["codeunit", "interface"].includes(object.type) && isPublic(object) && !object.metadata?.documentation);
   lines.push("## Documentation coverage", "",
-    `${documented.toLocaleString("en-US")} of ${plural(publicProcedures.length, "public procedure")} have a \`///\` summary${publicProcedures.length ? ` (${Math.round((documented / publicProcedures.length) * 100)}%)` : ""}.`, "");
+    `${documented.toLocaleString("en-US")} of ${plural(publicProcedures.length, "public procedure")} of public objects (the API other apps can call) have a \`///\` summary${publicProcedures.length ? ` (${Math.round((documented / publicProcedures.length) * 100)}%)` : ""}. Objects with \`Access = Internal\` do not count.`, "");
   if (undocumentedObjects.length) {
-    lines.push("Codeunits and interfaces without a `///` summary:", "", ...undocumentedObjects.sort(byName).slice(0, 50).map((object) => `- ${context.link(object)}`),
+    lines.push("Public codeunits and interfaces without a `///` summary:", "", ...undocumentedObjects.sort(byName).slice(0, 50).map((object) => `- ${context.link(object)}`),
       ...(undocumentedObjects.length > 50 ? [`- and ${undocumentedObjects.length - 50} more`] : []), "");
   }
   return lines;
@@ -342,10 +344,13 @@ async function assertReplaceable(directory) {
  * @param values.linkTo object => link target of its page, or undefined
  * @param values.pageLink file => link to another handbook page (default ./file)
  * @param context.assessment an assessArchitecture result to reuse (the app's)
+ * @param context.model an analyzed project (analyzeProject) to reuse
  * @returns { pages: [{ file, title, content }], objects }
  */
-export async function renderHandbook(input, values = {}, { assessment: given } = {}) {
-  const assessment = given ?? await assessArchitecture(input, values);
+export async function renderHandbook(input, values = {}, { assessment: given, model: analyzed } = {}) {
+  // A model analyzed already (for the catalog's layout) is reused, unless
+  // --paths selects files, which the assessment then analyzes on its own.
+  const assessment = given ?? await assessArchitecture(input, values, analyzed && !values.paths?.length ? { model: analyzed } : {});
   const model = assessment.model;
   const workspace = model.objects.filter(({ externalSymbol }) => !externalSymbol);
   const keys = new Set(workspace.map(({ key }) => key));
@@ -387,9 +392,12 @@ export async function generateHandbook(input, values = {}) {
   const outputDirectory = path.resolve(values.outputDir ?? values.output ?? "docs/handbook");
   let linkTo = values.linkTo;
   let linked = 0;
+  let model;
   if (!linkTo && values.catalog) {
     const catalog = path.resolve(values.catalog);
-    const { paths } = await catalogLayout(input, values);
+    const cache = new Map();
+    const { paths } = await catalogLayout(input, values, { cache });
+    model = [...cache.values()][0];
     linkTo = (object) => {
       const page = paths.get(object.key);
       if (!page) return undefined;
@@ -397,7 +405,7 @@ export async function generateHandbook(input, values = {}) {
       return encodeLink(path.relative(outputDirectory, path.join(catalog, page)));
     };
   }
-  const { pages, objects } = await renderHandbook(input, { ...values, linkTo });
+  const { pages, objects } = await renderHandbook(input, { ...values, linkTo }, { model });
   await assertReplaceable(outputDirectory);
   await fs.mkdir(outputDirectory, { recursive: true });
   for (const name of await fs.readdir(outputDirectory)) {

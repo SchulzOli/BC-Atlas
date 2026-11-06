@@ -30,9 +30,9 @@ Where the code is hard to change: complex procedures, large objects, obsolete co
 
 ## Documentation coverage
 
-0 of 5 public procedures have a `///` summary (0%).
+0 of 3 public procedures of public objects (the API other apps can call) have a `///` summary (0%). Objects with `Access = Internal` do not count.
 
-Codeunits and interfaces without a `///` summary:
+Public codeunits and interfaces without a `///` summary:
 
 - [Interface Handles Warehouse Activity](../report/objects/interface/handles-warehouse-activity.md)
 - [Codeunit 50120 Warehouse Notifications](../report/objects/codeunit/50120-warehouse-notifications.md)
