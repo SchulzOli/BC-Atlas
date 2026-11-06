@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.16.0
+
+- The engine is BC Atlas 0.16.0.
+- **Handbook** page: what the app consists of, its events, data,
+  permissions, interfaces, user interface, and code health, across all
+  objects, in English or German; object names open their object page.
+- Object pages show **About** (documentation, caption, access, obsolete
+  state, kind, size, complexity) and **Why in …** (the selector that assigns
+  the object and its coupling to each component).
+- Proposals: choose the structures to start from, the granularity, and the
+  shared core; **Keep component** and **Exclude from shaping** save your
+  choices in `.bca.json`; **What was considered** shows how a proposal was
+  made.
+- `.bca.json` gets completion and checks from the BC Atlas schema.
+- Findings for missing DataClassification and ToolTips, obsolete markings
+  without a tag, complex procedures, and undocumented public API.
+- Objects from symbol packages are read completely, enums and nested
+  namespaces of the Base Application included.
+
 ## 0.15.0
 
 - The engine is BC Atlas 0.15.0: saved graph queries and rendering are
