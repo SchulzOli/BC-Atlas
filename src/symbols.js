@@ -3,6 +3,7 @@ import path from "node:path";
 import { packageCacheFolders, readAlWorkspace } from "./al/settings.js";
 import { unzipSync } from "fflate";
 import { includedPermissionSets } from "./permission-semantics.js";
+import { objectMetadata } from "./metadata.js";
 
 const SYMBOL_TYPES = new Map([
   ["tables", "table"],
@@ -41,11 +42,72 @@ function appFor(symbols, packagePath) {
   };
 }
 
-function objectsFor(symbols, app, packagePath) {
-  const objects = [];
+const list = (value) => Array.isArray(value) ? value : [];
+
+function deepFreeze(value) {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) deepFreeze(child);
+  }
+  return value;
+}
+
+/**
+ * What characterizes a symbol (metadata.js), from the properties, fields,
+ * keys, and methods SymbolReference.json lists. Only the summary is kept: the
+ * Base Application has tens of thousands of fields and methods.
+ */
+function symbolMetadata(symbol, type) {
+  const properties = list(valueFor(symbol, "Properties")).map((property) => ({
+    name: valueFor(property, "Name"),
+    value: valueFor(property, "Value") === undefined ? undefined : String(valueFor(property, "Value"))
+  })).filter(({ name }) => name);
+  // Symbols list no local methods; internal ones are flagged.
+  const procedures = list(valueFor(symbol, "Methods")).map((method) => {
+    const attributes = list(valueFor(method, "Attributes")).map((attribute) => String(valueFor(attribute, "Name") ?? ""));
+    return {
+      name: valueFor(method, "Name"),
+      kind: attributes.some((name) => /^(Integration|Business|Internal)Event$/iu.test(name)) ? "event" : "procedure",
+      visibility: valueFor(method, "IsInternal") ? "internal" : valueFor(method, "IsProtected") ? "protected" : "public",
+      hasBody: false
+    };
+  });
+  const fields = list(valueFor(symbol, "Fields")).map(() => ({ kind: "field" }));
+  const controls = [];
+  const walk = (items) => {
+    for (const control of list(items)) {
+      if (String(valueFor(control, "Kind") ?? "").toLowerCase() === "field" || valueFor(control, "SourceExpression")) controls.push({ kind: "page-field" });
+      walk(valueFor(control, "Controls"));
+    }
+  };
+  walk(valueFor(symbol, "Controls"));
+  return deepFreeze(objectMetadata({
+    type,
+    properties,
+    procedures,
+    fields: type === "page" || type === "pageextension" ? controls : fields,
+    keys: list(valueFor(symbol, "Keys")),
+    actions: list(valueFor(symbol, "Actions")),
+    elements: list(valueFor(symbol, "Values"))
+  }));
+}
+
+// Newer symbol files nest objects in namespaces:
+// { Namespaces: [{ Name: "Microsoft", Namespaces: [{ Name: "Sales", Tables: [...] }] }] }
+function* collections(symbols, namespace) {
   for (const [collectionName, collection] of Object.entries(symbols)) {
     const type = SYMBOL_TYPES.get(collectionName.toLowerCase());
-    if (!type || !Array.isArray(collection)) continue;
+    if (type && Array.isArray(collection)) yield { type, collection, namespace };
+  }
+  for (const child of list(valueFor(symbols, "Namespaces"))) {
+    const name = valueFor(child, "Name");
+    yield* collections(child, name ? (namespace ? `${namespace}.${name}` : String(name)) : namespace);
+  }
+}
+
+function objectsFor(symbols, app, packagePath) {
+  const objects = [];
+  for (const { type, collection, namespace } of collections(symbols)) {
     for (const symbol of collection) {
       const name = valueFor(symbol, "Name");
       if (!name) continue;
@@ -56,7 +118,7 @@ function objectsFor(symbols, app, packagePath) {
         id: String(valueFor(symbol, "Id") ?? "") || undefined,
         name,
         type,
-        namespace: valueFor(symbol, "Namespace") ?? "(global)",
+        namespace: valueFor(symbol, "Namespace") ?? namespace ?? "(global)",
         file: `${packagePath}#SymbolReference.json`,
         relations: ["permissionset", "permissionsetextension"].includes(type)
           ? includedPermissionSets(valueFor(symbol, "IncludedPermissionSets"))
@@ -70,6 +132,7 @@ function objectsFor(symbols, app, packagePath) {
         objectAccess: ["permissionset", "permissionsetextension"].includes(type)
           ? String(valueFor(symbol, "Access") ?? "public").toLowerCase()
           : undefined,
+        metadata: symbolMetadata(symbol, type),
         app,
         externalSymbol: true
       });
