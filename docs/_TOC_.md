@@ -35,6 +35,7 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 
 - [AL toolchain: compiler, analyzers, AL settings](./al-toolchain.md)
 - [Automation: hooks, schedules, and pipelines](./automation-and-ci.md)
+- [Modules and bc-atlas-sync (process recordings from Business Central)](./modules.md)
 - [Agent integration and MCP](./agent-integration.md)
 - [MCP JSON example](./examples/mcp.json)
 

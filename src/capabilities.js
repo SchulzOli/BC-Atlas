@@ -687,6 +687,35 @@ export function createCapabilities(version) {
           "bca run --tasks report,docs --sync verify"
         ]
       }),
+      ...["plan", "run", "status"].map((sub) => command({
+        id: `sync.${sub}`,
+        area: "integrate",
+        argv: ["bca", "sync", sub, "[app-root]"],
+        purpose: {
+          plan: "Show what each sync channel would write for a trigger, without writing (module bc-atlas-sync).",
+          run: "Sync data from outside the AL source into the project: Business Central process recordings into documents, UI tests, architecture layer, and process index (module bc-atlas-sync).",
+          status: "Show for every sync channel which processes are new, changed, drifted, or removed (module bc-atlas-sync)."
+        }[sub],
+        options: {
+          ...(sub === "status" ? {} : {
+            trigger: string("Trigger whose channels run.", { enum: ["pre-commit", "pre-push", "ci", "schedule", "manual"], default: "manual" })
+          }),
+          channel: string("Only this channel; ignores the trigger.", { repeatable: true, value: "id" }),
+          ...(sub === "run" ? { force: flag("Rewrite every process, whatever the channel condition says.") } : {}),
+          config: projectOptions.config,
+          format: string("Output mode.", { enum: ["text", "json"], default: "text" })
+        },
+        output: { type: "json", when: "--format json", schema: "SyncResult" },
+        rules: [
+          "Needs the bc-atlas-sync module: install it in the project and list it under \"modules\" in .bca.json.",
+          "What, when, and how to sync is the \"sync\" section of .bca.json; the sync task of bca run uses the same channels."
+        ],
+        examples: {
+          plan: ["bca sync plan --trigger ci"],
+          run: ["bca sync run", "bca sync run --channel processes --force"],
+          status: ["bca sync status --format json"]
+        }[sub]
+      })),
       command({
         id: "update",
         area: "integrate",

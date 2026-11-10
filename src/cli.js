@@ -43,6 +43,11 @@ function resolveCommand(args) {
     if (["-h", "--help", "help"].includes(second)) return { id: "refactor.move", args: ["--help"] };
     throw new UsageError(`unknown refactoring "${second ?? ""}"; use "bca refactor move" or "bca refactor surface"`);
   }
+  if (first === "sync") {
+    if (findCommand(capabilities, `sync.${second}`)) return { id: `sync.${second}`, args: rest };
+    if (!second || ["-h", "--help", "help"].includes(second)) return { id: "sync.run", args: ["--help"] };
+    throw new UsageError(`unknown sync command "${second}"; use "bca sync plan", "bca sync run", or "bca sync status"`);
+  }
   if (TOP_LEVEL.has(first)) return { id: first, args: args.slice(1) };
   if (first && !first.startsWith("-") && existsSync(first)) {
     throw new UsageError(`"${first}" is a path, not a command; try "bca check ${first}" or "bca export ${first}", or open it in VS Code with the BC Atlas extension`);

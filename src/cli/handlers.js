@@ -17,7 +17,10 @@ const MODULES = {
   "graph.query": ["../commands/graph.js", "graphQueryCommand"],
   "graph.render": ["../commands/graph.js", "graphRenderCommand"],
   run: ["../commands/run.js", "runCommand"],
-  update: ["../commands/update.js", "updateCommand"]
+  update: ["../commands/update.js", "updateCommand"],
+  "sync.plan": ["../commands/sync.js", "syncPlanCommand"],
+  "sync.run": ["../commands/sync.js", "syncRunCommand"],
+  "sync.status": ["../commands/sync.js", "syncStatusCommand"]
 };
 
 // Literal specifiers, so bundlers (the VS Code extension) see every module.
@@ -30,7 +33,8 @@ const IMPORTS = {
   "../commands/export.js": () => import("../commands/export.js"),
   "../commands/graph.js": () => import("../commands/graph.js"),
   "../commands/run.js": () => import("../commands/run.js"),
-  "../commands/update.js": () => import("../commands/update.js")
+  "../commands/update.js": () => import("../commands/update.js"),
+  "../commands/sync.js": () => import("../commands/sync.js")
 };
 
 /** Resolves the handler `(input, values) => Promise` of a catalog command id. */

@@ -15,13 +15,23 @@ import { runHealthCheck } from "../commands/check.js";
 import { generateReport } from "../commands/report.js";
 import { writeSimulation } from "../commands/simulate.js";
 import { simulationResultLine } from "../simulation/report.js";
+import { createModuleHost, loadModules, moduleForTask } from "../modules.js";
 import { automationConfig, DEFAULTS, outputsFor, parseList, SYNC_MODES, TASKS } from "./config.js";
 import { changedPaths, findGitRoot, stagePaths } from "./git.js";
 
-const ORDER = ["check", "simulate", "report", "diagrams", "docs", "codegraph", "handbook"];
+// sync runs before docs: UI tests it brings in from Business Central are documented in the same run.
+const ORDER = ["check", "simulate", "report", "diagrams", "sync", "docs", "codegraph", "handbook"];
 
-async function runTask(task, root, config, log, appPath, values = {}, tasks = []) {
+async function runTask(task, root, config, log, appPath, values = {}, tasks = [], trigger = "manual") {
   const at = (relative) => path.resolve(root, relative);
+  if (task === "sync") {
+    const owner = moduleForTask(await loadModules(root, config), "sync");
+    if (!owner) throw new Error("sync task needs the bc-atlas-sync module: install it and list it under \"modules\" in .bca.json");
+    const host = createModuleHost({ root, config, trigger, values, log });
+    const outcome = await owner.module.tasks.sync.run(host);
+    log(`sync: ${outcome.summary}`);
+    return { ok: outcome.ok !== false, summary: outcome.summary };
+  }
   if (task === "check") {
     const { report } = await runHealthCheck(root, values);
     log(`check: ${healthResultLine(report)}`);
@@ -123,7 +133,7 @@ export async function runAutomation(input, options = {}) {
   const results = [];
   for (const task of tasks) {
     try {
-      results.push({ task, ...(await runTask(task, root, config, log, appPath, values, tasks)) });
+      results.push({ task, ...(await runTask(task, root, config, log, appPath, values, tasks, trigger)) });
     } catch (error) {
       log(`${task}: failed: ${error.message}`);
       results.push({ task, ok: false, summary: error.message });

@@ -654,13 +654,40 @@ See [Automation](./automation-and-ci.md).
 | Option | Value | Description |
 | --- | --- | --- |
 | `--trigger` | `pre-commit`, `pre-push`, `ci`, `schedule`, `manual` | Trigger whose tasks and sync mode are used. Default: `manual`. |
-| `--tasks` | list | Run these tasks instead: `check`, `simulate`, `report`, `docs`, `codegraph`, `handbook`, `diagrams`. |
+| `--tasks` | list | Run these tasks instead: `check`, `simulate`, `report`, `docs`, `codegraph`, `handbook`, `diagrams`, `sync`. |
 | `--sync` | `none`, `verify`, `stage`, `artifact`, `pull-request`, `commit` | Override the sync mode. |
 | `--config` | path | Configuration file. |
 | `--format` | `text` or `json` | Output mode. Default: `text`. |
 
 Exits with `1` when a task fails, `check` or `simulate` finds blocking issues,
 or `verify` finds outdated generated files.
+
+### `sync plan`, `sync run`, `sync status`
+
+```text
+bca sync plan [app-root] [--trigger ci] [--channel <id>]
+bca sync run [app-root] [--trigger ci] [--channel <id>] [--force]
+bca sync status [app-root] [--channel <id>]
+```
+
+Syncs data from outside the AL source into the project with the
+[bc-atlas-sync](./modules.md) module: Business Central process recordings
+(fact snapshots) into documents, BC Atlas UI tests, the architecture layer, and
+a process index. What, when, and how is the `sync` section of `.bca.json`; the
+`sync` task of `bca run` uses the same channels, so hooks, pipelines, and
+schedules deliver the output with their sync mode. `plan` and `status` write
+nothing; `status` looks at every channel regardless of the trigger.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--trigger` | `pre-commit`, `pre-push`, `ci`, `schedule`, `manual` | Trigger whose channels run (`plan`, `run`). Default: `manual`. |
+| `--channel` | id | Only this channel, ignoring the trigger. Repeatable. |
+| `--force` | flag | Rewrite every process, whatever the channel condition says (`run`). |
+| `--config` | path | Configuration file. |
+| `--format` | `text` or `json` | Output mode. Default: `text`. |
+
+Needs the module: `npm install --save-dev bc-atlas-sync` and
+`"modules": ["bc-atlas-sync"]` in `.bca.json`.
 
 ### `update`
 

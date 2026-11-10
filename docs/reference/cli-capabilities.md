@@ -55,6 +55,9 @@ Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents.
 | Command | Invocation | Purpose |
 | --- | --- | --- |
 | `run` | `bca run [app-root]` | Run the features configured for a trigger (Git hook, pipeline, schedule) and sync their output. |
+| `sync.plan` | `bca sync plan [app-root]` | Show what each sync channel would write for a trigger, without writing (module bc-atlas-sync). |
+| `sync.run` | `bca sync run [app-root]` | Sync data from outside the AL source into the project: Business Central process recordings into documents, UI tests, architecture layer, and process index (module bc-atlas-sync). |
+| `sync.status` | `bca sync status [app-root]` | Show for every sync channel which processes are new, changed, drifted, or removed (module bc-atlas-sync). |
 | `update` | `bca update [app-root]` | Check for a new BC Atlas version, show what changed, and update it together with the generated setup files. |
 | `mcp` | `bca mcp` | Start the Model Context Protocol server on stdio for AI agents. |
 

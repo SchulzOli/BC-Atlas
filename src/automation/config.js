@@ -20,7 +20,8 @@ export const TASKS = Object.freeze({
   docs: "User guides or test cases from AL UI tests",
   codegraph: "One Markdown page per AL object",
   handbook: "System handbook: events, data, permissions, interfaces, UI, code health (docs/handbook)",
-  diagrams: "Extra diagrams listed under \"diagrams\" in .bca.json"
+  diagrams: "Extra diagrams listed under \"diagrams\" in .bca.json",
+  sync: "Data from outside the AL source via the bc-atlas-sync module: Business Central process recordings into documents, UI tests, architecture, and index (\"sync\" in .bca.json)"
 });
 
 export const TRIGGERS = Object.freeze({
@@ -102,8 +103,23 @@ export function automationConfig(config = {}) {
   return { hooks, ci, triggers };
 }
 
+/**
+ * What the sync task writes: every channel's output directory and the state file. Mirrors the
+ * defaults of the bc-atlas-sync manifest (module API 1), so pipelines know the paths without
+ * loading the module.
+ */
+export function syncOutputs(config = {}) {
+  const channels = config.sync?.channels ?? [];
+  if (!channels.length) return [];
+  return [...new Set([
+    ...channels.map(({ id, how }) => how?.outputDir ?? `docs/sync/${id}`),
+    config.sync?.state ?? ".bca/sync-state.json"
+  ])];
+}
+
 /** Output directories (relative to the project root) that a task writes. */
 export function taskOutputs(task, config = {}) {
+  if (task === "sync") return syncOutputs(config);
   if (task === "report") return [config.report?.outputDir ?? DEFAULTS.report.outputDir];
   if (task === "docs") return [config.docs?.outputDir ?? DEFAULTS.docs.outputDir];
   if (task === "codegraph") return [config.codegraph?.outputDir ?? DEFAULTS.codegraph.outputDir];

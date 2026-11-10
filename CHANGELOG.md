@@ -8,6 +8,18 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Modules** (`"modules"` in `.bca.json`, `BCA_MODULES`): separately installed
+  packages add tasks and commands while BC Atlas stays independent of them.
+  A module gets a host (project, trigger, log, architecture model, docs
+  renderer) instead of importing BC Atlas internals; the module API version is
+  checked on load. See [Modules and bc-atlas-sync](docs/modules.md).
+- **`bca sync plan|run|status` and the `sync` task** for the first module,
+  [bc-atlas-sync](https://github.com/SchulzOli/bc-atlas-sync): Business Central
+  process recordings (clicks, writes, AL call stacks as fact snapshots) synced
+  into documents, BC Atlas UI tests, the architecture layer, and a process
+  index. What, when, and how is the `sync` section of `.bca.json`; the task
+  runs before `docs` and its outputs take part in verify, stage, artifacts,
+  and pull requests.
 - **Visibility view** (`bca export --view visibility`): what is public,
   internal, or local, in three levels and three colors. Every app, object,
   procedure, event, and table field is a data point with its level: public

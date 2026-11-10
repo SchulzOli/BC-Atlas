@@ -625,7 +625,9 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
   assert.deepEqual(contract.areas.map(({ id }) => id), ["start", "analyze", "export", "integrate"]);
   assert.ok(contract.commands.every(({ area }) => contract.areas.some(({ id }) => id === area)));
   assert.deepEqual([...new Set(contract.commands.map(({ id }) => id.split(".")[0]))],
-    ["setup", "check", "simulate", "graph", "architecture", "refactor", "export", "docs", "run", "update", "mcp"]);
+    ["setup", "check", "simulate", "graph", "architecture", "refactor", "export", "docs", "run", "sync", "update", "mcp"]);
+  assert.deepEqual(contract.commands.filter(({ id }) => id.startsWith("sync.")).map(({ argv }) => argv.join(" ")),
+    ["bca sync plan [app-root]", "bca sync run [app-root]", "bca sync status [app-root]"], "commands of the bc-atlas-sync module");
   assert.ok(contract.commands.some(({ argv }) =>
     argv.join(" ") === "bca docs validate <test-root>"));
   assert.ok(!contract.commands.some(({ id }) => id === "app"), "the app lives in the VS Code extension");
