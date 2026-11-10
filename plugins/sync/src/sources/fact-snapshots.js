@@ -24,13 +24,22 @@ const DOCUMENT_TYPES = [
 /** Document type of a file in a BC "Download All" ZIP: <Process>-S<no>-<Doc-Type>.<ext>. */
 export function documentType(fileName) {
   const base = path.posix.basename(fileName);
-  const match = base.match(/-S\d+-(.+)\.([A-Za-z0-9]+)$/u);
-  if (!match) return undefined;
-  const suffix = match[1].toLowerCase();
+  // Parsed by position instead of one backtracking regex: the extension after the last dot, the
+  // type after the last "-S<number>-" marker (the process name may contain hyphens).
+  const dot = base.lastIndexOf(".");
+  if (dot <= 0) return undefined;
+  const extension = base.slice(dot + 1);
+  if (!/^[A-Za-z0-9]+$/u.test(extension)) return undefined;
+  const stem = base.slice(0, dot);
+  let marker;
+  for (const found of stem.matchAll(/-S\d+-/gu)) marker = found;
+  if (!marker) return undefined;
+  const suffix = stem.slice(marker.index + marker[0].length).toLowerCase();
+  if (!suffix) return undefined;
   const known = DOCUMENT_TYPES.find(([prefix]) => suffix.startsWith(prefix));
   if (known) return { type: known[1], file: known[2] };
   const type = kebabId(suffix);
-  return { type, file: `${type}.${match[2].toLowerCase()}` };
+  return { type, file: `${type}.${extension.toLowerCase()}` };
 }
 
 function isFactSheet(value) {

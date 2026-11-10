@@ -21,12 +21,22 @@ export function stableStringify(value, indent = 0) {
 
 /** Lowercase hyphenated id, the same rule the AL side uses for BC Atlas [DOC-ID]s. */
 export function kebabId(value) {
-  const id = String(value ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, "-")
-    .replace(/^-+|-+$/gu, "")
-    .slice(0, 80);
+  // Runs of other characters become one hyphen; trimming is done without a regex, so input made
+  // of many hyphens cannot make the match slow (one hyphen at most remains at each end).
+  let id = String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/gu, "-");
+  if (id.startsWith("-")) id = id.slice(1);
+  if (id.endsWith("-")) id = id.slice(0, -1);
+  id = id.slice(0, 80);
+  if (id.endsWith("-")) id = id.slice(0, -1);
   return id || "process";
+}
+
+/** Text for a Markdown table cell: backslashes and pipes escaped, line breaks as spaces. */
+export function markdownCell(text) {
+  return String(text ?? "")
+    .replace(/\\/gu, "\\\\")
+    .replace(/\|/gu, "\\|")
+    .replace(/\r?\n/gu, " ");
 }
 
 /** "*", "Order*", "post-*" style globs against several candidate strings (case-insensitive). */

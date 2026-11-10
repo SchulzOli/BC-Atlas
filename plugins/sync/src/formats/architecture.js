@@ -3,6 +3,7 @@
 // and whether each recorded call between components follows the BC Atlas layer rules
 // (the same rules as the blueprint evaluation: outward-dependency, same-layer-dependency).
 import { indexAtlas } from "../sources/atlas-model.js";
+import { markdownCell } from "../util.js";
 
 const OK = "ok";
 
@@ -108,7 +109,7 @@ export function analyzeArchitecture(facts, model) {
 
 const nodeId = (name) => `C_${String(name).replace(/[^A-Za-z0-9]/gu, "_")}`;
 const label = (text) => String(text ?? "").replace(/["[\]{}|<>#;`]/gu, "");
-const cell = (text) => String(text ?? "").replace(/\|/gu, "\\|");
+const cell = markdownCell;
 
 export function architectureMarkdown(result) {
   const out = [];

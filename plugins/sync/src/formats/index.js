@@ -6,7 +6,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { architectureFormat } from "./architecture.js";
-import { stableStringify } from "../util.js";
+import { markdownCell, stableStringify } from "../util.js";
 
 const documentsFormat = {
   id: "documents",
@@ -38,7 +38,7 @@ const uiTestsFormat = {
   }
 };
 
-const cell = (text) => String(text ?? "").replace(/\|/gu, "\\|");
+const cell = markdownCell;
 
 const indexFormat = {
   id: "index",
