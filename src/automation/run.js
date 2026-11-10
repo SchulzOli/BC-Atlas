@@ -13,10 +13,12 @@ import { healthResultLine } from "../health.js";
 import { resolveOutput, writeArchitecture } from "../output.js";
 import { runHealthCheck } from "../commands/check.js";
 import { generateReport } from "../commands/report.js";
+import { writeSimulation } from "../commands/simulate.js";
+import { simulationResultLine } from "../simulation/report.js";
 import { automationConfig, DEFAULTS, outputsFor, parseList, SYNC_MODES, TASKS } from "./config.js";
 import { changedPaths, findGitRoot, stagePaths } from "./git.js";
 
-const ORDER = ["check", "report", "diagrams", "docs", "codegraph", "handbook"];
+const ORDER = ["check", "simulate", "report", "diagrams", "docs", "codegraph", "handbook"];
 
 async function runTask(task, root, config, log, appPath, values = {}, tasks = []) {
   const at = (relative) => path.resolve(root, relative);
@@ -24,6 +26,13 @@ async function runTask(task, root, config, log, appPath, values = {}, tasks = []
     const { report } = await runHealthCheck(root, values);
     log(`check: ${healthResultLine(report)}`);
     return { ok: report.passed, summary: healthResultLine(report) };
+  }
+  if (task === "simulate") {
+    // The battle test is a gate like check, and its report is documentation.
+    const outputDir = config.simulation?.outputDir ?? DEFAULTS.simulation.outputDir;
+    const { report } = await writeSimulation(root, { ...values, format: "markdown", output: at(path.join(outputDir, "README.md")) });
+    log(`simulate: ${simulationResultLine(report)}`);
+    return { ok: report.passed, summary: simulationResultLine(report) };
   }
   if (task === "report") {
     const settings = config.report ?? {};

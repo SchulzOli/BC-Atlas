@@ -172,6 +172,7 @@ export function resolveModel(model) {
         permissionKind: relation.permissionKind,
         tableDataRights: relation.tableDataRights,
         execute: relation.execute,
+        indirectRights: relation.indirectRights,
         permissionSetRelation: relation.permissionSetRelation,
         targetAppId: relation.targetAppId,
         operation: relation.operation,

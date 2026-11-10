@@ -33,6 +33,21 @@ as Markdown, a single [HTML file](./docs/index.html), DITA 1.3 tasks, and an
 Azure DevOps test-case CSV. The app's `Translations` folder contains a German
 XLIFF file; try `--language de-DE` to see translated output.
 
+`purchasing-app` is a purchase request process over several roles: request,
+release, approve, order. Its `.bca.json` describes a company (roles with
+permission sets and task groups, agents, requirements), and
+`npm run examples` writes the [battle test report](./simulation/README.md)
+([German](./simulation/README.de.md)):
+
+```sh
+node src/cli.js simulate examples/purchasing-app
+node src/cli.js simulate examples/purchasing-app -o report.md --language de
+```
+
+The report shows a role that is blocked by a missing permission, a role that
+can do what it must not, and requirements the app does not cover. See
+[Battle test](../docs/battle-test.md).
+
 `multi-app` is a workspace with three apps that depend on each other, one of
 them without declaring it. `npm run examples` replays it as a Git history and
 writes the [dependency explorer example](./explorer/README.md):
@@ -53,9 +68,11 @@ node src/cli.js export examples/warehouse-app --view project -f json -o model.js
 node src/cli.js check examples/warehouse-app
 ```
 
-The documentation website hosts both examples as exported apps:
-[warehouse](https://schulzoli.github.io/BC-Atlas/examples/app/html/warehouse-app.html)
-and [multi-app](https://schulzoli.github.io/BC-Atlas/examples/app/html/multi-app.html).
+The documentation website hosts the examples as exported apps:
+[warehouse](https://schulzoli.github.io/BC-Atlas/examples/app/html/warehouse-app.html),
+[multi-app](https://schulzoli.github.io/BC-Atlas/examples/app/html/multi-app.html),
+and [purchasing](https://schulzoli.github.io/BC-Atlas/examples/app/html/purchasing-app.html)
+(its Docs page has the battle test).
 
 The diagram images in `docs/generated/images` are PNG renderings of these SVG
 files; `npm run examples` writes both.

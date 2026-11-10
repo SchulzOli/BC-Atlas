@@ -27,7 +27,7 @@ const diagrams = [
   ["ui", ["--view", "ui", "--focus", "Warehouse", "--title", "Warehouse UI composition"]]
 ];
 
-function run(arguments_) {
+function run(arguments_, { exitCodes = [0] } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, ...arguments_], {
       cwd: root,
@@ -38,7 +38,7 @@ function run(arguments_) {
     });
     child.on("error", reject);
     child.on("exit", (code) => {
-      if (code === 0) resolve();
+      if (exitCodes.includes(code)) resolve();
       else reject(new Error(`BC Atlas exited with code ${code}`));
     });
   });
@@ -75,6 +75,12 @@ await run([
   "--export", "markdown,html,dita,ado-csv,bpmn",
   "--output-dir", path.join("examples", "docs")
 ]);
+
+// The battle test of the purchasing example. Its findings are the point of
+// the example, so the failed result (exit code 1) is expected.
+const purchasing = path.join(root, "examples", "purchasing-app");
+await run(["simulate", purchasing, "-o", path.join("examples", "simulation", "README.md")], { exitCodes: [1] });
+await run(["simulate", purchasing, "-o", path.join("examples", "simulation", "README.de.md"), "--language", "de"], { exitCodes: [1] });
 
 // The knowledge graph of the warehouse example, with a fixed date so it only changes with the source.
 process.env.SOURCE_DATE_EPOCH = "1735689600";

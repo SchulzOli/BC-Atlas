@@ -25,7 +25,7 @@ Where the code is hard to change: complex procedures, large objects, obsolete co
 | [Codeunit 50101 Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md) | 32 | 3 | 5 |
 | [Table 50100 Warehouse Request](../report/objects/table/50100-warehouse-request.md) | 19 | 0 |  |
 | [Codeunit 50120 Warehouse Notifications](../report/objects/codeunit/50120-warehouse-notifications.md) | 12 | 2 | 2 |
-| [Permission set 50121 WAREHOUSE PROCESS](../report/objects/permissionset/50121-warehouse-process.md) | 8 | 0 |  |
+| [Permission set 50121 WAREHOUSE PROCESS](../report/objects/permissionset/50121-warehouse-process.md) | 9 | 0 |  |
 | [Enum 50102 Warehouse Handler](../report/objects/enum/50102-warehouse-handler.md) | 7 | 0 |  |
 | [Interface Handles Warehouse Activity](../report/objects/interface/handles-warehouse-activity.md) | 4 | 1 |  |
 | [Page extension 50111 Warehouse Request Ext.](../report/objects/pageextension/50111-warehouse-request-ext.md) | 3 | 0 |  |

@@ -13,5 +13,6 @@ Assignable to users.
 | Object | Kind | Rights |
 | --- | --- | --- |
 | [Codeunit 50101 Warehouse Processor](../report/objects/codeunit/50101-warehouse-processor.md) | execute | X |
+| [Codeunit 50120 Warehouse Notifications](../report/objects/codeunit/50120-warehouse-notifications.md) | execute | X |
 | [Page 50110 Warehouse Requests](../report/objects/page/50110-warehouse-requests.md) | execute | X |
 | [Table 50100 Warehouse Request](../report/objects/table/50100-warehouse-request.md) | tabledata | RIMD |

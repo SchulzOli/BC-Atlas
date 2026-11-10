@@ -12,6 +12,12 @@ open an issue to discuss priorities.
 - Transaction-boundary risks: writes after explicit commits and partial
   processing paths.
 
+- Battle test: follow interface calls to their implementations, check
+  application areas and entitlements, and compare two runs (which role lost or
+  gained a task).
+- Battle test: hand each agent's tasks to an AI agent that performs them in a
+  sandbox (page scripting), with the simulated result as the expectation.
+
 ## Visualize
 
 - More dependency explorer lenses with the same timeline and filters: calls, data

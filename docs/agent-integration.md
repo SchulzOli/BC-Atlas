@@ -95,6 +95,7 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_capabilities` reads the command contract.
 - `bc_atlas_inspect` returns an architecture model.
 - `bc_atlas_check` returns the architecture health report used by `bca check`.
+- `bc_atlas_simulate` runs the [battle test](./battle-test.md): agents with the company's roles, permission sets, and task groups perform the process tests. It returns who is blocked at which step and by which missing permission, who can do what they must not, the processes, the fit-gap analysis, and findings with what to do; `agent` or `task` returns the details of one agent or one process test, `markdown: true` the report as documentation.
 - `bc_atlas_architecture` returns the target architecture with work items (with the `bca refactor` command for moves), data ownership, and checks.
 - `bc_atlas_extraction_plan` plans extracting one component as an app: blockers, `app.json`, data moves, and steps.
 - `bc_atlas_refactor_surface` sets `Access = Internal` on objects no other component uses and writes `exposes` to `.bca.json`; `dryRun` by default.

@@ -22,6 +22,9 @@ import { createGraphDocument } from "../graph/document.js";
 import { renderExplorerHtml } from "../graph/html.js";
 import { openParseCache } from "../parse-cache.js";
 import { renderHandbook } from "../handbook.js";
+import { simulate } from "../simulation/index.js";
+import { formatSimulationMarkdown } from "../simulation/report.js";
+import { simulationText } from "../simulation/text.js";
 import { explainPlacement, placementIndex } from "../blueprint/explain.js";
 import { proposalSettings } from "../blueprint/settings.js";
 import { MAX_DIAGRAM_NODES, prepareScene, sceneToSvg } from "../diagram/index.js";
@@ -204,11 +207,41 @@ export class Workspace {
         linkTo: (object) => objects.has(object.key) ? `#/object/${encodeURIComponent(object.key)}` : undefined,
         pageLink: (file) => `#/docs?page=${encodeURIComponent(file.replace(/\.md$/u, ""))}${query}`
       }, { assessment: await this.assessment() });
+      // With process tests, the battle test is a page of its own; its tasks link to their guides.
+      const battle = await this.battleTest({ language: chosen }).catch(() => undefined);
+      const text = simulationText(chosen).report;
       return {
         objects: count,
         language: /^de\b/iu.test(chosen ?? "") ? "de" : "en",
-        pages: pages.map(({ file, title, summary, content }) => ({ id: file.replace(/\.md$/u, ""), file, title, summary, markdown: content }))
+        pages: [
+          ...pages.map(({ file, title, summary, content }) => ({ id: file.replace(/\.md$/u, ""), file, title, summary, markdown: content })),
+          ...(battle ? [{
+            id: "battle-test",
+            file: "battle-test.md",
+            title: text.page,
+            summary: text.pageSummary,
+            markdown: formatSimulationMarkdown(battle, { lineBreak: "; ", taskLink: (id) => `#/docs?guide=1&id=${encodeURIComponent(id)}` })
+          }] : [])
+        ]
       };
+    });
+  }
+
+  /**
+   * The battle test (src/simulation): agents with the company's roles perform
+   * the process tests. Undefined without documented UI tests.
+   */
+  battleTest({ language } = {}) {
+    return this.remember(`battle-test:${language ?? ""}`, async () => {
+      const docs = await this.docs();
+      if (!docs) return undefined;
+      const { cache } = await this.health();
+      const { options } = await this.model();
+      return simulate(this.input, {
+        ...this.values,
+        tests: path.resolve(options.projectRoot, options.simulation?.tests ?? docs.path),
+        language: language ?? options.simulation?.language
+      }, { cache, parseCache: await this.parseCache() });
     });
   }
 

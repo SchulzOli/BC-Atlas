@@ -9,6 +9,7 @@ const MODULES = {
   "setup.apply": ["../commands/setup.js", "setupApplyCommand"],
   "setup.agent": ["../commands/setup.js", "setupAgentCommand"],
   check: ["../commands/check.js", "checkCommand"],
+  simulate: ["../commands/simulate.js", "simulateCommand"],
   architecture: ["../commands/blueprint.js", "architectureCommand"],
   "refactor.move": ["../commands/refactor.js", "refactorMoveCommand"],
   "refactor.surface": ["../commands/refactor.js", "refactorSurfaceCommand"],
@@ -23,6 +24,7 @@ const MODULES = {
 const IMPORTS = {
   "../commands/setup.js": () => import("../commands/setup.js"),
   "../commands/check.js": () => import("../commands/check.js"),
+  "../commands/simulate.js": () => import("../commands/simulate.js"),
   "../commands/blueprint.js": () => import("../commands/blueprint.js"),
   "../commands/refactor.js": () => import("../commands/refactor.js"),
   "../commands/export.js": () => import("../commands/export.js"),
