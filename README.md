@@ -238,7 +238,10 @@ exact when the AL compiler is available; without it they resolve by name and
 number of arguments, and dynamic calls and unusual subscriber forms stay
 syntactic or unresolved when the source does not identify a target. Without
 the compiler, conditional compilation is represented as parsed, not
-evaluated.
+evaluated: what every branch of an `#if` declares and refers to is in the
+model. A declaration whose header differs by branch while the body is shared
+(`#if X` / `table 50100 "A"` / `#else` / `table 50101 "A"` / `#endif` /
+`{ ... }`) is there once, with the header of the first branch.
 
 ## Development
 

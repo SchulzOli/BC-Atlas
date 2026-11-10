@@ -71,6 +71,19 @@ follows [Semantic Versioning](https://semver.org/).
   group (the same for `ApplicationArea`, `Editable`, `ToolTip`, `Visible`,
   and `SourceTableTemporary` of a request page). An XMLport element no
   longer lists the properties of its attributes.
+- Objects, table fields, page fields, and procedures whose header is split
+  by `#if` (`#if X` / `table 50100 "A"` / `#else` / `table 50101 "A"` /
+  `#endif` / `{ ... }`) are in the model. They were missing: a table declared
+  this way did not exist, nor did its fields. Each is there once, with the
+  header of the first branch (`#if`): ID, name, type, source expression,
+  access modifier, parameters, return type, and attributes. Its
+  `conditionalSymbols` names the condition of that branch. The body is shared,
+  so its properties, fields, and code count as usual. What the other branches
+  refer to still becomes a relation with the condition of its branch: the
+  interfaces of an `implements` list, the record types of parameters, and a
+  base object that differs by branch.
+- A relation found in the shared body after `#endif` of a procedure with a
+  split header no longer carries the condition of the last branch (`else`).
 
 ## 0.17.0 - 2026-11-06
 
