@@ -95,6 +95,8 @@ function statusFor(overview) {
 /** The pages of the BC Atlas panel, with a short summary for the side bar. */
 function pages(overview) {
   const list = [
+    // Every content as a 2D graph, a 3D graph, a table, or a diagram.
+    { id: "dashboard", label: "Dashboard", icon: "compass", description: "any content, 2D, 3D, or table" },
     { id: "overview", label: "Overview", icon: "dashboard", description: overview ? `${overview.summary.objects.toLocaleString("en-US")} objects` : undefined },
     { id: "health", label: "Health", icon: "pulse", description: overview ? (overview.health.passed ? "passed" : `${overview.health.counts.error} errors, ${overview.health.counts.warning} warnings`) : undefined },
     { id: "architecture", label: "Architecture", icon: "layers", description: overview ? `${overview.architecture.mode}, ${overview.architecture.violations.toLocaleString("en-US")} wrong-way` : undefined },
@@ -115,7 +117,7 @@ const EXPORTS = [
   { view: "catalog", label: "Object catalog (Markdown)", detail: "One linked page per AL object", folder: "docs/codegraph" },
   { view: "handbook", label: "System handbook (Markdown)", detail: "Events, data, permissions, interfaces, UI, and code health across all objects", folder: "docs/handbook" },
   { view: "knowledge-graph", label: "Knowledge graph (RDF, OWL)", detail: "For triple stores, graph databases, and Protégé: Turtle, RDF/XML, N-Triples, or JSON-LD", file: "bc-atlas.ttl", filters: { Turtle: ["ttl"], OWL: ["owl"], "RDF/XML": ["rdf"], "N-Triples": ["nt"], "JSON-LD": ["jsonld"] } },
-  ...["project", "module", "data", "contracts", "events", "ui"].map((view) => ({
+  ...["project", "module", "data", "contracts", "events", "ui", "visibility"].map((view) => ({
     view, label: `Diagram: ${view} view`, detail: "SVG, PNG, PDF, or the D2 source", file: `${view}.svg`, filters: { SVG: ["svg"], PNG: ["png"], PDF: ["pdf"], D2: ["d2"] }
   }))
 ];

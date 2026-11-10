@@ -364,7 +364,7 @@ Writes what the VS Code extension shows as files. `--view` selects what:
 | `catalog` | One linked Markdown page per AL object. See [Code Graph](./code-graph-markdown-design.md). | `docs/codegraph` | Markdown |
 | `handbook` | System handbook: pages that explain the system across all objects (events, data, permissions, interfaces, user interface, code health). See [System handbook](./handbook.md). | `docs/handbook` | Markdown |
 | `knowledge-graph` | The project as RDF with the BC Atlas OWL ontology, for triple stores, graph databases, and ontology editors. See [Knowledge graph](./knowledge-graph.md). | `bc-atlas.ttl` | `ttl`, `rdf`, `owl` (RDF/XML), `nt`, `jsonld` |
-| `project`, `module`, `object`, `data`, `call`, `boundary`, `contracts`, `events`, `ui`, `workflow` | One diagram view, or its resolved model as JSON. See [Architecture diagrams](./architecture-diagrams.md). | `bc-atlas-<view>.svg` | `svg`, `d2`, `json`, `png`, `pdf` |
+| `project`, `module`, `object`, `data`, `call`, `boundary`, `contracts`, `events`, `ui`, `workflow`, `visibility` | One diagram view, or its resolved model as JSON. See [Architecture diagrams](./architecture-diagrams.md). | `bc-atlas-<view>.svg` | `svg`, `d2`, `json`, `png`, `pdf` |
 
 ```text
 bca export ./app -o atlas.html
@@ -410,7 +410,7 @@ bca export ./app --view knowledge-graph -o atlas.owl
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--views` | list | Comma-separated views: `project`, `module`, `data`, `contracts`, `events`, `ui`, `call`. Default: all except `call`. |
+| `--views` | list | Comma-separated views: `project`, `module`, `data`, `contracts`, `events`, `ui`, `call`, `visibility`. Default: all except `call` and `visibility`. |
 | `--codegraph` | flag | Also write the linked object catalog to `<output>/objects`. |
 | `--handbook` | flag | Also write the [system handbook](./handbook.md) to `<output>/handbook`; with `--codegraph`, its object names link to the catalog. |
 | `--json` | flag | Also write the resolved project model to `model.json`. |
@@ -440,7 +440,7 @@ rendering.
 | `--object-outbound-depth` | integer ≥ 0 | Outgoing depth for the object view. Default: `1`. |
 | `--members` | list | Focused-object members: `fields`, `actions`, `triggers`, `events`, `procedures`. |
 | `--scope` | selector | Boundary scope: `namespace:`, `folder:`, `app:`, or `object:`. Repeatable; required by `boundary`. |
-| `--focus` | text | Restrict the `contracts`, `events`, or `ui` view to matching names. |
+| `--focus` | text | Restrict the `contracts`, `events`, `ui`, or `visibility` view to matching names. |
 | `--group-by` | mode | Diagram views: `namespace`, `folder`, `type`, or `role`. Project view defaults to `role`; others to `namespace`. |
 | `--module-depth` | integer or `auto` | Namespace segments kept by the module view. Default: `auto`. |
 | `--folder-depth` | integer | Folder segments in a folder-grouped module view. Default: `1`. |

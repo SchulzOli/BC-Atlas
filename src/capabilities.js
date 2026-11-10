@@ -12,7 +12,8 @@ export const VIEWS = Object.freeze([
   ["contracts", "Interfaces and their direct or enum implementations"],
   ["events", "Event publishers and subscribers"],
   ["ui", "Pages, source tables, parts, actions, and navigation"],
-  ["workflow", "Calls, events, and data mutations traced from entry points"]
+  ["workflow", "Calls, events, and data mutations traced from entry points"],
+  ["visibility", "What is public, internal, or local: objects, procedures, events, and fields in three levels, and what each can be"]
 ]);
 
 export const FORMATS = Object.freeze(["d2", "json", "svg", "png", "pdf"]);
@@ -106,7 +107,7 @@ const diagramOptions = {
     repeatable: true,
     value: "selector"
   }),
-  focus: string("Name fragment for the contracts, events, or ui view.", { group: SELECTION, value: "text" }),
+  focus: string("Name fragment for the contracts, events, ui, or visibility view.", { group: SELECTION, value: "text" }),
   groupBy: string("Diagram views: role, namespace, folder, or type (default: role for project, else namespace). Proposed architecture: auto, coupling, namespace, folder, module, or app.", {
     group: SELECTION,
     enum: ["auto", "coupling", "namespace", "folder", "module", "app", "type", "role"]
@@ -118,7 +119,7 @@ const diagramOptions = {
   rootProcedure: string("Call root procedure selector.", { group: CALLS, repeatable: true, value: "selector" }),
   callDepth: string("Call traversal depth from each root.", { group: CALLS, value: "n", default: "3" }),
   callDirection: string("Call traversal direction.", { group: CALLS, enum: ["incoming", "outgoing", "both"], default: "outgoing" }),
-  expandProcedures: flag("Show procedures instead of owning-object aggregates.", { group: CALLS }),
+  expandProcedures: flag("Call view: show procedures instead of owning-object aggregates. Visibility view: show every procedure, event, and field inside its object.", { group: CALLS }),
   expandFrameworkCalls: flag("Show individual framework and standard-library calls.", { group: CALLS }),
   entry: string("Workflow entry procedure, trigger, action, or event.", { group: WORKFLOW, repeatable: true, value: "selector" }),
   workflowDepth: string("Workflow traversal depth.", { group: WORKFLOW, value: "n", default: "8" }),

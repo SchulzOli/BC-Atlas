@@ -163,7 +163,7 @@ function updateStatus(current) {
 // -------------------------------------------------------------------- panel
 
 class AtlasPanel {
-  static async show(context, hash = "#/overview") {
+  static async show(context, hash = "#/dashboard") {
     if (!engine) {
       vscode.window.showWarningMessage("BC Atlas found no AL project (app.json) in this workspace. Open an AL project or choose one with \"BC Atlas: Select Project\".");
       return;
@@ -414,7 +414,7 @@ async function activate(context) {
   }
 
   const command = (id, handler) => context.subscriptions.push(vscode.commands.registerCommand(id, handler));
-  command("bcAtlas.open", (hash) => AtlasPanel.show(context, typeof hash === "string" ? hash : "#/overview"));
+  command("bcAtlas.open", (hash) => AtlasPanel.show(context, typeof hash === "string" ? hash : "#/dashboard"));
   command("bcAtlas.openPage", async () => {
     const page = await vscode.window.showQuickPick(logic.pages(overview).map((item) => ({ label: item.label, description: item.description, id: item.id })), { placeHolder: "Open which BC Atlas page?" });
     if (page) AtlasPanel.show(context, logic.pageHash(page.id));

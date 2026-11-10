@@ -90,7 +90,9 @@ export async function layoutScene(scene) {
     // A bare group has no frame: its nodes sit directly in the drawing.
     children: scene.groups.flatMap((group) => {
       const children = group.nodes.map((node) => ({ id: node.path, width: sized.get(node.path).width, height: sized.get(node.path).height }));
-      return group.bare ? children : [{ id: group.key, layoutOptions: { "elk.padding": groupPadding }, children }];
+      // A group is at least as wide as its name.
+      const labelWidth = Math.ceil(textWidth(group.label ?? "", STYLE.groupLabel, { bold: true }) + 28);
+      return group.bare ? children : [{ id: group.key, layoutOptions: { "elk.padding": groupPadding, "elk.nodeSize.constraints": "MINIMUM_SIZE", "elk.nodeSize.minimum": `(${labelWidth},0)` }, children }];
     }),
     edges: edges.map((edge, index) => ({
       id: `e${index}`,
@@ -114,7 +116,7 @@ export async function layoutScene(scene) {
       continue;
     }
     const source = sources.get(group.id);
-    groups.push({ key: source.key, label: source.label, dash: source.dash, external: Boolean(source.external), x: left + group.x, y: top + group.y, width: group.width, height: group.height });
+    groups.push({ key: source.key, label: source.label, dash: source.dash, external: Boolean(source.external), ...(source.stroke ? { stroke: source.stroke } : {}), x: left + group.x, y: top + group.y, width: group.width, height: group.height });
     for (const child of group.children ?? []) {
       nodes.push({ ...sized.get(child.id), x: left + group.x + child.x, y: top + group.y + child.y });
     }

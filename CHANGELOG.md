@@ -6,7 +6,51 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- **Visibility view** (`bca export --view visibility`): what is public,
+  internal, or local, in three levels and three colors. Every app, object,
+  procedure, event, and table field is a data point with its level: public
+  (other apps can use it), internal (this app), local (this object). A
+  relation is as wide as the border it crosses. Where the uses found need
+  less, a dashed border says what the data point can be: a procedure nobody
+  calls from outside its object can be local, a codeunit no other app uses
+  can be `Access = Internal`. One box per object by default,
+  `--expand-procedures` for every member inside its object, `--focus` for a
+  part, `--format json` for the data points and uses. Also in
+  `bca export --view report --views ...,visibility` and in the MCP tools.
+- In VS Code and the offline app the visibility view opens as a **canvas**:
+  graphs in graphs. An app holds its objects, an object its members, and a
+  procedure the data points it uses and that use it, which open again,
+  without an end; local sits at the core of every circle, public at the rim.
+  Click a circle to go into it, search by name, show only some levels, and
+  switch to the diagram of boxes. See
+  [Architecture diagrams](./docs/architecture-diagrams.md#read-a-visibility-view).
+
+- **Dashboard**, the page where VS Code and the offline app now open: every
+  content in every form. Pick what to look at (a diagram view, the
+  components of the architecture, the objects, the apps, the health
+  findings) and how (2D graph, 3D graph, table, and for diagram views their
+  diagram), independently. A diagram view can be a 3D graph, the
+  architecture a table, the objects a graph. The filter and the tools are
+  the same for all: filter by name, type, group, and kind of relation, show
+  only a node and its neighbors, hide nodes, size them by a number, put them
+  where you want them, sort the table, save a PNG or CSV. **New view from
+  this** keeps what you see under a name in My views. See
+  [The Dashboard](./docs/vscode.md#the-dashboard).
+- **One list instead of tabs.** The pages (Overview, Health, Architecture,
+  Dependencies, Diagrams, Objects, Docs) are no longer tabs: one list on the
+  left holds everything by topic, the contents of the Dashboard next to the
+  page of the same topic, with a filter above it. Every page works as
+  before. In VS Code the panel has this list too, so the BC Atlas side bar
+  is a set of shortcuts and no longer the only way to a page.
+- Every page says what it is read from: **Sources** below the list (AL files
+  and objects, apps, symbol packages, AL compiler, settings), and for a
+  content of the Dashboard what that content reads.
+
 ### Changed
+
+- A group in a diagram is at least as wide as its name.
 
 - **Docs** and **Handbook** are one page in VS Code and the offline app. The
   list shows the system handbook first, then the user guides and test cases

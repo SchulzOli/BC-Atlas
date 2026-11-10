@@ -82,6 +82,7 @@ Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents.
 | `events` | Event publishers and subscribers |
 | `ui` | Pages, source tables, parts, actions, and navigation |
 | `workflow` | Calls, events, and data mutations traced from entry points |
+| `visibility` | What is public, internal, or local: objects, procedures, events, and fields in three levels, and what each can be |
 
 ## Export formats
 

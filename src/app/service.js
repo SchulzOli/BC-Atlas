@@ -62,6 +62,8 @@ export function createService(workspace) {
       return workspace.handbook({ language: language || undefined });
     },
     diagram: (params = {}) => workspace.diagram(params),
+    boards: () => workspace.boards(),
+    board: ({ id } = {}) => workspace.board(String(id ?? "")),
     docs: async () => {
       const docs = await workspace.docs();
       return docs ? { path: docs.path, scenarios: docs.scenarios } : { scenarios: 0 };
