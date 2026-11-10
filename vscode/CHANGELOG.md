@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.18.0
+
+- The engine is BC Atlas 0.18.0.
+- **Dashboard**, the page the panel now opens with: pick a content (a diagram
+  view, the components, the objects, the apps, the findings) and a form (2D
+  graph, 3D graph, table, diagram). The same filter and tools for all, and
+  **New view from this** keeps what you see under a name.
+- One list on the left of the panel instead of tabs: every content and page
+  by topic, with a filter and the sources of what is shown. The side bar
+  lists the same pages as shortcuts.
+- **Visibility view**: every object, procedure, event, and field in the
+  color of its level (public, internal, local), as a canvas of graphs inside
+  graphs or as a diagram.
+- **Docs** and **Handbook** are one page: the system handbook first, then
+  the user guides and test cases from UI tests. It is there without UI tests
+  too.
+- **Battle test** in Docs: which roles of your company can perform the
+  process tests of the app, and which permissions each step needs.
+- Objects, fields, and procedures whose header or body is split by `#if`
+  are in the model, an object's properties are its own, and a wildcard
+  permission (`tabledata * = RIMD`) is no longer an unresolved reference.
+
 ## 0.17.0
 
 - The engine is BC Atlas 0.17.0.
