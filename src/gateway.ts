@@ -1,9 +1,9 @@
 /**
  * Thin client for the BC OpenBridge gateway.
  *
- * bc-claude deliberately has no access to Business Central of its own: every
+ * bc-mcp deliberately has no access to Business Central of its own: every
  * call goes through the gateway, so its scopes, validation, rate limits and
- * audit trail apply to Claude exactly like to any other client.
+ * audit trail apply to the AI agent exactly like to any other client.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -83,7 +83,7 @@ export class Gateway {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.#key()}`,
       Accept: 'application/json',
-      'User-Agent': 'bc-claude/0.1',
+      'User-Agent': 'bc-mcp/0.1',
       ...o.headers,
     };
     if (o.body !== undefined) headers['Content-Type'] = 'application/json';

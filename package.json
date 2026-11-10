@@ -1,7 +1,7 @@
 {
-  "name": "bc-claude",
-  "version": "0.1.0",
-  "description": "MCP-Server (stdio), mit dem Claude Business Central über das BC-OpenBridge-Gateway bedient – agentengerechte Werkzeuge, zweistufige Änderungen, keine eigenen Rechte.",
+  "name": "bc-mcp",
+  "version": "0.2.0",
+  "description": "Harness-neutral MCP server (stdio) for operating Microsoft Dynamics 365 Business Central through the BC OpenBridge gateway – works with Claude Code, OpenAI Codex, GitHub Copilot, Cursor and other MCP clients.",
   "type": "module",
   "private": true,
   "license": "MIT",
@@ -9,10 +9,11 @@
     "node": ">=24"
   },
   "bin": {
-    "bc-claude": "src/server.ts"
+    "bc-mcp": "src/server.ts"
   },
   "scripts": {
     "start": "node src/server.ts",
+    "client-config": "node scripts/client-config.ts",
     "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "check": "npm run typecheck && npm test"

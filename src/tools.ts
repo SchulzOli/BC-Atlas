@@ -1,5 +1,5 @@
 /**
- * Tools designed for how Claude works:
+ * Tools designed for how AI agents work (Claude, Codex, Copilot, …):
  *  - orientation first (bc_overview), then targeted reads – never "dump all"
  *  - task-level tools (customer overview, open items) that bundle several
  *    API calls and pre-aggregate, so answers need fewer round trips and less context
@@ -126,7 +126,8 @@ function validateWrite(e: EntityMeta, data: unknown, mode: 'create' | 'update'):
 }
 
 const companyProp = { type: 'string', description: 'Company id or name. Optional if only one company exists.' };
-const entityProp = (names?: string[]) => ({ type: 'string', description: 'Entity set, e.g. customers, vendors, items, salesOrders', ...(names ? { examples: names } : {}) });
+const entityProp = () => ({ type: 'string', description: 'Entity set, e.g. customers, vendors, items, salesOrders (see bc_overview)' });
+const idProp = { type: 'string', description: 'Record id (GUID), e.g. from bc_find or bc_query' };
 
 // ------------------------------------------------------------------ tools
 export const TOOLS: Tool[] = [
@@ -226,7 +227,7 @@ export const TOOLS: Tool[] = [
             properties: {
               field: { type: 'string' },
               op: { type: 'string', enum: FILTER_OPS, default: 'eq' },
-              value: { type: ['string', 'number', 'boolean'] },
+              value: { type: 'string', description: 'Value as text, e.g. "Berlin", "1000", "true", "2026-01-31"' },
             },
           },
         },
@@ -259,9 +260,10 @@ export const TOOLS: Tool[] = [
       const r = await list(ctx.gw, c, e.name, query);
       const cols = columnsFor(e.name, r.data, fields);
       const text = [
-        `${e.name} in ${companyLabel(c)}: ${r.data.length} Datensätze${r.nextCursor ? ' (weitere vorhanden → cursor)' : ''}`,
+        `${e.name} in ${companyLabel(c)}: ${r.data.length} Datensätze`,
         bcData(table(r.data, cols)),
         DATA_NOTE,
+        ...(r.nextCursor ? [`More rows available – call bc_query again with the same entity and cursor: "${r.nextCursor}"`] : []),
       ].join('\n');
       return { text, data: { entity: e.name, companyId: c.id, records: r.data, ...(r.nextCursor ? { nextCursor: r.nextCursor } : {}) } };
     },
@@ -275,7 +277,7 @@ export const TOOLS: Tool[] = [
       type: 'object',
       required: ['entity', 'id'],
       additionalProperties: false,
-      properties: { entity: entityProp(), companyId: companyProp, id: { type: 'string', format: 'uuid' } },
+      properties: { entity: entityProp(), companyId: companyProp, id: idProp },
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
@@ -469,7 +471,7 @@ export const TOOLS: Tool[] = [
       type: 'object',
       required: ['entity', 'data'],
       additionalProperties: false,
-      properties: { entity: entityProp(), companyId: companyProp, data: { type: 'object', description: 'field → value' } },
+      properties: { entity: entityProp(), companyId: companyProp, data: { type: 'object', properties: {}, additionalProperties: true, description: 'Field → value, e.g. {"displayName": "Contoso GmbH", "city": "Berlin"}' } },
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
@@ -498,8 +500,8 @@ export const TOOLS: Tool[] = [
       properties: {
         entity: entityProp(),
         companyId: companyProp,
-        id: { type: 'string', format: 'uuid' },
-        changes: { type: 'object', description: 'field → new value' },
+        id: idProp,
+        changes: { type: 'object', properties: {}, additionalProperties: true, description: 'Field → new value, e.g. {"city": "Potsdam"}' },
       },
     },
     annotations: { readOnlyHint: true, openWorldHint: false },

@@ -53,15 +53,15 @@ class Client {
   }
 }
 
-describe('bc-claude MCP server', () => {
+describe('bc-mcp server', () => {
   let s: Stack;
   let c: Client;
   let reader: Client;
 
   before(async () => {
     s = await startStack();
-    c = new Client({ OPENBRIDGE_URL: s.url, OPENBRIDGE_API_KEY: s.keys.admin });
-    reader = new Client({ OPENBRIDGE_URL: s.url, OPENBRIDGE_API_KEY: s.keys.reader });
+    c = new Client({ OPENBRIDGE_URL: s.url, OPENBRIDGE_API_KEY: s.keys.admin, BC_MCP_STRUCTURED_OUTPUT: 'true' });
+    reader = new Client({ OPENBRIDGE_URL: s.url, OPENBRIDGE_API_KEY: s.keys.reader, BC_MCP_STRUCTURED_OUTPUT: 'true' });
   });
   after(async () => {
     await c.close();
@@ -176,21 +176,37 @@ describe('bc-claude MCP server', () => {
     assert.match(bad.content[0].text, /balanceDue: read-only/);
     assert.match(bad.content[0].text, /displayName: required/);
 
-    const prep = await c.call('bc_prepare_create', { entity: 'customers', companyId: s.companyId, data: { displayName: 'Claude Test GmbH', city: 'Jena' } });
+    const prep = await c.call('bc_prepare_create', { entity: 'customers', companyId: s.companyId, data: { displayName: 'Agent Test GmbH', city: 'Jena' } });
     assert.equal(prep.isError, false);
     const done = await c.call('bc_apply_change', { planId: prep.structuredContent.planId });
     assert.equal(done.isError, false);
-    const found = await s.req('GET', `/v1/companies/${s.companyId}/customers?filter.displayName=Claude%20Test%20GmbH`);
+    const found = await s.req('GET', `/v1/companies/${s.companyId}/customers?filter.displayName=Agent%20Test%20GmbH`);
     assert.equal(found.json.data.length, 1);
-    assert.ok(s.app.audit.recent.some((a) => a.action === 'bc.customers.create'), 'gateway audit trail covers Claude');
+    assert.ok(s.app.audit.recent.some((a) => a.action === 'bc.customers.create'), 'gateway audit trail covers the agent');
+  });
+
+  it('default text-only mode carries everything needed for follow-up calls', async () => {
+    const plain = new Client({ OPENBRIDGE_URL: s.url, OPENBRIDGE_API_KEY: s.keys.admin });
+    const q = await plain.call('bc_query', { entity: 'customers', companyId: s.companyId, limit: 2 });
+    assert.equal(q.structuredContent, undefined);
+    const cursor = /cursor: "([^"]+)"/.exec(q.content[0].text)?.[1];
+    assert.ok(cursor, 'cursor is in the text');
+    const next = await plain.call('bc_query', { entity: 'customers', companyId: s.companyId, limit: 2, cursor });
+    assert.equal(next.isError, false);
+    const id = /\| ([0-9a-f-]{36}) \|/.exec(q.content[0].text)?.[1];
+    const prep = await plain.call('bc_prepare_update', { entity: 'customers', companyId: s.companyId, id, changes: { city: 'Cottbus' } });
+    const planId = /planId: `([^`]+)`/.exec(prep.content[0].text)?.[1];
+    assert.ok(planId, 'planId is in the text');
+    assert.equal((await plain.call('bc_apply_change', { planId })).isError, false);
+    await plain.close();
   });
 
   it('serves resources and prompts', async () => {
     const res = await c.request('resources/read', { uri: 'bc://entities' });
     assert.ok(JSON.parse(res.result.contents[0].text).some((e: any) => e.name === 'customers'));
-    const p = await c.request('prompts/get', { name: 'kunden-check', arguments: { kunde: 'Nordwind' } });
+    const p = await c.request('prompts/get', { name: 'customer-check', arguments: { customer: 'Nordwind' } });
     assert.match(p.result.messages[0].content.text, /bc_customer_overview/);
-    assert.equal((await c.request('prompts/get', { name: 'kunden-check', arguments: {} })).error.code, -32602);
+    assert.equal((await c.request('prompts/get', { name: 'customer-check', arguments: {} })).error.code, -32602);
   });
 
   it('reports gateway problems helpfully', async () => {
