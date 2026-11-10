@@ -23,7 +23,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Analyze | `architecture` | Find a target architecture, list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
 | Analyze | `refactor move` | Move an AL object to another component, with its file, namespace, and the usings of referencing files. |
 | Analyze | `refactor surface` | Lock the public surface of components: `Access = Internal` for what nobody outside uses, `exposes` for what others use. |
-| Export | `export` | Write files: the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, the system handbook, a diagram, or the resolved model as JSON. |
+| Export | `export` | Write files: the BC Atlas view as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, the system handbook, a diagram, or the resolved model as JSON. |
 | Export | `docs list` | List documented UI-test scenarios. |
 | Export | `docs show` | Show one scenario, its prerequisites, and its diagnostics. |
 | Export | `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
@@ -67,7 +67,7 @@ Several commands are now part of `export` and the [VS Code extension](./vscode.m
 | `bca report` | `bca export --view report` (`--output-dir` is now `-o`) |
 | `bca graph <app-root>`, `bca <app-root>` | `bca export --view <view>`; the new `graph query` and `graph render` operate on saved JSON, not AL source |
 | `bca watch` | `bca export --view <view> --watch`, or the VS Code extension, which updates itself |
-| `bca explore` | `bca export --view explorer`, or the Dependencies page in VS Code |
+| `bca explore` | `bca export --view explorer`, or the BC Atlas view in VS Code |
 | `bca inspect` | `bca export --view <view> --format json` (stdout) |
 | `bca codegraph` | `bca export --view catalog` (`--output-dir` is now `-o`) |
 | `bca capabilities` | `bca help --format json` |
@@ -401,7 +401,7 @@ Writes what the VS Code extension shows as files. `--view` selects what:
 
 | `--view` | Writes | Default output | Formats |
 | --- | --- | --- | --- |
-| `app` (default) | The BC Atlas pages as one self-contained, offline HTML file to share: every page, the report diagrams, the 3D explorer, and the docs. | `bc-atlas.html` | `html` |
+| `app` (default) | The BC Atlas view as one self-contained, offline HTML file to share: a toolbar and the graph, with every lens, finding, and story. | `bc-atlas.html` | `html` |
 | `report` | Markdown report: `README.md` with an at-a-glance table, one section and diagram per view, the health summary, and a regeneration command. See [Architecture reports](./reports.md). | `docs/atlas` | `svg` or `d2` diagrams |
 | `explorer` | The interactive 3D dependency explorer, or its graph document. See [Dependency explorer](./dependency-explorer.md). | `bc-atlas-explorer.html` | `html` or `json` |
 | `catalog` | One linked Markdown page per AL object. See [Code Graph](./code-graph-markdown-design.md). | `docs/codegraph` | Markdown |
@@ -468,7 +468,7 @@ rendering.
 | `--lens` | lens | Relationship family. Default and currently only value: `dependency`. |
 | `--propose` | flag | Show a proposed target architecture (components, layers) when `.bca.json` defines none. With an `architecture` section, the explorer always shows it. |
 | `--group-by` | mode | With `--propose`: how the proposal groups objects, `auto` (default), `namespace`, `folder`, `module`, or `app`. |
-| `--history` | flag | Replay Git history, one frame per step that changed AL files or `app.json`. Also for `--view app`. |
+| `--history` | flag | Replay Git history, one frame per step that changed AL files or `app.json`. |
 | `--history-by` | mode | `commits` (default), `prs` (one frame per merged pull request), or `releases` (one frame per release tag, plus unreleased commits). Implies `--history`. |
 | `--last` | integer | Only the last n steps. |
 | `--max-commits` | integer | Most frames to replay; older steps are sampled evenly. Default: `60`. |

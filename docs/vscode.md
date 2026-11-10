@@ -10,158 +10,141 @@ Install **BC Atlas** (`SchulzOli.bc-atlas`) from the Extensions view, or
 from a `.vsix` file with **Extensions: Install from VSIX…**. `bca setup` with
 VS Code tasks also recommends it in `.vscode/extensions.json`.
 
-## The BC Atlas panel
+## The BC Atlas view
 
 Open it with **BC Atlas: Open**, the BC Atlas icon in the activity bar, the
-status bar item, or the BC Atlas button above an AL file. The panel has one
-list on its left instead of tabs: everything BC Atlas shows, by topic, with a
-filter above it and the sources of what is shown below it. The BC Atlas side
-bar lists the same pages as shortcuts and marks the one the panel shows; you
-do not need it to get anywhere.
+status bar item, or the BC Atlas button above an AL file.
 
-| Page | Shows | Same as |
-| --- | --- | --- |
-| Dashboard | Where the panel opens, and the first entries of each topic in the list: a diagram view, the components, the objects, the apps, or the findings as a 2D graph, a 3D graph, a table, or a diagram, with one filter and one set of tools. See [The Dashboard](#the-dashboard). | |
-| Overview | Objects, apps, health, the architecture at a glance, the most connected objects, and next steps. | |
-| Health | Every finding, filterable by severity, linked to its object. | `bca check` |
-| Architecture | The configured architecture or a proposal: components in layers, work items with the steps to resolve them, data ownership, checks, the plan to extract a component as an app, components with Martin metrics, and objects that belong elsewhere. | `bca architecture` |
-| Dependencies | The 3D dependency explorer: objects, modules, apps, and components; inside one app vs. across apps; a timeline by commit, pull request, or release. | `bca export --view explorer` |
-| Diagrams | Every diagram view with zoom and pan: hover an object to light up its relations, click it to open its page, find objects by name, and click the legend to hide a kind of relation. Large views start with every group as one box: click a box to open the group, its name to close it, or **Open groups** and **Close groups**. **SVG**, **PNG**, and **D2** save the file. | `bca export --view <view>` |
-| Objects | Every AL object, searchable and sortable, filtered by type, app, component, or violations. | |
-| Object | One object: what characterizes it (**About**: documentation, caption, access, obsolete state, page or table type, size, complexity), **why it is in its component** (the selector that assigns it and its coupling to each component), what it uses and what uses it, its wrong-way dependencies with steps to resolve them, fields, procedures, actions, and properties. **Open source** opens the file at the declaration; a procedure opens at its line. | `bca export --view object --object <selector>` |
-| Docs | All documentation in one list. **System handbook**: what the system consists of, its events, data, permissions, interfaces, user interface, and code health, across all objects, in English or German; object names open their object page. **User guides**, when the project has documented UI tests: the overview, every use case with its process, and every scenario, as a user guide or a test case, in English or German; **Open test** opens the AL test. **Battle test**, when the project has documented UI tests: who can do what with their roles and permission sets, where a role is blocked, and the fit-gap analysis (see [Battle test](./battle-test.md)). **Sources** on the left says what each page is read from, and the handbook's overview ends with a table of the files, apps, symbol packages, compiler, and settings used. **Markdown** saves the page (**DITA**, **BPMN**, **SVG**, and **All as HTML** for guides). | `bca export --view handbook`, `bca docs generate`, `bca simulate` |
+The view is one thing: **a toolbar and the graph.** There are no pages, no
+tabs, and no list of contents. The AL source is the only fact; everything
+BC Atlas reads from it is one graph, and the toolbar decides which part of
+it you see, in which form, and what stands out.
 
-Diagrams and Docs work the same way: on the left, a list of the views or of
-the use cases and scenarios, with a filter and the settings below it; on the
-right, the selected one with its tools. `J` and `K` (or `Alt+↓` and `Alt+↑`)
-step through the list, **‹** and **›** too, and **Enter** in the filter opens
-the first match. Settings apply at once; a typed value (an object, a scope, an
-entry point) with **Apply** or **Enter**. The address keeps the selection and
-the settings, so the back button and a copied link return to the same view.
-
-The list on the left holds every page, by topic, and next to each topic's
-page the contents the Dashboard shows as graphs and tables:
-
-| Topic | Dashboard contents | Page |
-| --- | --- | --- |
-| Start | | Overview |
-| Diagram views | Project, Modules, Data, Calls, Contracts, Events, Pages, Visibility | Diagrams with settings (every view with its settings; one object, a boundary, a workflow; SVG, PNG, D2) |
-| Architecture | Components | Architecture work (layers, the matrix, work items, adopt and propose) |
-| Objects and dependencies | Objects, Apps | Object list; Dependencies over time (the 3D explorer with its timeline) |
-| Health | Findings | Findings with fixes |
-| Docs | | Docs |
-| My views | the views you saved | |
-
-An object page marks **Object list**, a component page **Architecture work**.
-On a narrow window the list opens from **Contents** and closes when you
-choose something.
-
-Every page says what it is read from, below the list: **Sources** (AL files
-and objects, apps, symbol packages, the AL compiler, and `.bca.json`). For a
-content of the Dashboard it starts with what that content reads, and Docs
-adds the sources of each page in its own panel.
-
-### The Dashboard
-
-The Dashboard is where the panel and an exported page open. It holds
-everything that is a set of things and the relations between them, and lets
-you choose what to look at and how, independently:
-
-| What | Nodes | Relations |
-| --- | --- | --- |
-| Diagram views: Project, Modules, Data, Calls, Contracts, Events, Pages, Visibility | what the view draws as boxes | the relations of the view |
-| Components | the components of the architecture, grouped by layer | dependencies between them: allowed, not declared, or the wrong way |
-| Objects | every AL object, grouped by component or namespace | what uses what |
-| Apps | the apps of the workspace and the apps they depend on | declared, implicit, and undeclared dependencies |
-| Findings | the objects with health findings, colored by the worst one | their dependencies |
-
-| How | Shows |
+| In the toolbar | Does |
 | --- | --- |
-| **2D graph** | The nodes in a plane. Groups pull together, relations pull their ends together, everything else pushes apart. |
-| **3D graph** | The same graph in space. Drag to turn it, Shift-drag to move it. |
-| **Table** | One row per node with its type, group, facts, and how many nodes it uses and is used by. Click a column to sort; **CSV** saves the rows. |
-| **Diagram** | For a diagram view: its boxes with routed relations, as `bca export --view <view>` writes them. |
-| **Circles** | For the visibility view: graphs in graphs. |
+| **Lens** (the name next to the project) | What the graph shows: a part of the one graph. See [Lenses](#lenses). |
+| **2D**, **Diagram**, **3D** | The form. The same nodes as a graph in a plane, as boxes in layers in the direction of their relations, or as a graph in space. Any lens in any form. |
+| **Find** | Lights up the nodes whose name, type, component, namespace, or ID matches. **Enter** goes to the next match, **Shift+Enter** to the one before. |
+| **Check** | Puts a ring on every node with a finding, in the color of the worst one. The number is the errors and warnings. |
+| **Story** | Walks through the graph step by step. See [Stories](#stories). |
+| **View** | Color, size, and grouping of the nodes; arrange again; reset. |
+| **Export** | Saves what you see. See [Export](#export). |
+| **Live** | What the graph is read from, and reading it again. See [In step with the source](#in-step-with-the-source). |
 
-So a diagram view can be a 3D graph, the architecture a table, and the
-objects a graph. The form stays when you choose another content.
+On the graph:
 
-The tools are the same for every content, and for the graphs and the table:
+- **Click** a node to select it. A card says what it is, its facts, its
+  findings with how to fix them, and its relations in this lens; click a
+  relation to go to the node at its other end.
+- **Double-click** an object to open it: its procedures, triggers, and
+  events as nodes, and what each of them does with other objects. Double-click
+  a procedure to go to its line in the source. Double-click anything else to
+  see only it and its neighbors.
+- **Drag** a node to put it where you want it, the background to move the
+  picture (in 3D: to turn it, Shift-drag to move), and **scroll** to zoom.
+- The **legend** at the bottom left names what shows and counts it. Click a
+  kind of node or of relation to hide it.
 
-- **Filter** by name, type, or group; switch types of node and kinds of
-  relation on and off with their chips; pick one group.
-- **Select** a node with a click. **Only this and its neighbors** shows the
-  node and what is one step away; **+** goes a step further. **Hide** takes
-  a node out. **Open the object** opens its page; a double click does too.
-- **Size by** uses, used by, or a number of the content (objects of a
-  component, findings of an object).
-- **Drag a node** to put it where you want it; it stays there. **Layout**
-  starts the layout again.
-- **Sources**, below the list, says what this content is read from, and
-  which command writes it as files.
+Keys: `/` find, `1` `2` `3` the form, `C` check, `+` `-` `0` zoom and fit,
+`Esc` back (closes the card, ends a story, leaves an object).
 
-**New view from this** keeps what you see (the content, its form, the filter,
-what is hidden, and what is in focus) under a name in **My views**. The
-address holds the same, so a copied link opens the same picture. Views are
-kept with the panel in VS Code, and in the browser for an exported page;
-they are not written to `.bca.json`.
+### Lenses
 
-The views that start from one object, a boundary, or an entry point
-(`object`, `boundary`, `workflow`) are under **Diagrams with settings**, the
-timeline of the dependencies under **Dependencies over time**.
+A lens is a part of the one graph. Nodes keep their identity across lenses:
+select an object in one, switch, and it is still selected.
 
-The panel takes its design from your VS Code color theme: background,
-text, borders, accent, selection, error and warning colors, and the editor's
-fonts, including high contrast and custom themes, the 3D explorer and the
-Docs page included. It changes with the theme and refreshes when AL files,
-`app.json`, `.bca.json`, or the architecture baseline change. An exported
-page (`bca export`) keeps the BC Atlas design with its light and dark mode.
+| Lens | Nodes | Relations | Same as |
+| --- | --- | --- | --- |
+| System | every AL object | everything objects do with each other | `bca export --view project` |
+| Components | the components of the architecture, by layer | dependencies between them: allowed, not declared, or the wrong way | `bca architecture` |
+| Apps | the apps of the workspace and the apps they depend on | declared, implicit, and undeclared dependencies | |
+| Modules | namespaces | what they use of each other | `bca export --view module` |
+| Data | tables and the code that touches them | reads, writes, relates, extends | `bca export --view data` |
+| Calls | objects | calls and runs | `bca export --view call` |
+| Events | publishers and subscribers | publishes, subscribes | `bca export --view events` |
+| Contracts | interfaces and what implements them | implements, selects | `bca export --view contracts` |
+| Pages | pages, reports, and what they show | source tables, parts, actions | `bca export --view ui` |
+| Permissions | permission sets and what they cover | permits, includes | |
+| Visibility | every object, colored public, internal, or local | everything | `bca export --view visibility` |
+| Findings | the rules of the health check and the objects they found | one per finding, in its severity | `bca check` |
+| Processes | the process tests, in order, and the objects each touches | step, next, touches | `bca docs generate` |
+| People | who performs which process test with which permission sets | performs, blocked, must not, holds | `bca simulate` |
+| Requirements | what the company needs and the process tests that prove it | proven by | `bca simulate` |
 
-### Change the architecture from the panel
+A lens with nothing in it is left out: Processes, People, and Requirements
+need documented UI tests ([Battle test](./battle-test.md)), Findings needs a
+finding.
 
-On the Architecture page:
+### Stories
 
-- **Adopt this architecture** saves the proposal (components, layers, allowed
+A story is generated from the source, like everything else. It walks
+through the graph: each step has a text, the lens it is told in, and the
+nodes it is about, which stand out while the rest steps back. **←** and
+**→** move, **Play** runs it by itself, **Markdown** saves it as a document.
+
+| Story | Tells | Use it to |
+| --- | --- | --- |
+| What the system is | Apps, components, what everything depends on, the data, events, contracts, the user interface, permissions, health | explain and demonstrate the system |
+| One per process | The process tests in order, step by step, each on the objects it touches and with the permissions it needs | document a process, and test it: a blocked step says so |
+| Who can do what | Every agent of the company with roles, permission sets, what they can do, and what blocks them | review roles and permissions |
+| What to fix | Every finding, the most severe first, on the nodes it is about, with the fix | work through the health check |
+| Dependencies the wrong way | Every work item of the architecture with the steps to resolve it | reach the target architecture |
+
+So the same graph is the documentation, the test, and the demonstration:
+**Export › Documentation** writes every story as one Markdown document.
+
+### Export
+
+Everything that shows can be saved, as it shows:
+
+| Export | Writes |
+| --- | --- |
+| Picture, Drawing | PNG and SVG of the graph as you see it |
+| Graph | JSON: the nodes of the lens with their facts and findings, and the relations |
+| Nodes, Relations | CSV, one row each |
+| This lens | Markdown: what shows, what it is read from, and its findings |
+| Documentation | Markdown: every story of the system |
+| Link | the address of this view |
+
+The whole state of the view (lens, form, selection, search, what is hidden,
+the step of a story) is in its address, so a link opens the same picture.
+
+### In step with the source
+
+- **The graph follows the source.** Save an AL file, `app.json`,
+  `.bca.json`, or the baseline, and the source is read again; the view keeps
+  its lens, form, and selection.
+- **The graph follows the editor.** The object of the file that comes to the
+  front is the selected node (`bcAtlas.followEditor`).
+- **The editor follows the graph.** **Go to source** on the card of a node
+  opens its file at its line.
+- **Live** in the toolbar says what the graph is read from: the AL files and
+  objects, the apps, the symbol packages, the AL compiler, and `.bca.json`,
+  and what the lens reads of them. **Read the source again** analyzes at
+  once.
+
+The view takes its design from your VS Code color theme: background, text,
+borders, accent, selection, error and warning colors, and the editor's
+fonts, including high contrast and custom themes. An exported file
+(`bca export`) keeps the BC Atlas design with its light and dark mode.
+
+### Change the architecture from the view
+
+**Live** also holds what the view may write back:
+
+- **Keep these components**, when no architecture is configured: saves the
+  proposal the Components lens shows (components, layers, allowed
   dependencies) to `.bca.json` and accepts today's wrong-way dependencies in
   `.bca-architecture-baseline.json`, like
   `bca architecture --propose --write --update-baseline`.
-- **Propose again** with a different grouping (`auto`, `module`, `app`,
-  `namespace`, `folder`), namespace depth, minimum component size, the
-  structures to start from, granularity, or without a shared core shows a new
-  proposal; nothing is written until you adopt it. `architecture.proposal` in
-  `.bca.json` sets the defaults and **What was considered** shows them.
-- **Keep component** on a component page of a proposal saves the component
-  in `architecture.proposal.keep`: the next proposal keeps it as it is and
-  arranges the rest around it; **Release component** undoes that. **Exclude
-  from shaping** on an object page adds the object to
-  `architecture.proposal.exclude`; **Shape components again** removes it.
-- **Accept current violations** updates the baseline, like
-  `bca architecture --update-baseline`. Afterwards `bca check` fails only on
-  new violations.
+- **Accept the wrong-way dependencies**, when one is configured: updates the
+  baseline, like `bca architecture --update-baseline`. Afterwards
+  `bca check` fails only on new ones.
 
-**Dependencies between components** shows where dependencies should be and
-where they are, in two colors: green for dependencies the rules allow, red for
-dependencies that point against the architecture today. **Map** draws the
-components in their layers with an arrow per dependency (hover a component to
-see only its arrows); **Matrix** tints every pair of components by the rules
-and counts today's object links in it.
-
-Click a component for its own page:
-
-- what it is: role (app of its own, component, shared core), layer, which
-  components it may use, the suggested namespace, its app candidate, and the
-  selectors that pick its objects
-- **groups inside** (sub-domains): its objects clustered by how tightly they
-  are coupled, named after their namespace, folder, or the words their names
-  share; objects without links inside follow their folder
-- a graph of its objects, one island per group; **With dependencies** adds
-  the other components around it with green and red links
-- per other component: may it be used (should) and how often it is used,
-  allowed and wrong way (is)
-- every object with its group and its links, and the work items that
-  involve the component
-
-See [Clean architecture](./clean-architecture.md) for the rules behind it.
+Both ask twice before anything is written. Another grouping, depth, or
+granularity of the proposal is set with `architecture.proposal` in
+`.bca.json` or with `bca architecture --propose`; see
+[Clean architecture](./clean-architecture.md) for the rules behind it.
 
 ## In the editor
 
@@ -170,23 +153,24 @@ See [Clean architecture](./clean-architecture.md) for the rules behind it.
   Language extension, which reports them itself.
 - **CodeLens** above each object declaration: how often it is used, what it
   uses, its component, and its dependencies against the architecture. Click
-  it to open the object's page.
-- **Context menu in AL files**: **Show This Object**, **Show This Object in
-  3D**, **Diagram of This Object**.
-- **Status bar**: health at a glance; click it for the overview.
-- **Side bar** (BC Atlas icon): the pages of the panel with their numbers,
-  the page it shows marked, and buttons to analyze again, run the health
-  check, export, and more.
+  it to select the object in the view.
+- **Context menu in AL files**: **Show This Object** (selected in the
+  graph), **Show This Object in 3D** (it and its neighbors), **Show This
+  Object from the Inside** (its procedures, as a diagram).
+- **Status bar**: health at a glance; click it to open the view.
+- **Side bar** (BC Atlas icon): opens the view, and holds the buttons to
+  analyze again, run the health check, export, and more. It has no list of
+  pages, because there are none.
 
 ## Commands
 
 | Command | Does |
 | --- | --- |
-| BC Atlas: Open, Open Page… | Shows the panel. |
+| BC Atlas: Open, Open a Lens… | Shows the view, or the view with one lens. |
 | BC Atlas: Run Health Check | Analyzes again and fills the Problems panel. |
-| BC Atlas: Propose an Architecture | Opens a fresh proposal. |
+| BC Atlas: Show the Components | The Components lens as a diagram: the configured architecture, or a proposal when there is none. |
 | BC Atlas: Accept Current Violations in the Baseline | Like `bca architecture --update-baseline`. |
-| BC Atlas: Export… | Writes the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, a diagram, or the knowledge graph in RDF and OWL (`bca export`). |
+| BC Atlas: Export… | Writes the view as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, the system handbook, a diagram, or the knowledge graph in RDF and OWL (`bca export`). |
 | BC Atlas: Generate Documentation from UI Tests… | Markdown, HTML, DITA, Azure DevOps CSV, or BPMN (`bca docs generate`). |
 | BC Atlas: Set Up Automation | `.bca.json`, Git hooks, pipeline, and schedule, in a terminal (`bca setup`). |
 | BC Atlas: Run Tasks of a Trigger… | What a hook, the pipeline, or the schedule runs (`bca run`). |
@@ -209,6 +193,7 @@ diagrams, and work with the UI-test documentation. See
 | `bcAtlas.paths` | `[]` | Only analyze these folders or globs, like `--paths`. Speeds up large repositories such as BCApps. |
 | `bcAtlas.problems` | `true` | Findings in the Problems panel. |
 | `bcAtlas.codeLens` | `true` | CodeLens above AL objects. |
+| `bcAtlas.followEditor` | `true` | Select the object of the active editor in the graph. |
 | `bcAtlas.nodePath` | empty | Node.js 22 or later for the engine. Empty uses the runtime built into VS Code (1.101 or later). |
 | `bcAtlas.alCompiler` | `auto` | Microsoft's AL compiler: `auto` uses the AL Language extension's (or the AL Development Tools), `off` only BC Atlas's own analysis, or a path. |
 | `bcAtlas.alAnalyzers` | `[]` | Code analyzers for that compile, e.g. `CodeCop`. Empty: `al.codeAnalyzers` when `al.enableCodeAnalysis` is on. |
@@ -218,9 +203,9 @@ diagrams, and work with the UI-test documentation. See
 BC Atlas works next to Microsoft's AL Language extension and uses it:
 
 - the AL compiler of the extension resolves every call and reports compiler
-  and code-analyzer findings on the Health page. It runs in the background
-  after each change; the panel shows the last results at once and refreshes
-  when the compiler is done;
+  and code-analyzer findings, which the Findings lens and **Check** show. It
+  runs in the background after each change; the view shows the last results
+  at once and refreshes when the compiler is done;
 - BC Atlas reads the editor's `al.*` settings: `al.packageCachePath` for
   symbols, `al.codeAnalyzers` with `al.enableCodeAnalysis`, `al.ruleSetPath`,
   and `al.assemblyProbingPaths`. Only values someone set count, with VS Code's
@@ -237,26 +222,32 @@ See [AL toolchain](./al-toolchain.md).
 bca export ./app -o atlas.html
 ```
 
-writes the same pages as one self-contained HTML file that works offline:
+writes the same view as one self-contained HTML file that works offline:
 publish it from CI, attach it to a pull request, or send it to people who do
-not use VS Code. The file contains the diagrams of the report views with their
-default settings, the explorer, every object page, and the docs. It cannot
-change files. Add `--history` (or `--history-by prs` or
-`--history-by releases`) to include the Git timeline in the explorer.
+not use VS Code. The file holds the whole graph with every lens, finding,
+and story, and what is inside each object (for projects of up to 2,500
+objects). It is small, a few hundred kilobytes for thousands of objects,
+and it cannot change files. A link with its address opens the same picture
+for everyone who has the file.
+
+The timeline of the dependencies over Git history is the 3D explorer's:
+`bca export --view explorer --history` ([Dependency explorer](./dependency-explorer.md)).
 
 ## Large projects
 
 The first analysis of the Base Application with the System Application and
 Business Foundation (about 9,500 objects) takes about two minutes; afterwards
-every page opens in under a second. BC Atlas keeps the parse results of every
+the view opens in about a second. BC Atlas keeps the parse results of every
 file on disk (in `BCA_CACHE_DIR`, default `<temp>/bc-atlas`, next to the AL
 compiler's results), so reopening a project or saving a file parses only the
-files that changed. The first rendering of a large diagram
-view can take 20 seconds; it is cached until the source changes. Views with
-more than 120 objects start as an overview of their groups (click a group to
-open it); open groups with more than 1,500 objects in all are not drawn:
-close some, filter by namespace, or pick a focused view. Use `bcAtlas.paths` to analyze only some folders of a large
-repository.
+files that changed.
+
+The graph draws thousands of nodes: a synthetic app of 3,150 objects with
+11,000 relations opens in half a second and stays fluid in every form. With
+that many nodes, names show where there is room, and a diagram breaks its
+layers into lines; use a lens, **Find**, the legend, or **Neighbors** on a
+node to get to a part you can read. Use `bcAtlas.paths` to analyze only some
+folders of a large repository.
 
 ## Build the extension from source
 
@@ -270,7 +261,7 @@ npm run package      # bc-atlas-<version>.vsix with the engine inside
 `npm run package` packs the BC Atlas engine with `npm pack`, adds it to the
 extension, and bundles both with esbuild: the extension becomes
 `dist/extension.js`, and each engine entry it starts (the analysis worker, the
-panel page, the CLI, the MCP server) becomes one file with its dependencies.
+view, the CLI, the MCP server) becomes one file with its dependencies.
 Only resvg and web-tree-sitter stay packages, because they load their
 WebAssembly from next to themselves; the 3D explorer's browser bundle and the
 diagram font are in the engine's `vendor/` folder. The `.vsix` holds about 45

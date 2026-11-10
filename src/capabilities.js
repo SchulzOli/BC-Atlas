@@ -24,7 +24,7 @@ export const VIEWS = Object.freeze([
 export const FORMATS = Object.freeze(["d2", "json", "svg", "png", "pdf"]);
 // What `bca export` can write besides the diagram views.
 export const EXPORTS = Object.freeze([
-  ["app", "The BC Atlas pages as one offline HTML file to share: every page, the diagrams, the 3D explorer, and the docs"],
+  ["app", "The BC Atlas view as one offline HTML file to share: a toolbar and the graph, with every lens, finding, and story"],
   ["report", "Markdown report (README.md) with health, diagrams, and an optional object catalog"],
   ["explorer", "Interactive 3D dependency explorer (HTML), replayable over Git history, or its graph as JSON"],
   ["catalog", "One linked Markdown page per AL object"],
@@ -184,7 +184,7 @@ const exportOptions = {
   codegraph: flag("Report: also write the object catalog.", { group: "Report" }),
   handbook: flag("Report: also write the system handbook to <output>/handbook, linked to the catalog with --codegraph.", { group: "Report" }),
   json: flag("Report: also write the resolved model as model.json.", { group: "Report" }),
-  history: flag("Explorer and app: replay Git history, one frame per step (see --history-by) that changed AL files or app.json.", { group: "Timeline" }),
+  history: flag("Explorer: replay Git history, one frame per step (see --history-by) that changed AL files or app.json.", { group: "Timeline" }),
   historyBy: string("One frame per commit, per merged pull request, or per release tag; implies --history.", { group: "Timeline", enum: ["commits", "prs", "releases"], default: "commits" }),
   last: string("Only the last n steps (commits, pull requests, or releases).", { group: "Timeline", value: "n" }),
   maxCommits: string("Most frames to replay; older steps are sampled evenly.", { group: "Timeline", value: "n", default: "60" }),
@@ -546,7 +546,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         id: "export",
         area: "export",
         argv: ["bca", "export", "[app-root]"],
-        purpose: "Write files: the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view.",
+        purpose: "Write files: the BC Atlas view as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view.",
         options: exportOptions,
         output: { type: "file", pathOption: "output", default: "bc-atlas.html" },
         rules: [

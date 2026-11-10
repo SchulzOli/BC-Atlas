@@ -1,6 +1,6 @@
 // A laid-out diagram (layout.js) as SVG: no scripts, no external fonts, the
 // object behind each box and the ends of each relation as data attributes,
-// so the BC Atlas pages can highlight neighbors and open objects.
+// so a page that shows it can highlight neighbors and open objects.
 import { STYLE } from "./layout.js";
 import { arrowHead, dashPattern, round, routeCommands } from "./geometry.js";
 

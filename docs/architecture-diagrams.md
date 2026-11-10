@@ -2,10 +2,11 @@
 
 Use a view that answers one question. Large all-purpose diagrams become difficult to read.
 
-The fastest way to look at every view is the Diagrams page of the BC Atlas
-panel in [VS Code](./vscode.md): pick a view from the list, set its options,
-zoom, click an object to open its page, and save the SVG, PNG, or D2 source. The
-commands below write the same diagrams as files. For a first overview in your
+The fastest way to look at them is the BC Atlas view in
+[VS Code](./vscode.md): every view below that shows the whole app is a lens
+of its one graph, as a 2D graph, a diagram, or a 3D graph; click an object
+to select it, and save what you see as SVG, PNG, JSON, or CSV. The commands
+below write the diagrams as files, with their own settings. For a first overview in your
 repository, `bca export --view report` renders the project, module, data,
 contracts, events, and UI views into one Markdown page. See
 [Architecture reports](./reports.md).
@@ -48,7 +49,7 @@ boundaries on procedures and owning objects. Runtime access occurrences include
 their transaction segment. This is static evidence about explicit commits; it
 does not claim to model implicit runtime transaction starts, ends, or rollbacks.
 
-In SVG output and on the Diagrams page, hover an access edge to see its operation names, source
+In SVG output, hover an access edge to see its operation names, source
 procedures, relation class, transaction segments, and cardinality evidence.
 
 ## Read a visibility view
@@ -97,16 +98,11 @@ JSON output has a `visibility` object: `points` (each with `kind`, `level`,
 `declared`, and, where it applies, `canBe` and `why`), `uses` (each with
 `from`, `to`, `level`, and `kinds`), and a `summary` with counts per level.
 
-On the Diagrams page of the BC Atlas panel and in the offline app
-(`bca export --view app`), the view opens as a **canvas** of every data point:
-graphs in graphs. An app is a circle that holds its objects, an object holds
-its members, and a procedure or event holds the data points it uses and that
-use it, which open again, without an end. In every circle what is local sits
-at the core and what is public at the rim. A core or dashed ring in another
-color says what a data point can be. Click a circle to fill the window with
-it, scroll to zoom, drag to move, press Esc to go out, and search for an
-object, procedure, or field by name. **Diagram** switches to the boxes the
-command writes.
+In the BC Atlas view ([VS Code](./vscode.md) and `bca export --view app`),
+the **Visibility** lens colors every object by its level. The card of an
+object says what it is, what it can be, and why. Double-click an object to
+open it: its procedures and events with their own levels, and what each of
+them uses. **View › Color › Visibility** colors any other lens the same way.
 
 ## Read permissions
 

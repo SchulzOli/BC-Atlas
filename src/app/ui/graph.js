@@ -292,6 +292,8 @@
         const shift = (y - BOX_GAP) / 2;
         for (const item of part) spot.get(item).y -= shift;
         parts.push(part);
+        part.left = x;
+        part.width = width;
         x += width + LAYER_GAP;
       }
     }
@@ -312,6 +314,45 @@
           spot.get(part[at]).y = (down[at] + following) / 2;
         }
       }
+    }
+    // Many layers in a row are a ribbon nobody can read: they break into lines, like text.
+    const reach = (part) => {
+      let low = Infinity;
+      let high = -Infinity;
+      for (const item of part) {
+        low = Math.min(low, spot.get(item).y - heightOf(item) / 2);
+        high = Math.max(high, spot.get(item).y + heightOf(item) / 2);
+      }
+      return [low, high];
+    };
+    const tall = parts.reduce((most, part) => Math.max(most, reach(part)[1] - reach(part)[0]), BOX_HEIGHT);
+    const lines = parts.length > 12 && x / tall > 3.2 ? Math.ceil(Math.sqrt(x / tall / 1.7)) : 1;
+    if (lines > 1) {
+      const lineWidth = x / lines;
+      let start = 0;
+      let down = 0;
+      let line = [];
+      const close = () => {
+        const [low, high] = line.reduce(([a, b], part) => [Math.min(a, reach(part)[0]), Math.max(b, reach(part)[1])], [Infinity, -Infinity]);
+        for (const part of line) {
+          for (const item of part) {
+            const place = spot.get(item);
+            place.x -= start;
+            place.y += down - low;
+          }
+        }
+        down += high - low + (BOX_HEIGHT + BOX_GAP) * 2.5;
+        line = [];
+      };
+      for (const part of parts) {
+        if (line.length && part.left + part.width - start > lineWidth) {
+          close();
+          start = part.left;
+        }
+        line.push(part);
+      }
+      close();
+      x = lineWidth + LAYER_GAP;
     }
     const boxes = new Array(nodes.length);
     let top = Infinity;
@@ -697,7 +738,7 @@
           }
           for (const value of anchors(edge)) path.push(value);
         }
-        const opacity = focus ? 0.07 : many ? 0.16 : boxed ? 0.55 : 0.42;
+        const opacity = focus ? 0.1 : many ? 0.16 : boxed ? 0.55 : 0.42;
         if (boxed) pen.curves(path, kinds[kind].color ?? "#64748B", opacity, 1, kinds[kind].dash);
         else pen.lines(path, kinds[kind].color ?? "#64748B", opacity, 1, kinds[kind].dash);
       }
@@ -740,7 +781,7 @@
       for (const index of order) {
         const item = placed[index];
         const marked = index === selected || index === hover;
-        const opacity = (lit(index) ? 1 : 0.14) * depthFade(item);
+        const opacity = (lit(index) ? 1 : 0.26) * depthFade(item);
         const color = nodes[index].color ?? "#64748B";
         if (boxed) {
           const box = boxes[index];
@@ -1005,7 +1046,10 @@
         bottom = Math.max(bottom, item.y - height / 2 + reachY);
       }
       const most = diagram() ? 1.4 : 2.2;
-      const target = Math.max(0.05, Math.min(most, (width * 0.62) / Math.max(right - left, 1), (height * 0.56) / Math.max(bottom - top, 1)));
+      // One node comes to the middle as large as the picture is, or large enough to read; several fill the window.
+      const target = wanted.length === 1
+        ? Math.min(most, Math.max(camera.zoom, diagram() ? 0.8 : 1))
+        : Math.max(0.05, Math.min(most, (width * 0.62) / Math.max(right - left, 1), (height * 0.56) / Math.max(bottom - top, 1)));
       const to = { zoom: target, x: -((left + right) / 2) * target, y: -((top + bottom) / 2) * target };
       touched = true;
       if (!animate) {

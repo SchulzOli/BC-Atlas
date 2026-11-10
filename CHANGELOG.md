@@ -4,6 +4,71 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- **The app is one view: a toolbar and the graph.** The pages, the list of
+  contents, and the tabs are gone, in VS Code and in the file `bca export`
+  writes. The AL source is the only fact; everything BC Atlas reads from it
+  is one graph, and the toolbar decides which part of it shows, in which
+  form, and what stands out. See [The BC Atlas view](./docs/vscode.md#the-bc-atlas-view).
+  - **One graph.** Apps, components, namespaces, objects, the rules of the
+    health check, process tests, the people who perform them, and
+    requirements are nodes; what they do with each other are relations, one
+    per kind (reads, writes, calls, permits, depends on, the wrong way,
+    touches, performs, blocked, ...). A node keeps its identity everywhere:
+    select an object, switch the lens, and it is still selected.
+  - **Lenses** show a part of it: System, Components, Apps, Modules, Data,
+    Calls, Events, Contracts, Pages, Permissions, Visibility, Findings,
+    Processes, People, Requirements. A lens with nothing in it is left out.
+  - **Three forms on one canvas, for every lens:** a 2D graph, a diagram
+    (the same nodes as boxes in layers, in the direction of their relations,
+    with relations routed between the boxes), and a 3D graph. Selection,
+    search, and what is hidden stay when the form changes.
+  - **Open an object:** a double click shows it from the inside, its
+    procedures, triggers, and events as nodes and what each of them does
+    with other objects; a double click on a procedure goes to its line.
+  - **Check** puts every finding on the nodes it is about: health rules, AL
+    compiler and analyzer findings, architecture violations, and what blocks
+    a person in the battle test. The card of a node lists its findings with
+    the fix.
+  - **Stories**, generated from the source, walk through the graph step by
+    step, each step with a text and the nodes it is about: what the system
+    is, one story per process (its tests in order, every step on the objects
+    it touches), who can do what, what to fix, and the dependencies that
+    point the wrong way. Play a story to demonstrate, save it as Markdown to
+    document.
+  - **Everything exports:** the picture as PNG or SVG, the graph as JSON,
+    nodes and relations as CSV, a lens and all stories as Markdown, and a
+    link: the whole state of the view is in its address.
+  - **In step with the source:** in VS Code the graph is read again when a
+    file is saved and keeps its lens, form, and selection; the object of the
+    active editor is the selected node (`bcAtlas.followEditor`); **Go to
+    source** opens a node at its line; **Live** says what the graph is read
+    from and saves a proposed architecture or the baseline.
+- The exported file is much smaller (the example with three apps: 120 KB
+  instead of 940 KB; 3,150 objects with 11,000 relations: 300 KB) and opens
+  in half a second.
+- VS Code: **Open a Lens…** replaces Open Page…, **Show This Object from the
+  Inside** replaces Diagram of This Object, **Show the Components** replaces
+  Propose an Architecture. The side bar opens the view and has no list.
+
+### Removed
+
+- The pages of the app: Overview, Health, Architecture, component pages,
+  Dependencies, Diagrams with settings, Objects, object pages, and Docs, and
+  with them the table form, saved views, and the visibility canvas of
+  circles. What they showed is in the graph: as lenses, as facts and
+  findings on the card of a node, and as stories.
+- In the app: the 3D explorer with its timeline, the handbook pages, and the
+  user guides. They are still written as files: `bca export --view explorer
+  --history`, `bca export --view handbook`, and `bca docs generate`.
+  `--history` no longer applies to `bca export --view app`.
+- Choosing a grouping for a proposed architecture in the app, and keeping a
+  component or excluding an object from shaping. Set `architecture.proposal`
+  in `.bca.json` or use `bca architecture --propose`.
+
 ## 0.18.0 - 2026-11-10
 
 ### Added

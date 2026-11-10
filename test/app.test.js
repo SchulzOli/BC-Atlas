@@ -89,6 +89,10 @@ test("the service answers the view and the editor from one analysis", async () =
   // Where dependencies should be (rules) and where they are (object links), top layer first.
   assert.deepEqual(configured.matrix.order, ["Integration", "Sales", "Core"]);
   assert.equal(configured.matrix.cells[2][0].allowed, false, "Core may not use Integration");
+  assert.deepEqual((await service.call("lenses")).slice(0, 2), [
+    { id: "system", title: "System", summary: "Every object and every relation between them." },
+    { id: "components", title: "Components", summary: "The components in their layers and the dependencies between them, allowed or the wrong way." }
+  ]);
   await assert.rejects(service.call("deleteEverything"), /unknown method/u);
 });
 

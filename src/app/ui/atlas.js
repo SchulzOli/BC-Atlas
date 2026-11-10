@@ -714,8 +714,14 @@
       <p class="text" style="color:var(--muted)">The source code is the only fact. Everything you see is generated from it.</p>
       <h3>Read from</h3>
       <dl class="facts">${[["This lens", scene.lens.reads], ...atlas.sources].map(([name, value]) => `<dt>${esc(name)}</dt><dd>${rich(value)}</dd>`).join("")}</dl>
-      ${LIVE ? '<div class="actions"><button class="btn" data-sync="refresh">Read the source again</button></div>' : ""}`
+      ${LIVE ? `<div class="actions"><button class="btn" data-sync="refresh">Read the source again</button>${architectureAction()}</div>` : ""}`
   };
+  // What the view may write back: the architecture it proposes, and the baseline of what is accepted.
+  function architectureAction() {
+    const { mode, violations } = atlas.summary.architecture;
+    if (mode === "proposal") return '<button class="btn" data-sync="adoptArchitecture" data-sure="Write it to .bca.json" title="The components are a proposal: no architecture is configured">Keep these components</button>';
+    return violations ? '<button class="btn" data-sync="updateBaseline" data-sure="Write the baseline" title="bca check then fails only on new ones">Accept the wrong-way dependencies</button>' : "";
+  }
   let openMenu;
   function closeMenu() {
     if (!openMenu) return;
@@ -767,6 +773,21 @@
     } else if (item.dataset.sync === "refresh") {
       closeMenu();
       reload("Reading the source again");
+    } else if (item.dataset.sync) {
+      // Asked twice before anything is written.
+      if (item.textContent !== item.dataset.sure) {
+        item.textContent = item.dataset.sure;
+        item.classList.add("primary");
+        return;
+      }
+      closeMenu();
+      try {
+        const written = await call(item.dataset.sync);
+        toast(`Wrote ${String(written.file).split(/[\\/]/u).pop()}.`);
+        await reload("Reading the source again");
+      } catch (error) {
+        toast(error.message);
+      }
     }
   });
   $("#popover").addEventListener("change", (event) => {
@@ -875,6 +896,4 @@
 
   message("<b>Reading the AL source</b><span>Every object and what it does with the others.</span>");
   await reload("Reading");
-  // A linked selection comes to the middle.
-  if (state.sel && scene?.place.has(state.sel) && !state.story) graph.center([scene.place.get(state.sel)], { animate: false });
 })();

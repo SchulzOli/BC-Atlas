@@ -96,15 +96,15 @@ subscribes to a Warehouse event (a wrong-way dependency), and Warehouse uses
 Sales while Core and the permission set use Warehouse, so the remaining app
 and the new one would depend on each other.
 
-The Architecture page (VS Code or `bca export`) shows the same plan: choose
-a component under **Extract a component**.
+`bca architecture --extract <component> --format markdown` writes the same
+plan as a document.
 
 ## Lock the public surface
 
 Before a component becomes an app, decide what other apps may use of it. Its
 **public surface** is what other components use today (its de facto API):
 `bca architecture` shows it per component (JSON `surface`, the Markdown
-report, the **Public surface** card on the Architecture page), with who uses
+report), with who uses
 each object and how.
 
 ```sh

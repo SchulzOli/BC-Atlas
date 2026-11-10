@@ -175,8 +175,7 @@ value came from `.bca.json` or an option.
 ### Namespaces
 
 Every component of a proposal gets a role and a namespace (JSON
-`proposal.recommendations`, the Markdown report, the **App candidates and
-namespaces** card on the Architecture page, and the component's
+`proposal.recommendations`, the Markdown report, and the component's
 `description` in `.bca.json`):
 
 | Role | Meaning |
@@ -459,14 +458,17 @@ architecture cannot erode silently. Commit `.bca.json` and the baseline.
 
 ## 5. See it
 
-In VS Code, the BC Atlas panel has an Architecture page with the layers, the work items,
-and the components, and buttons to adopt a proposal and to accept today's
-violations. A map and a matrix show where dependencies between components
-should be (green) and where they point against the architecture (red); each
-component has a page of its own with its groups (sub-domains by coupling), a
-graph of its objects, and its dependencies, allowed and wrong way. Its Dependencies page, the 3D explorer (also
-`bca export --view explorer`), shows the architecture as soon as `.bca.json`
-defines one, or with `--propose`:
+In VS Code, the **Components** lens of the BC Atlas view shows the
+components in their layers and the dependencies between them, allowed (blue)
+or the wrong way (red); as a diagram it reads from the top layer to the
+bottom one. The **System** lens groups every object by its component and
+marks what points the wrong way, the story **Dependencies the wrong way**
+walks through the work items with the steps to resolve each, and **Live**
+saves a proposal or accepts today's violations
+([VS Code](./vscode.md#change-the-architecture-from-the-view)).
+
+The 3D explorer (`bca export --view explorer`) shows the architecture as
+soon as `.bca.json` defines one, or with `--propose`:
 
 - a **Components** level with allowed (green) and wrong-way (red) component
   dependencies; select a component and choose **Show its objects**;

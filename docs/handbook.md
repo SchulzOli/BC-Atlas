@@ -36,13 +36,13 @@ subscribers, and permission sets. The text improves as the code is
 documented. A `/// <summary>` above an event, an interface, or a codeunit
 shows up in the handbook.
 
-## In VS Code, the offline app, the report, and for agents
+## In VS Code, the exported view, the report, and for agents
 
-- **VS Code and the offline app:** the **Docs** page of the BC Atlas panel
-  and of the file from `bca export` lists the handbook pages first, then the
-  user guides from UI tests. Object names open their object page,
-  **Markdown** saves the page, and **Sources** on the left says what the page
-  is read from. In VS Code, **English** and **Deutsch** switch the language.
+- **VS Code and the exported view:** the BC Atlas view tells the same as
+  stories on the graph: what the system is, its data, events, contracts, user
+  interface, permissions, and health, each on the objects it is about.
+  **Export › Documentation** saves every story as one Markdown document; the
+  handbook pages themselves are written by `bca export --view handbook`.
 - **Report:** `bca export --view report --handbook` writes the handbook to
   `<output>/handbook`. With `--codegraph`, object names link to the catalog
   in `<output>/objects`. In `.bca.json` this is `report.handbook`.

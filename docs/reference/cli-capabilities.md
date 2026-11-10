@@ -38,7 +38,7 @@ Write what the app shows as files, and user guides from AL UI tests.
 | Command | Invocation | Purpose |
 | --- | --- | --- |
 | `graph.render` | `bca graph render <graph.json>` | Render a saved graph selection as local SVG/HTML, Graphviz DOT, or reusable JSON without analyzing AL. |
-| `export` | `bca export [app-root]` | Write files: the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view. |
+| `export` | `bca export [app-root]` | Write files: the BC Atlas view as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view. |
 | `docs.list` | `bca docs list <test-root>` | List documented UI-test scenarios. |
 | `docs.show` | `bca docs show <test-root>` | Show one scenario, its prerequisites, and its diagnostics. |
 | `docs.validate` | `bca docs validate <test-root>` | Validate IDs, tags, links, and prerequisite cycles. |
@@ -70,7 +70,7 @@ Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents.
 
 | `--view` | Writes |
 | --- | --- |
-| `app` | The BC Atlas pages as one offline HTML file to share: every page, the diagrams, the 3D explorer, and the docs |
+| `app` | The BC Atlas view as one offline HTML file to share: a toolbar and the graph, with every lens, finding, and story |
 | `report` | Markdown report (README.md) with health, diagrams, and an optional object catalog |
 | `explorer` | Interactive 3D dependency explorer (HTML), replayable over Git history, or its graph as JSON |
 | `catalog` | One linked Markdown page per AL object |

@@ -77,8 +77,9 @@ Add `--codegraph` for one linked Markdown page per AL object. See
 [Architecture reports](./reports.md) and the
 [generated example](../examples/report/README.md).
 
-To share the BC Atlas pages with people who do not use VS Code,
-`bca export -o atlas.html` writes them as one offline HTML file.
+To share the BC Atlas view with people who do not use VS Code,
+`bca export -o atlas.html` writes it as one offline HTML file: the graph
+with every lens, finding, and story.
 
 ## 5. Guard the architecture in CI
 
@@ -112,9 +113,9 @@ let Dependabot propose updates instead. See
 
 | I want to | Command | Read |
 | --- | --- | --- |
-| See one object and its neighbors | Objects page in VS Code, or `bca export --view object --object codeunit:50100 -o object.svg` | [Architecture diagrams](./architecture-diagrams.md) |
+| See one object and its neighbors | Select it in the BC Atlas view and choose **Neighbors**, or `bca export --view object --object codeunit:50100 -o object.svg` | [Architecture diagrams](./architecture-diagrams.md) |
 | Trace what happens after an action | `bca export --view workflow --entry action:Release -o flow.svg` | [Architecture diagrams](./architecture-diagrams.md) |
-| Split a large app into smaller ones | Architecture page in VS Code, or `bca architecture --propose` | [Clean architecture](./clean-architecture.md) |
+| Split a large app into smaller ones | Components lens in VS Code, or `bca architecture --propose` | [Clean architecture](./clean-architecture.md) |
 | Keep a diagram file current while coding | `bca export --view module -o modules.svg --watch` | [CLI reference](./cli-reference.md#export) |
 | Feed the model to a script | `bca export --view project --format json > model.json` | [CLI reference](./cli-reference.md#export) |
 | Turn UI tests into user guides | `bca docs generate ./test --output-dir docs/guides` | [AL UI-test documentation](./al-ui-test-documentation.md) |

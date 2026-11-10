@@ -387,9 +387,10 @@ async function activate(context) {
   const command = (id, handler) => context.subscriptions.push(vscode.commands.registerCommand(id, handler));
   command("bcAtlas.open", (hash) => AtlasPanel.show(context, typeof hash === "string" ? hash : "#"));
   command("bcAtlas.openLens", async () => {
+    if (!engine) return;
     // What the graph can show, as the engine lists it.
-    const { LENSES } = await import(pathToFileURL(enginePath("src", "app", "atlas.js")).href);
-    const lens = await vscode.window.showQuickPick(LENSES.map((item) => ({ label: item.title, detail: item.summary, id: item.id })), { placeHolder: "What should the graph show?" });
+    const lenses = await engine.request("lenses");
+    const lens = await vscode.window.showQuickPick(lenses.map((item) => ({ label: item.title, detail: item.summary, id: item.id })), { placeHolder: "What should the graph show?" });
     if (lens) AtlasPanel.show(context, logic.viewHash({ lens: lens.id }));
   });
   command("bcAtlas.openObject", (id) => AtlasPanel.show(context, logic.viewHash({ sel: id })));

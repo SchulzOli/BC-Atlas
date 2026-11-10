@@ -3,6 +3,8 @@
 // (worker.js), and tests call it directly. Every method takes one plain
 // object and returns JSON.
 
+import { LENSES } from "./atlas.js";
+
 const GROUPINGS = ["auto", "coupling", "namespace", "folder", "module", "app"];
 
 function positive(value, name) {
@@ -47,6 +49,8 @@ export function createService(workspace) {
       return report;
     },
     atlas: () => workspace.atlas(),
+    // What the graph can show, without analyzing anything.
+    lenses: () => LENSES.map(({ id, title, summary }) => ({ id, title, summary })),
     inside: async ({ id } = {}) => {
       const inside = await workspace.inside(String(id ?? ""));
       if (!inside) throw new Error("object not found");

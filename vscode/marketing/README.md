@@ -12,7 +12,7 @@ checklist, and ready-to-post copy.
 | `logo.svg` | The small mark (32 × 32) used in the panel, the favicon, and the website. |
 | `../media/atlas.svg` | Monochrome mark for the activity bar and the panel tab (`currentColor`). |
 | `social-preview.html` → `social-preview.jpg` | 1280 × 640 at 2×: the hero at the top of both READMEs and the GitHub social preview. |
-| `screenshots/*.png` | Marketplace screenshots, 1440 × 900 at 1.5×, VS Code dark theme. |
+| `screenshots/*.png` | Marketplace screenshots, 1440 × 900 at 1.5×, dark. `screenshots.mjs` takes them from the example apps. |
 | `render.cjs` | Renders the icon and the social preview: `node vscode/marketing/render.cjs` (needs Playwright with Chromium). |
 
 The listing itself lives in `../package.json` (`displayName`, `description`,
@@ -55,37 +55,31 @@ width around it.
 | Field | Value |
 | --- | --- |
 | Display name | BC Atlas: AL Architecture & Dependencies |
-| Short description | See and enforce the architecture of Business Central AL apps: dependencies in 3D, clean-architecture checks with fixes, health in the Problems panel, CodeLens, diagrams, and an MCP server for AI agents. |
+| Short description | Business Central AL apps as one graph, read from the source: one view in 2D, as a diagram, or in 3D, clean-architecture checks with fixes, stories that document and test, health in the Problems panel, CodeLens, and an MCP server for AI agents. |
 | Categories | Visualization, Linters, AI, Programming Languages |
 | Banner | `#0b1432`, dark theme |
 | Pricing | Free |
 
 ### Screenshots
 
-All show Microsoft's open-source
-[Shopify Connector](https://github.com/microsoft/BCApps/tree/main/src/Apps/W1/Shopify)
-(514 objects), with the architecture proposed by folder:
-
-```sh
-bca architecture ./Shopify/App --propose --group-by folder --depth 2 --write
-```
-
-That gives 28 components in 12 layers, 658 wrong-way dependencies, and 232
-work items.
+All show the BC Atlas view on the example apps of this repository
+(`examples/purchasing-app`: 16 objects, process tests, and a company;
+`examples/multi-app`: three apps with a configured architecture), in the
+dark design of an exported file.
 
 | Screenshot | Shows |
 | --- | --- |
-| `architecture.png` | The Architecture page: components, layers, work items, baseline. |
-| `components-3d.png` | The 3D explorer on the Components level: allowed links green, wrong-way red. |
-| `dependencies-3d.png` | All objects in 3D with the Architecture panel and the build-order timeline. |
-| `editor.png` | An AL table with the CodeLens, the object page beside it, and the Problems panel. |
-| `object.png` | The page of one object with its violations and how to resolve them. |
-| `overview.png` | The overview with the side bar and the status bar. |
-| `health.png` | The Health page (not in the README; for posts and slides). |
+| `view.png` | The System lens in 2D with Check on and a codeunit selected: the card with its facts and relations. |
+| `diagram.png` | The Data lens as a diagram. |
+| `space.png` | The System lens in 3D with the findings as rings. |
+| `inside.png` | A codeunit from the inside: its procedures and events, and what each does. |
+| `story.png` | A process story at the step that is blocked. |
+| `components.png` | The Components lens as a diagram, with the dependency the wrong way. |
+| `people.png` | The People lens: agents, process tests, and permission sets. |
 
-To retake them: open the folder in VS Code (or code-server) with the dark
-theme, the secondary side bar closed, the window at 1440 × 900, run
-**BC Atlas: Open**, and capture each page.
+To retake them: `node vscode/marketing/screenshots.mjs` (needs Playwright
+with Chromium). It also writes `docs/generated/images/view.png`, the picture
+in the README of the repository, in the light design.
 
 ## Launch checklist
 

@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+- **One view: a toolbar and the graph.** The pages, the list of contents,
+  and the tabs are gone. Everything BC Atlas reads from the AL source is one
+  graph; a lens shows a part of it (system, components, apps, data, calls,
+  events, contracts, pages, permissions, visibility, findings, processes,
+  people, requirements) as a 2D graph, a diagram, or a 3D graph.
+- Double-click an object to open it: its procedures and events as nodes,
+  and what each does with other objects.
+- **Check** puts the findings on the nodes they are about; the card of a
+  node lists them with the fix.
+- **Stories** walk through the graph step by step: what the system is, each
+  process test by test, who can do what, what to fix. Play one, or save it
+  as Markdown.
+- **Export** saves what you see: PNG, SVG, JSON, CSV, Markdown, and a link
+  to the view as it is.
+- The graph follows the editor: the object of the active file is the
+  selected node (`bcAtlas.followEditor`). **Go to source** opens a node at
+  its line.
+- Commands: **Open a Lens…** (was Open Page…), **Show This Object from the
+  Inside** (was Diagram of This Object), **Show the Components** (was
+  Propose an Architecture). The side bar opens the view and has no list.
+- Removed from the panel: the 3D explorer with its timeline, the handbook
+  pages, and the user guides. **Export…** still writes them as files.
+
 ## 0.18.0
 
 - The engine is BC Atlas 0.18.0.

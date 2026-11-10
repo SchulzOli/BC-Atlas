@@ -1,5 +1,5 @@
 // `bca export`: writes what the app shows as files. One command for the
-// offline app, the Markdown report, single diagrams, the 3D explorer, the
+// view as one offline file, the Markdown report, single diagrams, the 3D explorer, the
 // object catalog, and the resolved model as JSON.
 import { watch as fsWatch } from "node:fs";
 import fs from "node:fs/promises";
