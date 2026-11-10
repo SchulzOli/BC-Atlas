@@ -47,6 +47,6 @@ export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
     .replace("__GENERATOR__", () => `BC Atlas ${pkg.version}`)
     .replace("/*__STYLE__*/", () => `${theme()}\n${read("atlas.css")}`)
     .replace("__BOOT__", () => boot)
-    // The graph registers itself before the view starts.
-    .replace("/*__APP__*/", () => `${read("graph.js")}\n${read("atlas.js")}`);
+    // The graph and the scene register themselves before the view starts.
+    .replace("/*__APP__*/", () => `${read("graph.js")}\n${read("scene.js")}\n${read("atlas.js")}`);
 }

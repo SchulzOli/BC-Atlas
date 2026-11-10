@@ -47,6 +47,20 @@ follows [Semantic Versioning](https://semver.org/).
     active editor is the selected node (`bcAtlas.followEditor`); **Go to
     source** opens a node at its line; **Live** says what the graph is read
     from and saves a proposed architecture or the baseline.
+- **`bca view`: the view without a window.** Everything the toolbar does is
+  an option, and every export a format, so the terminal, a pipeline, and an
+  agent get what the app shows: `--lens`, `--inside`, `--focus` with
+  `--depth`, `--find`, `--hide`, `--off`, `--check`, `--story` with
+  `--step`, `--stories`, `--color`, `--size`, `--group`, and `--format`
+  `text`, `json`, `md`, `csv`, `svg`, `png`, or `link`. Pictures come in
+  every form (`--form 2d`, `diagram`, `3d`), light or dark, drawn without a
+  browser, the same every time. Without options it lists the lenses and
+  stories of the project; `--format json` prints the whole graph. One
+  implementation draws the page and writes these files
+  (`src/app/ui/scene.js`, `graph.js`). The MCP tool `bc_atlas_view` gives
+  agents the same.
+- An export of a lens (JSON, CSV, Markdown) holds what shows: what the
+  legend hides is left out, and findings come the most severe first.
 - The exported file is much smaller (the example with three apps: 120 KB
   instead of 940 KB; 3,150 objects with 11,000 relations: 300 KB) and opens
   in half a second.

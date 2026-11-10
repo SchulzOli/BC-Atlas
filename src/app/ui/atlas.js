@@ -19,12 +19,9 @@
   // `code` and **bold** in generated text.
   const rich = (text) => esc(text).replace(/`([^`]+)`/gu, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/gu, "<b>$1</b>");
 
-  const NEUTRAL = "#94A3B8";
-  const SEVERITY = { error: "#C0392B", warning: "#B7791F", info: "#2A78D6" };
-  const RANK = { error: 3, warning: 2, info: 1 };
-  // Calm colors that stay apart for people who see colors differently.
-  const PALETTE = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#7C3AED", "#4E5D78", "#A23636", "#14766E", "#8B7400", "#A21CAF"];
-  const KIND_NAMES = { object: "Object", app: "App", component: "Component", module: "Namespace", rule: "Rule", process: "Process", task: "Process test", person: "Person", requirement: "Requirement", member: "Member" };
+  // What shows and how it reads as text is shared with the terminal (scene.js).
+  const S = BCA_SCENE;
+  const { KIND_NAMES } = S;
   const FACTS = [
     ["objectId", "ID"], ["component", "Component"], ["layer", "Layer"], ["namespace", "Namespace"], ["app", "App"], ["origin", "Origin"],
     ["publisher", "Publisher"], ["version", "Version"], ["access", "Access"], ["obsolete", "Obsolete"], ["status", "Status"], ["severity", "Severity"],
@@ -63,17 +60,15 @@
   }
 
   let atlas;
+  let found;
   let position = new Map();
   let findingsOf = new Map();
   const insides = new Map();
   /** Reads the atlas, and what follows from it: where each node is, and its findings. */
   async function load() {
     atlas = LIVE ? await call("atlas") : SNAPSHOT.atlas;
-    position = new Map(atlas.nodes.map((node, index) => [node.id, index]));
-    findingsOf = new Map();
-    for (const finding of atlas.findings) {
-      for (const index of finding.nodes) (findingsOf.get(index) ?? findingsOf.set(index, []).get(index)).push(finding);
-    }
+    found = S.index(atlas);
+    ({ position, findingsOf } = found);
     insides.clear();
   }
   /** One object from the inside (src/app/atlas.js), or nothing when it is not part of an export. */
@@ -83,15 +78,9 @@
     }
     return insides.get(id);
   }
-  const worst = (index) => {
-    let found;
-    for (const finding of findingsOf.get(index) ?? []) if (!found || RANK[finding.severity] > RANK[found]) found = finding.severity;
-    return found;
-  };
-
   // ----------------------------------------------------------------- state
   // The whole view, as it is in the address: #lens=data&form=diagram&sel=...
-  const DEFAULTS = { lens: "system", form: "2d", q: "", sel: "", focus: "", depth: "1", check: "", story: "", step: "0", color: "", size: "", group: "", off: "", hide: "", inside: "" };
+  const { DEFAULTS } = S;
   function readState() {
     const hash = location.hash.replace(/^#\/?/u, "");
     // Links of earlier versions to one object.
@@ -100,11 +89,7 @@
     return { ...DEFAULTS, ...Object.fromEntries([...params].filter(([key]) => key in DEFAULTS)) };
   }
   let state = readState();
-  function stateHash(from = state) {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(from)) if (value !== DEFAULTS[key]) params.set(key, value);
-    return `#${params}`;
-  }
+  const stateHash = (from = state) => S.stateHash(from);
   function remember() {
     const hash = stateHash();
     if (hash === (location.hash || "#")) return;
@@ -178,170 +163,21 @@
   const lensOf = (id) => atlas.lenses.find((lens) => lens.id === id) ?? atlas.lenses[0];
   const storyOf = (id) => atlas.stories.find((story) => story.id === id);
 
-  /** The class a node falls into for the color mode: { key, label, color }. */
-  function classOf(node, at, mode) {
-    if (mode === "level") return { key: node.level ?? "none", label: node.level ?? "no level", color: atlas.levels[node.level] ?? NEUTRAL };
-    if (mode === "findings" || mode === "severity") {
-      const severity = node.kind === "rule" ? node.severity : at >= 0 ? worst(at) : undefined;
-      return { key: severity ?? "none", label: severity ?? "no finding", color: SEVERITY[severity] ?? NEUTRAL };
-    }
-    if (["component", "namespace", "app", "layer"].includes(mode)) {
-      const value = node[mode] ?? (node.kind === "module" && mode === "namespace" ? node.label : undefined);
-      return { key: value ?? "none", label: value ?? (node.external ? "other apps" : `no ${mode}`), color: undefined };
-    }
-    if (node.external) return { key: "external", label: "other apps", color: node.color };
-    if (mode === "status" && node.status) return { key: `${node.kind}:${node.status}`, label: `${KIND_NAMES[node.kind]?.toLowerCase() ?? node.kind}: ${node.status}`, color: node.color };
-    const key = node.kind === "object" || node.kind === "member" ? node.type : node.kind;
-    return { key, label: node.kind === "object" || node.kind === "member" ? node.type : (KIND_NAMES[node.kind] ?? node.kind).toLowerCase(), color: node.color };
-  }
-
-  /**
-   * The part of the atlas the state asks for, as the graph draws it:
-   * { key, title, summary, entries: [{ node, at }], nodes, edges, kinds, groups, classes }.
-   */
+  /** The part of the atlas the state asks for (scene.js); an object that is opened is read first. */
   async function sceneFor() {
-    const lens = lensOf(state.lens);
-    const entries = [];
-    const place = new Map();
-    const enter = (node, at) => {
-      if (!place.has(node.id)) {
-        place.set(node.id, entries.length);
-        entries.push({ node, at });
-      }
-      return place.get(node.id);
-    };
-    const kindIndex = new Map();
-    const kinds = [];
-    const kindOf = (relation) => {
-      if (!kindIndex.has(relation.kind)) {
-        kindIndex.set(relation.kind, kinds.length);
-        kinds.push({ ...relation });
-      }
-      return kindIndex.get(relation.kind);
-    };
-    let links = [];
-    let title = lens.title;
-    let summary = lens.summary;
     const within = state.inside && position.has(state.inside) ? await inside(state.inside) : undefined;
-    if (within) {
-      const center = atlas.nodes[position.get(state.inside)];
-      title = `Inside ${center.label}`;
-      summary = "Its procedures, triggers, and events, and what each of them does with other objects.";
-      enter(center, position.get(state.inside));
-      for (const node of within.nodes) enter(node, -1);
-      for (const [from, to, relation, weight] of within.edges) {
-        for (const id of [from, to]) if (!place.has(id) && position.has(id)) enter(atlas.nodes[position.get(id)], position.get(id));
-        if (place.has(from) && place.has(to)) links.push([place.get(from), place.get(to), kindOf(within.relations[relation]), weight]);
-      }
-    } else {
-      const wanted = new Set(lens.kinds);
-      const relations = new Set(lens.relations);
-      const from = lens.from && new Set(lens.from);
-      const types = new Set(lens.types ?? []);
-      const candidate = atlas.nodes.map((node) => wanted.has(node.kind));
-      const found = [];
-      const touched = new Set();
-      for (const edge of atlas.edges) {
-        const relation = atlas.relations[edge[2]];
-        if (!relations.has(relation.kind) || !candidate[edge[0]] || !candidate[edge[1]]) continue;
-        if (from && !from.has(atlas.nodes[edge[0]].type)) continue;
-        found.push(edge);
-        touched.add(edge[0]);
-        touched.add(edge[1]);
-      }
-      atlas.nodes.forEach((node, index) => {
-        if (!candidate[index]) return;
-        const always = node.kind !== "object" || (types.has(node.type) && !node.external);
-        if (lens.connected && !touched.has(index) && !always) return;
-        enter(node, index);
-      });
-      // In the order of the lens, so the legend reads the same every time.
-      for (const kind of lens.relations) {
-        const relation = atlas.relations.find((candidateRelation) => candidateRelation.kind === kind);
-        if (relation && found.some((edge) => atlas.relations[edge[2]] === relation)) kindOf(relation);
-      }
-      links = found.map((edge) => [place.get(atlas.nodes[edge[0]].id), place.get(atlas.nodes[edge[1]].id), kindOf(atlas.relations[edge[2]]), edge[3]]);
-    }
-
-    // Only a node and what is near it.
-    let keep;
-    if (state.focus && place.has(state.focus)) {
-      keep = new Set([place.get(state.focus)]);
-      let rim = [...keep];
-      for (let depth = 0; depth < Math.max(1, Number(state.depth) || 1); depth++) {
-        const next = [];
-        for (const [from, to] of links) {
-          for (const [a, b] of [[from, to], [to, from]]) {
-            if (rim.includes(a) && !keep.has(b)) {
-              keep.add(b);
-              next.push(b);
-            }
-          }
-        }
-        rim = next;
-      }
-    }
-    const kept = keep ? entries.map((entry, index) => (keep.has(index) ? entry : undefined)) : entries;
-    const renumber = new Map();
-    const shown = [];
-    kept.forEach((entry, index) => {
-      if (!entry) return;
-      renumber.set(index, shown.length);
-      shown.push(entry);
-    });
-    const edges = links.filter(([from, to]) => renumber.has(from) && renumber.has(to)).map(([from, to, kind, weight]) => [renumber.get(from), renumber.get(to), kind, weight]);
-
-    // Groups hold together; classes give the colors and the legend.
-    const groupBy = state.group || (within ? "kind" : lens.group);
-    const groupOf = (node) => (groupBy === "none" ? "" : groupBy === "kind" ? (node.kind === "object" ? node.type : node.kind) : node[groupBy] ?? (node.external ? "Other apps" : node.kind === "object" ? "" : node.kind));
-    const groups = [...new Set(shown.map(({ node }) => String(groupOf(node))))].sort((a, b) => a.localeCompare(b));
-    const groupPosition = new Map(groups.map((group, index) => [group, index]));
-    const mode = state.color || (within ? "type" : lens.color);
-    const classes = new Map();
-    const own = [];
-    const classed = shown.map(({ node, at }) => {
-      const found = classOf(node, at, mode);
-      const entry = classes.get(found.key) ?? classes.set(found.key, { ...found, count: 0 }).get(found.key);
-      entry.count++;
-      // A color of its own (a blocked process among processes) stays.
-      own.push(found.color);
-      return entry;
-    });
-    // Classes without a color of their own share the palette, in a fixed order.
-    [...classes.values()].filter(({ color }) => !color).sort((a, b) => String(a.key).localeCompare(String(b.key)))
-      .forEach((entry, index) => { entry.color = entry.key === "none" ? NEUTRAL : PALETTE[index % PALETTE.length]; });
-    return {
-      key: [within ? `inside:${state.inside}` : lens.id, state.focus, state.depth, groupBy].join("\n"),
-      lens,
-      title,
-      summary,
-      within: Boolean(within),
-      entries: shown,
-      place: new Map(shown.map(({ node }, index) => [node.id, index])),
-      nodes: shown.map(({ node }, index) => ({ label: node.label, group: groupPosition.get(String(groupOf(node))), color: own[index] ?? classed[index].color })),
-      classOf: classed,
-      classes: [...classes.values()].sort((a, b) => b.count - a.count),
-      edges,
-      kinds,
-      groups
-    };
+    return S.scene(atlas, found, state, within);
   }
 
   // ----------------------------------------------------------------- graph
   let scene;
+  let flags;
   let graph;
   let applied = {};
   let rendering = Promise.resolve();
   let told = false;
 
   const SIZES = [["", "Same size"], ["relations", "Relations"], ["usedBy", "Used by"], ["uses", "Uses"], ["lines", "Lines of code"], ["complexity", "Complexity"], ["objects", "Objects"], ["findings", "Findings"]];
-  function sizeValues(by) {
-    if (!by) return undefined;
-    if (by === "relations") return Array.from(graph.degree());
-    if (by === "findings") return scene.entries.map(({ at }) => (at >= 0 ? findingsOf.get(at)?.length ?? 0 : 0));
-    return scene.entries.map(({ node }) => Number(node[by]) || 0);
-  }
-
   function render() {
     rendering = rendering.then(draw).catch((error) => {
       message(`<b>BC Atlas could not show this.</b><span>${esc(error.message)}</span>`);
@@ -386,36 +222,27 @@
     }
 
     // What shows: classes and kinds of relation switched off in the legend.
-    const hidden = list(state.hide);
-    const off = list(state.off);
+    flags = S.shown(scene, state);
     const showKey = `${state.hide}\n${state.off}`;
     if (applied.show !== showKey) {
-      const visible = Uint8Array.from(scene.classOf, (entry) => (hidden.has(String(entry.key)) ? 0 : 1));
-      const shown = Uint8Array.from(scene.kinds, ({ kind }) => (off.has(kind) ? 0 : 1));
-      if (applied.show !== undefined || hidden.size || off.size) graph.show(visible, shown.length ? shown : new Uint8Array(1).fill(1));
+      if (applied.show !== undefined || state.hide || state.off) graph.show(flags.nodes, flags.kinds.length ? flags.kinds : new Uint8Array(1).fill(1));
       applied.show = showKey;
     }
-    const sizes = sizeValues(state.size);
-    graph.size(sizes && sizes.some((value) => value > 0) ? sizes : undefined);
+    graph.size(S.sizeValues(scene, found, state.size, flags.degree));
     // Check: a ring in the color of the worst finding on a node.
-    graph.rings(state.check ? scene.entries.map(({ at }) => {
-      const severity = at >= 0 ? worst(at) : undefined;
-      return severity ? { color: SEVERITY[severity], width: severity === "info" ? 1.2 : 2.4 } : undefined;
-    }) : undefined);
+    graph.rings(state.check ? S.rings(scene, found) : undefined);
 
     // What stands out: the step of a story, else what the search finds.
-    const query = state.q.trim().toLowerCase();
-    let lit;
-    if (step) lit = new Set(step.nodes.map((index) => scene.place.get(atlas.nodes[index]?.id)).filter((index) => index !== undefined));
-    else if (query) lit = new Set(matches(query));
+    const query = state.q.trim();
+    const lit = S.highlight(atlas, scene, state);
     graph.highlight(lit);
-    $(".search").classList.toggle("none", Boolean(query) && !step && !lit.size);
+    $(".search").classList.toggle("none", Boolean(query) && !step && !lit?.size);
 
     const selected = state.sel && scene.place.has(state.sel) ? scene.place.get(state.sel) : -1;
     if (graph.selected() !== selected) graph.select(selected);
     const focusKey = `${applied.key}\n${state.story}\n${state.step}`;
     if (step && applied.focus !== focusKey) {
-      if (lit.size) graph.center([...lit], { animate: told });
+      if (lit?.size) graph.center([...lit], { animate: told });
       else graph.fit();
       told = true;
     }
@@ -429,9 +256,6 @@
     storyBar(story, step);
     remember();
   }
-
-  const matches = (query) => scene.entries.map(({ node }, index) => ([node.label, node.type, node.kind, node.component, node.namespace, node.app, node.objectId]
-    .some((value) => String(value ?? "").toLowerCase().includes(query)) ? index : -1)).filter((index) => index >= 0);
 
   /** A double click: an object opens to its inside, a member to its source, anything else to its neighbors. */
   function open({ node }) {
@@ -627,7 +451,7 @@
       else play(story);
       return render();
     }
-    if (action === "save") return download(`${fileName(story.title)}.md`, storyMarkdown(story), "text/markdown");
+    if (action === "save") return download(`${fileName(story.title)}.md`, S.storyMarkdown(atlas, story), "text/markdown");
     return undefined;
   }
   $("#story").addEventListener("click", (event) => {
@@ -636,60 +460,15 @@
   });
 
   // ---------------------------------------------------------------- export
-  const stamp = () => `_Generated by BC Atlas ${atlas.version} from the AL source of ${atlas.title}. Do not edit; export it again._`;
-  function storyMarkdown(story, level = 1) {
-    const head = "#".repeat(level);
-    return [
-      `${head} ${story.title}`, "", story.summary, "",
-      ...(level === 1 ? [stamp(), ""] : []),
-      ...story.steps.flatMap((step, index) => [
-        `${head}# ${index + 1}. ${step.title}`, "", step.text, "",
-        ...(step.nodes.length ? [`Shown: ${step.nodes.slice(0, 12).map((node) => `\`${atlas.nodes[node].label}\``).join(", ")}${step.nodes.length > 12 ? `, and ${step.nodes.length - 12} more` : ""}.`, ""] : [])
-      ])
-    ].join("\n");
-  }
-  function documentation() {
-    return [
-      `# ${atlas.title}`, "", stamp(), "",
-      "## Read from", "", ...atlas.sources.map(([name, value]) => `- **${name}:** ${value}`), "",
-      ...atlas.stories.flatMap((story) => [storyMarkdown(story, 2), ""])
-    ].join("\n");
-  }
-  function lensMarkdown() {
-    const visible = scene.entries.filter(({ node }) => node.kind !== "member");
-    const findings = [...new Set(visible.flatMap(({ at }) => (at >= 0 ? findingsOf.get(at) ?? [] : [])))];
-    return [
-      `# ${atlas.title}: ${scene.title}`, "", scene.summary, "", stamp(), "",
-      `Read from ${scene.lens.reads}.`, "",
-      `| Node | Kind | ${scene.groups.length > 1 ? "Group | " : ""}Relations |`, `| --- | --- | ${scene.groups.length > 1 ? "--- | " : ""}---: |`,
-      ...scene.entries.map(({ node }, index) => `| ${node.label.replaceAll("|", "\\|")} | ${node.kind === "object" ? node.type : node.kind} | ${scene.groups.length > 1 ? `${scene.groups[scene.nodes[index].group] || ""} | ` : ""}${graph.degree()[index]} |`), "",
-      ...(findings.length ? ["## Findings", "", ...findings.map((finding) => `- **${finding.severity}** \`${finding.rule}\`: ${finding.message}${finding.fix ? ` Fix: ${finding.fix}` : ""}`), ""] : [])
-    ].join("\n");
-  }
-  const csv = (rows) => rows.map((row) => row.map((value) => (/[",\n]/u.test(String(value ?? "")) ? `"${String(value).replaceAll('"', '""')}"` : String(value ?? ""))).join(",")).join("\n");
-  function sceneJson() {
-    return JSON.stringify({
-      generator: `BC Atlas ${atlas.version}`,
-      project: atlas.title,
-      lens: scene.lens.id,
-      title: scene.title,
-      summary: scene.summary,
-      sources: Object.fromEntries(atlas.sources),
-      nodes: scene.entries.map(({ node, at }, index) => ({ ...node, color: undefined, group: scene.groups[scene.nodes[index].group] || undefined, findings: at >= 0 ? findingsOf.get(at)?.map(({ severity, rule, message: text }) => ({ severity, rule, message: text })) : undefined })),
-      relations: scene.edges.map(([from, to, kind, weight]) => ({ from: scene.entries[from].node.id, to: scene.entries[to].node.id, kind: scene.kinds[kind].kind, weight }))
-    }, null, 2);
-  }
+  const base = () => fileName(`${atlas.title} ${scene.title}`);
   const EXPORTS = [
-    ["png", "Picture", "PNG, as you see it", async () => download(`${fileName(`${atlas.title} ${scene.title}`)}.png`, new Uint8Array(await (await graph.image()).arrayBuffer()), "image/png")],
-    ["svg", "Drawing", "SVG, as you see it", () => download(`${fileName(`${atlas.title} ${scene.title}`)}.svg`, graph.svg(), "image/svg+xml")],
-    ["json", "Graph", "JSON: nodes with their facts, and relations", () => download(`${fileName(`${atlas.title} ${scene.title}`)}.json`, sceneJson(), "application/json")],
-    ["nodes", "Nodes", "CSV, one row per node", () => {
-      const keys = [...new Set(scene.entries.flatMap(({ node }) => Object.keys(node)))].filter((key) => !["color", "id"].includes(key));
-      return download(`${fileName(`${atlas.title} ${scene.title}`)}-nodes.csv`, csv([["id", ...keys, "relations", "findings"], ...scene.entries.map(({ node, at }, index) => [node.id, ...keys.map((key) => node[key]), graph.degree()[index], at >= 0 ? findingsOf.get(at)?.length ?? 0 : 0])]), "text/csv");
-    }],
-    ["relations", "Relations", "CSV, one row per relation", () => download(`${fileName(`${atlas.title} ${scene.title}`)}-relations.csv`, csv([["from", "to", "kind", "weight"], ...scene.edges.map(([from, to, kind, weight]) => [scene.entries[from].node.label, scene.entries[to].node.label, scene.kinds[kind].kind, weight])]), "text/csv")],
-    ["lens", "This lens", "Markdown: what shows, with its findings", () => download(`${fileName(`${atlas.title} ${scene.title}`)}.md`, lensMarkdown(), "text/markdown")],
-    ["docs", "Documentation", "Markdown: every story of the system", () => download(`${fileName(atlas.title)}.md`, documentation(), "text/markdown")],
+    ["png", "Picture", "PNG, as you see it", async () => download(`${base()}.png`, new Uint8Array(await (await graph.image()).arrayBuffer()), "image/png")],
+    ["svg", "Drawing", "SVG, as you see it", () => download(`${base()}.svg`, graph.svg(), "image/svg+xml")],
+    ["json", "Graph", "JSON: nodes with their facts, and relations", () => download(`${base()}.json`, JSON.stringify(S.sceneData(atlas, found, scene, flags), null, 2), "application/json")],
+    ["nodes", "Nodes", "CSV, one row per node", () => download(`${base()}-nodes.csv`, S.nodesCsv(found, scene, flags), "text/csv")],
+    ["relations", "Relations", "CSV, one row per relation", () => download(`${base()}-relations.csv`, S.relationsCsv(scene, flags), "text/csv")],
+    ["lens", "This lens", "Markdown: what shows, with its findings", () => download(`${base()}.md`, S.lensMarkdown(atlas, found, scene, flags), "text/markdown")],
+    ["docs", "Documentation", "Markdown: every story of the system", () => download(`${fileName(atlas.title)}.md`, S.documentation(atlas), "text/markdown")],
     ["link", "Link", "To this view, as it is now", copyLink]
   ];
 
@@ -813,10 +592,10 @@
       $(".graph-canvas")?.focus();
     }
     if (event.key !== "Enter") return;
-    const found = matches(state.q.trim().toLowerCase());
-    if (!found.length || !state.q.trim()) return;
-    cursor = (cursor + (event.shiftKey ? -1 : 1) + found.length) % found.length;
-    set({ sel: scene.entries[found[cursor]].node.id }).then(() => graph.center([found[cursor]]));
+    const hits = S.matches(scene, state.q);
+    if (!hits.length) return;
+    cursor = (cursor + (event.shiftKey ? -1 : 1) + hits.length) % hits.length;
+    set({ sel: scene.entries[hits[cursor]].node.id }).then(() => graph.center([hits[cursor]]));
   });
   $("#zoom").addEventListener("click", (event) => {
     const action = event.target.closest("button")?.dataset.zoom;

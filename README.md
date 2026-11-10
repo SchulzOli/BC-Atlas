@@ -27,6 +27,7 @@ cd path/to/al-project
 bca setup                   # .bca.json, Husky hooks, VS Code tasks, pipeline, schedule (or: bca setup agent)
 bca check                   # architecture gate for CI
 bca simulate                # battle test: your roles and permission sets against the process tests
+bca view                    # what there is to see: the lenses and stories of the app, in the terminal
 bca export --view report    # docs/atlas/README.md: overview, diagrams, health
 bca export --view handbook  # docs/handbook: events, data, permissions, UI, code health
 bca update                  # new version? see what changed and update everything in one step
@@ -53,6 +54,7 @@ documentation, test, and demonstration. [Guide](./docs/vscode.md)
 | | `bca architecture` | Find a target architecture (components, layers), list every dependency that blocks it with how to resolve it, and enforce it with a shrinking baseline. You decide what the proposal considers (`architecture.proposal`: relation kinds, starting structures, granularity, components you keep, objects you exclude), it says how it was made, and `--explain` says why an object is where it is. [Guide](./docs/clean-architecture.md) |
 | | `bca graph query` | Reuse a saved graph for impact analysis or message migrations without re-analyzing AL; keep IDs, directions, evidence, and metadata. [Guide](./docs/dependency-explorer.md#query-and-render-saved-graphs) |
 | **Export** | `bca export` | Everything the extension shows, as files: the BC Atlas view (a toolbar and the graph, with every lens, finding, and story) as one offline HTML file to share (default), the Markdown report ([example](./examples/report/README.md)), the 3D explorer, one Markdown page per object, any of eleven diagram views as D2, SVG, PNG, PDF, or JSON, with `--watch`, and the project as a knowledge graph in RDF with an OWL ontology ([Turtle, RDF/XML, OWL, N-Triples, JSON-LD](./docs/knowledge-graph.md)). |
+| | `bca view` | The view of the app without a window, for the terminal, pipelines, and agents: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. `bca view --lens data --form diagram -o data.svg`, `bca view --story fix`, `bca view --inside codeunit:50100`. The same code draws the app and writes these files. [Reference](./docs/cli-reference.md#view) |
 | | `bca export --view handbook` | The system handbook: what the app consists of, its events, data (who inserts, modifies, deletes, reads each table), permissions, interfaces, user interface, and code health, across all objects, in English or German, linked to the object catalog. [Guide](./docs/handbook.md), [example](./examples/handbook/README.md) |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations, a flow diagram per scenario, and BPMN 2.0 processes per use case. [Example](./examples/docs/index.md) |
 | | `bca graph render` | Render saved graph selections as SVG, static HTML, DOT, or JSON through the CLI or MCP, locally and without Graphviz. |

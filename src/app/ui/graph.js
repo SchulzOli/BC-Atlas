@@ -541,6 +541,287 @@
     };
   }
 
+  // ------------------------------------------------------------ the picture
+  // Everything a picture needs is in one object, so the canvas of the page
+  // and a drawing made without a browser are the same picture:
+  // { nodes, edges, kinds, labels, visible, shown, form, points, boxes, routes,
+  //   camera, width, height, hover, selected, highlight, rings, sizes, pinned,
+  //   degree, neighbors, look, measure }
+  const shorten = (label) => (String(label).length > 34 ? `${String(label).slice(0, 33)}…` : String(label));
+
+  /** How far the visible nodes reach from the middle of the layout. */
+  function extentOf(v) {
+    const flat = v.form !== "3d";
+    let far = 0;
+    for (let index = 0; index < v.points.length; index++) {
+      if (!v.visible[index]) continue;
+      const { x, y, z } = v.points[index];
+      far = Math.max(far, Math.hypot(x, y, flat ? 0 : z));
+    }
+    return far;
+  }
+
+  /** A point of the layout on the screen: { x, y, scale, depth }. */
+  function projectOn(v, point, distance, view = v.camera) {
+    const cosYaw = Math.cos(view.yaw);
+    const sinYaw = Math.sin(view.yaw);
+    const cosPitch = Math.cos(view.pitch);
+    const sinPitch = Math.sin(view.pitch);
+    const x = point.x * cosYaw + point.z * sinYaw;
+    const back = -point.x * sinYaw + point.z * cosYaw;
+    const y = point.y * cosPitch - back * sinPitch;
+    const depth = point.y * sinPitch + back * cosPitch;
+    const perspective = v.form !== "3d" ? 1 : distance / Math.max(distance + depth, distance * 0.15);
+    const scale = view.zoom * perspective;
+    return { x: v.width / 2 + view.x + x * scale, y: v.height / 2 + view.y + y * scale, scale, depth };
+  }
+
+  const radiusOf = (v, index) => {
+    const value = v.sizes ? v.sizes.values[index] : 0;
+    return 4.5 + (v.sizes && v.sizes.most > 0 ? 11 * Math.sqrt(Math.max(value, 0) / v.sizes.most) : 0);
+  };
+
+  /** What stands out: the node under the pointer, else the highlight, else the selection. */
+  function emphasisOf(v) {
+    if (v.hover >= 0) return { center: v.hover, has: (index) => index === v.hover || v.neighbors[v.hover].has(index) };
+    if (v.highlight) return { has: (index) => v.highlight.has(index) };
+    if (v.selected >= 0) return { center: v.selected, has: (index) => index === v.selected || v.neighbors[v.selected].has(index) };
+    return undefined;
+  }
+
+  /** Moves the camera so that everything visible is in the window. */
+  function frameOn(v) {
+    if (v.form === "diagram") {
+      let left = Infinity;
+      let right = -Infinity;
+      let top = Infinity;
+      let bottom = -Infinity;
+      for (let index = 0; index < v.nodes.length; index++) {
+        const box = v.visible[index] && v.boxes[index];
+        if (!box) continue;
+        left = Math.min(left, box.x - box.w / 2);
+        right = Math.max(right, box.x + box.w / 2);
+        top = Math.min(top, box.y - box.h / 2);
+        bottom = Math.max(bottom, box.y + box.h / 2);
+      }
+      if (left === Infinity) left = right = top = bottom = 0;
+      v.camera.zoom = Math.min(1.4, (v.width - 48) / Math.max(right - left, 1), (v.height - 48) / Math.max(bottom - top, 1));
+      v.camera.x = -((left + right) / 2) * v.camera.zoom;
+      v.camera.y = -((top + bottom) / 2) * v.camera.zoom;
+      return;
+    }
+    v.camera.zoom = Math.min(3, Math.min(v.width, v.height) / 2 / (extentOf(v) * 1.08 + 46));
+    v.camera.x = 0;
+    v.camera.y = 0;
+  }
+
+  /** Draws the picture as it is now through a pen. */
+  function picture(pen, v) {
+    const { look } = v;
+    const flat = v.form !== "3d";
+    pen.clear(v.width, v.height, look.background);
+    const distance = Math.max(extentOf(v) * 3, 400);
+    const boxed = v.form === "diagram";
+    const placed = v.nodes.map((_, index) => (v.visible[index] && (!boxed || v.boxes[index]) ? projectOn(v, boxed ? { x: v.boxes[index].x, y: v.boxes[index].y, z: 0 } : v.points[index], distance) : undefined));
+    const focus = emphasisOf(v);
+    const lit = (index) => !focus || focus.has(index);
+    const depthFade = (item) => (flat ? 1 : Math.max(0.35, Math.min(1, item.scale / v.camera.zoom)));
+
+    // Where a relation meets its nodes: a line, or in the diagram curves from side to side
+    // through the points it passes.
+    const anchors = (edge) => {
+      const from = placed[edge[0]];
+      const to = placed[edge[1]];
+      if (!boxed) return [from.x, from.y, to.x, to.y];
+      const scale = v.camera.zoom;
+      const middle = (v.routes.get(`${edge[0]}>${edge[1]}`) ?? []).map((point) => projectOn(v, { x: point.x, y: point.y, z: 0 }, distance));
+      const next = middle[0] ?? to;
+      const last = middle.at(-1) ?? from;
+      const start = { x: from.x + (next.x >= from.x ? 1 : -1) * (v.boxes[edge[0]].w / 2) * scale, y: from.y };
+      const end = { x: to.x + (last.x <= to.x ? -1 : 1) * (v.boxes[edge[1]].w / 2) * scale, y: to.y };
+      const stops = [start, ...middle, end];
+      const path = [];
+      for (let at = 1; at < stops.length; at++) {
+        const a = stops[at - 1];
+        const b = stops[at];
+        // Leaves and arrives level, also when it has to turn back.
+        const reach = Math.max(22 * scale, Math.abs(b.x - a.x) / 2);
+        const leave = at === 1 ? (next.x >= from.x ? 1 : -1) : Math.sign(b.x - a.x) || 1;
+        const arrive = at === stops.length - 1 ? (last.x <= to.x ? 1 : -1) : Math.sign(b.x - a.x) || 1;
+        path.push(a.x, a.y, a.x + leave * reach, a.y, b.x - arrive * reach, b.y, b.x, b.y);
+      }
+      return path;
+    };
+
+    // Relations: one path per kind, the ones that stand out on top.
+    const many = v.edges.length > 3000;
+    const strong = [];
+    for (let kind = 0; kind < v.kinds.length; kind++) {
+      if (!v.shown[kind]) continue;
+      const path = [];
+      for (const edge of v.edges) {
+        if (edge[2] !== kind || !placed[edge[0]] || !placed[edge[1]]) continue;
+        if (focus && lit(edge[0]) && lit(edge[1]) && (focus.center === undefined || edge[0] === focus.center || edge[1] === focus.center)) {
+          strong.push(edge);
+          continue;
+        }
+        for (const value of anchors(edge)) path.push(value);
+      }
+      const opacity = focus ? 0.1 : many ? 0.16 : boxed ? 0.55 : 0.42;
+      if (boxed) pen.curves(path, v.kinds[kind].color ?? "#64748B", opacity, 1, v.kinds[kind].dash);
+      else pen.lines(path, v.kinds[kind].color ?? "#64748B", opacity, 1, v.kinds[kind].dash);
+    }
+    const arrow = (edge, opacity, weight) => {
+      const color = v.kinds[edge[2]].color ?? "#64748B";
+      const line = anchors(edge);
+      let tipX;
+      let tipY;
+      let ux;
+      let uy;
+      if (boxed) {
+        pen.curves(line, color, opacity, weight, v.kinds[edge[2]].dash);
+        tipX = line.at(-2);
+        tipY = line.at(-1);
+        ux = Math.sign(tipX - line.at(-4)) || 1;
+        uy = 0;
+      } else {
+        const length = Math.hypot(line[2] - line[0], line[3] - line[1]);
+        if (length < 6) return;
+        ux = (line[2] - line[0]) / length;
+        uy = (line[3] - line[1]) / length;
+        const end = radiusOf(v, edge[1]) * Math.min(1.6, Math.max(0.5, placed[edge[1]].scale)) + 2;
+        tipX = line[2] - ux * end;
+        tipY = line[3] - uy * end;
+        pen.lines([line[0], line[1], tipX, tipY], color, opacity, weight, v.kinds[edge[2]].dash);
+      }
+      pen.triangle(tipX, tipY, tipX - ux * 7 - uy * 3.2, tipY - uy * 7 + ux * 3.2, tipX - ux * 7 + uy * 3.2, tipY - uy * 7 - ux * 3.2, color, opacity);
+    };
+    // Few relations get their direction drawn.
+    if (!many && !focus && v.edges.length <= 600) {
+      for (const edge of v.edges) if (v.shown[edge[2]] && placed[edge[0]] && placed[edge[1]]) arrow(edge, boxed ? 0.7 : 0.55, 1);
+    }
+    for (const edge of strong) arrow(edge, 0.95, 1.8);
+
+    // Nodes from the back to the front.
+    const order = [];
+    for (let index = 0; index < placed.length; index++) if (placed[index]) order.push(index);
+    order.sort((a, b) => placed[b].depth - placed[a].depth);
+    const reaches = new Float32Array(v.nodes.length);
+    for (const index of order) {
+      const item = placed[index];
+      const marked = index === v.selected || index === v.hover;
+      const opacity = (lit(index) ? 1 : 0.26) * depthFade(item);
+      const color = v.nodes[index].color ?? "#64748B";
+      if (boxed) {
+        const box = v.boxes[index];
+        const w = box.w * v.camera.zoom;
+        const h = box.h * v.camera.zoom;
+        if (v.rings?.[index]) pen.box(item.x - w / 2 - 3, item.y - h / 2 - 3, w + 6, h + 6, 7 * v.camera.zoom + 3, "none", opacity, v.rings[index].color, v.rings[index].width);
+        pen.box(item.x - w / 2, item.y - h / 2, w, h, 7 * v.camera.zoom, look.surface, opacity, marked ? look.text : color, marked ? 2 : 1.2, color);
+        if (12 * v.camera.zoom >= 5) pen.text(v.labels[index], item.x + 3 * v.camera.zoom, item.y, 12 * v.camera.zoom, look.text, opacity, undefined, look.font, "middle");
+        continue;
+      }
+      const size = Math.max(1.6, radiusOf(v, index) * Math.min(1.6, Math.max(0.5, item.scale)));
+      reaches[index] = size;
+      if (v.rings?.[index]) pen.ring(item.x, item.y, size + 3.5, v.rings[index].color, opacity, v.rings[index].width);
+      // A ring of the surface keeps overlapping v.nodes apart.
+      pen.circle(item.x, item.y, size, color, opacity, marked ? look.text : look.background, index === v.selected ? 2.5 : 1);
+      if (v.pinned.has(index) && size > 4) pen.circle(item.x, item.y, Math.max(1.2, size * 0.3), look.background, 1);
+    }
+
+    // Names: what stands out first, then the best connected, where there is room.
+    if (!boxed) {
+      const wanted = [];
+      if (focus) wanted.push(...order.filter(lit).sort((a, b) => (b === focus.center) - (a === focus.center) || v.degree[b] - v.degree[a]));
+      else wanted.push(...order.slice().sort((a, b) => v.degree[b] - v.degree[a] || radiusOf(v, b) - radiusOf(v, a)));
+      const taken = [];
+      for (const index of wanted) {
+        if (taken.length >= MAX_LABELS) break;
+        const item = placed[index];
+        if (item.x < -40 || item.x > v.width + 40 || item.y < 0 || item.y > v.height) continue;
+        const reach = reaches[index] + 4;
+        const textWidth = v.measure(v.labels[index]);
+        const overlaps = (box) => taken.some((other) => box.x < other.x + other.w + 4 && box.x + box.w + 4 > other.x && box.y < other.y + other.h && box.y + box.h > other.y);
+        // To the right of the node, or to its left when that is taken.
+        let box = { x: item.x + reach, y: item.y - 8, w: textWidth, h: 16 };
+        if (overlaps(box)) {
+          const other = { x: item.x - reach - textWidth, y: item.y - 8, w: textWidth, h: 16 };
+          if (!overlaps(other)) box = other;
+        }
+        // A small graph names every node; what stands out always names itself.
+        const forced = order.length <= 30 || (focus && taken.length < 24);
+        if (!forced && overlaps(box)) continue;
+        taken.push(box);
+        pen.text(v.labels[index], box.x, item.y, 12, look.text, focus ? 1 : Math.max(0.6, depthFade(item)), look.background, look.font);
+      }
+    }
+    return placed;
+  }
+
+  const boxWidthOf = (textWidth) => Math.min(260, Math.max(64, textWidth + 30));
+
+  /**
+   * A picture without a page: the scene laid out and drawn as SVG. The same
+   * layouts and the same picture as on the canvas, settled before it is
+   * drawn, so the same scene gives the same drawing every time.
+   * @param scene { title, nodes: [{ label, group, color }], edges, kinds, groups }
+   * @param options { form: "2d" | "diagram" | "3d", width, height, visible, shown, highlight, rings, sizes, selected,
+   *   look: { background, surface, text, muted, font }, measure: (text) => width of the text at 12px }
+   * @returns an SVG document as text
+   */
+  function drawing(scene, { form = "2d", width = 1440, height = 900, visible, shown, highlight, rings, sizes, selected = -1, look, measure } = {}) {
+    const { nodes, edges, kinds } = scene;
+    const v = {
+      nodes,
+      edges,
+      kinds,
+      labels: nodes.map(({ label }) => shorten(label)),
+      visible: visible ?? new Uint8Array(nodes.length).fill(1),
+      shown: shown?.length ? shown : new Uint8Array(Math.max(kinds.length, 1)).fill(1),
+      form,
+      points: seed(nodes, scene.groups?.length ?? 1),
+      boxes: [],
+      routes: new Map(),
+      camera: { yaw: form === "3d" ? 0.6 : 0, pitch: form === "3d" ? 0.35 : 0, zoom: 1, x: 0, y: 0 },
+      width,
+      height,
+      hover: -1,
+      selected,
+      highlight: highlight?.size ? highlight : undefined,
+      rings,
+      sizes: sizes ? { values: sizes, most: Math.max(...sizes, 0) } : undefined,
+      pinned: new Set(),
+      degree: new Uint32Array(nodes.length),
+      neighbors: nodes.map(() => new Set()),
+      look: { background: "#ffffff", surface: "#ffffff", text: "#141414", muted: "#6b6b6b", font: "sans-serif", ...look },
+      measure: measure ?? ((text) => String(text).length * 6.4)
+    };
+    for (const [from, to, kind] of edges) {
+      if (!v.visible[from] || !v.visible[to] || !v.shown[kind]) continue;
+      v.neighbors[from].add(to);
+      v.neighbors[to].add(from);
+      v.degree[from]++;
+      v.degree[to]++;
+    }
+    if (form === "diagram") Object.assign(v, layered(nodes, edges, v.visible, v.shown, (index) => boxWidthOf(v.measure(v.labels[index]))));
+    else {
+      const next = random(nodes.length + edges.length * 7);
+      const flat = form !== "3d";
+      if (!flat) for (const point of v.points) if (Math.abs(point.z) < 1) point.z = (next() - 0.5) * LINK * 2;
+      // Until the layout has settled; fewer steps for very many nodes.
+      const turns = nodes.length > 4000 ? 120 : nodes.length > 1500 ? 220 : 420;
+      let alpha = 1;
+      for (let turn = 0; turn < turns; turn++) {
+        step(v.points, nodes, edges, v.visible, v.shown, alpha, flat, v.pinned, next);
+        alpha *= 0.985;
+      }
+    }
+    frameOn(v);
+    const parts = [];
+    picture(svgPen(parts), v);
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.round(width)} ${Math.round(height)}" width="${Math.round(width)}" height="${Math.round(height)}" role="img" aria-label="${String(scene.title ?? "Graph").replace(/[&<>"]/gu, "")}">${parts.join("")}</svg>`;
+  }
+
   /**
    * @param container the element that gets the canvas
    * @param scene { title, nodes: [{ label, group, color }], edges: [[from, to, kind, weight]], kinds: [{ kind, color, dash }], groups }
@@ -582,8 +863,10 @@
     let touched = false;
     const neighbors = nodes.map(() => new Set());
     const degree = new Uint32Array(nodes.length);
-    const labels = nodes.map((node) => (String(node.label).length > 34 ? `${String(node.label).slice(0, 33)}…` : String(node.label)));
+    const labels = nodes.map(({ label }) => shorten(label));
     const diagram = () => form === "diagram";
+    /** The picture as it is now (see picture). */
+    const state = () => ({ nodes, edges, kinds, labels, visible, shown, form, points, boxes, routes, camera, width, height, hover, selected, highlight, rings, sizes, pinned, degree, neighbors });
 
     function connect() {
       for (const set of neighbors) set.clear();
@@ -609,49 +892,18 @@
       };
     }
 
-    const boxWidth = (index) => {
+    const measure = (text) => {
       context.font = `12px ${theme().font}`;
-      return Math.min(260, Math.max(64, context.measureText(labels[index]).width + 30));
+      return context.measureText(text).width;
     };
+    const boxWidth = (index) => boxWidthOf(measure(labels[index]));
     function arrange() {
       ({ boxes, routes } = layered(nodes, edges, visible, shown, boxWidth));
     }
     const place = (index) => (diagram() ? { x: boxes[index].x, y: boxes[index].y, z: 0 } : points[index]);
 
-    const extent = () => {
-      let far = 0;
-      for (let index = 0; index < points.length; index++) {
-        if (!visible[index]) continue;
-        const { x, y, z } = points[index];
-        far = Math.max(far, Math.hypot(x, y, flat ? 0 : z));
-      }
-      return far;
-    };
-
-    function frameAll() {
-      if (diagram()) {
-        let left = Infinity;
-        let right = -Infinity;
-        let top = Infinity;
-        let bottom = -Infinity;
-        for (let index = 0; index < nodes.length; index++) {
-          const box = visible[index] && boxes[index];
-          if (!box) continue;
-          left = Math.min(left, box.x - box.w / 2);
-          right = Math.max(right, box.x + box.w / 2);
-          top = Math.min(top, box.y - box.h / 2);
-          bottom = Math.max(bottom, box.y + box.h / 2);
-        }
-        if (left === Infinity) left = right = top = bottom = 0;
-        camera.zoom = Math.min(1.4, (width - 48) / Math.max(right - left, 1), (height - 48) / Math.max(bottom - top, 1));
-        camera.x = -((left + right) / 2) * camera.zoom;
-        camera.y = -((top + bottom) / 2) * camera.zoom;
-        return;
-      }
-      camera.zoom = Math.min(3, Math.min(width, height) / 2 / (extent() * 1.08 + 46));
-      camera.x = 0;
-      camera.y = 0;
-    }
+    const extent = () => extentOf(state());
+    const frameAll = () => frameOn(state());
     function fit() {
       touched = false;
       glide = undefined;
@@ -659,176 +911,11 @@
       redraw();
     }
 
-    /** A point of the layout on the screen: { x, y, scale, depth }. */
-    function project(point, distance, view = camera) {
-      const cosYaw = Math.cos(view.yaw);
-      const sinYaw = Math.sin(view.yaw);
-      const cosPitch = Math.cos(view.pitch);
-      const sinPitch = Math.sin(view.pitch);
-      const x = point.x * cosYaw + point.z * sinYaw;
-      const back = -point.x * sinYaw + point.z * cosYaw;
-      const y = point.y * cosPitch - back * sinPitch;
-      const depth = point.y * sinPitch + back * cosPitch;
-      const perspective = flat ? 1 : distance / Math.max(distance + depth, distance * 0.15);
-      const scale = view.zoom * perspective;
-      return { x: width / 2 + view.x + x * scale, y: height / 2 + view.y + y * scale, scale, depth };
-    }
-
-    const radius = (index) => {
-      const value = sizes ? sizes.values[index] : 0;
-      return 4.5 + (sizes && sizes.most > 0 ? 11 * Math.sqrt(Math.max(value, 0) / sizes.most) : 0);
-    };
-
-    /** What stands out: the node under the pointer, else the highlight, else the selection. */
-    function emphasis() {
-      if (hover >= 0) return { center: hover, has: (index) => index === hover || neighbors[hover].has(index) };
-      if (highlight) return { has: (index) => highlight.has(index) };
-      if (selected >= 0) return { center: selected, has: (index) => index === selected || neighbors[selected].has(index) };
-      return undefined;
-    }
+    const project = (point, distance, view = camera) => projectOn(state(), point, distance, view);
+    const radius = (index) => radiusOf({ sizes }, index);
 
     /** Draws the picture as it is now through a pen. */
-    function paint(pen) {
-      const look = theme();
-      pen.clear(width, height, look.background);
-      const distance = Math.max(extent() * 3, 400);
-      const boxed = diagram();
-      const placed = nodes.map((_, index) => (visible[index] && (!boxed || boxes[index]) ? project(place(index), distance) : undefined));
-      const focus = emphasis();
-      const lit = (index) => !focus || focus.has(index);
-      const depthFade = (item) => (flat ? 1 : Math.max(0.35, Math.min(1, item.scale / camera.zoom)));
-
-      // Where a relation meets its nodes: a line, or in the diagram curves from side to side
-      // through the points it passes.
-      const anchors = (edge) => {
-        const from = placed[edge[0]];
-        const to = placed[edge[1]];
-        if (!boxed) return [from.x, from.y, to.x, to.y];
-        const scale = camera.zoom;
-        const middle = (routes.get(`${edge[0]}>${edge[1]}`) ?? []).map((point) => project({ x: point.x, y: point.y, z: 0 }, distance));
-        const next = middle[0] ?? to;
-        const last = middle.at(-1) ?? from;
-        const start = { x: from.x + (next.x >= from.x ? 1 : -1) * (boxes[edge[0]].w / 2) * scale, y: from.y };
-        const end = { x: to.x + (last.x <= to.x ? -1 : 1) * (boxes[edge[1]].w / 2) * scale, y: to.y };
-        const stops = [start, ...middle, end];
-        const path = [];
-        for (let at = 1; at < stops.length; at++) {
-          const a = stops[at - 1];
-          const b = stops[at];
-          // Leaves and arrives level, also when it has to turn back.
-          const reach = Math.max(22 * scale, Math.abs(b.x - a.x) / 2);
-          const leave = at === 1 ? (next.x >= from.x ? 1 : -1) : Math.sign(b.x - a.x) || 1;
-          const arrive = at === stops.length - 1 ? (last.x <= to.x ? 1 : -1) : Math.sign(b.x - a.x) || 1;
-          path.push(a.x, a.y, a.x + leave * reach, a.y, b.x - arrive * reach, b.y, b.x, b.y);
-        }
-        return path;
-      };
-
-      // Relations: one path per kind, the ones that stand out on top.
-      const many = edges.length > 3000;
-      const strong = [];
-      for (let kind = 0; kind < kinds.length; kind++) {
-        if (!shown[kind]) continue;
-        const path = [];
-        for (const edge of edges) {
-          if (edge[2] !== kind || !placed[edge[0]] || !placed[edge[1]]) continue;
-          if (focus && lit(edge[0]) && lit(edge[1]) && (focus.center === undefined || edge[0] === focus.center || edge[1] === focus.center)) {
-            strong.push(edge);
-            continue;
-          }
-          for (const value of anchors(edge)) path.push(value);
-        }
-        const opacity = focus ? 0.1 : many ? 0.16 : boxed ? 0.55 : 0.42;
-        if (boxed) pen.curves(path, kinds[kind].color ?? "#64748B", opacity, 1, kinds[kind].dash);
-        else pen.lines(path, kinds[kind].color ?? "#64748B", opacity, 1, kinds[kind].dash);
-      }
-      const arrow = (edge, opacity, weight) => {
-        const color = kinds[edge[2]].color ?? "#64748B";
-        const line = anchors(edge);
-        let tipX;
-        let tipY;
-        let ux;
-        let uy;
-        if (boxed) {
-          pen.curves(line, color, opacity, weight, kinds[edge[2]].dash);
-          tipX = line.at(-2);
-          tipY = line.at(-1);
-          ux = Math.sign(tipX - line.at(-4)) || 1;
-          uy = 0;
-        } else {
-          const length = Math.hypot(line[2] - line[0], line[3] - line[1]);
-          if (length < 6) return;
-          ux = (line[2] - line[0]) / length;
-          uy = (line[3] - line[1]) / length;
-          const end = radius(edge[1]) * Math.min(1.6, Math.max(0.5, placed[edge[1]].scale)) + 2;
-          tipX = line[2] - ux * end;
-          tipY = line[3] - uy * end;
-          pen.lines([line[0], line[1], tipX, tipY], color, opacity, weight, kinds[edge[2]].dash);
-        }
-        pen.triangle(tipX, tipY, tipX - ux * 7 - uy * 3.2, tipY - uy * 7 + ux * 3.2, tipX - ux * 7 + uy * 3.2, tipY - uy * 7 - ux * 3.2, color, opacity);
-      };
-      // Few relations get their direction drawn.
-      if (!many && !focus && edges.length <= 600) {
-        for (const edge of edges) if (shown[edge[2]] && placed[edge[0]] && placed[edge[1]]) arrow(edge, boxed ? 0.7 : 0.55, 1);
-      }
-      for (const edge of strong) arrow(edge, 0.95, 1.8);
-
-      // Nodes from the back to the front.
-      const order = [];
-      for (let index = 0; index < placed.length; index++) if (placed[index]) order.push(index);
-      order.sort((a, b) => placed[b].depth - placed[a].depth);
-      const reaches = new Float32Array(nodes.length);
-      for (const index of order) {
-        const item = placed[index];
-        const marked = index === selected || index === hover;
-        const opacity = (lit(index) ? 1 : 0.26) * depthFade(item);
-        const color = nodes[index].color ?? "#64748B";
-        if (boxed) {
-          const box = boxes[index];
-          const w = box.w * camera.zoom;
-          const h = box.h * camera.zoom;
-          if (rings?.[index]) pen.box(item.x - w / 2 - 3, item.y - h / 2 - 3, w + 6, h + 6, 7 * camera.zoom + 3, "none", opacity, rings[index].color, rings[index].width);
-          pen.box(item.x - w / 2, item.y - h / 2, w, h, 7 * camera.zoom, look.surface, opacity, marked ? look.text : color, marked ? 2 : 1.2, color);
-          if (12 * camera.zoom >= 5) pen.text(labels[index], item.x + 3 * camera.zoom, item.y, 12 * camera.zoom, look.text, opacity, undefined, look.font, "middle");
-          continue;
-        }
-        const size = Math.max(1.6, radius(index) * Math.min(1.6, Math.max(0.5, item.scale)));
-        reaches[index] = size;
-        if (rings?.[index]) pen.ring(item.x, item.y, size + 3.5, rings[index].color, opacity, rings[index].width);
-        // A ring of the surface keeps overlapping nodes apart.
-        pen.circle(item.x, item.y, size, color, opacity, marked ? look.text : look.background, index === selected ? 2.5 : 1);
-        if (pinned.has(index) && size > 4) pen.circle(item.x, item.y, Math.max(1.2, size * 0.3), look.background, 1);
-      }
-
-      // Names: what stands out first, then the best connected, where there is room.
-      if (!boxed) {
-        const wanted = [];
-        if (focus) wanted.push(...order.filter(lit).sort((a, b) => (b === focus.center) - (a === focus.center) || degree[b] - degree[a]));
-        else wanted.push(...order.slice().sort((a, b) => degree[b] - degree[a] || radius(b) - radius(a)));
-        const taken = [];
-        context.font = `12px ${look.font}`;
-        for (const index of wanted) {
-          if (taken.length >= MAX_LABELS) break;
-          const item = placed[index];
-          if (item.x < -40 || item.x > width + 40 || item.y < 0 || item.y > height) continue;
-          const reach = reaches[index] + 4;
-          const textWidth = context.measureText(labels[index]).width;
-          const overlaps = (box) => taken.some((other) => box.x < other.x + other.w + 4 && box.x + box.w + 4 > other.x && box.y < other.y + other.h && box.y + box.h > other.y);
-          // To the right of the node, or to its left when that is taken.
-          let box = { x: item.x + reach, y: item.y - 8, w: textWidth, h: 16 };
-          if (overlaps(box)) {
-            const other = { x: item.x - reach - textWidth, y: item.y - 8, w: textWidth, h: 16 };
-            if (!overlaps(other)) box = other;
-          }
-          // A small graph names every node; what stands out always names itself.
-          const forced = order.length <= 30 || (focus && taken.length < 24);
-          if (!forced && overlaps(box)) continue;
-          taken.push(box);
-          pen.text(labels[index], box.x, item.y, 12, look.text, focus ? 1 : Math.max(0.6, depthFade(item)), look.background, look.font);
-        }
-      }
-      return placed;
-    }
+    const paint = (pen) => picture(pen, { ...state(), look: theme(), measure });
 
     function draw(time) {
       frame = 0;
@@ -1161,5 +1248,5 @@
     };
   }
 
-  root.BCA_GRAPH = { create, seed, step, random, layered };
+  root.BCA_GRAPH = { create, drawing, seed, step, random, layered };
 })(globalThis);

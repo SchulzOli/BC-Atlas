@@ -315,9 +315,11 @@ test("the app is one view: a toolbar and the graph", () => {
   assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "view", "export", "sync"]);
   // What floats on the graph starts hidden: the legend, the selected node, the story.
   for (const id of ["legend", "inspector", "story"]) assert.match(body, new RegExp(`id="${id}" class="float"[^>]* hidden>`, "u"));
-  assert.match(html, /root\.BCA_GRAPH = \{ create, seed, step, random, layered \}/u, "the graph is part of the file");
+  assert.match(html, /root\.BCA_GRAPH = \{ create, drawing, seed, step, random, layered \}/u, "the graph is part of the file");
+  // What shows and how it reads as text is one module, shared with `bca view` (test/view.test.js).
+  assert.ok(html.indexOf("root.BCA_SCENE = {") > html.indexOf("root.BCA_GRAPH = {") && html.indexOf("const S = BCA_SCENE;") > html.indexOf("root.BCA_SCENE = {"), "graph, scene, then the view");
   // The whole state of the view is in its address, and the editor hears of it.
-  assert.match(html, /const DEFAULTS = \{ lens: "system", form: "2d", q: "", sel: ""/u);
+  assert.match(html, /const DEFAULTS = Object\.freeze\(\{ lens: "system", form: "2d", q: "", sel: ""/u);
   assert.match(html, /vscode\.postMessage\(\{ type: "state", lens: state\.lens, story: state\.story \}\)/u);
   // Everything that shows can be saved.
   for (const format of ["png", "svg", "json", "nodes", "relations", "lens", "docs", "link"]) assert.ok(html.includes(`["${format}", "`), `export: ${format}`);

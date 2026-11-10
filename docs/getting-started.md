@@ -114,6 +114,7 @@ let Dependabot propose updates instead. See
 | I want to | Command | Read |
 | --- | --- | --- |
 | See one object and its neighbors | Select it in the BC Atlas view and choose **Neighbors**, or `bca export --view object --object codeunit:50100 -o object.svg` | [Architecture diagrams](./architecture-diagrams.md) |
+| Look at any part of the app without a window | `bca view --lens data`, `bca view --inside codeunit:50100`, `bca view --story fix` | [CLI reference](./cli-reference.md#view) |
 | Trace what happens after an action | `bca export --view workflow --entry action:Release -o flow.svg` | [Architecture diagrams](./architecture-diagrams.md) |
 | Split a large app into smaller ones | Components lens in VS Code, or `bca architecture --propose` | [Clean architecture](./clean-architecture.md) |
 | Keep a diagram file current while coding | `bca export --view module -o modules.svg --watch` | [CLI reference](./cli-reference.md#export) |

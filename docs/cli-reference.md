@@ -24,6 +24,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Analyze | `refactor move` | Move an AL object to another component, with its file, namespace, and the usings of referencing files. |
 | Analyze | `refactor surface` | Lock the public surface of components: `Access = Internal` for what nobody outside uses, `exposes` for what others use. |
 | Export | `export` | Write files: the BC Atlas view as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, the system handbook, a diagram, or the resolved model as JSON. |
+| Export | `view` | The BC Atlas view without a window: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. |
 | Export | `docs list` | List documented UI-test scenarios. |
 | Export | `docs show` | Show one scenario, its prerequisites, and its diagnostics. |
 | Export | `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
@@ -552,6 +553,85 @@ dispatch and collapsed paths are labelled `inferred`.
 | `--strict` | flag | Fail when analysis produces warning or error diagnostics. |
 | `--compiler` | mode | `auto`, `off`, or a path: the AL compiler resolves calls for the call and workflow views and the explorer. See [AL toolchain](./al-toolchain.md). Default: `auto`. |
 | `--compiler-log` | path | Import diagnostics from an AL compiler error log file or folder. |
+
+### `view`
+
+```text
+bca view [app-root] [--lens <id> | --story <id> | --inside <object>] [--form <form>] [-f <format>] [-o <path>] [options]
+```
+
+The BC Atlas view without a window. Everything BC Atlas reads from the AL
+source is one graph, and the app shows it with a toolbar
+([The BC Atlas view](./vscode.md#the-bc-atlas-view)). `bca view` does what
+that toolbar does, from a terminal, a pipeline, or an agent: one
+implementation draws the page and writes these files, so they always agree.
+
+```sh
+bca view ./app                                            # what there is to see: lenses, stories, sources
+bca view ./app --lens data                                # the Data lens as text: nodes by group, what each does
+bca view ./app --lens health --check                      # the findings with their fixes, on the objects they are about
+bca view ./app --lens data --form diagram -o data.svg     # the same lens as a picture
+bca view ./app --inside codeunit:50100 --form diagram -o posting.png
+bca view ./app --focus "table:Sales Header" --depth 2 --format json
+bca view ./app --story fix                                # a story, step by step
+bca view ./app --stories -o docs/system.md                # every story as one document
+bca view ./app --lens system --rows relations -o relations.csv
+bca view ./app --format json > atlas.json                 # the whole graph
+```
+
+| In the app | `bca view` |
+| --- | --- |
+| Lens | `--lens` |
+| 2D, Diagram, 3D | `--form 2d`, `diagram`, `3d` (for `svg` and `png`) |
+| Find | `--find` |
+| Check | `--check` |
+| Story, and a step of it | `--story`, `--step`; `--stories` for all |
+| Double-click an object | `--inside` |
+| Neighbors on a node | `--focus`, `--depth` |
+| The legend: hide a kind of node or relation | `--hide`, `--off` |
+| View: color, size, group | `--color`, `--size`, `--group` |
+| Click a node | `--select` (in a picture), or `--focus` |
+| Export: Picture, Drawing | `--format png`, `svg` |
+| Export: Graph | `--format json` |
+| Export: Nodes, Relations | `--format csv`, `--rows nodes` or `relations` |
+| Export: This lens, Documentation | `--format md`; with `--stories` |
+| Export: Link | `--format link`: the address that opens this view in the app |
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--lens` | id | What the graph shows: `system` (default), `components`, `apps`, `modules`, `data`, `calls`, `events`, `contracts`, `pages`, `security`, `visibility`, `health`, `processes`, `people`, `requirements`. A lens with nothing in it does not exist for a project. |
+| `--inside` | object | Open one object: its procedures, triggers, and events as nodes, and what each does with other objects. A name, an ID, or a selector such as `codeunit:50100`. |
+| `--focus` | node | Only this node and what is near it. A name, an ID, or a selector such as `table:Customer`, `component:Core`, or `person:Anna`. |
+| `--depth` | n | How many steps from the `--focus` node. Default: `1`. |
+| `--find` | text | In a picture, the nodes whose name, type, component, namespace, or ID match stand out; a list holds only them. |
+| `--hide` | kinds | Kinds of node to leave out, as the legend names them (`codeunit`, `table`, `other apps`), comma-separated or repeated. |
+| `--off` | kinds | Kinds of relation to leave out (`uses`, `reads`, `permits`), comma-separated or repeated. |
+| `--check` | flag | In a picture, a ring on every node with a finding; in text, the findings with their fixes below each node. |
+| `--story` | id | A story instead of a lens: its steps with their texts. The overview lists the stories of the project. |
+| `--step` | n | One step of the `--story`, from 1: its nodes, in its lens. |
+| `--stories` | flag | Every story of the system as one document (`text`, `md`, or `json`). |
+| `--form` | form | The form of a picture: `2d` (default), `diagram`, or `3d`. |
+| `--color` | by | Color the nodes by `type`, `component`, `namespace`, `app`, `level`, or `findings` instead of what the lens does. |
+| `--size` | by | Size the nodes by `relations`, `usedBy`, `uses`, `lines`, `complexity`, `objects`, or `findings`. |
+| `--group` | by | Hold the nodes together by `component`, `namespace`, `app`, `kind`, or `none`. |
+| `--select` | node | The selected node of a picture: it and its relations stand out. |
+| `--theme` | theme | Colors of a picture: `light` (default) or `dark`. |
+| `--width`, `--height` | px | Size of a picture. Default: 1440 × 900. |
+| `-f`, `--format` | format | `text` (default), `json`, `md`, `csv`, `svg`, `png`, or `link`. Inferred from the extension of `--output`. |
+| `--rows` | rows | `csv`: one row per node (`nodes`, default) or per relation (`relations`). |
+| `-o`, `--output` | path | Write to this file instead of stdout. A PNG needs it. |
+| `--project-root` | path | Analyze this app or multi-app workspace; the positional path becomes the focus. |
+| `--config` | path | Configuration file. Default: `<app-root>/.bca.json` when present. |
+| `--compiler` | mode | `auto`, `off`, or a path. See [AL toolchain](./al-toolchain.md). |
+| `--compiler-log` | path | Import diagnostics from an AL compiler error log file or folder. |
+| `--paths` | glob | Only analyze AL files below these project-relative folders or globs. |
+
+- Without a lens, a story, or an object, `text` prints the overview and
+  `json` the whole atlas: every node, relation, lens, finding, and story.
+- The same options give the same output every time, also for pictures. SVG
+  and PNG are drawn by BC Atlas itself, without a browser.
+- Text, JSON, CSV, and Markdown hold what shows: what `--hide`, `--off`,
+  `--find`, and `--focus` leave.
 
 ### `docs` commands
 

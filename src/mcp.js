@@ -11,8 +11,10 @@ import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import * as z from "zod/v4";
 
 import { createArchitectureModel } from "./architecture.js";
-import { createCapabilities, FAIL_LEVELS, REPORT_VIEWS, VIEWS as VIEW_CATALOG } from "./capabilities.js";
+import { createCapabilities, FAIL_LEVELS, REPORT_VIEWS, VIEW_FORMATS, VIEW_FORMS, VIEW_LENSES, VIEWS as VIEW_CATALOG } from "./capabilities.js";
 import { runHealthCheck } from "./commands/check.js";
+import { writeView } from "./commands/view.js";
+import { viewOverview } from "./app/view.js";
 import { runAutomation } from "./automation/run.js";
 import { applySetup, createPlan } from "./automation/setup.js";
 import { checkForUpdate } from "./commands/update.js";
@@ -337,6 +339,49 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
     const { pages, objects } = await renderHandbook(input, values);
     const selected = page ? pages.filter(({ file }) => file === `${page}.md`) : pages;
     return { objects, pages: selected.map(({ file, title, content }) => ({ page: file.replace(/\.md$/u, ""), title, markdown: content })) };
+  }));
+
+  server.registerTool("bc_atlas_view", {
+    description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, components, namespaces, objects, health rules, process tests, people, requirements, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (system, components, data, calls, events, health, processes, people, ...) returns that part of the graph: nodes with their facts and findings, and relations. inside opens one object into its procedures and what each does; focus returns a node and what is near it; story returns a generated walk through the graph (what the system is, a process step by step, what to fix). format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      compiler: projectFields.compiler,
+      paths: z.array(z.string()).optional().describe("Only analyze AL files below these project-relative folders or globs"),
+      lens: z.enum(VIEW_LENSES).optional().describe("The part of the graph to return; processes, people, requirements need documented UI tests, health a finding"),
+      inside: z.string().optional().describe("Open this object: codeunit:50100, table:Sales Header, or a name"),
+      focus: z.string().optional().describe("Only this node and what is near it: a name, an ID, or a selector such as table:Customer or person:Anna"),
+      depth: z.number().int().positive().optional().describe("Steps from the focus node (default 1)"),
+      find: z.string().optional().describe("Only nodes whose name, type, component, namespace, or ID match (in a picture they stand out)"),
+      hide: z.array(z.string()).optional().describe("Kinds of node to leave out: codeunit, table, other apps, ..."),
+      off: z.array(z.string()).optional().describe("Kinds of relation to leave out: uses, reads, permits, ..."),
+      check: z.boolean().optional().describe("Text: the findings with their fixes below each node. Picture: a ring on every node with a finding"),
+      story: z.string().optional().describe("A story by id (system, fix, architecture, people, process:<use case>)"),
+      step: z.number().int().positive().optional().describe("One step of the story, from 1: the nodes it is about"),
+      stories: z.boolean().optional().describe("Every story as one document"),
+      form: z.enum(VIEW_FORMS).optional().describe("Form of a picture (default 2d)"),
+      color: z.enum(["type", "component", "namespace", "app", "level", "findings"]).optional(),
+      size: z.enum(["relations", "usedBy", "uses", "lines", "complexity", "objects", "findings"]).optional(),
+      group: z.enum(["component", "namespace", "app", "kind", "none"]).optional(),
+      select: z.string().optional().describe("The selected node of a picture"),
+      theme: z.enum(["light", "dark"]).optional(),
+      width: z.number().int().optional(),
+      height: z.number().int().optional(),
+      format: z.enum(VIEW_FORMATS).optional().describe("json (default), text, md, csv, link; svg and png need output"),
+      rows: z.enum(["nodes", "relations"]).optional().describe("csv: one row per node or per relation"),
+      output: z.string().min(1).optional().describe("Write to this file; its extension selects the format when format is omitted")
+    }),
+    annotations: { idempotentHint: true }
+  }, tool(async ({ path: input, ...values }) => {
+    const asked = ["lens", "inside", "focus", "story", "stories", "find", "select", "hide", "off"].some((name) => values[name] !== undefined && values[name] !== false);
+    const format = values.format ?? (values.output ? undefined : "json");
+    if ((format === "svg" || format === "png") && !values.output) throw new Error(`a ${format} picture needs output, the file to write`);
+    const { content, output, scene, atlas, format: written } = await writeView(input, { ...values, format });
+    if (output) return { output, format: written, project: atlas.title, ...(scene ? { title: scene.title, nodes: scene.entries.length, relations: scene.edges.length } : {}) };
+    // What there is to see, and not every node of the project at once.
+    if (!asked && written === "json") return viewOverview(atlas);
+    return written === "json" ? JSON.parse(content) : content;
   }));
 
   server.registerTool("bc_atlas_simulate", {

@@ -216,7 +216,27 @@ BC Atlas works next to Microsoft's AL Language extension and uses it:
 
 See [AL toolchain](./al-toolchain.md).
 
-## Share it without VS Code
+## Without VS Code, and without a window
+
+Nothing in the view needs a window. `bca view` does what the toolbar does,
+from a terminal, a pipeline, or an agent, with the same code that draws the
+page:
+
+```sh
+bca view ./app                                         # the lenses and stories of the app
+bca view ./app --lens data --form diagram -o data.svg  # a lens as a picture
+bca view ./app --lens health --check                   # the findings on the objects, as text
+bca view ./app --inside codeunit:50100                 # an object from the inside
+bca view ./app --story fix                             # a story, step by step
+bca view ./app --stories -o docs/system.md             # every story as one document
+bca view ./app --format json > atlas.json              # the whole graph
+```
+
+Every control of the toolbar has an option, and every export a format; see
+[`bca view`](./cli-reference.md#view). Agents use the same through the MCP
+tool `bc_atlas_view` ([Agent integration](./agent-integration.md)).
+
+To hand the view itself to someone:
 
 ```sh
 bca export ./app -o atlas.html

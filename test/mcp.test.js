@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -80,7 +81,8 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_setup_plan",
         "bc_atlas_simulate",
         "bc_atlas_sync_status",
-        "bc_atlas_update_check"
+        "bc_atlas_update_check",
+        "bc_atlas_view"
       ]
     );
 
@@ -116,6 +118,28 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     assert.deepEqual(simulation.agents.map(({ name }) => name), ["Ben"], "agent returns one agent's details");
     assert.deepEqual(simulation.agents[0].attempts.find(({ outcome }) => outcome === "blocked").missingPermissions, ['codeunit "Request Notifications" = X']);
     assert.ok(simulation.tasks.every(({ steps }) => steps === undefined), "process tests are listed; their steps come with task");
+    // The view without a window: what there is to see, a lens, an opened object, a story, a picture.
+    const view = async (args) => client.callTool({ name: "bc_atlas_view", arguments: { path: path.join(root, "examples", "purchasing-app"), ...args } });
+    const overview = JSON.parse((await view({})).content[0].text);
+    assert.deepEqual(overview.lenses.slice(-3).map(({ id, nodes }) => [id, nodes]), [["processes", 15], ["people", 14], ["requirements", 11]]);
+    assert.equal(overview.nodes, undefined, "not every node of the project at once");
+    const people = JSON.parse((await view({ lens: "people", focus: "person:Ben" })).content[0].text);
+    assert.ok(people.relations.some(({ kind }) => kind === "blocked"));
+    assert.equal(people.nodes.find(({ label }) => label === "Ben (Team lead)").findings[0].rule, "task-blocked");
+    assert.match((await view({ inside: "codeunit:50220", format: "text" })).content[0].text, /^BC Atlas Purchasing Example: Inside Purchase Request Mgt\./u);
+    assert.equal(JSON.parse((await view({ story: "fix" })).content[0].text).steps.length, 4);
+    const picture = path.join(os.tmpdir(), `bc-atlas-mcp-view-${process.pid}.svg`);
+    try {
+      const written = JSON.parse((await view({ lens: "data", form: "diagram", output: picture })).content[0].text);
+      assert.deepEqual({ format: written.format, title: written.title, nodes: written.nodes }, { format: "svg", title: "Data", nodes: 7 });
+      assert.match(readFileSync(picture, "utf8"), /^<svg /u);
+    } finally {
+      rmSync(picture, { force: true });
+    }
+    const noFile = await view({ lens: "data", format: "png" });
+    assert.equal(noFile.isError, true);
+    assert.match(noFile.content[0].text, /a png picture needs output/u);
+
     const unknownAgent = await client.callTool({
       name: "bc_atlas_simulate",
       arguments: { path: path.join(root, "examples", "purchasing-app"), agent: "Nobody" }
