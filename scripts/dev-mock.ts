@@ -31,10 +31,10 @@ const receiver = await startEventReceiver({
 
 const admin = generateApiKey('demo-admin', ['bc.read', 'bc.write', 'bc.delete', 'events.read', 'mcp.use', 'metrics.read', 'admin']);
 const reader = generateApiKey('demo-reader', ['bc.read', 'events.read', 'mcp.use']);
-// Least-privilege key for Claude (bc-claude MCP server): read + write, no delete, no admin.
-const claude = generateApiKey('claude', ['bc.read', 'bc.write', 'events.read']);
-const claudeKeyFile = fileURLToPath(new URL('../.dev-claude-key', import.meta.url));
-writeFileSync(claudeKeyFile, `${claude.key}\n`, { mode: 0o600 });
+// Least-privilege key for AI agents (bc-mcp server – Claude, Codex, Copilot …): read + write, no delete, no admin.
+const agent = generateApiKey('ai-agent', ['bc.read', 'bc.write', 'events.read']);
+const agentKeyFile = fileURLToPath(new URL('../.dev-agent-key', import.meta.url));
+writeFileSync(agentKeyFile, `${agent.key}\n`, { mode: 0o600 });
 
 const config = loadConfig({
   PORT: '8080',
@@ -49,7 +49,7 @@ const config = loadConfig({
   BC_ALLOW_INSECURE: 'true',
   BC_SUBSCRIBE: 'customers,items,salesOrders',
   CURSOR_SECRET: randomBytes(32).toString('base64url'),
-  API_KEYS_JSON: JSON.stringify([admin.record, reader.record, claude.record]),
+  API_KEYS_JSON: JSON.stringify([admin.record, reader.record, agent.record]),
   EVENT_SUBSCRIBERS_JSON: JSON.stringify([{ id: 'local-receiver', url: receiver.url, secret: whsec, types: ['io.openbridge.bc.*'] }]),
   OUTBOUND_ALLOW_HTTP: 'true',
   OUTBOUND_ALLOW_PRIVATE: 'true',
@@ -76,7 +76,7 @@ console.log(`
 
   API-Key (admin):  ${admin.key}
   API-Key (lesen):  ${reader.key}
-  Claude-Key:       ${claudeKeyFile}  (für bc-claude, ohne Löschen/Admin)
+  Agent-Key:        ${agentKeyFile}  (für bc-mcp: Claude, Codex, Copilot – ohne Löschen/Admin)
 
   Beispiele (bash):
     export KEY=${admin.key}
@@ -92,7 +92,7 @@ console.log(`
 `);
 
 process.on('SIGINT', async () => {
-  rmSync(claudeKeyFile, { force: true });
+  rmSync(agentKeyFile, { force: true });
   await app.close();
   await receiver.close();
   await mock.stop();

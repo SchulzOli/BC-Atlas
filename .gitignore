@@ -9,4 +9,4 @@ sbom.cdx.json
 .alpackages/
 .snapshots/
 *.app
-.dev-claude-key
+.dev-agent-key
