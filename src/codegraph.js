@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createArchitectureModel } from "./architecture.js";
+import { wildcardLabel } from "./permission-semantics.js";
 
 const TYPE_LABELS = {
   codeunit: "Codeunit",
@@ -358,7 +359,7 @@ function relationshipRows(edges, currentPath, paths, objectByKey, inverse = fals
   for (const edge of edges) {
     const target = inverse
       ? objectByKey.get(edge.from)
-      : edge.to ? objectByKey.get(edge.to) : edge.unresolved;
+      : edge.to ? objectByKey.get(edge.to) : edge.wildcard ? wildcardLabel(edge.wildcard) : edge.unresolved;
     const row = [
       relationshipName(edge),
       objectLink(target, currentPath, paths),

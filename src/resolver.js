@@ -148,9 +148,13 @@ export function resolveModel(model) {
   const edges = [];
   for (const object of model.objects) {
     for (const relation of object.relations) {
-      const target = resolve(object, relation);
+      // `tabledata * = R` names every object of a type: nothing to resolve, nothing missing.
+      const wildcard = relation.wildcard
+        ? { type: relation.targetType ?? "object" }
+        : undefined;
+      const target = wildcard ? undefined : resolve(object, relation);
       const cardinality = inferredCardinality(target, relation);
-      if (!target) {
+      if (!target && !wildcard) {
         diagnostics.push({
           severity: "info",
           code: "unresolved-reference",
@@ -163,10 +167,11 @@ export function resolveModel(model) {
         id: `e${edges.length}`,
         from: object.key,
         to: target?.key,
-        unresolved: target ? undefined : {
+        unresolved: target || wildcard ? undefined : {
           name: relation.target,
           type: relation.targetType ?? "object"
         },
+        wildcard,
         kind: relation.kind,
         access: relation.access,
         permissionKind: relation.permissionKind,
@@ -194,7 +199,7 @@ export function resolveModel(model) {
         temporary: relation.temporary,
         conditionalSymbols: relation.conditionalSymbols,
         via: relation.via,
-        confidence: target ? "resolved" : "syntactic",
+        confidence: target || wildcard ? "resolved" : "syntactic",
         targetOrigin: targetOrigin(object, target),
         targetApp: target?.app ? {
           id: target.app.id,

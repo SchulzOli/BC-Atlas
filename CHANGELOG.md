@@ -96,6 +96,15 @@ follows [Semantic Versioning](https://semver.org/).
   group (the same for `ApplicationArea`, `Editable`, `ToolTip`, `Visible`,
   and `SourceTableTemporary` of a request page). An XMLport element no
   longer lists the properties of its attributes.
+- A wildcard permission (`tabledata * = RIMD`, `codeunit * = X`) is a
+  wildcard, not a reference to a missing object named `*`: no
+  `unresolved-reference` diagnostic, and it no longer counts as unresolved
+  in `bca check`. In the model its edge has `wildcard: { type }` instead of
+  `unresolved: { name: "*", type }`. Diagrams draw it to a node of its own
+  (`table *`) instead of "External / unresolved", the handbook lists it as
+  `table *` and knows that `tabledata *` covers every table, and the
+  dependency explorer and the knowledge graph no longer show an external
+  object `*`. A quoted `"*"` stays the name of an object.
 - The permission set of the warehouse example lacked Execute on the codeunit
   that subscribes to `OnRequestProcessed`. The battle test found it: with
   `WAREHOUSE PROCESS` alone, the Process action would have failed.

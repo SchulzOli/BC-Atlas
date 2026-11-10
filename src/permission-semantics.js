@@ -72,6 +72,11 @@ export function classifyPermissionSet(object, includedBy = []) {
   };
 }
 
+/** How a wildcard grant names what it covers: `tabledata * = R` is "table *". */
+export function wildcardLabel(wildcard) {
+  return `${wildcard.type} *`;
+}
+
 export function permissionRelationLabel(permissionKind) {
   if (permissionKind === "execute") return "executes";
   if (permissionKind === "tabledata") return "tabledata";

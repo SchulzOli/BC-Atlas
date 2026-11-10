@@ -195,7 +195,7 @@ export function addInsights(model, forbidden = []) {
     ...model,
     diagnostics,
     insights: {
-      unresolvedEdges: model.edges.filter(({ to }) => !to).length,
+      unresolvedEdges: model.edges.filter(({ to, wildcard }) => !to && !wildcard).length,
       orphans,
       hubs,
       cycles: findCycles(model.objects, model.edges),

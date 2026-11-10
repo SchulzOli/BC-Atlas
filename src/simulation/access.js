@@ -109,8 +109,8 @@ export function createAccessIndex(model, { fullAccess = ["SUPER"] } = {}) {
               if (direct || !current.direct) current.by.add(object.name);
               current.direct ||= direct;
               rights.set(right, current);
-            } else if (edge.unresolved?.name === "*") {
-              wildcards.push({ type: edge.unresolved.type, kind: edge.permissionKind, right, direct, by: object.name });
+            } else if (edge.wildcard) {
+              wildcards.push({ type: edge.wildcard.type, kind: edge.permissionKind, right, direct, by: object.name });
             }
           }
         }
