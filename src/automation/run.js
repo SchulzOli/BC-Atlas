@@ -15,10 +15,19 @@ import { runHealthCheck } from "../commands/check.js";
 import { generateReport } from "../commands/report.js";
 import { writeSimulation } from "../commands/simulate.js";
 import { simulationResultLine } from "../simulation/report.js";
+import { loadPlugins } from "../plugins/registry.js";
 import { automationConfig, DEFAULTS, outputsFor, parseList, SYNC_MODES, TASKS } from "./config.js";
 import { changedPaths, findGitRoot, stagePaths } from "./git.js";
 
-const ORDER = ["check", "simulate", "report", "diagrams", "docs", "codegraph", "handbook"];
+/** A task of a plugin: activate it and run its implementation with the trigger of this run. */
+async function runPluginTask(registry, task, log) {
+  const plugin = registry.pluginForTask(task);
+  const implementation = (await registry.activate(plugin.id)).tasks?.[task];
+  if (typeof implementation?.run !== "function") throw new Error(`plugin "${plugin.id}" declares task "${task}" but does not implement it`);
+  const outcome = await implementation.run({ trigger: registry.session.trigger });
+  log(`${task}: ${outcome.summary}`);
+  return { ok: outcome.ok !== false, summary: outcome.summary, plugin: plugin.id };
+}
 
 async function runTask(task, root, config, log, appPath, values = {}, tasks = []) {
   const at = (relative) => path.resolve(root, relative);
@@ -99,14 +108,17 @@ export async function runAutomation(input, options = {}) {
   const root = path.resolve(input ?? ".");
   const log = options.log ?? (() => {});
   const config = (await loadConfig(root, options.config)).values;
-  const automation = automationConfig(config);
   const trigger = options.trigger ?? "manual";
+  const plugins = await loadPlugins(root, config);
+  const pluginTasks = Object.keys(plugins.taskSummaries());
+  const automation = automationConfig(config, { pluginTasks });
   const configured = automation.triggers[trigger];
   if (options.trigger && !configured && !options.tasks?.length) {
     throw new Error(`trigger "${trigger}" is not configured in .bca.json; run "bca setup" or pass tasks explicitly`);
   }
-  const requested = parseList(options.tasks, Object.keys(TASKS), "tasks");
-  const tasks = ORDER.filter((task) => (requested?.length ? requested : configured?.tasks ?? []).includes(task));
+  const requested = parseList(options.tasks, [...Object.keys(TASKS), ...pluginTasks], "tasks");
+  // Core order, with each plugin task placed by its manifest (e.g. sync before docs).
+  const tasks = plugins.taskOrder().filter((task) => (requested?.length ? requested : configured?.tasks ?? []).includes(task));
   if (!tasks.length) {
     return { root, trigger, tasks, results: [], sync: "none", outputs: [], changed: [], passed: true };
   }
@@ -120,19 +132,29 @@ export async function runAutomation(input, options = {}) {
   // A commit hook must stay fast: it uses the AL compiler only when .bca.json
   // asks for it explicitly; pushes, pipelines, and schedules use it by default.
   const values = trigger === "pre-commit" && config.al?.compiler === undefined ? { compiler: "off" } : {};
+  plugins.setSession({ trigger, log, values });
+  await plugins.emit("run:before", { trigger, tasks });
   const results = [];
   for (const task of tasks) {
+    let result;
     try {
-      results.push({ task, ...(await runTask(task, root, config, log, appPath, values, tasks)) });
+      result = { task, ...(plugins.pluginForTask(task)
+        ? await runPluginTask(plugins, task, log)
+        : await runTask(task, root, config, log, appPath, values, tasks)) };
     } catch (error) {
       log(`${task}: failed: ${error.message}`);
-      results.push({ task, ok: false, summary: error.message });
+      result = { task, ok: false, summary: error.message };
     }
+    results.push(result);
+    await plugins.emit("task:after", result);
   }
 
   if (["verify", "stage"].includes(sync) && !gitRoot) throw new Error(`sync "${sync}" needs a Git repository`);
   const base = gitRoot ? path.relative(gitRoot, root) : "";
-  const outputs = outputsFor(tasks, config, base);
+  const pluginOutputs = {};
+  for (const task of tasks.filter((item) => plugins.pluginForTask(item))) pluginOutputs[task] = await plugins.taskOutputs(task, config);
+  const outputs = outputsFor(tasks, config, base, pluginOutputs);
+  await plugins.emit("run:after", { trigger, results, outputs });
   let changed = [];
   if (sync === "verify") {
     changed = changedPaths(gitRoot, outputs);

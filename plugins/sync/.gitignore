@@ -1,0 +1,8 @@
+node_modules/
+.alpackages/
+al/test/.alpackages/
+.snapshots/
+*.app
+!build/*.app
+rad.json
+*.g.xlf

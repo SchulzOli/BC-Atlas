@@ -1,7 +1,7 @@
 // Maps catalog command ids to their handlers. Command modules load on demand:
 // importing all of them (the analyzer, the renderers, the docs pipeline) took
 // most of the start-up time, which `--version`, help, and usage errors do not
-// need.
+// need. Plugin commands (`bca <plugin> <command>`) share one handler.
 
 const MODULES = {
   setup: ["../commands/setup.js", "setupCommand"],
@@ -17,7 +17,11 @@ const MODULES = {
   "graph.query": ["../commands/graph.js", "graphQueryCommand"],
   "graph.render": ["../commands/graph.js", "graphRenderCommand"],
   run: ["../commands/run.js", "runCommand"],
-  update: ["../commands/update.js", "updateCommand"]
+  update: ["../commands/update.js", "updateCommand"],
+  "plugins.list": ["../commands/plugins.js", "pluginsListCommand"],
+  "plugins.show": ["../commands/plugins.js", "pluginsShowCommand"],
+  "plugins.doctor": ["../commands/plugins.js", "pluginsDoctorCommand"],
+  "plugins.new": ["../commands/plugins.js", "pluginsNewCommand"]
 };
 
 // Literal specifiers, so bundlers (the VS Code extension) see every module.
@@ -30,11 +34,20 @@ const IMPORTS = {
   "../commands/export.js": () => import("../commands/export.js"),
   "../commands/graph.js": () => import("../commands/graph.js"),
   "../commands/run.js": () => import("../commands/run.js"),
-  "../commands/update.js": () => import("../commands/update.js")
+  "../commands/update.js": () => import("../commands/update.js"),
+  "../commands/plugins.js": () => import("../commands/plugins.js")
 };
 
-/** Resolves the handler `(input, values) => Promise` of a catalog command id. */
-export async function loadHandler(id, version) {
+/**
+ * Resolves the handler `(input, values) => Promise` of a catalog command.
+ * @param definition the catalog entry (or its id)
+ */
+export async function loadHandler(definition, version) {
+  const id = typeof definition === "string" ? definition : definition.id;
+  if (typeof definition === "object" && definition.plugin) {
+    const { runPluginCommand } = await IMPORTS["../commands/plugins.js"]();
+    return (input, values) => runPluginCommand(definition, input, values);
+  }
   if (id === "mcp") {
     const { startMcpServer } = await import("../mcp.js");
     return () => startMcpServer(version);

@@ -654,13 +654,65 @@ See [Automation](./automation-and-ci.md).
 | Option | Value | Description |
 | --- | --- | --- |
 | `--trigger` | `pre-commit`, `pre-push`, `ci`, `schedule`, `manual` | Trigger whose tasks and sync mode are used. Default: `manual`. |
-| `--tasks` | list | Run these tasks instead: `check`, `simulate`, `report`, `docs`, `codegraph`, `handbook`, `diagrams`. |
+| `--tasks` | list | Run these tasks instead: `check`, `simulate`, `report`, `docs`, `codegraph`, `handbook`, `diagrams`, `sync`. |
 | `--sync` | `none`, `verify`, `stage`, `artifact`, `pull-request`, `commit` | Override the sync mode. |
 | `--config` | path | Configuration file. |
 | `--format` | `text` or `json` | Output mode. Default: `text`. |
 
 Exits with `1` when a task fails, `check` or `simulate` finds blocking issues,
 or `verify` finds outdated generated files.
+
+### `plugins list`, `plugins show`, `plugins doctor`, `plugins new`
+
+```text
+bca plugins list [app-root]
+bca plugins show <plugin-id> [--project-root <path>]
+bca plugins doctor [app-root]
+bca plugins new <plugin-id> [-o <folder>] [--dry-run]
+```
+
+Manage [plugins](./plugins.md): `list` shows every plugin of the project
+(built-in, npm `bc-atlas-plugin-*`, `.bca.json`, `BCA_PLUGINS`) and what it
+contributes; `show` shows one plugin's manifest; `doctor` loads and activates
+every plugin and checks each declared contribution and its `.bca.json` section;
+`new` creates a working plugin from the template.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--project-root` | path | Project whose plugins are listed (`show`). Default: `.`. |
+| `--output`, `-o` | path | Folder of the new plugin (`new`). Default: `plugins/<plugin-id>`. |
+| `--dry-run` | flag | List the files without writing them (`new`). |
+| `--config` | path | Configuration file. |
+| `--format` | `text` or `json` | Output mode. Default: `text`. |
+
+`doctor` exits with `1` when a plugin cannot be loaded or activated, or a
+declared contribution is not implemented.
+
+### `sync plan`, `sync run`, `sync status`, `sync describe`
+
+```text
+bca sync plan [app-root] [--trigger ci] [--channel <id>]
+bca sync run [app-root] [--trigger ci] [--channel <id>] [--force]
+bca sync status [app-root] [--channel <id>]
+bca sync describe
+```
+
+Commands of the built-in [sync plugin](../plugins/sync/README.md): Business
+Central process recordings (fact snapshots) into documents, BC Atlas UI tests,
+the architecture layer, and a process index. What, when, and how is the `sync`
+section of `.bca.json`; the `sync` task of `bca run` uses the same channels, so
+hooks, pipelines, and schedules deliver the output with their sync mode. `plan`
+and `status` write nothing; `status` looks at every channel regardless of the
+trigger; `describe` lists the sources, triggers, conditions, and formats a
+manifest can use, including those of other plugins.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--trigger` | `pre-commit`, `pre-push`, `ci`, `schedule`, `manual` | Trigger whose channels run (`plan`, `run`). Default: `manual`. |
+| `--channel` | id | Only this channel, ignoring the trigger. Repeatable. |
+| `--force` | flag | Rewrite every process, whatever the channel condition says (`run`). |
+| `--config` | path | Configuration file. |
+| `--format` | `text` or `json` | Output mode. Default: `text`. |
 
 ### `update`
 

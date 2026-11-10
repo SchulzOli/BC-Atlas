@@ -1,0 +1,12 @@
+{
+  "name": "@bc-atlas/plugin-sync",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Built-in BC Atlas plugin: syncs Business Central process recordings (fact snapshots) into documents, UI tests, the architecture layer, and a process index. Ships with BC Atlas; this file only holds the scripts of the plugin folder.",
+  "type": "module",
+  "main": "./src/index.js",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "build:al": "pwsh -NoProfile -File scripts/Build-AL.ps1"
+  }
+}

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -68,6 +68,10 @@ async function environment(latest) {
   const pkg = path.join(root, "pkg");
   mkdirSync(pkg);
   for (const item of ["src", "vendor", "package.json"]) cpSync(path.join(repo, item), path.join(pkg, item), { recursive: true });
+  // Built-in plugins ship their manifest and code (package.json "files": plugins/*/plugin.json, plugins/*/src/).
+  for (const plugin of readdirSync(path.join(repo, "plugins"))) {
+    for (const item of ["plugin.json", "src"]) cpSync(path.join(repo, "plugins", plugin, item), path.join(pkg, "plugins", plugin, item), { recursive: true });
+  }
   symlinkSync(path.join(repo, "node_modules"), path.join(pkg, "node_modules"), process.platform === "win32" ? "junction" : "dir");
   const server = http.createServer((request, response) => {
     if (request.url === "/bc-atlas/latest") return response.end(JSON.stringify({ version: latest }));

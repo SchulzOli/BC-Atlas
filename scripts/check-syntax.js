@@ -21,9 +21,14 @@ async function javascriptFiles(directory) {
   return files;
 }
 
+// Built-in plugins: their src/ ships with BC Atlas (plugins/<id>/src).
+const plugins = (await readdir(path.join(root, "plugins"), { withFileTypes: true }))
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => path.join(root, "plugins", entry.name, "src"));
 const files = [
   ...await javascriptFiles(path.join(root, "src")),
-  ...await javascriptFiles(path.join(root, "scripts"))
+  ...await javascriptFiles(path.join(root, "scripts")),
+  ...(await Promise.all(plugins.map((directory) => javascriptFiles(directory)))).flat()
 ];
 let failed = 0;
 for (const file of files) {

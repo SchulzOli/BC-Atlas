@@ -22,6 +22,7 @@ export const TASKS = Object.freeze({
   handbook: "System handbook: events, data, permissions, interfaces, UI, code health (docs/handbook)",
   diagrams: "Extra diagrams listed under \"diagrams\" in .bca.json"
 });
+// Plugins add tasks of their own (plugin.json contributes.tasks); see src/plugins.
 
 export const TRIGGERS = Object.freeze({
   "pre-commit": "Git hook before each commit",
@@ -79,8 +80,12 @@ export function validateCron(value) {
   return fields.join(" ");
 }
 
-/** Normalizes and validates the automation section. */
-export function automationConfig(config = {}) {
+/**
+ * Normalizes and validates the automation section.
+ * @param pluginTasks ids of the tasks the project's plugins contribute
+ */
+export function automationConfig(config = {}, { pluginTasks = [] } = {}) {
+  const allowed = [...Object.keys(TASKS), ...pluginTasks];
   const automation = config.automation ?? {};
   const triggers = {};
   for (const [name, trigger] of Object.entries(automation.triggers ?? {})) {
@@ -90,7 +95,7 @@ export function automationConfig(config = {}) {
       throw new Error(`trigger "${name}" supports sync ${syncModesFor(name).join(", ")}, not "${sync}"`);
     }
     triggers[name] = {
-      tasks: parseList(trigger.tasks ?? [], Object.keys(TASKS), `${name} tasks`),
+      tasks: parseList(trigger.tasks ?? [], allowed, `${name} tasks`),
       sync,
       ...(name === "schedule" && trigger.cron ? { cron: validateCron(trigger.cron) } : {})
     };
@@ -102,8 +107,12 @@ export function automationConfig(config = {}) {
   return { hooks, ci, triggers };
 }
 
-/** Output directories (relative to the project root) that a task writes. */
-export function taskOutputs(task, config = {}) {
+/**
+ * Output directories (relative to the project root) that a task writes.
+ * @param pluginOutputs outputs of plugin tasks, already asked from the plugins: { [task]: paths }
+ */
+export function taskOutputs(task, config = {}, pluginOutputs = {}) {
+  if (pluginOutputs[task]) return pluginOutputs[task];
   if (task === "report") return [config.report?.outputDir ?? DEFAULTS.report.outputDir];
   if (task === "docs") return [config.docs?.outputDir ?? DEFAULTS.docs.outputDir];
   if (task === "codegraph") return [config.codegraph?.outputDir ?? DEFAULTS.codegraph.outputDir];
@@ -119,7 +128,7 @@ export function taskOutputs(task, config = {}) {
   return [];
 }
 
-export function outputsFor(tasks, config, base = "") {
-  return [...new Set(tasks.flatMap((task) => taskOutputs(task, config)))]
+export function outputsFor(tasks, config, base = "", pluginOutputs = {}) {
+  return [...new Set(tasks.flatMap((task) => taskOutputs(task, config, pluginOutputs)))]
     .map((output) => path.posix.join(base.replaceAll("\\", "/") || ".", output.replaceAll("\\", "/")));
 }
