@@ -304,9 +304,13 @@ test("in VS Code the page inherits the editor's color theme", () => {
   assert.match(exported, /<html lang="en">/u, "an exported page keeps the BC Atlas design");
 });
 
-test("in VS Code the extension's side bar is the navigation, not a second one in the panel", () => {
+test("in VS Code the panel has its own list of contents, and tells the extension which page it shows", () => {
   const html = renderAppHtml({ mode: "vscode", csp: "default-src 'none'" });
-  assert.match(html, /:root\[data-host="vscode"\] #sidebar \{ display: none; \}/u);
+  assert.match(html, /:root\[data-host="vscode"\] #sidebar \.brand, :root\[data-host="vscode"\] \.sidebar-footer \{ display: none; \}/u, "in VS Code the panel keeps its list of contents");
+  assert.match(html, /id="side-filter"/u);
+  // One list instead of tabs: every page is an entry of it, next to the contents of the Dashboard.
+  for (const entry of ["Diagrams with settings", "Architecture work", "Object list", "Dependencies over time", "Findings with fixes"]) assert.ok(html.includes(`title: "${entry}"`), `${entry} is in the list`);
+  assert.doesNotMatch(html, /const PAGES = \[/u, "no tabs");
   // The panel tells the extension which page it shows, so its side bar marks it.
   assert.match(html, /vscode\.postMessage\(\{ type: "page", page \}\)/u);
 });

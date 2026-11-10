@@ -38,9 +38,15 @@ follows [Semantic Versioning](https://semver.org/).
   where you want them, sort the table, save a PNG or CSV. **New view from
   this** keeps what you see under a name in My views. See
   [The Dashboard](./docs/vscode.md#the-dashboard).
-- Every page says what it is read from: **Sources** in the side panel of the
-  Dashboard and Diagrams, and a Sources line at the bottom of the other
-  pages (AL files and objects, apps, symbol packages, AL compiler, settings).
+- **One list instead of tabs.** The pages (Overview, Health, Architecture,
+  Dependencies, Diagrams, Objects, Docs) are no longer tabs: one list on the
+  left holds everything by topic, the contents of the Dashboard next to the
+  page of the same topic, with a filter above it. Every page works as
+  before. In VS Code the panel has this list too, so the BC Atlas side bar
+  is a set of shortcuts and no longer the only way to a page.
+- Every page says what it is read from: **Sources** below the list (AL files
+  and objects, apps, symbol packages, AL compiler, settings), and for a
+  content of the Dashboard what that content reads.
 
 ### Changed
 

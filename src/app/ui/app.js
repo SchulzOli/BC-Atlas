@@ -262,48 +262,96 @@
   }
 
   // ------------------------------------------------------------- navigation
-  const ICONS = {
-    dashboard: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v6.5M12 14.5V21M3 12h6.5M14.5 12H21"/>',
-    overview: '<path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/>',
-    health: '<path d="M3 12h4l3-7 4 14 3-7h4"/>',
-    architecture: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>',
-    dependencies: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7.2l7.6 0.4M7.3 8.2l3.6 7.7M16.8 9.2l-3.6 6.8"/>',
-    diagrams: '<rect x="3" y="4" width="7" height="5" rx="1"/><rect x="14" y="4" width="7" height="5" rx="1"/><rect x="8.5" y="15" width="7" height="5" rx="1"/><path d="M6.5 9v3h11V9M12 12v3"/>',
-    objects: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
-    docs: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6M9 11h6"/>'
+  // One list instead of tabs: everything BC Atlas shows, by topic. A content
+  // of the Dashboard (a 2D graph, a 3D graph, a table) and the page that
+  // goes with it stand next to each other.
+  const SIDE_PAGES = {
+    "Diagram views": [{ page: "diagrams", title: "Diagrams with settings", detail: "Every view with its settings; one object, a boundary, a workflow; SVG, PNG, D2" }],
+    Architecture: [{ page: "architecture", title: "Architecture work", detail: "Layers, the matrix, and the work to reach the target" }],
+    "Objects and dependencies": [
+      { page: "objects", title: "Object list", detail: "Search by type, app, component, or wrong-way dependencies" },
+      { page: "dependencies", title: "Dependencies over time", detail: "The 3D explorer with its timeline" }
+    ],
+    Health: [{ page: "health", title: "Findings with fixes", detail: "Every finding with how to fix it" }]
   };
-  const PAGES = [
-    ["dashboard", "Dashboard"],
-    ["overview", "Overview"],
-    ["health", "Health"],
-    ["architecture", "Architecture"],
-    ["dependencies", "Dependencies"],
-    ["diagrams", "Diagrams"],
-    ["objects", "Objects"],
-    ["docs", "Docs"]
-  ];
+  let sideCatalog = [];
+  const sideFilter = $("#side-filter");
 
-  function renderNav(overview) {
+  function renderNav(overview, catalog = sideCatalog) {
+    sideCatalog = catalog;
     const counts = {
       health: overview ? [overview.health.counts.error + overview.health.counts.warning, overview.health.counts.error > 0] : undefined,
       architecture: overview ? [overview.architecture.violations, overview.architecture.mode === "configured" && overview.architecture.baseline.new > 0] : undefined,
-      objects: overview ? [overview.summary.objects, false] : undefined,
-      docs: undefined
+      objects: overview ? [overview.summary.objects, false] : undefined
     };
-    $("#nav").innerHTML = PAGES
-      .map(([id, label]) => `<a href="#/${id}" data-page="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]}</svg>${label}${counts[id] && counts[id][0] ? `<span class="count${counts[id][1] ? " bad" : ""}">${fmt(counts[id][0])}</span>` : ""}</a>`)
-      .join("");
+    const pageItem = ({ page, title, detail }) => ({ key: `page:${page}`, href: `#/${page}`, title, detail, count: counts[page] });
+    const boardItem = ({ id, title, summary }) => ({ key: `board:${id}`, board: id, href: `#/dashboard?${new URLSearchParams({ what: id })}`, title, detail: summary });
+    const views = overview ? savedViews(overview.title) : [];
+    const describe = (hash) => {
+      const saved = new URLSearchParams(hash.split("?")[1] ?? "");
+      return [catalog.find(({ id }) => id === saved.get("what"))?.title, HOW_LABELS[saved.get("how")], saved.get("q") ? `"${saved.get("q")}"` : undefined, saved.get("focus") ? "one part" : undefined].filter(Boolean).join(" · ");
+    };
+    const groups = [
+      { title: "Start", items: [pageItem({ page: "overview", title: "Overview", detail: "The numbers of the project at a glance" })] },
+      ...[...new Set(catalog.map(({ group }) => group))].map((title) => ({
+        title,
+        items: [...catalog.filter(({ group }) => group === title).map(boardItem), ...(SIDE_PAGES[title] ?? []).map(pageItem)]
+      })),
+      // Without the Dashboard's contents (while they load), the pages still open.
+      ...(catalog.length ? [] : Object.entries(SIDE_PAGES).map(([title, pages]) => ({ title, items: pages.map(pageItem) }))),
+      { title: "Docs", items: [pageItem({ page: "docs", title: "Docs", detail: "The system handbook and the user guides" })] },
+      { title: "My views", items: views.map(({ name, hash }) => ({ key: `view:${name}`, href: hash, title: name, detail: describe(hash) })) }
+    ];
+    const item = ({ key, board, href, title, detail, count }) => `<a class="wb-item" href="${esc(href)}" data-key="${esc(key)}"${board ? ` data-board="${esc(board)}"` : ""} data-search="${esc(`${title} ${detail ?? ""}`.toLowerCase())}">
+        <span class="wb-name">${esc(title)}</span>${count?.[0] ? `<span class="count${count[1] ? " bad" : ""}">${fmt(count[0])}</span>` : ""}${detail ? `<small>${esc(detail)}</small>` : ""}</a>`;
+    $("#nav").innerHTML = `${groups.filter(({ items }) => items.length).map(({ title, items }) => `<div class="wb-group"><h3>${esc(title)}</h3>${items.map(item).join("")}</div>`).join("")}
+      <p class="wb-none muted small" hidden>Nothing matches the filter.</p>`;
+    filterNav();
     markNav();
   }
 
+  function filterNav() {
+    const query = sideFilter.value.trim().toLowerCase();
+    for (const element of $$("#nav .wb-item")) element.hidden = Boolean(query) && !element.dataset.search.includes(query);
+    for (const group of $$("#nav .wb-group")) group.hidden = !$$(".wb-item:not([hidden])", group).length;
+    const none = $("#nav .wb-none");
+    if (none) none.hidden = $$("#nav .wb-item").some((element) => !element.hidden);
+  }
+  sideFilter.addEventListener("input", filterNav);
+  // Enter opens the first match.
+  sideFilter.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") $$("#nav .wb-item").find((element) => !element.hidden)?.click();
+  });
+  // On a narrow window the list opens from a button and closes when something is chosen.
+  $("#side-toggle").addEventListener("click", () => {
+    const open = $("#sidebar").classList.toggle("open");
+    $("#side-toggle").setAttribute("aria-expanded", String(open));
+  });
+  $("#nav").addEventListener("click", (event) => {
+    if (!event.target.closest(".wb-item")) return;
+    $("#sidebar").classList.remove("open");
+    $("#side-toggle").setAttribute("aria-expanded", "false");
+  });
+
   let shownPage;
   function markNav() {
-    const page = ({ object: "objects", component: "architecture", handbook: "docs" })[route().page] ?? route().page;
-    for (const link of $$("#nav a")) {
-      if (link.dataset.page === page) link.setAttribute("aria-current", "page");
+    const { page: routed, params } = route();
+    const page = ({ object: "objects", component: "architecture", handbook: "docs" })[routed] ?? routed;
+    const how = params.get("how");
+    const key = page === "dashboard"
+      ? (params.get("view") ? `view:${params.get("view")}` : `board:${params.get("what") ?? sideCatalog[0]?.id ?? ""}`)
+      : `page:${page}`;
+    for (const link of $$("#nav .wb-item")) {
+      if (link.dataset.key === key) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
+      // The form stays when the content changes, where the content has it.
+      if (link.dataset.board) {
+        const keeps = page === "dashboard" && how && sideCatalog.find(({ id }) => id === link.dataset.board)?.how.includes(how);
+        link.setAttribute("href", `#/dashboard?${new URLSearchParams({ what: link.dataset.board, ...(keeps ? { how } : {}) })}`);
+      }
     }
-    // In VS Code the side bar of the extension is the navigation; it marks this page.
+    $("#nav .wb-item[aria-current]")?.scrollIntoView({ block: "nearest" });
+    // In VS Code the side bar of the extension marks this page too.
     if (LIVE && page !== shownPage) vscode.postMessage({ type: "page", page });
     shownPage = page;
   }
@@ -1500,7 +1548,6 @@
   async function diagramsPage(page, { params }) {
     $("#main").classList.add("full");
     const views = await api.views();
-    const { sources } = await api.overview();
     const view = views.some(({ id }) => id === params.get("view")) ? params.get("view") : views[0]?.id ?? "project";
     const summary = (id) => views.find((item) => item.id === id)?.summary ?? "";
     const settings = Object.fromEntries(DIAGRAM_SETTINGS.filter((name) => params.get(name)).map((name) => [name, params.get(name)]));
@@ -1530,8 +1577,7 @@
         { title: "The whole app", items: views.filter(({ id }) => !FOCUSED_VIEWS.includes(id)).map(item) },
         { title: "Focus on one part", items: views.filter(({ id }) => FOCUSED_VIEWS.includes(id)).map(item) }
       ],
-      // What every diagram is read from.
-      settings: `${settingsHtml}${sources ? sourcesBlock(sources) : ""}`
+      settings: settingsHtml
     });
     const form = $("#diagram-form", page);
     if (form) {
@@ -1716,50 +1762,37 @@
     const entry = catalog.find(({ id }) => id === params.get("what")) ?? catalog[0];
     const how = entry.how.includes(params.get("how")) ? params.get("how") : entry.default;
     const graph = how === "2d" || how === "3d";
-    setHeader("Dashboard", "Everything in one place: choose what to look at and how. A diagram can be a 3D graph, the architecture a table, the objects a diagram; the filter, the tools, and the sources are the same for all.");
+    setHeader("Dashboard");
     const state = Object.fromEntries(BOARD_STATE.filter((name) => params.get(name)).map((name) => [name, params.get(name)]));
     const address = (values) => `#/dashboard?${new URLSearchParams(Object.entries(values).filter(([, value]) => value !== undefined && value !== ""))}`;
     const here = (changes = {}) => address({ what: entry.id, how, ...state, ...changes });
     const views = savedViews(overview.title);
     const shownView = views.find(({ name }) => name === params.get("view"));
-    const describe = (hash) => {
-      const saved = new URLSearchParams(hash.split("?")[1] ?? "");
-      const content = catalog.find(({ id }) => id === saved.get("what"));
-      return [content?.title, HOW_LABELS[saved.get("how")], saved.get("q") ? `"${saved.get("q")}"` : undefined, saved.get("focus") ? "one part" : undefined].filter(Boolean).join(" · ");
+    // The list of contents is the side panel of the app; the page is the content itself.
+    $("#main").classList.add("board");
+    page.innerHTML = `<div class="workbench solo"><section class="wb-main">
+        <header class="wb-bar"><div class="wb-heading"><h2 class="wb-title"></h2><p class="wb-subtitle"></p></div><div class="wb-actions"></div></header>
+        <div class="wb-body">${loading()}</div>
+      </section></div>`;
+    const bar = {
+      body: $(".wb-body", page),
+      set(heading, subtitle = "", actions = "") {
+        $(".wb-title", page).textContent = heading;
+        $(".wb-subtitle", page).innerHTML = subtitle;
+        $(".wb-actions", page).innerHTML = actions;
+      },
+      onAction(handler) {
+        $(".wb-actions", page).onclick = (event) => {
+          const button = event.target.closest("button");
+          if (button && !button.disabled) handler(button.dataset, button);
+        };
+      }
     };
-    const bar = workbench(page, {
-      name: "dashboard",
-      placeholder: "Filter contents and views",
-      groups: [
-        ...[...new Set(catalog.map(({ group }) => group))].map((title) => ({
-          title,
-          // The form stays when the content changes, where the content has it.
-          items: catalog.filter(({ group }) => group === title).map((item) => ({
-            href: address({ what: item.id, how: item.how.includes(how) ? how : item.default }),
-            title: item.title,
-            detail: item.summary,
-            current: item.id === entry.id && !shownView
-          }))
-        })),
-        { title: "My views", items: views.map(({ name, hash }) => ({ href: hash, title: name, detail: describe(hash), current: name === shownView?.name })) },
-        {
-          title: "More pages",
-          items: [
-            { href: "#/overview", title: "Overview", detail: "The numbers of the project at a glance" },
-            { href: "#/health", title: "Health findings", detail: "Every finding with how to fix it" },
-            { href: "#/architecture", title: "Architecture work", detail: "Layers, the matrix, and the work to reach the target" },
-            { href: "#/dependencies", title: "Dependencies over time", detail: "The 3D explorer with its timeline" },
-            { href: "#/diagrams", title: "Focused diagrams", detail: "One object, a boundary, or a workflow" },
-            { href: "#/docs", title: "Docs", detail: "The system handbook and the user guides" }
-          ]
-        }
-      ],
-      settings: `<form class="wb-form" id="view-form" title="Keeps the content, its form, the filter, and what is hidden or in focus, under My views${LIVE ? "" : " in this browser"}">
-          <h3>New view from this</h3>
-          <div class="board-save"><input type="text" name="name" required maxlength="60" placeholder="Name, such as Sales in 3D" aria-label="Name of the view" value="${esc(shownView?.name ?? "")}"><button class="btn primary">Save</button>${shownView ? '<button type="button" class="btn" data-delete-view>Delete</button>' : ""}</div>
-        </form><div id="board-sources"></div>`
-    });
-    const form = $("#view-form", page);
+    $("#side-extra").innerHTML = `<form class="wb-form" id="view-form" title="Keeps the content, its form, the filter, and what is hidden or in focus, under My views${LIVE ? "" : " in this browser"}">
+        <h3>New view from this</h3>
+        <div class="board-save"><input type="text" name="name" required maxlength="60" placeholder="Name, such as Sales in 3D" aria-label="Name of the view" value="${esc(shownView?.name ?? "")}"><button class="btn primary">Save</button>${shownView ? '<button type="button" class="btn" data-delete-view>Delete</button>' : ""}</div>
+      </form><div id="board-sources"></div>`;
+    const form = $("#view-form");
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       const name = new FormData(form).get("name").trim();
@@ -1767,11 +1800,13 @@
       const hash = here({ view: name });
       if (!storeViews(overview.title, [...views.filter((view) => view.name !== name), { name, hash }])) return toast("This view could not be saved here.");
       toast(`Saved the view "${name}".`);
+      renderNav(overview);
       if (location.hash === hash) render();
       else location.hash = hash;
     });
     $("[data-delete-view]", form)?.addEventListener("click", () => {
       storeViews(overview.title, views.filter(({ name }) => name !== shownView.name));
+      renderNav(overview);
       location.hash = here();
     });
 
@@ -1783,7 +1818,7 @@
       bar.body.innerHTML = `<div class="error-box">${esc(error.message)}</div>`;
       return;
     }
-    $("#board-sources", page).innerHTML = sourcesBlock(board.sources, board.command ? `<p class="muted small">As files: <code>${esc(board.command)}</code></p>` : "");
+    $("#board-sources").innerHTML = sourcesBlock(board.sources, board.command ? `<p class="muted small">As files: <code>${esc(board.command)}</code></p>` : "");
     const forms = `<span class="wb-tools" role="group" aria-label="Show as">${entry.how.map((value) => `<button class="icon-button" data-how="${value}" title="${esc(HOW_HINTS[value])}"${value === how ? ' aria-pressed="true" disabled' : ""}>${HOW_LABELS[value]}</button>`).join("")}</span>`;
     const title = shownView?.name ?? entry.title;
     if (!board.nodes.length) {
@@ -2470,7 +2505,11 @@
     const id = ++renderId;
     const page = $("#page");
     const renderer = RENDERERS[current.page] ?? dashboardPage;
-    $("#main").classList.remove("full");
+    $("#main").classList.remove("full", "board");
+    // Every page says what it is read from, in the side panel; the Dashboard adds its own there.
+    Promise.resolve(api.overview()).then(({ sources }) => {
+      if (id === renderId && current.page !== "dashboard" && sources) $("#side-extra").innerHTML = sourcesBlock(sources);
+    }).catch(() => {});
     $("#page-actions").innerHTML = "";
     $("#page-actions").onclick = null;
     $("#page-actions").onchange = null;
@@ -2481,11 +2520,6 @@
     fresh.innerHTML = loading();
     try {
       await renderer(fresh, current);
-      // Every page says what it is read from; the Dashboard, Diagrams, and Docs say it in their side panel.
-      if (id === renderId && !$("#main").classList.contains("full")) {
-        const { sources } = await api.overview();
-        if (sources) fresh.insertAdjacentHTML("beforeend", `<footer class="page-sources"><b>Sources</b> ${sources.map(([term, value]) => `<span><i>${esc(term)}</i> ${esc(value)}</span>`).join("")}</footer>`);
-      }
     } catch (error) {
       if (id !== renderId) return;
       fresh.innerHTML = `<div class="error-box"><b>Could not load this page.</b><br>${esc(error.message)}</div>`;
@@ -2502,8 +2536,8 @@
 
   function refresh() {
     cache = new Map();
-    api.overview().then((overview) => {
-      renderNav(overview);
+    Promise.all([api.overview(), api.boards()]).then(([overview, catalog]) => {
+      renderNav(overview, catalog);
       $("#project-name").textContent = overview.title;
     }).catch(() => {});
   }
@@ -2565,8 +2599,8 @@
   if (LIVE) setStatus("Analyzing…", "busy");
   render();
   try {
-    const overview = await api.overview();
-    renderNav(overview);
+    const [overview, catalog] = await Promise.all([api.overview(), api.boards()]);
+    renderNav(overview, catalog);
     $("#project-name").textContent = overview.title;
     if (LIVE) setStatus("Up to date", "live");
   } catch (error) {
