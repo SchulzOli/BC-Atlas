@@ -44,7 +44,7 @@ UsageCategory: "Lists"
 
 | Trigger | Lines | Complexity | Attributes |
 | --- | --- | --- | --- |
-| trigger OnAction() var Processor: Codeunit "Warehouse Processor" | 7 | 1 |  |
+| trigger OnAction() | 7 | 1 |  |
 
 ## Dependencies
 

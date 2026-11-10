@@ -123,6 +123,18 @@ follows [Semantic Versioning](https://semver.org/).
   `WAREHOUSE PROCESS` alone, the Process action would have failed.
 - `bca run --tasks` and the MCP tool `bc_atlas_run` accept the `handbook`
   task, as `.bca.json` triggers already did.
+- The `header` of a procedure or trigger is its declaration line only:
+  `local procedure Plain(var R: Record Customer): Boolean`. It included the
+  `var` section (`... : Boolean var L: Integer`), and a comment or `#pragma`
+  between the declaration and its variables or `begin`.
+- A procedure or trigger whose body is split by `#if` (`procedure A()` /
+  `#if X` / `var ... begin ... end;` / `#else` / `begin end;` / `#endif`, or
+  branches that open the body and share its end) has a body: `hasBody` is
+  `true`, so it has a complexity and counts as code. It read as a declaration
+  without a body, with the whole body in its `header`. Its statements are one
+  condition with a path per branch, followed by what all branches share, so a
+  contract check sees it as conditional. Without the AL compiler the branches
+  are not evaluated: the calls, variables, and complexity of all of them count.
 
 ## 0.17.0 - 2026-11-06
 

@@ -360,19 +360,48 @@ function containerFor(node, source) {
   return undefined;
 }
 
+/** The body of a routine, as a direct child of its node. */
+const ROUTINE_BODY = ["code_block", "statement_block"];
+/**
+ * A body split by preprocessor directives, where the grammar cannot build one
+ * code_block: every branch is a body of its own (`#if` / `var ... begin ... end;`
+ * / `#else` / `begin ... end;` / `#endif`), or the branches open the body and
+ * its end is shared (`#if` / `begin A();` / `#else` / `begin` / `#endif` /
+ * `B(); end;`). The variables and statement blocks of the branches are direct
+ * children, between the directives; `begin` and `end` are not in the tree.
+ */
+const SPLIT_ROUTINE_BODY = ["preproc_split_complete_body", "preproc_split_procedure_body"];
+/** What follows the header of a routine: its variables (which `#if` may wrap) and its body. */
+const AFTER_ROUTINE_HEADER = [
+  "var_section",
+  "preproc_conditional_var_block",
+  ...ROUTINE_BODY,
+  ...SPLIT_ROUTINE_BODY,
+  "declaration_body"
+];
+
+function routineBody(node) {
+  return node.namedChildren.find((child) =>
+    ROUTINE_BODY.includes(child.type) || SPLIT_ROUTINE_BODY.includes(child.type)
+  );
+}
+
+/** Lines between the header of a routine and what follows it, part of neither. */
+const BETWEEN_HEADER_AND_BODY = ["comment", "multiline_comment", "pragma", "preproc_region", "preproc_endregion"];
+
+/** The declaration line of a routine as written: no variables, no body, no comment or pragma before them. */
 function procedureHeader(node, source, header) {
-  let start = node.startIndex;
-  let end;
-  if (header.split) {
-    // The header as written in the first branch, without its attributes and variables.
-    const { children } = header.branch;
-    start = children.find((child) => !["comment", "attribute_item"].includes(child.type))?.startIndex ?? header.start;
-    end = children.find((child) => child.type === "var_section")?.startIndex ?? header.branch.end;
-  } else {
-    const body = node.namedChildren.find((child) =>
-      ["code_block", "statement_block", "declaration_body"].includes(child.type)
-    );
-    end = body?.startIndex ?? node.endIndex;
+  // A split header is read as written in its first branch, without its attributes.
+  const children = header.split ? header.branch.children : node.namedChildren;
+  const start = header.split
+    ? children.find((child) => !["comment", "attribute_item"].includes(child.type))?.startIndex ?? header.start
+    : node.startIndex;
+  let end = header.split ? header.branch.end : node.endIndex;
+  let index = children.findIndex((child) => AFTER_ROUTINE_HEADER.includes(child.type));
+  if (index === -1 && header.split) index = children.length;
+  if (index !== -1) {
+    while (index > 0 && BETWEEN_HEADER_AND_BODY.includes(children[index - 1].type)) index--;
+    end = children[index]?.startIndex ?? end;
   }
   return source.slice(start, end).trim().replace(/\s+/gu, " ").replace(/;$/u, "");
 }
@@ -834,16 +863,49 @@ function fallbackStatements(node, source, file, conditional = false) {
   }];
 }
 
+/**
+ * The statements of a body split by `#if`: which branch is compiled depends on
+ * the symbols, so the branches are the paths of one conditional. A branch
+ * without statements (`begin end;`) is an empty path. What follows `#endif`
+ * runs on every path.
+ */
+function splitBodyStatements(splitBody, source, file) {
+  const branches = [];
+  const shared = [];
+  let closed = false;
+  for (const child of splitBody.namedChildren) {
+    if (["preproc_if", "preproc_elif", "preproc_else"].includes(child.type)) branches.push([]);
+    else if (child.type === "preproc_endif") closed = true;
+    else if (child.type === "statement_block") {
+      if (closed || !branches.length) shared.push(...fallbackStatements(child, source, file));
+      else branches.at(-1).push(...fallbackStatements(child, source, file, true));
+    }
+  }
+  return [
+    {
+      kind: "conditional",
+      branches,
+      // Without the body of one of its branches the procedure does not compile.
+      hasImplicitEmptyPath: false,
+      location: locationFor(splitBody, file)
+    },
+    ...shared
+  ];
+}
+
 function fallbackFactsFor(node, source, file, hasBody) {
   if (!hasBody) return undefined;
-  const codeBlock = node.namedChildren.find((child) =>
-    ["code_block", "statement_block"].includes(child.type)
-  );
-  const body = codeBlock?.childForFieldName("body") ??
-    codeBlock?.namedChildren.find((child) => child.type === "statement_block");
+  const codeBlock = routineBody(node);
+  const split = SPLIT_ROUTINE_BODY.includes(codeBlock?.type);
+  const body = split
+    ? undefined
+    : codeBlock?.childForFieldName("body") ??
+      codeBlock?.namedChildren.find((child) => child.type === "statement_block");
   return {
     complete: !node.hasError && !codeBlock?.hasError,
-    statements: fallbackStatements(body, source, file),
+    statements: split
+      ? splitBodyStatements(codeBlock, source, file)
+      : fallbackStatements(body, source, file),
     ...((node.hasError || codeBlock?.hasError)
       ? { limitations: ["The AL parser reported errors in this procedure body."] }
       : {})
@@ -895,9 +957,7 @@ function membersFor(objectNode, source, file) {
           .map((child) => source.slice(child.startIndex, child.endIndex)),
           ...attributesFor(node, source)
         ];
-        const hasBody = node.namedChildren.some((child) =>
-          ["code_block", "statement_block"].includes(child.type)
-        );
+        const hasBody = Boolean(routineBody(node));
         const fallbackFacts = fallbackFactsFor(node, source, file, hasBody);
         procedures.push({
           name,
