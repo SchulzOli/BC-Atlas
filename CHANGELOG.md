@@ -4,7 +4,7 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.18.0 - 2026-11-10
 
 ### Added
 
@@ -29,12 +29,6 @@ follows [Semantic Versioning](https://semver.org/).
   `sync-outdated` health rule, the `bc_atlas_sync_status` MCP tool, and the
   extension points `sync.sources` and `sync.formats`. Includes the BC Atlas
   Sync AL extension, its tests, and the Playwright run.
-
-### Changed
-
-- `bca setup` (and `bca update`, which runs `setup apply --from-config`) keeps
-  the tasks it does not ask about in their triggers: plugin tasks, `simulate`,
-  `handbook`, and `diagrams` were dropped before.
 - **Visibility view** (`bca export --view visibility`): what is public,
   internal, or local, in three levels and three colors. Every app, object,
   procedure, event, and table field is a data point with its level: public
@@ -53,7 +47,6 @@ follows [Semantic Versioning](https://semver.org/).
   Click a circle to go into it, search by name, show only some levels, and
   switch to the diagram of boxes. See
   [Architecture diagrams](./docs/architecture-diagrams.md#read-a-visibility-view).
-
 - **Dashboard**, the page where VS Code and the offline app now open: every
   content in every form. Pick what to look at (a diagram view, the
   components of the architecture, the objects, the apps, the health
@@ -102,8 +95,10 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `bca setup` (and `bca update`, which runs `setup apply --from-config`) keeps
+  the tasks it does not ask about in their triggers: plugin tasks, `simulate`,
+  `handbook`, and `diagrams` were dropped before.
 - A group in a diagram is at least as wide as its name.
-
 - **Docs** and **Handbook** are one page in VS Code and the offline app. The
   list shows the system handbook first, then the user guides and test cases
   from UI tests. **Sources** beside each page says what it is read from. The
