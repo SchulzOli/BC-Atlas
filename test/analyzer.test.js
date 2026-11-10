@@ -750,6 +750,317 @@ test("extracts data items, formulas, execute permissions, action refs, and condi
     ["FEATURE"]);
 });
 
+test("models objects and fields whose header is split by #if, with the header of the first branch", async () => {
+  const source = `#if X
+table 50214 "T"
+#else
+table 50215 "T"
+#endif
+{
+    Caption = 'Split';
+    fields
+    {
+#if X
+        field(1; A; Integer)
+#else
+        field(1; A; Code[20])
+#endif
+        {
+            Caption = 'A';
+        }
+        field(2; B; Integer) { }
+    }
+}
+
+page 50216 "P"
+{
+    layout
+    {
+        area(Content)
+        {
+#if X
+            field(A; Rec.A)
+#else
+            field(A; Rec.B)
+#endif
+            {
+                Caption = 'PF';
+            }
+        }
+    }
+}
+`;
+  const result = await testing.objectsFromSource(source, "src/Split.al");
+
+  assert.equal(result.hasError, false);
+  assert.deepEqual(result.objects.map(({ type, id, name }) => [type, id, name]), [
+    ["table", "50214", "T"],
+    ["page", "50216", "P"]
+  ]);
+  const [table, page] = result.objects;
+
+  // The object: ID and name of the `#if` branch, the properties of the shared body.
+  assert.deepEqual(table.conditionalSymbols, ["X"]);
+  assert.deepEqual(table.properties, [{ name: "Caption", value: "'Split'" }]);
+  assert.equal(table.metadata.caption, "Split");
+  assert.deepEqual(table.location, { file: "src/Split.al", line: 1, column: 1, endLine: 20, endColumn: 2 });
+  assert.equal(table.parseError, false);
+
+  // The table field: number, name, and type of the `#if` branch, its own properties.
+  assert.deepEqual(
+    table.fields.map(({ name, kind, number, type, conditionalSymbols }) => ({ name, kind, number, type, conditionalSymbols })),
+    [
+      { name: "A", kind: "field", number: "1", type: "Integer", conditionalSymbols: ["X"] },
+      { name: "B", kind: "field", number: "2", type: "Integer", conditionalSymbols: undefined }
+    ]
+  );
+  assert.deepEqual(table.fields[0].properties, [{ name: "Caption", value: "'A'" }]);
+  assert.equal(table.fields[0].metadata.caption, "A");
+
+  // The page field: name and source of the `#if` branch; its caption is not the page's.
+  assert.equal(page.conditionalSymbols, undefined);
+  assert.deepEqual(page.properties, []);
+  assert.equal(page.fields.length, 1);
+  assert.deepEqual(
+    (({ name, kind, sourceExpression, container, properties, conditionalSymbols }) =>
+      ({ name, kind, sourceExpression, container, properties, conditionalSymbols }))(page.fields[0]),
+    {
+      name: "A",
+      kind: "page-field",
+      sourceExpression: "Rec.A",
+      container: "Content",
+      properties: [{ name: "Caption", value: "'PF'" }],
+      conditionalSymbols: ["X"]
+    }
+  );
+});
+
+test("a split object header keeps the relations of every branch with its condition", async () => {
+  const source = `#if X
+codeunit 50100 "C" implements "I One"
+#else
+codeunit 50100 "C" implements "I One", "I Two"
+#endif
+{
+    Access = Internal;
+    procedure Run() begin end;
+}
+
+#if X
+tableextension 50101 "TE" extends Customer
+#elif Y
+tableextension 50102 "TE2" extends Vendor
+#else
+tableextension 50103 "TE3" extends Customer
+#endif
+{
+    fields
+    {
+#if not CLEAN25
+        field(50100; "Old Name"; Code[20])
+#else
+        field(50100; "New Name"; Code[20])
+#endif
+        {
+            TableRelation = Item."No.";
+        }
+    }
+}
+
+#if X
+pageextension 50104 "PE" extends "Customer Card"
+#else
+pageextension 50105 "PE" extends "Customer Card"
+#endif
+{
+    layout
+    {
+        addlast(General)
+        {
+#if X
+            field(NewA; Rec.A)
+#elif Y
+            field(NewB; Rec.B)
+#endif
+            {
+                ToolTip = 'Shared';
+            }
+        }
+    }
+}
+
+#if X
+page 50106 "Only If"
+#endif
+{
+    SourceTable = Customer;
+}
+`;
+  const result = await testing.objectsFromSource(source, "src/SplitRelations.al");
+  const relations = ({ relations: list }, kind) => list
+    .filter((relation) => relation.kind === kind)
+    .map(({ target, targetType, conditionalSymbols }) => ({ target, targetType, conditionalSymbols }));
+
+  assert.equal(result.hasError, false);
+  assert.deepEqual(result.objects.map(({ type, id, name, conditionalSymbols }) => [type, id, name, conditionalSymbols]), [
+    ["codeunit", "50100", "C", ["X"]],
+    ["tableextension", "50101", "TE", ["X"]],
+    ["pageextension", "50104", "PE", ["X"]],
+    ["page", "50106", "Only If", ["X"]]
+  ]);
+  const [codeunit, tableExtension, pageExtension, page] = result.objects;
+
+  // Interfaces of every branch, each under the condition of its branch.
+  assert.deepEqual(relations(codeunit, "implements"), [
+    { target: "I One", targetType: "interface", conditionalSymbols: ["X"] },
+    { target: "I One", targetType: "interface", conditionalSymbols: ["else"] },
+    { target: "I Two", targetType: "interface", conditionalSymbols: ["else"] }
+  ]);
+  assert.equal(codeunit.metadata.access, "internal");
+  assert.deepEqual(codeunit.procedures.map(({ name, conditionalSymbols }) => [name, conditionalSymbols]),
+    [["Run", undefined]]);
+
+  // A base object that differs by branch: one relation per base, the first branch is the object's base.
+  assert.deepEqual(relations(tableExtension, "extends"), [
+    { target: "Customer", targetType: "table", conditionalSymbols: ["X"] },
+    { target: "Vendor", targetType: "table", conditionalSymbols: ["Y"] }
+  ]);
+  assert.deepEqual(tableExtension.fields.map(({ name, number, type, conditionalSymbols }) => [name, number, type, conditionalSymbols]),
+    [["Old Name", "50100", "Code[20]", ["not CLEAN25"]]]);
+  // What the shared body refers to is unconditional and knows its field.
+  assert.deepEqual(
+    relations(tableExtension, "relates").map((relation) => ({ ...relation, sourceField: tableExtension.relations.find(({ kind }) => kind === "relates").sourceField })),
+    [{ target: "Item", targetType: "table", conditionalSymbols: undefined, sourceField: "Old Name" }]
+  );
+
+  // The same base in every branch stays one plain relation.
+  assert.deepEqual(relations(pageExtension, "extends"),
+    [{ target: "Customer Card", targetType: "page", conditionalSymbols: undefined }]);
+  assert.deepEqual(pageExtension.fields.map(({ name, sourceExpression, properties, conditionalSymbols }) => ({ name, sourceExpression, properties, conditionalSymbols })), [
+    { name: "NewA", sourceExpression: "Rec.A", properties: [{ name: "ToolTip", value: "'Shared'" }], conditionalSymbols: ["X"] }
+  ]);
+
+  // `#if` without `#else`.
+  assert.deepEqual(page.properties, [{ name: "SourceTable", value: "Customer" }]);
+  assert.deepEqual(relations(page, "reads"),
+    [{ target: "Customer", targetType: "table", conditionalSymbols: undefined }]);
+});
+
+test("models procedures whose header is split by #if, with the header of the first branch", async () => {
+  const source = `codeunit 50100 "C"
+{
+    /// <summary>Posts the document.</summary>
+    [Scope('OnPrem')]
+#if not CLEAN25
+    [Obsolete('Use the local one.', '25.0')]
+    procedure Post(var Header: Record "Sales Header")
+#else
+    local procedure Post(var Header: Record "Purchase Header"; Extra: Integer): Boolean
+#endif
+    var
+        Line: Record "Sales Line";
+    begin
+        Header.Modify();
+        Line.DeleteAll();
+        Check();
+    end;
+
+#if X
+    internal procedure Count(): Integer
+    var
+        Customer: Record Customer;
+#elif Y
+    procedure Count(): Decimal
+    var
+        Vendor: Record Vendor;
+#else
+    local procedure Count(Limit: Integer): Text
+#endif
+    begin
+        if Customer.FindSet() then
+            exit(1);
+    end;
+
+#if X
+    procedure OnlyIf()
+#endif
+    begin
+    end;
+
+    procedure Check()
+    begin
+    end;
+}
+`;
+  const result = await testing.objectsFromSource(source, "src/SplitProcedures.al");
+  const [codeunit] = result.objects;
+  const procedure = (wanted) => codeunit.procedures.find(({ name }) => name === wanted);
+
+  assert.equal(result.hasError, false);
+  assert.deepEqual(codeunit.procedures.map(({ name }) => name), ["Post", "Count", "OnlyIf", "Check"]);
+
+  const post = procedure("Post");
+  assert.equal(post.header, 'procedure Post(var Header: Record "Sales Header")');
+  assert.equal(post.visibility, "public");
+  assert.equal(post.kind, "procedure");
+  assert.equal(post.returnType, undefined);
+  assert.equal(post.hasBody, true);
+  assert.deepEqual(post.attributes, ["[Obsolete('Use the local one.', '25.0')]", "[Scope('OnPrem')]"]);
+  assert.deepEqual(post.conditionalSymbols, ["not CLEAN25"]);
+  assert.deepEqual(post.parameters.map(({ name, type, byReference }) => ({ name, type, byReference })),
+    [{ name: "Header", type: 'Record "Sales Header"', byReference: true }]);
+  assert.equal(post.arity, 1);
+  assert.equal(post.signature, 'Post(Record "Sales Header")');
+  assert.equal(post.metadata.documentation, "Posts the document.");
+  assert.deepEqual(post.metadata.obsolete, { state: "pending", reason: "Use the local one.", tag: "25.0" });
+  assert.deepEqual(post.calls.map(({ name }) => name), ["Modify", "DeleteAll", "Check"]);
+  assert.equal(post.fallbackFacts.complete, true);
+
+  // The body is shared: its record operations resolve against the header of the first branch.
+  assert.deepEqual(
+    codeunit.relations
+      .filter(({ relationClass, member }) => relationClass === "runtime" && member === post.signature)
+      .map(({ target, kind, operation }) => ({ target, kind, operation })),
+    [
+      { target: "Sales Header", kind: "writes", operation: "Modify" },
+      { target: "Sales Line", kind: "writes", operation: "DeleteAll" }
+    ]
+  );
+  // Types named in a header keep the condition of their branch; the shared variables have none.
+  assert.deepEqual(
+    codeunit.relations
+      .filter(({ kind, location }) => kind === "uses" && location.line <= 12)
+      .map(({ target, conditionalSymbols }) => ({ target, conditionalSymbols })),
+    [
+      { target: "Sales Header", conditionalSymbols: ["not CLEAN25"] },
+      { target: "Purchase Header", conditionalSymbols: ["else"] },
+      { target: "Sales Line", conditionalSymbols: undefined }
+    ]
+  );
+
+  // Variables declared inside a branch belong to the procedure, as in any other `#if`.
+  const count = procedure("Count");
+  assert.equal(count.header, "internal procedure Count(): Integer");
+  assert.equal(count.visibility, "internal");
+  assert.equal(count.returnType, "Integer");
+  assert.equal(count.arity, 0);
+  assert.equal(count.signature, "Count()");
+  assert.deepEqual(count.conditionalSymbols, ["X"]);
+  assert.equal(count.metadata.complexity, 2);
+  assert.deepEqual(
+    codeunit.variables.filter(({ scope }) => scope === count.scope).map(({ name, parameter }) => [name, parameter]),
+    [["Customer", undefined], ["Vendor", undefined]]
+  );
+  assert.ok(codeunit.relations.some(({ target, kind, member }) =>
+    target === "Customer" && kind === "reads" && member === "Count()"
+  ));
+
+  assert.equal(procedure("OnlyIf").header, "procedure OnlyIf()");
+  assert.deepEqual(procedure("OnlyIf").conditionalSymbols, ["X"]);
+  assert.equal(procedure("Check").conditionalSymbols, undefined);
+  assert.equal(procedure("Check").header, "procedure Check()");
+});
+
 test("extracts enum, report, query, and XMLport structural elements", async () => {
   const source = `
     enum 50100 Choice { value(0; First) { Caption = 'First'; } }
@@ -1014,6 +1325,18 @@ test("the header of a procedure ends before its variables", async () => {
     procedure NoVariables(): Boolean // trailing
     begin
     end;
+
+#if X
+    procedure SplitHeader(): Integer // first branch
+#pragma warning disable AA0137
+#else
+    local procedure SplitHeader(): Text
+#endif
+    // above the variables
+    var
+        L: Integer;
+    begin
+    end;
 }
 `;
   const result = await testing.objectsFromSource(source, "a.al");
@@ -1027,13 +1350,15 @@ test("the header of a procedure ends before its variables", async () => {
     // A comment inside the header is part of it as written; what follows the header is not.
     { header: "internal procedure Annotated(P: Integer /* in */) /* mid */ : Integer", returnType: "Integer", hasBody: true },
     { header: "trigger OnRun()", returnType: undefined, hasBody: true },
-    { header: "procedure NoVariables(): Boolean", returnType: "Boolean", hasBody: true }
+    { header: "procedure NoVariables(): Boolean", returnType: "Boolean", hasBody: true },
+    // A header split by #if is the one of its first branch, by the same rule.
+    { header: "procedure SplitHeader(): Integer", returnType: "Integer", hasBody: true }
   ]);
   // The variables still belong to their procedure.
   assert.deepEqual(
     codeunit.procedures.map(({ scope }) =>
       codeunit.variables.filter((variable) => variable.scope === scope).map(({ name }) => name)),
-    [["R", "L"], ["L"], ["L"], ["P", "L"], ["L"], []]
+    [["R", "L"], ["L"], ["L"], ["P", "L"], ["L"], [], ["L"]]
   );
 });
 
