@@ -1,0 +1,12 @@
+node_modules
+.git
+.github
+test
+examples
+docs
+bc-extension
+*.jsonl
+.env
+api-keys.json
+event-subscribers.json
+secrets

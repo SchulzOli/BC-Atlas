@@ -1,0 +1,14 @@
+[
+  {
+    "id": "crm-sync",
+    "url": "https://crm.example.com/hooks/business-central",
+    "secret": "whsec_REPLACE_WITH_32_RANDOM_BYTES_BASE64",
+    "types": ["io.openbridge.bc.customers.*", "io.openbridge.bc.salesOrders.*"]
+  },
+  {
+    "id": "data-lake",
+    "url": "https://ingest.example.com/cloudevents",
+    "secret": "whsec_REPLACE_WITH_32_RANDOM_BYTES_BASE64",
+    "companies": ["5d115c9c-44e3-ea11-bb43-000d3a2feca1"]
+  }
+]
