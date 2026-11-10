@@ -2251,6 +2251,58 @@ test("models execute, tabledata, composed, internal, and dependent permission se
   assert.deepEqual(dependencySet.permissionSetRoles, ["internal", "included"]);
 });
 
+test("a wildcard permission is a wildcard, not an unresolved reference", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "bc-atlas-wildcard-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.writeFile(path.join(root, "app.json"), JSON.stringify({
+    id: "wildcard-app", name: "Wildcard", publisher: "Example", version: "1.0.0.0"
+  }));
+  await fs.writeFile(path.join(root, "App.al"), `
+    table 50000 T { fields { field(1; A; Integer) { } } }
+    permissionset 50000 All { Permissions = tabledata * = RIMD, codeunit * = X, page Missing = X; }
+  `);
+  const { model } = await createArchitectureModel(root, { view: "project" });
+  const set = model.objects.find(({ name }) => name === "All");
+  const grants = model.edges.filter(({ from, kind }) => from === set.key && kind === "permits");
+
+  // Every object of the type: no target to resolve, and none missing.
+  assert.deepEqual(
+    grants.filter(({ wildcard }) => wildcard).map(({ to, unresolved, wildcard, permissionKind, access, confidence }) =>
+      ({ to, unresolved, wildcard, permissionKind, access, confidence })),
+    [
+      { to: undefined, unresolved: undefined, wildcard: { type: "table" }, permissionKind: "tabledata", access: "RIMD", confidence: "resolved" },
+      { to: undefined, unresolved: undefined, wildcard: { type: "codeunit" }, permissionKind: "execute", access: "X", confidence: "resolved" }
+    ]
+  );
+  // Only the object that is really missing is reported and counted.
+  assert.deepEqual(
+    model.diagnostics.filter(({ code }) => code === "unresolved-reference").map(({ message }) => message),
+    ['permissionset "All" references external or unresolved page "Missing"']
+  );
+  assert.deepEqual(grants.find(({ unresolved }) => unresolved).unresolved, { name: "Missing", type: "page" });
+  assert.equal(model.insights.unresolvedEdges, 1);
+  const health = assessHealth(model);
+  assert.equal(health.summary.unresolved, 1);
+  assert.deepEqual(health.findings.find(({ rule }) => rule === "unresolved-references").targets, ["page Missing"]);
+
+  // Not a dependency on some object "*", and not an external node in a diagram.
+  assert.deepEqual(
+    dependencyLens(model).object.nodes.filter(({ origin }) => origin === "unresolved").map(({ label }) => label),
+    ["Missing"]
+  );
+  const diagram = renderD2(model, {});
+  assert.match(diagram, /wildcard: "Wildcard \(every object of a type\)" \{[^}]*w0: "table\\n\*"/u);
+  assert.match(diagram, /-> wildcard\.w0: "tabledata \[RIMD\]"/u);
+  assert.doesNotMatch(diagram, /e\d+: "(table|codeunit)\\n\*"/u);
+
+  // A quoted "*" is the name of an object, like any other.
+  const quoted = resolveModel(await testing.objectsFromSource(
+    `permissionset 50001 Named { Permissions = tabledata "*" = R; }`, "Named.al"
+  ));
+  assert.equal(quoted.edges[0].wildcard, undefined);
+  assert.deepEqual(quoted.edges[0].unresolved, { name: "*", type: "table" });
+});
+
 test("an object that refers to itself is not a dependency cycle", async () => {
   const { findCycles } = await import("../src/insights.js");
   const objects = [{ key: "a" }, { key: "b" }, { key: "c" }];

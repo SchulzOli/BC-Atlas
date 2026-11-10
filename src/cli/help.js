@@ -30,6 +30,7 @@ function topLevelName(definition) {
 // One-line summaries for the overview; the full purpose is in each command's help.
 const SHORT = {
   check: "Gate CI on architecture health: cycles, policies, architecture violations, diagnostics",
+  simulate: "Battle-test the app as your company uses it: roles, permission sets, process tests, fit-gap",
   architecture: "Find a target architecture, resolve what stands in its way, and enforce it with a baseline",
   refactor: "Move objects between components, lock a component's public surface (move, surface)",
   export: "Write files: the pages as one offline HTML file, report, explorer, catalog, or one diagram",

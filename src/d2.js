@@ -277,6 +277,7 @@ export function buildScene(model, options = {}) {
   }
 
   const external = new Map();
+  const wildcards = new Map();
   const edges = [];
   for (const edge of model.edges.slice(0, maxEdges)) {
     const source = keyIndex.get(edge.from);
@@ -287,6 +288,12 @@ export function buildScene(model, options = {}) {
       const externalKey = `${edge.unresolved.type}:${normalized(edge.unresolved.name)}`;
       if (!external.has(externalKey)) external.set(externalKey, `external.e${external.size}`);
       targetKey = external.get(externalKey);
+    }
+    // `tabledata * = R`: one node per type stands for every object of it.
+    if (!targetKey && edge.wildcard) {
+      const { type } = edge.wildcard;
+      if (!wildcards.has(type)) wildcards.set(type, `wildcard.w${wildcards.size}`);
+      targetKey = wildcards.get(type);
     }
     if (targetKey) {
       edges.push({
@@ -327,6 +334,17 @@ export function buildScene(model, options = {}) {
         const [type, ...nameParts] = lookup.split(":");
         return { key: path.split(".")[1], path, type, label: `${type}\n${nameParts.join(":")}`, fill: "#FAFAFA", stroke: "#999999" };
       })
+    });
+  }
+
+  if (wildcards.size) {
+    scene.groups.push({
+      key: "wildcard",
+      label: "Wildcard (every object of a type)",
+      dash: 5,
+      nodes: [...wildcards].map(([type, path]) => (
+        { key: path.split(".")[1], path, type, label: `${type}\n*`, fill: "#FAFAFA", stroke: "#999999" }
+      ))
     });
   }
 

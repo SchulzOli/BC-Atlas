@@ -26,6 +26,7 @@ npm install --global bc-atlas
 cd path/to/al-project
 bca setup                   # .bca.json, Husky hooks, VS Code tasks, pipeline, schedule (or: bca setup agent)
 bca check                   # architecture gate for CI
+bca simulate                # battle test: your roles and permission sets against the process tests
 bca export --view report    # docs/atlas/README.md: overview, diagrams, health
 bca export --view handbook  # docs/handbook: events, data, permissions, UI, code health
 bca update                  # new version? see what changed and update everything in one step
@@ -42,6 +43,7 @@ In VS Code, install the **BC Atlas** extension and open an AL project:
 | **In VS Code** | BC Atlas extension | Everything below in the editor: a panel with a dashboard (every content as a 2D graph, a 3D graph, a table, or a diagram), overview, health, architecture, 3D dependencies, diagrams, objects, the handbook, and docs; findings in the Problems panel; CodeLens above AL objects; the MCP server for agents. [Guide](./docs/vscode.md) |
 | **Get started** | `bca setup` | Guided setup in the terminal or through your AI agent (Claude Code, Copilot, Cursor): a starter `.bca.json`, features, Husky or Git hooks, GitHub Actions or Azure Pipelines, cron schedule, and sync. |
 | **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, architecture violations, hot spots, undocumented public API, diagnostics, and AL compiler and CodeCop/UICop/AppSourceCop findings - with a CI exit code, also as SARIF for code scanning. [Rules](./docs/health-checks.md) |
+| | `bca simulate` | The battle test: simulate the use in your company. Agents with your roles, permission sets, and task groups perform the process tests (AL UI tests) step by step. It fails CI when a role is blocked or can do what it must not, explains every permission a step needs, and writes the fit-gap analysis against your requirements. [Guide](./docs/battle-test.md), [example](./examples/simulation/README.md) |
 | | `bca architecture` | Find a target architecture (components, layers), list every dependency that blocks it with how to resolve it, and enforce it with a shrinking baseline. You decide what the proposal considers (`architecture.proposal`: relation kinds, starting structures, granularity, components you keep, objects you exclude), it says how it was made, and `--explain` says why an object is where it is. [Guide](./docs/clean-architecture.md) |
 | | `bca graph query` | Reuse a saved graph for impact analysis or message migrations without re-analyzing AL; keep IDs, directions, evidence, and metadata. [Guide](./docs/dependency-explorer.md#query-and-render-saved-graphs) |
 | **Export** | `bca export` | Everything the extension shows, as files: the BC Atlas pages as one offline HTML file to share (default), the Markdown report ([example](./examples/report/README.md)), the 3D explorer, one Markdown page per object, any of eleven diagram views as D2, SVG, PNG, PDF, or JSON, with `--watch`, and the project as a knowledge graph in RDF with an OWL ontology ([Turtle, RDF/XML, OWL, N-Triples, JSON-LD](./docs/knowledge-graph.md)). |
@@ -164,6 +166,35 @@ bca check --fail-on warning
 `--format markdown` produces a summary for pull requests or job pages; see
 [Automation](./docs/automation-and-ci.md).
 
+## Battle-test it: simulate the use in your company
+
+```sh
+bca simulate                                  # who can do what; exit code 1 when a role is blocked
+bca simulate -o docs/simulation/README.md     # the report as documentation, with the fit-gap analysis
+```
+
+Describe the company under `simulation` in `.bca.json`: roles with permission
+sets and task groups, the agents who hold them, what a role must not be able
+to do, and the requirements. The agents then perform the process tests (your
+AL UI tests) step by step, and every step is checked against what the code
+behind it needs, down to the subscriber of an event three calls deep.
+
+```text
+Who can do what             Anna     Ben      Carla    Dana
+  purchase-request-create   ok       ok       -        (can)
+  purchase-request-approve  denied   BLOCKED  denied   CAN
+  purchase-request-order    denied   denied   ok       (can)
+
+ERROR   Ben (Team lead) cannot complete "Approve a released purchase request": step 3
+        (Choose the Approve action) needs Execute on codeunit 50222 Request Notifications.
+        -> Add to a permission set of the agent: codeunit "Request Notifications" = X
+ERROR   Dana (Administrator) can complete "Approve a released purchase request" but must not be able to.
+```
+
+Without a `simulation` section, the `[PERMISSIONS]` of the tests are the
+roles. See [Battle test](./docs/battle-test.md) and the
+[example report](./examples/simulation/README.md).
+
 ## Automate it
 
 `bca setup` asks once and wires everything to `bca run`:
@@ -173,7 +204,7 @@ bca check --fail-on warning
 | VS Code task | Health check (findings in the Problems panel), report, docs, live diagram | - |
 | `git commit` (Husky) | Fast checks | - |
 | `git push` (Husky) | Report and docs | `verify`: stop when generated files are outdated |
-| Pull request / `main` | Everything | `verify` or `artifact` |
+| Pull request / `main` | Everything, with the battle test when you add `simulate` | `verify` or `artifact` |
 | Schedule (cron) | Report and docs | `pull-request` with regenerated files |
 
 New BC Atlas versions show up as a notice in the terminal, as `bca update`, and
@@ -187,13 +218,13 @@ search, or browse them here, starting with the [table of contents](./docs/_TOC_.
 - [Getting started](./docs/getting-started.md), [BC Atlas for VS Code](./docs/vscode.md), and [guided setup](./docs/setup.md), including [staying up to date](./docs/setup.md#staying-up-to-date)
 - [AL toolchain: compiler, analyzers, AL settings](./docs/al-toolchain.md)
 - [Automation: hooks, schedules, and pipelines](./docs/automation-and-ci.md)
-- [Architecture reports](./docs/reports.md) and [health checks](./docs/health-checks.md)
+- [Architecture reports](./docs/reports.md), [health checks](./docs/health-checks.md), and the [battle test](./docs/battle-test.md)
 - [Architecture diagrams and views](./docs/architecture-diagrams.md)
 - [Configuration](./docs/configuration.md) and the complete [`.bca.example.json`](./.bca.example.json)
 - [System handbook](./docs/handbook.md), [documentation from AL UI tests](./docs/al-ui-test-documentation.md), and [Code Graph](./docs/code-graph-markdown-design.md)
 - [Agent integration and MCP](./docs/agent-integration.md)
 - [CLI reference](./docs/cli-reference.md) and [troubleshooting](./docs/troubleshooting.md)
-- Generated examples: [architecture report](./examples/report/README.md), [system handbook](./examples/handbook/README.md), and [user guides](./examples/docs/index.md)
+- Generated examples: [architecture report](./examples/report/README.md), [system handbook](./examples/handbook/README.md), [user guides](./examples/docs/index.md), and [battle test](./examples/simulation/README.md)
 
 ## AI agents and tools
 
@@ -204,7 +235,7 @@ bca mcp                  # MCP stdio server (also installed as bca-mcp)
 
 Agents should read the contract first, pass arguments as arrays, parse stdout
 only after a successful exit code, and preview changes with `--dry-run`. The
-MCP server exposes inspect, check, architecture, report, handbook, diagram,
+MCP server exposes inspect, check, simulate, architecture, report, handbook, diagram,
 documentation, setup, run, and update-check tools. `bca setup agent --agent claude|copilot|cursor` adds a
 `/bca-setup` command that lets your agent guide the setup. See
 [agent integration](./docs/agent-integration.md).

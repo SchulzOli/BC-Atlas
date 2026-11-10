@@ -39,7 +39,7 @@ for (const name of readdirSync(path.join(root, "examples/explorer")).filter((ent
 // The app itself, exported as offline pages for the example projects.
 const { Workspace } = await import("../src/app/workspace.js");
 const { renderSnapshotHtml } = await import("../src/app/snapshot.js");
-for (const name of ["warehouse-app", "multi-app"]) {
+for (const name of ["warehouse-app", "multi-app", "purchasing-app"]) {
   const { html } = await renderSnapshotHtml(new Workspace(path.join(root, "examples", name), {}, { live: false }));
   const target = path.join(dist, publishedHtmlPath(`examples/app/${name}.html`));
   mkdirSync(path.dirname(target), { recursive: true });

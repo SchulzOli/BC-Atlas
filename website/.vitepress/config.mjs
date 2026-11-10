@@ -22,6 +22,7 @@ const REWRITES = {
   "examples/README.md": "examples/index.md",
   "examples/report/README.md": "examples/report/index.md",
   "examples/explorer/README.md": "examples/explorer/index.md",
+  "examples/simulation/README.md": "examples/simulation/index.md",
   // The ontology's IRI is https://schulzoli.github.io/BC-Atlas/ontology.
   "docs/reference/ontology.md": "ontology.md"
 };

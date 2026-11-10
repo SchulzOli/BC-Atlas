@@ -78,6 +78,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_run",
         "bc_atlas_setup_apply",
         "bc_atlas_setup_plan",
+        "bc_atlas_simulate",
         "bc_atlas_update_check"
       ]
     );
@@ -103,6 +104,23 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     const { pages } = JSON.parse(handbook.content[0].text);
     assert.deepEqual(pages.map(({ page }) => page), ["data"]);
     assert.match(pages[0].markdown, /Geschrieben von/u, "an agent reads who writes each table");
+
+    const battle = await client.callTool({
+      name: "bc_atlas_simulate",
+      arguments: { path: path.join(root, "examples", "purchasing-app"), agent: "Ben" }
+    });
+    assert.equal(battle.isError, undefined);
+    const simulation = JSON.parse(battle.content[0].text);
+    assert.equal(simulation.passed, false);
+    assert.deepEqual(simulation.agents.map(({ name }) => name), ["Ben"], "agent returns one agent's details");
+    assert.deepEqual(simulation.agents[0].attempts.find(({ outcome }) => outcome === "blocked").missingPermissions, ['codeunit "Request Notifications" = X']);
+    assert.ok(simulation.tasks.every(({ steps }) => steps === undefined), "process tests are listed; their steps come with task");
+    const unknownAgent = await client.callTool({
+      name: "bc_atlas_simulate",
+      arguments: { path: path.join(root, "examples", "purchasing-app"), agent: "Nobody" }
+    });
+    assert.equal(unknownAgent.isError, true);
+    assert.match(unknownAgent.content[0].text, /agent "Nobody" was not found; known: Anna, Ben, Carla, Dana/u);
 
     const health = await client.callTool({
       name: "bc_atlas_check",

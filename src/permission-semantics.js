@@ -5,9 +5,16 @@ const TABLEDATA_RIGHTS = {
   D: "delete"
 };
 
+const RIGHTS = { ...TABLEDATA_RIGHTS, X: "execute" };
+
 export function permissionGrant(type, permission) {
-  const access = String(permission).toUpperCase();
+  const written = String(permission);
+  const access = written.toUpperCase();
   const tabledata = String(type).toLowerCase() === "tabledata";
+  // A lowercase letter grants the right indirectly: only through an object
+  // that has the permission itself (its Permissions property).
+  const indirect = [...written].filter((right) => right !== right.toUpperCase())
+    .map((right) => RIGHTS[right.toUpperCase()]).filter(Boolean);
   return {
     targetType: tabledata ? "table" : String(type).toLowerCase(),
     access,
@@ -15,7 +22,8 @@ export function permissionGrant(type, permission) {
     tableDataRights: tabledata
       ? [...access].map((right) => TABLEDATA_RIGHTS[right]).filter(Boolean)
       : undefined,
-    execute: tabledata ? false : access.includes("X")
+    execute: tabledata ? false : access.includes("X"),
+    ...(indirect.length ? { indirectRights: indirect } : {})
   };
 }
 
@@ -62,6 +70,11 @@ export function classifyPermissionSet(object, includedBy = []) {
     includedBy,
     permissionSetRoles
   };
+}
+
+/** How a wildcard grant names what it covers: `tabledata * = R` is "table *". */
+export function wildcardLabel(wildcard) {
+  return `${wildcard.type} *`;
 }
 
 export function permissionRelationLabel(permissionKind) {

@@ -45,7 +45,7 @@ Result: PASSED - 0 error(s), 0 warning(s), 1 info (fail on: error)
 | `context-responsibility` | info; warning for direct effects forbidden by policy | An explicitly selected context has record reads/writes, temporary writes, commits, resolved calls, selected role responsibilities, in-memory global assignments, or bounded indirect effect candidates. Configure `check.contexts` and its `forbid` list to assert selected responsibilities. |
 | `undocumented-public-api` | info | Public procedures of public codeunits and interfaces without a `///` summary. `Access = Internal` objects and test codeunits are not API. |
 | `orphan-objects` | info | Objects without any relationship. |
-| `unresolved-references` | info | References to objects outside the analyzed source. Add `.alpackages` symbols to resolve them. |
+| `unresolved-references` | info | References to objects outside the analyzed source. Add `.alpackages` symbols to resolve them. A wildcard permission (`tabledata * = R`) is not one. |
 
 `undocumented-public-api` reports once per object and lists the procedures,
 so a large app does not flood the results. Set it to `error`, `warning`,

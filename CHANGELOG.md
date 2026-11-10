@@ -47,6 +47,31 @@ follows [Semantic Versioning](https://semver.org/).
 - Every page says what it is read from: **Sources** below the list (AL files
   and objects, apps, symbol packages, AL compiler, settings), and for a
   content of the Dashboard what that content reads.
+- **Battle test: simulate the use in your company.** `bca simulate` lets
+  agents with the roles, permission sets, and task groups of your company
+  perform the process tests of the app (the AL UI tests with `[SCENARIO]`)
+  step by step. For every step it follows the code behind it and checks what
+  the agent needs: Execute on the page and on every codeunit, page, or report
+  the code calls or runs, the table-data rights for what it reads and writes,
+  and the codeunits of event subscribers. One run is an automatic test (exit
+  code 1 when a role is blocked, or can do what it must not), a process test
+  (does each use case run end to end across roles?), and the data the
+  documentation is written from: who can do what, an explanation of every
+  permission a step needs, the permissions a role holds but no task needs,
+  and a fit-gap analysis of your requirements against the app (fit, gap in
+  permissions, nobody assigned, not proven by a process test, not in the
+  app). Describe the company under `simulation` in `.bca.json` (`roles`,
+  `agents`, `taskGroups`, `requirements`, `mustNot` for segregation of
+  duties) or in a file (`--company`); without it, every combination of
+  `[PERMISSIONS]` in the tests is a role. Text, Markdown, or JSON, in English
+  or German. Also a task of `bca run` (`simulate`, report in
+  `docs/simulation`), a page of **Docs** in VS Code and the offline app, and
+  the MCP tool `bc_atlas_simulate`. See [Battle test](./docs/battle-test.md)
+  and the new purchasing example (`examples/purchasing-app`,
+  [report](./examples/simulation/README.md)).
+- The model keeps which rights a permission grants only indirectly
+  (`indirectRights`: `tabledata "X" = Ri` reads directly and inserts
+  indirectly).
 
 ### Changed
 
@@ -84,6 +109,20 @@ follows [Semantic Versioning](https://semver.org/).
   base object that differs by branch.
 - A relation found in the shared body after `#endif` of a procedure with a
   split header no longer carries the condition of the last branch (`else`).
+- A wildcard permission (`tabledata * = RIMD`, `codeunit * = X`) is a
+  wildcard, not a reference to a missing object named `*`: no
+  `unresolved-reference` diagnostic, and it no longer counts as unresolved
+  in `bca check`. In the model its edge has `wildcard: { type }` instead of
+  `unresolved: { name: "*", type }`. Diagrams draw it to a node of its own
+  (`table *`) instead of "External / unresolved", the handbook lists it as
+  `table *` and knows that `tabledata *` covers every table, and the
+  dependency explorer and the knowledge graph no longer show an external
+  object `*`. A quoted `"*"` stays the name of an object.
+- The permission set of the warehouse example lacked Execute on the codeunit
+  that subscribes to `OnRequestProcessed`. The battle test found it: with
+  `WAREHOUSE PROCESS` alone, the Process action would have failed.
+- `bca run --tasks` and the MCP tool `bc_atlas_run` accept the `handbook`
+  task, as `.bca.json` triggers already did.
 
 ## 0.17.0 - 2026-11-06
 

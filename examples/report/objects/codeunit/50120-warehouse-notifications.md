@@ -31,7 +31,9 @@ App: "BC Atlas Warehouse Example 1.0.0.0"
 
 ## Used by
 
-None.
+| Relationship | Source | From | Evidence |
+| --- | --- | --- | --- |
+| Permits | [WAREHOUSE PROCESS](../permissionset/50121-warehouse-process.md) | Object | X |
 
 ## Source
 

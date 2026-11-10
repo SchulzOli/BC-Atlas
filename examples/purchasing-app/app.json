@@ -1,0 +1,8 @@
+{
+  "id": "5b0c7a1e-3f0d-4c55-9a52-6a1f8b1f4d20",
+  "name": "BC Atlas Purchasing Example",
+  "publisher": "BC Atlas contributors",
+  "version": "1.0.0.0",
+  "runtime": "13.0",
+  "dependencies": []
+}

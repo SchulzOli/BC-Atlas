@@ -8,7 +8,7 @@
 
 | Files | Objects | Relationships | Unresolved | Cycles | Health |
 | --- | --- | --- | --- | --- | --- |
-| 4 | 9 | 27 | 0 | 0 | Passed (0 errors, 0 warnings) |
+| 4 | 9 | 28 | 0 | 0 | Passed (0 errors, 0 warnings) |
 
 ## Contents
 
@@ -27,7 +27,7 @@ AL objects grouped into role lanes (Data, UI, Services, ...).
 
 ![Project overview](project.svg)
 
-9 nodes, 27 edges. Source: [project.d2](project.d2)
+9 nodes, 28 edges. Source: [project.d2](project.d2)
 
 ## Modules
 
@@ -78,7 +78,7 @@ Pages, source tables, parts, actions, and navigation.
 | Apps | BC Atlas Warehouse Example 1.0.0.0 |
 | Files | 4 |
 | Objects | 9 |
-| Relationships | 27 |
+| Relationships | 28 |
 | Unresolved references | 0 |
 | Dependency cycles | 0 |
 
@@ -98,12 +98,12 @@ Pages, source tables, parts, actions, and navigation.
 | --- | --- | --- |
 | codeunit 50101 Warehouse Processor | 4 | 2 |
 | page 50110 Warehouse Requests | 3 | 2 |
+| permissionset 50121 WAREHOUSE PROCESS | 0 | 4 |
 | table 50100 Warehouse Request | 4 | 0 |
-| permissionset 50121 WAREHOUSE PROCESS | 0 | 3 |
+| codeunit 50120 Warehouse Notifications | 1 | 1 |
 | codeunit 50122 WarehouseUITests | 0 | 2 |
 | enum 50102 Warehouse Handler | 0 | 2 |
 | interface Handles Warehouse Activity | 2 | 0 |
-| codeunit 50120 Warehouse Notifications | 0 | 1 |
 | pageextension 50111 Warehouse Request Ext. | 0 | 1 |
 
 | Severity | Rule | Finding | Evidence |

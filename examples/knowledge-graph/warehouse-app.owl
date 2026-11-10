@@ -9,7 +9,7 @@
     xmlns:bca="https://schulzoli.github.io/BC-Atlas/ontology#">
   <owl:Ontology rdf:about="urn:bc-atlas:graph">
     <rdfs:label>BC Atlas Warehouse Example</rdfs:label>
-    <rdfs:comment>AL source analyzed by BC Atlas: 9 objects, 27 relations.</rdfs:comment>
+    <rdfs:comment>AL source analyzed by BC Atlas: 9 objects, 28 relations.</rdfs:comment>
     <dcterms:created rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2025-01-01T00:00:00.000Z</dcterms:created>
     <dcterms:creator>BC Atlas 0.17.0</dcterms:creator>
     <dcterms:conformsTo rdf:resource="https://schulzoli.github.io/BC-Atlas/ontology"/>
@@ -604,13 +604,14 @@
     <bca:objectId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50121</bca:objectId>
     <dcterms:identifier>8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.Automation::permissionset::50121</dcterms:identifier>
     <bca:access>public</bca:access>
-    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">8</bca:lineCount>
+    <bca:lineCount rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">9</bca:lineCount>
     <bca:inApp rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397"/>
     <bca:inNamespace rdf:resource="urn:bc-atlas:namespace:BCA.Example.Automation"/>
     <bca:sourceFile>Automation.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">19</bca:sourceLine>
     <bca:permits rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:permits rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
+    <bca:permits rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120"/>
     <bca:permits rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
   </bca:PermissionSet>
   <bca:Interface rdf:about="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity">
@@ -853,16 +854,25 @@
     <bca:sourceFile>Automation.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">24</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:d0341c1a1778b3b3">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:6f0d9fea97448076">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121"/>
-    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120"/>
     <bca:relationKind>permits</bca:relationKind>
     <bca:confidence>resolved</bca:confidence>
     <bca:dataAccess>X</bca:dataAccess>
     <bca:sourceFile>Automation.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">25</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:9f3cab0446f34b5f">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:c28775b34923258a">
+    <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:permissionset:50121"/>
+    <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
+    <bca:relationKind>permits</bca:relationKind>
+    <bca:confidence>resolved</bca:confidence>
+    <bca:dataAccess>X</bca:dataAccess>
+    <bca:sourceFile>Automation.al</bca:sourceFile>
+    <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">26</bca:sourceLine>
+  </bca:Relation>
+  <bca:Relation rdf:about="urn:bc-atlas:relation:ab6f141215c1147f">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity"/>
     <bca:relationKind>implements</bca:relationKind>
@@ -870,7 +880,7 @@
     <bca:sourceFile>Inventory.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">28</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:fe960692dcc382ea">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:148864f020542b1d">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>permits</bca:relationKind>
@@ -879,7 +889,7 @@
     <bca:sourceFile>Inventory.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">30</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:332f63aa6e739726">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:38e7157f663b705d">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>uses</bca:relationKind>
@@ -887,7 +897,7 @@
     <bca:sourceFile>Inventory.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">33</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:4ea2ef4ced046a42">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:5d8785bcee3e46b9">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>uses</bca:relationKind>
@@ -895,7 +905,7 @@
     <bca:sourceFile>Inventory.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">43</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:1dcf920c133e527e">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:8e728b343337a771">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>uses</bca:relationKind>
@@ -903,7 +913,7 @@
     <bca:sourceFile>Inventory.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">51</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:111faabfe5839a61">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:fc2ba0714ad467bf">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>reads</bca:relationKind>
@@ -914,7 +924,7 @@
     <bca:sourceFile>Inventory.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">37</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:09bdfcdd5750d32d">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:714b51c8c297da31">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>writes</bca:relationKind>
@@ -925,7 +935,7 @@
     <bca:sourceFile>Inventory.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">47</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:1fdb5cd67c21d0c8">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:ac615a942fe8e214">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>writes</bca:relationKind>
@@ -936,7 +946,7 @@
     <bca:sourceFile>Inventory.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">40</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:5267243d2fed84c1">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:88af47ecfde2e517">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:interface:handles%20warehouse%20activity"/>
     <bca:relationKind>implements</bca:relationKind>
@@ -944,7 +954,7 @@
     <bca:sourceFile>Inventory.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">61</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:c4e3a873b05bfbea">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:a397f68c98abfe5d">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:enum:50102"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
     <bca:relationKind>selects</bca:relationKind>
@@ -953,7 +963,7 @@
     <bca:sourceFile>Inventory.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">65</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:0351a8ee478d689b">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:e203a6a3e791b42c">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>reads</bca:relationKind>
@@ -961,7 +971,7 @@
     <bca:sourceFile>WarehouseUI.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">10</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:7f6d360e333bb2e6">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:882b6b3def1b83ec">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50101"/>
     <bca:relationKind>uses</bca:relationKind>
@@ -969,7 +979,7 @@
     <bca:sourceFile>WarehouseUI.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">54</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:d91fdeff49c9699e">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:af186569132fc412">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:pageextension:50111"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
     <bca:relationKind>extends</bca:relationKind>
@@ -978,7 +988,7 @@
     <bca:sourceFile>WarehouseUI.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">64</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:08b7ace2b51920a8">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:55225bec7b132f58">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>permits</bca:relationKind>
@@ -987,7 +997,7 @@
     <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">14</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:a74f91eb6281a9b6">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:5bf7dc2df354e00d">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>uses</bca:relationKind>
@@ -995,7 +1005,7 @@
     <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">20</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:a5c0bf1ca2396620">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:44f8e5ea96742ed7">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
     <bca:relationKind>uses</bca:relationKind>
@@ -1003,7 +1013,7 @@
     <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">21</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:9e7ff653d1c02214">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:a427b6ad7f3cabc2">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>uses</bca:relationKind>
@@ -1011,7 +1021,7 @@
     <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">48</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:fc8185e5441e534e">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:58e8034c6fcdcea3">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110"/>
     <bca:relationKind>uses</bca:relationKind>
@@ -1019,7 +1029,7 @@
     <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">49</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:78d28988fa7e6de7">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:7b1d9f0a22c67a05">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>writes</bca:relationKind>
@@ -1030,7 +1040,7 @@
     <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">29</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:3d5d6ea1723a1b47">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:ac3dc6361d48722d">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>reads</bca:relationKind>
@@ -1041,7 +1051,7 @@
     <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">38</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:ba270960d90eb144">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:3426ee8a3aad8f2f">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>writes</bca:relationKind>
@@ -1052,7 +1062,7 @@
     <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">57</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:e7ab695a596c98b0">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:01b383d06df7d591">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>writes</bca:relationKind>
@@ -1063,7 +1073,7 @@
     <bca:sourceFile>WarehouseUITests.al</bca:sourceFile>
     <bca:sourceLine rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">60</bca:sourceLine>
   </bca:Relation>
-  <bca:Relation rdf:about="urn:bc-atlas:relation:515f956c5431bdeb">
+  <bca:Relation rdf:about="urn:bc-atlas:relation:cd45a187c03ce283">
     <bca:relationSource rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122"/>
     <bca:relationTarget rdf:resource="urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100"/>
     <bca:relationKind>reads</bca:relationKind>

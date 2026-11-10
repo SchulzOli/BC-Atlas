@@ -91,10 +91,95 @@
         "catalog": { "description": "Folder of the object catalog that object names link to; bca run uses the codegraph task's folder when the same run writes it.", "type": "string" }
       }
     },
+    "simulation": {
+      "description": "The battle test (bca simulate): the company whose agents perform the process tests.",
+      "type": "object",
+      "properties": {
+        "company": { "description": "Name of the company, for the title of the report.", "type": "string" },
+        "tests": { "description": "Folder with the process tests (AL UI tests with [SCENARIO]), relative to the app. Default: docs.tests, then the app.", "type": "string" },
+        "taskGroups": {
+          "description": "What there is to do. Without task groups, every [FEATURE] is one.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "tasks": { "description": "Process tests by document ID.", "$ref": "#/$defs/names" },
+              "features": { "description": "Every process test of these [FEATURE]s.", "$ref": "#/$defs/names" }
+            }
+          }
+        },
+        "roles": {
+          "description": "Who does it. Without roles and agents, every combination of [PERMISSIONS] in the tests is a role.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "permissionSets": { "$ref": "#/$defs/names" },
+              "taskGroups": { "$ref": "#/$defs/names" },
+              "tasks": { "$ref": "#/$defs/names" },
+              "features": { "$ref": "#/$defs/names" },
+              "mustNot": { "description": "Process tests, features, or task groups the role must not be able to complete.", "$ref": "#/$defs/names" }
+            }
+          }
+        },
+        "agents": {
+          "description": "The people who hold roles. Without agents, there is one per role.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "roles": { "$ref": "#/$defs/names" },
+              "permissionSets": { "description": "Permission sets besides those of the roles.", "$ref": "#/$defs/names" },
+              "taskGroups": { "$ref": "#/$defs/names" },
+              "tasks": { "$ref": "#/$defs/names" },
+              "features": { "$ref": "#/$defs/names" },
+              "mustNot": { "$ref": "#/$defs/names" }
+            }
+          }
+        },
+        "requirements": {
+          "description": "What the company needs, for the fit-gap analysis. Without requirements, every [FEATURE] is one.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "tasks": { "description": "Process tests that cover it, by document ID.", "$ref": "#/$defs/names" },
+              "features": { "$ref": "#/$defs/names" },
+              "objects": { "description": "Objects of the app that should cover it: page:Name, codeunit:Name, or a name.", "$ref": "#/$defs/names" }
+            }
+          }
+        },
+        "fullAccess": { "description": "Permission sets that grant everything although they are not in the analyzed source.", "$ref": "#/$defs/names", "default": ["SUPER"] },
+        "otherApps": { "description": "Rights on objects of other apps that the analyzed permission sets do not grant: assume them (they come with that app's permission sets) or check them.", "enum": ["assume", "check"], "default": "assume" },
+        "failOn": { "enum": ["error", "warning", "info", "never"], "default": "error" },
+        "language": { "description": "Language of the report: en (default) or de.", "type": "string" },
+        "title": { "type": "string" },
+        "outputDir": { "description": "Folder of the report the simulate task of bca run writes.", "type": "string", "default": "docs/simulation" }
+      }
+    },
     "docs": { "type": "object" },
     "automation": { "type": "object" }
   },
   "$defs": {
+    "names": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
     "selector": {
       "description": "namespace:, folder:, file:, app:, module:, type:, object:type:name, id:from..to, or *; join with & so all must match.",
       "type": "string"

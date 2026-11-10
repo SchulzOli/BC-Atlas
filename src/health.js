@@ -182,7 +182,7 @@ export function assessHealth(model, settings = {}) {
       `${orphans.length} object(s) without relationships: ${orphans.slice(0, 5).join(", ")}${orphans.length > 5 ? ", ..." : ""}`,
       { objects: orphans }));
   }
-  const unresolved = model.edges.filter(({ to }) => !to);
+  const unresolved = model.edges.filter(({ to, wildcard }) => !to && !wildcard);
   if (unresolved.length) {
     const targets = [...new Set(unresolved.map(({ unresolved: target }) =>
       target ? `${target.type ?? "object"} ${target.name}` : "unknown"))].sort();
