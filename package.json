@@ -1,0 +1,24 @@
+{
+  "name": "bc-claude",
+  "version": "0.1.0",
+  "description": "MCP-Server (stdio), mit dem Claude Business Central über das BC-OpenBridge-Gateway bedient – agentengerechte Werkzeuge, zweistufige Änderungen, keine eigenen Rechte.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "bc-claude": "src/server.ts"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "check": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "^5.9.3"
+  }
+}
