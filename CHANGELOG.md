@@ -18,6 +18,16 @@ follows [Semantic Versioning](https://semver.org/).
   apps, symbol packages with versions, the AL compiler, the architecture, and
   `.bca.json`.
 
+### Fixed
+
+- An object's `properties` are its own. The properties of a group, repeater,
+  grid, cue group, action group, view, request page, rendering layout, field
+  group, or `modify(...)` inside it no longer count as the object's, so the
+  caption of a page is the page's `Caption`, not that of its last captioned
+  group (the same for `ApplicationArea`, `Editable`, `ToolTip`, `Visible`,
+  and `SourceTableTemporary` of a request page). An XMLport element no
+  longer lists the properties of its attributes.
+
 ## 0.17.0 - 2026-11-06
 
 ### Fixed

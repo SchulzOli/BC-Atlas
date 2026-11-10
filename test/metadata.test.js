@@ -177,3 +177,184 @@ test("symbol packages in the format the AL compiler writes are read completely",
   assert.deepEqual(list.metadata.size, { pageFields: 2, procedures: 2, publicProcedures: 1, actions: 2 });
   assert.deepEqual(byName.get("Customer Type").metadata.size, { elements: 2 });
 });
+
+// A group, repeater, grid, request page, rendering layout, field group, or
+// modify has properties of its own. They are not the object's.
+const NESTED = `page 50212 "Purchase Request Setup"
+{
+    Caption = 'Purchase Request Setup';
+    PageType = Card;
+    SourceTable = "Purchase Request Setup";
+    ApplicationArea = Basic, Suite;
+    Editable = true;
+    layout
+    {
+        area(Content)
+        {
+            group(General)
+            {
+                Caption = 'General';
+                Visible = false;
+                field("Approval Limit"; Rec."Approval Limit") { ToolTip = 'Specifies the limit.'; }
+                grid(Amounts)
+                {
+                    Caption = 'Amounts';
+                    GridLayout = Rows;
+                    fixed(Totals)
+                    {
+                        Caption = 'Totals';
+                        group(Inner) { Caption = 'Inner'; ShowCaption = false; }
+                    }
+                }
+            }
+            repeater(Lines)
+            {
+                Caption = 'Lines';
+                Editable = false;
+                field(Amount; Rec.Amount) { }
+            }
+            cuegroup(Open)
+            {
+                Caption = 'Open Requests';
+                field(Requests; Rec.Requests) { }
+            }
+            part(Details; "Request Details") { Caption = 'Details'; }
+            label(Hint) { Caption = 'Hint'; ApplicationArea = All; }
+        }
+    }
+    actions
+    {
+        area(Processing)
+        {
+            group(Approval)
+            {
+                Caption = 'Approval';
+                ToolTip = 'Approve or reject.';
+                action(Approve) { Caption = 'Approve'; }
+            }
+        }
+    }
+    views
+    {
+        view(Mine) { Caption = 'My Requests'; SharedLayout = false; }
+    }
+}
+
+pageextension 50213 "Customer Card Ext" extends "Customer Card"
+{
+    layout
+    {
+        modify(Name) { Caption = 'Customer Name'; Visible = false; }
+        addlast(General) { group(Requests) { Caption = 'Requests'; } }
+    }
+}
+
+table 50214 "Purchase Request"
+{
+#if CLEAN
+    Caption = 'Purchase Request';
+#endif
+    DataClassification = CustomerContent;
+    fields
+    {
+        field(1; "No."; Code[20]) { Caption = 'No.'; DataClassification = SystemMetadata; }
+    }
+    fieldgroups
+    {
+        fieldgroup(DropDown; "No.") { Caption = 'Drop Down'; }
+    }
+}
+
+tableextension 50215 "Customer Ext" extends Customer
+{
+    fields
+    {
+        modify(Name) { Caption = 'Customer Name'; }
+    }
+}
+
+report 50216 "Purchase Requests"
+{
+    Caption = 'Purchase Requests';
+    dataset
+    {
+        dataitem(Request; "Purchase Request")
+        {
+            RequestFilterFields = "No.";
+            column(No; "No.") { IncludeCaption = true; }
+        }
+    }
+    requestpage
+    {
+        Caption = 'Options';
+        SourceTable = "Purchase Request";
+        SourceTableTemporary = true;
+        layout { area(Content) { group(Options) { Caption = 'Filter'; } } }
+    }
+    rendering
+    {
+        layout(Word) { Type = Word; LayoutFile = 'Requests.docx'; Caption = 'Word Layout'; }
+    }
+}
+
+xmlport 50217 "Request Import"
+{
+    Caption = 'Request Import';
+    schema
+    {
+        textelement(Root)
+        {
+            MinOccurs = Zero;
+            tableelement(Request; "Purchase Request")
+            {
+                XmlName = 'Request';
+                fieldattribute(No; Request."No.") { Occurrence = Optional; }
+            }
+        }
+    }
+    requestpage { Caption = 'Import Options'; }
+}`;
+
+test("an object's properties are its own, not those of the groups, request pages, and layouts inside it", async () => {
+  const result = await testing.objectsFromSource(NESTED, "src/Requests.al");
+  assert.equal(result.hasError, false, "the source parses");
+  const byName = new Map(result.objects.map((object) => [object.name, object]));
+  const own = (name) => byName.get(name).properties.map(({ name: property, value }) => `${property} = ${value}`);
+
+  const page = byName.get("Purchase Request Setup");
+  assert.deepEqual(own("Purchase Request Setup"), [
+    "Caption = 'Purchase Request Setup'",
+    "PageType = Card",
+    'SourceTable = "Purchase Request Setup"',
+    "ApplicationArea = Basic, Suite",
+    "Editable = true"
+  ]);
+  assert.equal(page.metadata.caption, "Purchase Request Setup", "not the caption of a group, a grid, a repeater, or a view");
+  assert.deepEqual(page.metadata.applicationArea, ["Basic", "Suite"], "not the application area of a label");
+  // What the analyzer models inside the page keeps its own properties.
+  assert.equal(page.fields[0].metadata.toolTip, "Specifies the limit.");
+  assert.deepEqual(page.fields.map(({ properties }) => properties.length), [1, 0, 0]);
+  assert.deepEqual(page.parts[0].properties, [{ name: "Caption", value: "'Details'" }]);
+  assert.deepEqual(page.actions[0].properties, [{ name: "Caption", value: "'Approve'" }]);
+
+  assert.deepEqual(own("Customer Card Ext"), [], "a modify and an added group change controls, not the extension");
+  assert.equal(byName.get("Customer Card Ext").metadata.caption, undefined);
+
+  // Properties inside #if belong to the object the #if stands in.
+  assert.deepEqual(own("Purchase Request"), ["Caption = 'Purchase Request'", "DataClassification = CustomerContent"]);
+  assert.equal(byName.get("Purchase Request").metadata.caption, "Purchase Request", "not the caption of a field group");
+  assert.equal(byName.get("Purchase Request").metadata.dataClassification, "CustomerContent");
+  assert.deepEqual(own("Customer Ext"), []);
+
+  const report = byName.get("Purchase Requests");
+  assert.deepEqual(own("Purchase Requests"), ["Caption = 'Purchase Requests'"]);
+  assert.equal(report.metadata.caption, "Purchase Requests", "not the caption of the request page or a rendering layout");
+  assert.equal(report.metadata.sourceTable, undefined, "the request page's source table is not the report's");
+  assert.equal(report.metadata.sourceTableTemporary, undefined);
+  assert.deepEqual(report.elements.map(({ properties }) => properties.map(({ name }) => name)), [["RequestFilterFields"], ["IncludeCaption"]]);
+
+  assert.deepEqual(own("Request Import"), ["Caption = 'Request Import'"]);
+  const [root, request] = byName.get("Request Import").elements;
+  assert.deepEqual(root.properties.map(({ name }) => name), ["MinOccurs"], "not the properties of the elements inside it");
+  assert.deepEqual(request.properties.map(({ name }) => name), ["XmlName"], "not the properties of its attribute");
+});

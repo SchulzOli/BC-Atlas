@@ -203,60 +203,45 @@ function includedPermissionSetRelations(value, node, add) {
   for (const relation of includedPermissionSets(value)) add(node, relation);
 }
 
-function propertyValueFor(objectNode, source, wantedName) {
-  let result;
-  walk(objectNode, (node) => {
-    if (result !== undefined || node.type !== "property") return;
-    if (fieldText(node, "name", source)?.toLowerCase() !== wantedName.toLowerCase()) return;
-    const value = node.childForFieldName("value");
-    if (value) result = cleanName(source.slice(value.startIndex, value.endIndex));
-  });
-  return result;
+/**
+ * Nodes that only wrap what a declaration holds: its braces (declaration_body,
+ * layout_container_body, report_body, ...) and `#if` blocks around some of its
+ * lines. Everything else that holds properties owns them itself.
+ */
+function wrapsOwnerContent(node) {
+  return node.type.endsWith("_body") || node.type.startsWith("preproc_conditional");
 }
 
-const PROPERTY_OWNER_TYPES = new Set([
-  ...OBJECT_TYPES.keys(),
-  "field_declaration",
-  "page_field",
-  "part_section",
-  "action_declaration",
-  "customaction_declaration",
-  "systemaction_declaration",
-  "actionref_declaration",
-  "key_declaration",
-  "enum_value_declaration",
-  "report_dataitem",
-  "report_column",
-  "query_dataitem",
-  "query_column",
-  "query_filter",
-  "xmlport_element",
-  "procedure",
-  "trigger_declaration",
-  "event_declaration",
-  "interface_procedure"
-]);
-
+/**
+ * The properties of this declaration itself, in source order. The properties
+ * of what it contains stay with their owner, whether the analyzer models that
+ * owner (a field, an action, a data item) or not (a group, a repeater, a grid,
+ * a request page, a rendering layout, a field group, a modify), so the Caption
+ * of a group never reads as the caption of its page.
+ */
 function propertiesFor(ownerNode, source) {
   const properties = [];
-  walk(ownerNode, (node) => {
-    if (node.type !== "property") return;
-    let owner = node.parent;
-    while (owner && !PROPERTY_OWNER_TYPES.has(owner.type)) owner = owner.parent;
-    if (
-      owner?.type !== ownerNode.type ||
-      owner.startIndex !== ownerNode.startIndex ||
-      owner.endIndex !== ownerNode.endIndex
-    ) return;
-    const valueNode = node.childForFieldName("value");
-    properties.push({
-      name: fieldText(node, "name", source),
-      value: valueNode
-        ? source.slice(valueNode.startIndex, valueNode.endIndex).trim()
-        : undefined
-    });
-  });
+  const collect = (node) => {
+    for (const child of node.namedChildren) {
+      if (child.type === "property") {
+        const valueNode = child.childForFieldName("value");
+        properties.push({
+          name: fieldText(child, "name", source),
+          value: valueNode
+            ? source.slice(valueNode.startIndex, valueNode.endIndex).trim()
+            : undefined
+        });
+      } else if (wrapsOwnerContent(child)) collect(child);
+    }
+  };
+  collect(ownerNode);
   return properties;
+}
+
+/** The value of one of a declaration's own properties (the last one wins, as in AL). */
+function propertyValue(properties, wantedName) {
+  const value = properties.findLast(({ name }) => name?.toLowerCase() === wantedName)?.value;
+  return value === undefined ? undefined : cleanName(value);
 }
 
 function containerFor(node, source) {
@@ -1179,7 +1164,7 @@ async function objectsFromSource(source, file) {
     const members = membersFor(node, source, file);
     const properties = propertiesFor(node, source);
     const sourceTableTemporary = /^true$/iu.test(
-      propertyValueFor(node, source, "sourcetabletemporary") ?? "false"
+      propertyValue(properties, "sourcetabletemporary") ?? "false"
     );
     relations.push(...subscriberRelations(members.procedures));
     const dataRelations = dataOperationRelations(members, {
@@ -1192,10 +1177,10 @@ async function objectsFromSource(source, file) {
     relations.push(...dataRelations, ...helperDataOperationRelations(members, dataRelations));
 
     const assignableValue = type === "permissionset"
-      ? propertyValueFor(node, source, "assignable")
+      ? propertyValue(properties, "assignable")
       : undefined;
     const objectAccess = ["permissionset", "permissionsetextension"].includes(type)
-      ? propertyValueFor(node, source, "access")?.toLowerCase() ?? "public"
+      ? propertyValue(properties, "access")?.toLowerCase() ?? "public"
       : undefined;
     objects.push({
       id,
