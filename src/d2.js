@@ -3,7 +3,7 @@ import { aggregateRelations } from "./relation-aggregation.js";
 import { permissionRelationLabel } from "./permission-semantics.js";
 import { LEVELS, LEVEL_COLORS, reachKind } from "./visibility.js";
 
-const TYPE_STYLES = {
+export const TYPE_STYLES = {
   table: ["#DCEBFF", "#2362A2"],
   tableextension: ["#DCEBFF", "#2362A2"],
   page: ["#E5F6E8", "#31783B"],
@@ -25,7 +25,7 @@ const TYPE_STYLES = {
   action: ["#E5F6E8", "#31783B"]
 };
 
-const RELATION_STYLES = {
+export const RELATION_STYLES = {
   calls: { color: "#4C78A8" },
   reads: { color: "#0072B2" },
   writes: { color: "#D55E00" },

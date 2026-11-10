@@ -66,6 +66,15 @@ export async function createSnapshot(workspace, { log = () => {}, history = fals
       log(`Skipped ${id} view: ${error.message}`);
     }
   }
+  // Every content of the Dashboard, so the export shows each as a graph or a table.
+  const boards = {};
+  for (const { id } of workspace.boards()) {
+    try {
+      boards[id] = await workspace.board(id);
+    } catch (error) {
+      log(`Skipped ${id} on the Dashboard: ${error.message}`);
+    }
+  }
   const explorerHtml = await workspace.explorer({ history, last });
   return {
     generatedAt: new Date().toISOString(),
@@ -78,6 +87,8 @@ export async function createSnapshot(workspace, { log = () => {}, history = fals
     details,
     views,
     diagrams,
+    boardCatalog: workspace.boards().filter(({ id }) => boards[id]),
+    boards,
     // The Docs page in the settings of .bca.json; the whole page for download.
     docs: docs ? { ...docs, languages: [docs.language] } : undefined,
     explorerHtml,

@@ -39,7 +39,7 @@ In VS Code, install the **BC Atlas** extension and open an AL project:
 
 | Area | Command | What you get |
 | --- | --- | --- |
-| **In VS Code** | BC Atlas extension | Everything below in the editor: a panel with overview, health, architecture, 3D dependencies, diagrams, objects, the handbook, and docs; findings in the Problems panel; CodeLens above AL objects; the MCP server for agents. [Guide](./docs/vscode.md) |
+| **In VS Code** | BC Atlas extension | Everything below in the editor: a panel with a dashboard (every content as a 2D graph, a 3D graph, a table, or a diagram), overview, health, architecture, 3D dependencies, diagrams, objects, the handbook, and docs; findings in the Problems panel; CodeLens above AL objects; the MCP server for agents. [Guide](./docs/vscode.md) |
 | **Get started** | `bca setup` | Guided setup in the terminal or through your AI agent (Claude Code, Copilot, Cursor): a starter `.bca.json`, features, Husky or Git hooks, GitHub Actions or Azure Pipelines, cron schedule, and sync. |
 | **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, architecture violations, hot spots, undocumented public API, diagnostics, and AL compiler and CodeCop/UICop/AppSourceCop findings - with a CI exit code, also as SARIF for code scanning. [Rules](./docs/health-checks.md) |
 | | `bca architecture` | Find a target architecture (components, layers), list every dependency that blocks it with how to resolve it, and enforce it with a shrinking baseline. You decide what the proposal considers (`architecture.proposal`: relation kinds, starting structures, granularity, components you keep, objects you exclude), it says how it was made, and `--explain` says why an object is where it is. [Guide](./docs/clean-architecture.md) |

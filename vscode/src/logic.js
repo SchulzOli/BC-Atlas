@@ -95,6 +95,8 @@ function statusFor(overview) {
 /** The pages of the BC Atlas panel, with a short summary for the side bar. */
 function pages(overview) {
   const list = [
+    // Every content as a 2D graph, a 3D graph, a table, or a diagram.
+    { id: "dashboard", label: "Dashboard", icon: "compass", description: "any content, 2D, 3D, or table" },
     { id: "overview", label: "Overview", icon: "dashboard", description: overview ? `${overview.summary.objects.toLocaleString("en-US")} objects` : undefined },
     { id: "health", label: "Health", icon: "pulse", description: overview ? (overview.health.passed ? "passed" : `${overview.health.counts.error} errors, ${overview.health.counts.warning} warnings`) : undefined },
     { id: "architecture", label: "Architecture", icon: "layers", description: overview ? `${overview.architecture.mode}, ${overview.architecture.violations.toLocaleString("en-US")} wrong-way` : undefined },

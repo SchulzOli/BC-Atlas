@@ -101,6 +101,12 @@
     objects: () => LIVE ? read("objects") : SNAPSHOT.objects,
     object: async (id) => (LIVE ? read("object", { id }) : snapshotObject(id)),
     views: () => LIVE ? read("views") : SNAPSHOT.views,
+    boards: () => LIVE ? read("boards") : SNAPSHOT.boardCatalog ?? [],
+    board: async (id) => {
+      if (LIVE) return read("board", { id });
+      if (!SNAPSHOT.boards?.[id]) throw new Error("This content is not part of the export.");
+      return SNAPSHOT.boards[id];
+    },
     handbook: (settings = {}) => {
       if (LIVE) return read("handbook", settings);
       if (!SNAPSHOT.handbook) throw new Error("The handbook is not part of the export.");
@@ -257,6 +263,7 @@
 
   // ------------------------------------------------------------- navigation
   const ICONS = {
+    dashboard: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v6.5M12 14.5V21M3 12h6.5M14.5 12H21"/>',
     overview: '<path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/>',
     health: '<path d="M3 12h4l3-7 4 14 3-7h4"/>',
     architecture: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>',
@@ -266,6 +273,7 @@
     docs: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6M9 11h6"/>'
   };
   const PAGES = [
+    ["dashboard", "Dashboard"],
     ["overview", "Overview"],
     ["health", "Health"],
     ["architecture", "Architecture"],
@@ -302,8 +310,9 @@
 
   function route() {
     const [path, query = ""] = location.hash.replace(/^#\/?/u, "").split("?");
-    const [page = "overview", ...rest] = path.split("/");
-    return { page: page || "overview", arg: rest.length ? decodeURIComponent(rest.join("/")) : undefined, params: new URLSearchParams(query) };
+    // The Dashboard is where the app opens.
+    const [page = "dashboard", ...rest] = path.split("/");
+    return { page: page || "dashboard", arg: rest.length ? decodeURIComponent(rest.join("/")) : undefined, params: new URLSearchParams(query) };
   }
 
   const go = (page, params) => {
@@ -1491,6 +1500,7 @@
   async function diagramsPage(page, { params }) {
     $("#main").classList.add("full");
     const views = await api.views();
+    const { sources } = await api.overview();
     const view = views.some(({ id }) => id === params.get("view")) ? params.get("view") : views[0]?.id ?? "project";
     const summary = (id) => views.find((item) => item.id === id)?.summary ?? "";
     const settings = Object.fromEntries(DIAGRAM_SETTINGS.filter((name) => params.get(name)).map((name) => [name, params.get(name)]));
@@ -1520,7 +1530,8 @@
         { title: "The whole app", items: views.filter(({ id }) => !FOCUSED_VIEWS.includes(id)).map(item) },
         { title: "Focus on one part", items: views.filter(({ id }) => FOCUSED_VIEWS.includes(id)).map(item) }
       ],
-      settings: settingsHtml
+      // What every diagram is read from.
+      settings: `${settingsHtml}${sources ? sourcesBlock(sources) : ""}`
     });
     const form = $("#diagram-form", page);
     if (form) {
@@ -1593,19 +1604,13 @@
     });
   }
 
-  // The visibility view as a canvas (visibility-canvas.js): every app,
-  // object, procedure, event, and field as a circle in the color of its
-  // level, graphs inside graphs.
-  function visibilityCanvas(bar, diagram, { view, settings, summary }) {
+  // The circles of the visibility view in an element; returns their controls.
+  function circlesView(body, data) {
     const { LEVELS, REACH } = window.BCA_VISIBILITY;
-    const totals = diagram.canvas.summary;
+    const totals = data.summary;
     const total = (level) => (totals.objects[level] ?? 0) + (totals.members[level] ?? 0);
     const narrower = Object.values(totals.canBe).reduce((sum, value) => sum + value, 0);
-    bar.set(VIEW_TITLES[view] ?? view, `${esc(summary)} · ${LEVELS.map((level) => `${fmt(total(level))} ${level}`).join(", ")}${narrower ? ` · ${fmt(narrower)} can be narrower` : ""}`,
-      `<span class="wb-tools"><button class="icon-button" data-as="canvas" disabled>Canvas</button><button class="icon-button" data-as="diagram" title="The same as a diagram of boxes, as bca export --view visibility writes it">Diagram</button></span>
-       <span class="wb-tools"><button class="icon-button" data-zoom="out" title="Zoom out (-)">−</button><button class="icon-button" data-zoom="in" title="Zoom in (+)">+</button><button class="icon-button" data-zoom="up" title="Out of this circle (Esc)">Out</button><button class="icon-button" data-zoom="fit" title="Everything (0)">Fit</button></span>
-       <span class="wb-tools"><button class="icon-button" data-download="png" title="Save what you see as PNG">PNG</button></span>`);
-    bar.body.innerHTML = `<div class="canvas vis">
+    body.innerHTML = `<div class="canvas vis">
       <input type="search" class="canvas-search" placeholder="Find an object, procedure, or field" aria-label="Find a data point">
       <div class="vis-legend" role="group" aria-label="Levels">
         ${LEVELS.map((level, index) => `<button class="vis-chip" data-level="${level}" aria-pressed="true" style="--c: var(--level-${level})" title="Usable by ${REACH[index]}; click to show only some levels"><i></i>${level} <span class="muted">${esc(REACH[index])}</span> <b>${fmt(total(level))}</b></button>`).join("")}
@@ -1613,11 +1618,11 @@
       </div>
       <div class="canvas-info vis-info"><div class="vis-path"></div><div class="vis-point"></div></div>
     </div>`;
-    const host = $(".canvas", bar.body);
+    const host = $(".canvas", body);
     const hint = "Click a circle to go into it, around it to go out; scroll to zoom, drag to move. A procedure opens to what it uses and what uses it, and so on.";
     let crumbs = [];
     const point = (info) => `<b>${esc(info.name)}</b> · ${esc(info.kind === "object" || info.kind === "app" ? info.kind : `${info.kind}${info.declared && info.declared !== info.level ? ` (${info.declared})` : ""}`)} · <span class="vis-level" style="--c: var(--level-${info.level})">${esc(info.level)}</span>, usable by ${esc(info.reach)}${info.canBe ? ` · can be <span class="vis-level" style="--c: var(--level-${info.canBe})">${esc(info.canBe)}</span>: ${esc(info.why ?? "")}` : info.why ? ` · ${esc(info.why)}` : ""}${info.kind === "app" ? "" : ` · uses ${fmt(info.uses)}, used by ${fmt(info.usedBy)}`}`;
-    const controls = window.BCA_VISIBILITY.create(host, diagram.canvas, {
+    const controls = window.BCA_VISIBILITY.create(host, data, {
       onInfo({ path, depth, hover, selected }) {
         crumbs = path;
         $(".vis-path", host).innerHTML = `<button data-crumb="-1">All apps</button>${depth > path.length ? ` › … ${fmt(depth - path.length)} more` : ""}${path.map((step, index) => ` › <button data-crumb="${index}">${esc(step.name)}</button>`).join("")}${depth > 3 ? ` <span class="muted">(${fmt(depth)} circles deep)</span>` : ""}`;
@@ -1645,6 +1650,22 @@
       if (event.key === "Enter") search.classList.toggle("none", !controls.find(search.value));
     });
     search.addEventListener("input", () => search.classList.remove("none"));
+    return controls;
+  }
+
+  // The visibility view as a canvas (visibility-canvas.js): every app,
+  // object, procedure, event, and field as a circle in the color of its
+  // level, graphs inside graphs.
+  function visibilityCanvas(bar, diagram, { view, settings, summary }) {
+    const { LEVELS, REACH } = window.BCA_VISIBILITY;
+    const totals = diagram.canvas.summary;
+    const total = (level) => (totals.objects[level] ?? 0) + (totals.members[level] ?? 0);
+    const narrower = Object.values(totals.canBe).reduce((sum, value) => sum + value, 0);
+    bar.set(VIEW_TITLES[view] ?? view, `${esc(summary)} · ${LEVELS.map((level) => `${fmt(total(level))} ${level}`).join(", ")}${narrower ? ` · ${fmt(narrower)} can be narrower` : ""}`,
+      `<span class="wb-tools"><button class="icon-button" data-as="canvas" disabled>Canvas</button><button class="icon-button" data-as="diagram" title="The same as a diagram of boxes, as bca export --view visibility writes it">Diagram</button></span>
+       <span class="wb-tools"><button class="icon-button" data-zoom="out" title="Zoom out (-)">−</button><button class="icon-button" data-zoom="in" title="Zoom in (+)">+</button><button class="icon-button" data-zoom="up" title="Out of this circle (Esc)">Out</button><button class="icon-button" data-zoom="fit" title="Everything (0)">Fit</button></span>
+       <span class="wb-tools"><button class="icon-button" data-download="png" title="Save what you see as PNG">PNG</button></span>`);
+    const controls = circlesView(bar.body, diagram.canvas);
     bar.onAction(async (data) => {
       if (data.as) return go("diagrams", { view, ...settings, as: "diagram" });
       if (data.zoom === "fit") controls.fit();
@@ -1652,6 +1673,350 @@
       else if (data.zoom) controls.zoom(data.zoom === "in" ? 1.35 : 1 / 1.35);
       if (data.download === "png") download(`${view}.png`, new Uint8Array(await (await controls.image()).arrayBuffer()), "image/png");
     });
+  }
+
+  // ------------------------------------------------------------ dashboard
+  // One page for everything that is a set of things and their relations: a
+  // diagram view, the architecture, the objects, the apps, the findings.
+  // Pick what to look at and how (2D graph, 3D graph, table, diagram); the
+  // filter, the tools, and the sources are the same for all of them, and
+  // what you see can be saved as a view of its own.
+  const HOW_LABELS = { "2d": "2D graph", "3d": "3D graph", table: "Table", diagram: "Diagram", circles: "Circles" };
+  const HOW_HINTS = {
+    "2d": "The nodes in a plane: groups pull together, relations pull their ends together",
+    "3d": "The same graph in space: drag to turn it",
+    table: "One row per node: sort by any column",
+    diagram: "Boxes and routed relations, as bca export writes them",
+    circles: "Graphs in graphs: an app holds its objects, an object its members"
+  };
+  // What a view remembers besides its content and its form.
+  const BOARD_STATE = ["q", "types", "kinds", "group", "hide", "focus", "depth", "size"];
+  const viewsKey = (project) => `bca-views:${project}`;
+  function savedViews(project) {
+    try {
+      return (LIVE ? vscode.getState()?.views : JSON.parse(localStorage.getItem(viewsKey(project)) ?? "[]")) ?? [];
+    } catch {
+      return [];
+    }
+  }
+  function storeViews(project, views) {
+    try {
+      if (LIVE) vscode.setState({ ...(vscode.getState() ?? {}), views });
+      else localStorage.setItem(viewsKey(project), JSON.stringify(views));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  const sourcesBlock = (rows, note = "") => `<div class="wb-form"><h3>Sources</h3><dl class="sources">${rows.map(([term, value]) => `<dt>${esc(term)}</dt><dd>${inlineMarkdown(value)}</dd>`).join("")}</dl>${note}</div>`;
+
+  async function dashboardPage(page, { params }) {
+    $("#main").classList.add("full");
+    const [catalog, overview] = await Promise.all([api.boards(), api.overview()]);
+    const entry = catalog.find(({ id }) => id === params.get("what")) ?? catalog[0];
+    const how = entry.how.includes(params.get("how")) ? params.get("how") : entry.default;
+    const graph = how === "2d" || how === "3d";
+    setHeader("Dashboard", "Everything in one place: choose what to look at and how. A diagram can be a 3D graph, the architecture a table, the objects a diagram; the filter, the tools, and the sources are the same for all.");
+    const state = Object.fromEntries(BOARD_STATE.filter((name) => params.get(name)).map((name) => [name, params.get(name)]));
+    const address = (values) => `#/dashboard?${new URLSearchParams(Object.entries(values).filter(([, value]) => value !== undefined && value !== ""))}`;
+    const here = (changes = {}) => address({ what: entry.id, how, ...state, ...changes });
+    const views = savedViews(overview.title);
+    const shownView = views.find(({ name }) => name === params.get("view"));
+    const describe = (hash) => {
+      const saved = new URLSearchParams(hash.split("?")[1] ?? "");
+      const content = catalog.find(({ id }) => id === saved.get("what"));
+      return [content?.title, HOW_LABELS[saved.get("how")], saved.get("q") ? `"${saved.get("q")}"` : undefined, saved.get("focus") ? "one part" : undefined].filter(Boolean).join(" · ");
+    };
+    const bar = workbench(page, {
+      name: "dashboard",
+      placeholder: "Filter contents and views",
+      groups: [
+        ...[...new Set(catalog.map(({ group }) => group))].map((title) => ({
+          title,
+          // The form stays when the content changes, where the content has it.
+          items: catalog.filter(({ group }) => group === title).map((item) => ({
+            href: address({ what: item.id, how: item.how.includes(how) ? how : item.default }),
+            title: item.title,
+            detail: item.summary,
+            current: item.id === entry.id && !shownView
+          }))
+        })),
+        { title: "My views", items: views.map(({ name, hash }) => ({ href: hash, title: name, detail: describe(hash), current: name === shownView?.name })) },
+        {
+          title: "More pages",
+          items: [
+            { href: "#/overview", title: "Overview", detail: "The numbers of the project at a glance" },
+            { href: "#/health", title: "Health findings", detail: "Every finding with how to fix it" },
+            { href: "#/architecture", title: "Architecture work", detail: "Layers, the matrix, and the work to reach the target" },
+            { href: "#/dependencies", title: "Dependencies over time", detail: "The 3D explorer with its timeline" },
+            { href: "#/diagrams", title: "Focused diagrams", detail: "One object, a boundary, or a workflow" },
+            { href: "#/docs", title: "Docs", detail: "The system handbook and the user guides" }
+          ]
+        }
+      ],
+      settings: `<form class="wb-form" id="view-form" title="Keeps the content, its form, the filter, and what is hidden or in focus, under My views${LIVE ? "" : " in this browser"}">
+          <h3>New view from this</h3>
+          <div class="board-save"><input type="text" name="name" required maxlength="60" placeholder="Name, such as Sales in 3D" aria-label="Name of the view" value="${esc(shownView?.name ?? "")}"><button class="btn primary">Save</button>${shownView ? '<button type="button" class="btn" data-delete-view>Delete</button>' : ""}</div>
+        </form><div id="board-sources"></div>`
+    });
+    const form = $("#view-form", page);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = new FormData(form).get("name").trim();
+      if (!name) return;
+      const hash = here({ view: name });
+      if (!storeViews(overview.title, [...views.filter((view) => view.name !== name), { name, hash }])) return toast("This view could not be saved here.");
+      toast(`Saved the view "${name}".`);
+      if (location.hash === hash) render();
+      else location.hash = hash;
+    });
+    $("[data-delete-view]", form)?.addEventListener("click", () => {
+      storeViews(overview.title, views.filter(({ name }) => name !== shownView.name));
+      location.hash = here();
+    });
+
+    bar.set(shownView?.name ?? entry.title, esc(entry.summary));
+    let board;
+    try {
+      board = await api.board(entry.id);
+    } catch (error) {
+      bar.body.innerHTML = `<div class="error-box">${esc(error.message)}</div>`;
+      return;
+    }
+    $("#board-sources", page).innerHTML = sourcesBlock(board.sources, board.command ? `<p class="muted small">As files: <code>${esc(board.command)}</code></p>` : "");
+    const forms = `<span class="wb-tools" role="group" aria-label="Show as">${entry.how.map((value) => `<button class="icon-button" data-how="${value}" title="${esc(HOW_HINTS[value])}"${value === how ? ' aria-pressed="true" disabled' : ""}>${HOW_LABELS[value]}</button>`).join("")}</span>`;
+    const title = shownView?.name ?? entry.title;
+    if (!board.nodes.length) {
+      bar.set(title, esc(entry.summary), forms);
+      bar.body.innerHTML = `<div class="empty"><h2>Nothing to show</h2><p>${esc(board.empty ?? "This content is empty for this project.")}</p></div>`;
+      bar.onAction((data) => { if (data.how) location.hash = here({ how: data.how }); });
+      return;
+    }
+
+    // ---- the filter, the same for every content and every form
+    const nodes = board.nodes;
+    const indexOf = new Map(nodes.map(({ id }, index) => [id, index]));
+    const list = (value, separator) => new Set(String(value ?? "").split(separator).filter(Boolean));
+    const filter = {
+      q: state.q ?? "",
+      types: list(state.types, ","),
+      kinds: list(state.kinds, ","),
+      group: state.group ?? "",
+      hidden: list(state.hide, "|"),
+      focus: indexOf.has(state.focus) ? state.focus : "",
+      depth: Math.max(1, Number(state.depth) || 1),
+      size: state.size ?? ""
+    };
+    const typeNames = [...new Set(nodes.map(({ type }) => type))].sort();
+    const typeColor = (type) => nodes.find((node) => node.type === type)?.color ?? "#64748B";
+    const numeric = board.columns.filter(({ numeric: isNumber }) => isNumber);
+    const sizeOptions = [["", "Same size"], ["uses", "Size by uses"], ["usedBy", "Size by used by"], ...numeric.map(({ key, label }) => [key, `Size by ${label.toLowerCase()}`])];
+    if (!sizeOptions.some(([value]) => value === filter.size)) filter.size = "";
+
+    function compute() {
+      const kindOn = new Uint8Array(Math.max(board.kinds.length, 1));
+      board.kinds.forEach(({ kind }, index) => { kindOn[index] = filter.kinds.has(kind) ? 0 : 1; });
+      const query = filter.q.trim().toLowerCase();
+      const flags = new Uint8Array(nodes.length);
+      nodes.forEach((node, index) => {
+        flags[index] = !filter.types.has(node.type) && !filter.hidden.has(node.id) &&
+          (!filter.group || board.groups[node.group] === filter.group) &&
+          (!query || `${node.label} ${node.type} ${board.groups[node.group]}`.toLowerCase().includes(query)) ? 1 : 0;
+      });
+      if (filter.focus) {
+        // One node and what is within some steps of it.
+        const reached = new Uint8Array(nodes.length);
+        reached[indexOf.get(filter.focus)] = 1;
+        for (let step = 0; step < filter.depth; step++) {
+          const next = [];
+          for (const [from, to, kind] of board.edges) {
+            if (!kindOn[kind]) continue;
+            if (reached[from] && !reached[to]) next.push(to);
+            if (reached[to] && !reached[from]) next.push(from);
+          }
+          for (const index of next) reached[index] = 1;
+        }
+        // The text does not hide the node in focus or its neighbors.
+        nodes.forEach((node, index) => { flags[index] = reached[index] && !filter.types.has(node.type) && !filter.hidden.has(node.id) ? 1 : 0; });
+      }
+      const uses = new Uint32Array(nodes.length);
+      const usedBy = new Uint32Array(nodes.length);
+      let relations = 0;
+      for (const [from, to, kind] of board.edges) {
+        if (!flags[from] || !flags[to] || !kindOn[kind]) continue;
+        uses[from]++;
+        usedBy[to]++;
+        relations++;
+      }
+      return { flags, kindOn, uses, usedBy, relations, shown: flags.reduce((sum, flag) => sum + flag, 0) };
+    }
+
+    const chip = (kind, name, color, off, count) => `<button class="vis-chip" data-${kind}="${esc(name)}" aria-pressed="${off ? "false" : "true"}" style="--c: ${esc(color)}" title="Click to hide or show"><i></i>${esc(name)}${count === undefined ? "" : ` <b>${fmt(count)}</b>`}</button>`;
+    const typeCount = (type) => nodes.filter((node) => node.type === type).length;
+    const filtered = how !== "diagram" && how !== "circles";
+    bar.body.innerHTML = `<div class="board-tools"${filtered ? "" : " hidden"}>
+        <input type="search" id="board-q" placeholder="Filter by name, type, or group" aria-label="Filter the nodes" value="${esc(filter.q)}">
+        ${board.groups.length > 1 ? `<select id="board-group" aria-label="Group"><option value="">All groups</option>${board.groups.map((name) => `<option${name === filter.group ? " selected" : ""}>${esc(name)}</option>`).join("")}</select>` : ""}
+        ${graph ? `<select id="board-size" aria-label="Size of the nodes">${sizeOptions.map(([value, label]) => `<option value="${esc(value)}"${value === filter.size ? " selected" : ""}>${esc(label)}</option>`).join("")}</select>` : ""}
+        <span class="board-chips" role="group" aria-label="Types">${typeNames.map((type) => chip("type", type, typeColor(type), filter.types.has(type), typeCount(type))).join("")}</span>
+        <span class="board-chips" role="group" aria-label="Relations">${board.kinds.map(({ kind, color }) => chip("kind", kind, color, filter.kinds.has(kind))).join("")}</span>
+        <span class="board-status"></span>
+      </div>
+      <div class="board-view"></div>`;
+    const view = $(".board-view", bar.body);
+    const facts = (node, result, index) => [
+      node.type, board.groups[node.group], `uses ${fmt(result.uses[index])}`, `used by ${fmt(result.usedBy[index])}`,
+      ...board.columns.filter(({ key }) => node[key] !== undefined && node[key] !== "").map(({ key, label }) => `${label.toLowerCase()} ${typeof node[key] === "number" ? fmt(node[key]) : node[key]}`)
+    ].filter(Boolean).map(esc).join(" · ");
+
+    let controls;
+    let result;
+    let chosen = -1;
+    const hint = how === "3d"
+      ? "Drag to turn, Shift-drag to move, scroll to zoom. Click a node to select it, drag it to put it somewhere, double-click to open it."
+      : "Drag to move, scroll to zoom. Click a node to select it, drag it to put it somewhere, double-click to open it.";
+    const info = (hover = -1) => {
+      const box = $(".board-info", view);
+      if (!box) return;
+      const index = hover >= 0 ? hover : chosen;
+      if (index < 0) {
+        box.innerHTML = esc(hint);
+        return;
+      }
+      const node = nodes[index];
+      box.innerHTML = `<b>${esc(node.label)}</b> · ${facts(node, result, index)}${hover < 0 || hover === chosen ? `<div class="board-actions">
+          <button class="icon-button" data-act="focus">Only this and its neighbors</button>
+          <button class="icon-button" data-act="hide">Hide</button>
+          ${node.page ? `<a class="icon-button" href="#/object/${encodeURIComponent(node.page)}">Open the object</a>` : ""}</div>` : ""}`;
+    };
+
+    function update({ layout = true } = {}) {
+      result = compute();
+      $(".wb-subtitle", page).innerHTML = `${esc(entry.summary)} · ${fmt(result.shown)}${result.shown < nodes.length ? ` of ${fmt(nodes.length)}` : ""} ${nodes.length === 1 ? "node" : "nodes"}, ${plural(result.relations, "relation")}${board.note ? ` · ${esc(board.note)}` : ""}`;
+      const focusName = filter.focus ? nodes[indexOf.get(filter.focus)].label : "";
+      $(".board-status", bar.body).innerHTML = [
+        filter.focus ? `Only <b>${esc(focusName)}</b> and ${filter.depth === 1 ? "its neighbors" : `${filter.depth} steps around it`} <button class="icon-button" data-act="wider" title="One step further">+</button>${filter.depth > 1 ? '<button class="icon-button" data-act="narrower" title="One step less">−</button>' : ""}<button class="icon-button" data-act="unfocus">Show all</button>` : "",
+        filter.hidden.size ? `${plural(filter.hidden.size, "node")} hidden <button class="icon-button" data-act="unhide">Show</button>` : ""
+      ].filter(Boolean).join(" ");
+      // The address says what is shown, so it can be shared and saved.
+      Object.assign(state, { q: filter.q, types: [...filter.types].join(","), kinds: [...filter.kinds].join(","), group: filter.group, hide: [...filter.hidden].join("|"), focus: filter.focus, depth: filter.focus && filter.depth > 1 ? String(filter.depth) : "", size: filter.size });
+      try {
+        history.replaceState(null, "", here(shownView ? { view: shownView.name } : {}));
+      } catch { /* a page without an address of its own */ }
+      if (graph && layout) controls.show(result.flags, result.kindOn);
+      if (graph) {
+        const values = filter.size === "uses" ? result.uses : filter.size === "usedBy" ? result.usedBy : filter.size ? nodes.map((node) => Number(node[filter.size]) || 0) : undefined;
+        controls.size(values ? Array.from(values) : undefined);
+        if (chosen >= 0 && !result.flags[chosen]) chosen = -1;
+        info();
+      }
+      if (how === "table") {
+        const rows = nodes.map((node, index) => ({ ...node, group: board.groups[node.group], uses: result.uses[index], usedBy: result.usedBy[index], index })).filter(({ index }) => result.flags[index]);
+        dataTable($(".board-table", view), {
+          rows,
+          empty: "Nothing matches the filter.",
+          sort: { key: "usedBy", direction: "descending" },
+          onRow: (row) => { if (row.page) location.hash = `#/object/${encodeURIComponent(row.page)}`; },
+          columns: [
+            { key: "label", label: "Name", render: (row) => (row.page ? `<a href="#/object/${encodeURIComponent(row.page)}">${esc(row.label)}</a>` : esc(row.label)) },
+            { key: "type", label: "Type", render: (row) => `<span class="type">${esc(row.type)}</span>` },
+            ...(board.groups.length > 1 ? [{ key: "group", label: "Group" }] : []),
+            ...board.columns.map(({ key, label, numeric: isNumber }) => ({ key, label, numeric: isNumber, ...(isNumber ? { value: (row) => Number(row[key]) || 0, render: (row) => (typeof row[key] === "number" ? fmt(row[key]) : esc(row[key] ?? "")) } : {}) })),
+            { key: "uses", label: "Uses", numeric: true, render: (row) => fmt(row.uses) },
+            { key: "usedBy", label: "Used by", numeric: true, render: (row) => fmt(row.usedBy) }
+          ]
+        });
+      }
+    }
+
+    let diagram;
+    if (graph) {
+      view.innerHTML = '<div class="canvas board"><div class="canvas-info board-info"></div></div>';
+      controls = window.BCA_BOARD.create($(".canvas", view), board, {
+        mode: how,
+        onInfo({ hover, selected }) {
+          chosen = selected;
+          info(hover);
+        },
+        onOpen(index) {
+          if (nodes[index].page) location.hash = `#/object/${encodeURIComponent(nodes[index].page)}`;
+        }
+      });
+      view.addEventListener("click", (event) => {
+        const act = event.target.closest("[data-act]")?.dataset.act;
+        if (!act || chosen < 0) return;
+        if (act === "focus") Object.assign(filter, { focus: nodes[chosen].id, depth: 1 });
+        if (act === "hide") filter.hidden.add(nodes[chosen].id);
+        update();
+      });
+    } else if (how === "table") {
+      view.innerHTML = '<section class="card flush board-table"></section>';
+      view.classList.add("scroll");
+    } else {
+      // The drawn forms of a view: its diagram of boxes, or the circles of visibility.
+      try {
+        diagram = await api.diagram({ view: entry.id.slice(5) });
+      } catch (error) {
+        view.innerHTML = `<div class="error-box">${esc(error.message)}</div>`;
+      }
+      if (diagram && how === "circles" && diagram.canvas) controls = circlesView(view, diagram.canvas);
+      else if (diagram?.svg) {
+        view.innerHTML = `<div class="canvas"><div class="stage"></div><input type="search" class="canvas-search" placeholder="Find an object" aria-label="Find an object in the diagram"><div class="canvas-info">Hover an object for its relations, click it to open it; click the legend to hide a kind of relation${diagram.collapsed ? "; the groups open on the Diagrams page" : ""}</div></div>`;
+        const svg = safeSvg(diagram.svg);
+        controls = panZoom($(".canvas", view), svg);
+        interactiveDiagram($(".canvas", view), svg, controls, $(".canvas-search", view), { onGroup: () => { location.hash = `#/diagrams?view=${encodeURIComponent(entry.id.slice(5))}`; } });
+      } else if (diagram) view.innerHTML = `<div class="empty"><h2>Nothing to draw</h2><p>${esc(diagram.empty ?? "No matching objects.")}</p></div>`;
+    }
+
+    const tools = bar.body.querySelector(".board-tools");
+    let timer;
+    tools.addEventListener("input", (event) => {
+      if (event.target.id === "board-q") {
+        filter.q = event.target.value;
+        clearTimeout(timer);
+        timer = setTimeout(update, 160);
+      }
+    });
+    tools.addEventListener("change", (event) => {
+      if (event.target.id === "board-group") filter.group = event.target.value;
+      else if (event.target.id === "board-size") filter.size = event.target.value;
+      else return;
+      update({ layout: event.target.id !== "board-size" });
+    });
+    tools.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      const toggle = (set, name) => { if (set.has(name)) set.delete(name); else set.add(name); };
+      if (button.dataset.type !== undefined) toggle(filter.types, button.dataset.type);
+      else if (button.dataset.kind !== undefined) toggle(filter.kinds, button.dataset.kind);
+      else if (button.dataset.act === "unfocus") filter.focus = "";
+      else if (button.dataset.act === "wider") filter.depth++;
+      else if (button.dataset.act === "narrower") filter.depth--;
+      else if (button.dataset.act === "unhide") filter.hidden.clear();
+      else return;
+      if (button.classList.contains("vis-chip")) button.setAttribute("aria-pressed", button.getAttribute("aria-pressed") === "true" ? "false" : "true");
+      update();
+    });
+
+    bar.set(title, esc(entry.summary), `${forms}
+      ${how === "table" ? "" : `<span class="wb-tools"><button class="icon-button" data-zoom="out" title="Zoom out">−</button><button class="icon-button" data-zoom="in" title="Zoom in">+</button><button class="icon-button" data-zoom="fit" title="Show everything">Fit</button>${graph ? '<button class="icon-button" data-layout title="Lay the graph out again and let go of the nodes you put somewhere">Layout</button>' : ""}</span>`}
+      <span class="wb-tools">${graph ? '<button class="icon-button" data-download="png" title="Save what you see as PNG">PNG</button>' : ""}${how === "table" ? '<button class="icon-button" data-download="csv" title="Save the rows as CSV">CSV</button>' : ""}${how === "diagram" && diagram?.svg ? '<button class="icon-button" data-download="svg" title="Save as SVG">SVG</button>' : ""}</span>`);
+    bar.onAction(async (data) => {
+      if (data.how) return void (location.hash = here({ how: data.how, ...(shownView ? { view: undefined } : {}) }));
+      if (data.zoom === "fit") controls?.fit();
+      else if (data.zoom) controls?.zoom(data.zoom === "in" ? 1.3 : 1 / 1.3);
+      if (data.layout !== undefined) controls.relayout();
+      if (data.download === "png") download(`${entry.title.toLowerCase()}-${how}.png`, new Uint8Array(await (await controls.image()).arrayBuffer()), "image/png");
+      if (data.download === "svg") download(`${entry.id.slice(5)}.svg`, diagram.svg, "image/svg+xml");
+      if (data.download === "csv") {
+        const cell = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+        const keys = ["label", "type", "group", ...board.columns.map(({ key }) => key), "uses", "usedBy"];
+        const rows = nodes.map((node, index) => ({ ...node, group: board.groups[node.group], uses: result.uses[index], usedBy: result.usedBy[index] })).filter((_, index) => result.flags[index]);
+        download(`${entry.title.toLowerCase()}.csv`, [keys.map(cell).join(","), ...rows.map((row) => keys.map((key) => cell(row[key])).join(","))].join("\r\n"), "text/csv");
+      }
+    });
+    if (filtered) update();
+    else $(".wb-subtitle", page).innerHTML = `${esc(entry.summary)} · ${plural(nodes.length, "node")}, ${plural(board.edges.length, "relation")}`;
   }
 
   async function objectsPage(page, { params }) {
@@ -2086,6 +2451,7 @@
   }
 
   const RENDERERS = {
+    dashboard: dashboardPage,
     overview: overviewPage,
     health: healthPage,
     architecture: architecturePage,
@@ -2103,7 +2469,7 @@
     const current = route();
     const id = ++renderId;
     const page = $("#page");
-    const renderer = RENDERERS[current.page] ?? overviewPage;
+    const renderer = RENDERERS[current.page] ?? dashboardPage;
     $("#main").classList.remove("full");
     $("#page-actions").innerHTML = "";
     $("#page-actions").onclick = null;
@@ -2115,6 +2481,11 @@
     fresh.innerHTML = loading();
     try {
       await renderer(fresh, current);
+      // Every page says what it is read from; the Dashboard, Diagrams, and Docs say it in their side panel.
+      if (id === renderId && !$("#main").classList.contains("full")) {
+        const { sources } = await api.overview();
+        if (sources) fresh.insertAdjacentHTML("beforeend", `<footer class="page-sources"><b>Sources</b> ${sources.map(([term, value]) => `<span><i>${esc(term)}</i> ${esc(value)}</span>`).join("")}</footer>`);
+      }
     } catch (error) {
       if (id !== renderId) return;
       fresh.innerHTML = `<div class="error-box"><b>Could not load this page.</b><br>${esc(error.message)}</div>`;

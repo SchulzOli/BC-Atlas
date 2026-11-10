@@ -27,6 +27,21 @@ follows [Semantic Versioning](https://semver.org/).
   switch to the diagram of boxes. See
   [Architecture diagrams](./docs/architecture-diagrams.md#read-a-visibility-view).
 
+- **Dashboard**, the page where VS Code and the offline app now open: every
+  content in every form. Pick what to look at (a diagram view, the
+  components of the architecture, the objects, the apps, the health
+  findings) and how (2D graph, 3D graph, table, and for diagram views their
+  diagram), independently. A diagram view can be a 3D graph, the
+  architecture a table, the objects a graph. The filter and the tools are
+  the same for all: filter by name, type, group, and kind of relation, show
+  only a node and its neighbors, hide nodes, size them by a number, put them
+  where you want them, sort the table, save a PNG or CSV. **New view from
+  this** keeps what you see under a name in My views. See
+  [The Dashboard](./docs/vscode.md#the-dashboard).
+- Every page says what it is read from: **Sources** in the side panel of the
+  Dashboard and Diagrams, and a Sources line at the bottom of the other
+  pages (AL files and objects, apps, symbol packages, AL compiler, settings).
+
 ### Changed
 
 - A group in a diagram is at least as wide as its name.

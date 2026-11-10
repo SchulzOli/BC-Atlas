@@ -79,6 +79,7 @@ outgoing dependencies, and parser diagnostics.
 | Health | Every finding of `bca check`: cycles, forbidden dependencies, architecture violations, hot spots, diagnostics. |
 | Architecture | The configured architecture or a proposal: components in layers, wrong-way dependencies as work items, metrics per component. |
 | Dependencies | The 3D explorer: objects, modules, apps, and components; inside one app vs. across apps; replayed by commit, pull request, or release. |
+| Dashboard | Everything in one place: pick a content (a diagram view, the components, the objects, the apps, the findings) and a form (2D graph, 3D graph, table, diagram). The same filter, the same tools (hide, focus on a node and its neighbors, size by a number, put nodes where you want them), and the sources of what you see. **New view from this** keeps what you see under a name. |
 | Diagrams | Eleven diagram views (project, module, object, data, call, boundary, contracts, events, ui, workflow, visibility) with zoom and pan; hover an object for its relations, click it to open it, find objects by name; save as SVG, PNG, or D2. The visibility view is a canvas of every object, procedure, event, and field in the color of its level (public, internal, local): zoom into graphs inside graphs. |
 | Objects | Every AL object, searchable, with a page per object. |
 | Docs | User guides from your AL UI tests, when the project has them. |

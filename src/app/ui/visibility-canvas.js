@@ -128,6 +128,8 @@
     let scheduled = 0;
     let painted = 0;
     let destroyed = false;
+    // Until someone moves or zooms, a new size of the window shows everything again.
+    let touched = false;
 
     // What a circle holds: an app its objects, an object its members, a
     // member the points it uses and that use it.
@@ -477,6 +479,7 @@
     }
 
     function zoom(factor, x = width / 2, y = height / 2) {
+      touched = true;
       k *= factor;
       tx = x - (x - tx) * factor;
       ty = y - (y - ty) * factor;
@@ -487,6 +490,7 @@
 
     /** Moves the window until a circle fills it. */
     function flyTo(target, share = 0.44) {
+      touched = true;
       cancelAnimationFrame(animation);
       const still = root.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
       let steps = 0;
@@ -511,6 +515,7 @@
 
     function fit() {
       cancelAnimationFrame(animation);
+      touched = false;
       frame = universe;
       // One app alone fills the window.
       const only = roots.length === 1 ? kidsOf(universe)[0] : undefined;
@@ -534,7 +539,7 @@
       canvas.height = Math.round(height * ratio);
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
-      if (first) fit();
+      if (first || !touched) fit();
       else {
         reframe();
         redraw();
@@ -564,6 +569,7 @@
         drag.moved += Math.abs(x - drag.x) + Math.abs(y - drag.y);
         if (drag.moved > 4) {
           cancelAnimationFrame(animation);
+          touched = true;
           container.classList.add("dragging");
           tx += x - drag.x;
           ty += y - drag.y;

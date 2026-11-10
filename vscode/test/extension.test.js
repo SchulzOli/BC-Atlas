@@ -170,7 +170,7 @@ test("the extension analyzes the workspace and fills the editor and the panel", 
   const lenses = registered.lenses[0].provideCodeLenses({ uri: { fsPath: path.join(project, "integration", "ItemSync.al") } });
   assert.ok(lenses.length > 0);
   assert.match(lenses.find(({ command }) => command.title.includes("against the architecture")).command.title, /\$\(warning\) used by \d+ · uses 1 · component Integration · 1 dependency against the architecture/u);
-  assert.deepEqual(registered.trees[0].getChildren().map(({ label }) => label), ["Overview", "Health", "Architecture", "Dependencies (3D)", "Diagrams", "Objects", "Docs"]);
+  assert.deepEqual(registered.trees[0].getChildren().map(({ label }) => label), ["Dashboard", "Overview", "Health", "Architecture", "Dependencies (3D)", "Diagrams", "Objects", "Docs"]);
 
   // The MCP server for agents runs the bundled engine.
   const [definition] = registered.mcp[0].provider.provideMcpServerDefinitions();

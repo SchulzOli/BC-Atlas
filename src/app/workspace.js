@@ -26,6 +26,7 @@ import { explainPlacement, placementIndex } from "../blueprint/explain.js";
 import { proposalSettings } from "../blueprint/settings.js";
 import { MAX_DIAGRAM_NODES, prepareScene, sceneToSvg } from "../diagram/index.js";
 import { compactVisibility } from "../visibility.js";
+import { boardCatalog, commonSources, createBoard } from "./board.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
@@ -153,6 +154,8 @@ export class Workspace {
         baseline: { new: assessment.baseline.new.length, known: assessment.baseline.known.length, fixed: assessment.baseline.fixed.length }
       },
       docs: { scenarios: docs?.scenarios ?? 0, path: docs?.path },
+      // What every page is read from.
+      sources: commonSources({ model: (await this.model()).model, assessment }),
       config: assessment.context.config.path ? path.relative(this.input, assessment.context.config.path).replaceAll("\\", "/") || ".bca.json" : undefined
     };
   }
@@ -418,6 +421,16 @@ export class Workspace {
 
   views() {
     return VIEWS.map(([id, summary]) => ({ id, summary }));
+  }
+
+  /** What the Dashboard can show (board.js). */
+  boards() {
+    return boardCatalog();
+  }
+
+  /** One content of the Dashboard as nodes, relations, and its sources. */
+  board(id) {
+    return this.remember(`board:${id}`, () => createBoard(this, id));
   }
 
   /**

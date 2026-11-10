@@ -19,6 +19,7 @@ itself has no second navigation.
 
 | Page | Shows | Same as |
 | --- | --- | --- |
+| Dashboard | Every content in every form: a diagram view, the components, the objects, the apps, or the findings as a 2D graph, a 3D graph, a table, or a diagram, with one filter and one set of tools. See [The Dashboard](#the-dashboard). | |
 | Overview | Objects, apps, health, the architecture at a glance, the most connected objects, and next steps. | |
 | Health | Every finding, filterable by severity, linked to its object. | `bca check` |
 | Architecture | The configured architecture or a proposal: components in layers, work items with the steps to resolve them, data ownership, checks, the plan to extract a component as an app, components with Martin metrics, and objects that belong elsewhere. | `bca architecture` |
@@ -35,6 +36,59 @@ step through the list, **‹** and **›** too, and **Enter** in the filter open
 the first match. Settings apply at once; a typed value (an object, a scope, an
 entry point) with **Apply** or **Enter**. The address keeps the selection and
 the settings, so the back button and a copied link return to the same view.
+
+Every page says what it is read from: the Dashboard, Diagrams, and Docs in
+their side panel, the other pages in a **Sources** line at the bottom (AL
+files and objects, apps, symbol packages, the AL compiler, and `.bca.json`).
+
+### The Dashboard
+
+The Dashboard is where the panel and an exported page open. It holds
+everything that is a set of things and the relations between them, and lets
+you choose what to look at and how, independently:
+
+| What | Nodes | Relations |
+| --- | --- | --- |
+| Diagram views: Project, Modules, Data, Calls, Contracts, Events, Pages, Visibility | what the view draws as boxes | the relations of the view |
+| Components | the components of the architecture, grouped by layer | dependencies between them: allowed, not declared, or the wrong way |
+| Objects | every AL object, grouped by component or namespace | what uses what |
+| Apps | the apps of the workspace and the apps they depend on | declared, implicit, and undeclared dependencies |
+| Findings | the objects with health findings, colored by the worst one | their dependencies |
+
+| How | Shows |
+| --- | --- |
+| **2D graph** | The nodes in a plane. Groups pull together, relations pull their ends together, everything else pushes apart. |
+| **3D graph** | The same graph in space. Drag to turn it, Shift-drag to move it. |
+| **Table** | One row per node with its type, group, facts, and how many nodes it uses and is used by. Click a column to sort; **CSV** saves the rows. |
+| **Diagram** | For a diagram view: its boxes with routed relations, as `bca export --view <view>` writes them. |
+| **Circles** | For the visibility view: graphs in graphs. |
+
+So a diagram view can be a 3D graph, the architecture a table, and the
+objects a graph. The form stays when you choose another content.
+
+The tools are the same for every content, and for the graphs and the table:
+
+- **Filter** by name, type, or group; switch types of node and kinds of
+  relation on and off with their chips; pick one group.
+- **Select** a node with a click. **Only this and its neighbors** shows the
+  node and what is one step away; **+** goes a step further. **Hide** takes
+  a node out. **Open the object** opens its page; a double click does too.
+- **Size by** uses, used by, or a number of the content (objects of a
+  component, findings of an object).
+- **Drag a node** to put it where you want it; it stays there. **Layout**
+  starts the layout again.
+- **Sources**, on the left, says what this content is read from, and which
+  command writes it as files.
+
+**New view from this** keeps what you see (the content, its form, the filter,
+what is hidden, and what is in focus) under a name in **My views**. The
+address holds the same, so a copied link opens the same picture. Views are
+kept with the panel in VS Code, and in the browser for an exported page;
+they are not written to `.bca.json`.
+
+The views that start from one object, a boundary, or an entry point
+(`object`, `boundary`, `workflow`) are on the Diagrams page, the timeline of
+the dependencies on the Dependencies page.
 
 The panel takes its design from your VS Code color theme: background,
 text, borders, accent, selection, error and warning colors, and the editor's

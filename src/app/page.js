@@ -50,6 +50,6 @@ export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
     .replace("__GENERATOR__", () => `BC Atlas ${pkg.version}`)
     .replace("/*__STYLE__*/", () => `${theme()}\n${read("app.css")}`)
     .replace("__BOOT__", () => boot)
-    // The visibility canvas registers itself before the pages start.
-    .replace("/*__APP__*/", () => `${read("visibility-canvas.js")}\n${read("app.js")}`);
+    // The visibility canvas and the graph of the Dashboard register themselves before the pages start.
+    .replace("/*__APP__*/", () => `${read("visibility-canvas.js")}\n${read("board.js")}\n${read("app.js")}`);
 }

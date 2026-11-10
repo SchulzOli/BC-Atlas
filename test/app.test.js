@@ -120,6 +120,33 @@ test("the service answers every page from one analysis", async () => {
   const opened = await service.call("diagram", { view: "project", expand: first.key });
   assert.deepEqual(opened.groups.filter(({ open }) => open).map(({ key }) => key), [first.key]);
   await assert.rejects(service.call("diagram", { view: "object" }), /--object is required/u);
+  // The Dashboard: every content in one shape, with what it is read from.
+  const catalog = await service.call("boards");
+  assert.deepEqual(catalog.map(({ id }) => id), ["view:project", "view:module", "view:data", "view:call", "view:contracts", "view:events", "view:ui", "view:visibility", "architecture", "objects", "apps", "health"]);
+  assert.ok(catalog.every(({ how }) => ["2d", "3d", "table"].every((form) => how.includes(form))), "every content is a 2D graph, a 3D graph, and a table");
+  assert.ok(catalog.find(({ id }) => id === "view:visibility").how.includes("circles"));
+  for (const { id } of catalog) {
+    const board = await service.call("board", { id });
+    assert.ok(board.nodes.length > 0, `${id} has nodes`);
+    assert.ok(board.nodes.every(({ label, type, color, group }) => label && type && /^#[0-9a-f]{6}$/iu.test(color) && board.groups[group] !== undefined), `${id}: every node has a label, type, color, and group`);
+    assert.ok(board.edges.every(([from, to, kind, weight]) => board.nodes[from] && board.nodes[to] && from !== to && board.kinds[kind] && weight > 0), `${id}: relations point at nodes and kinds`);
+    assert.equal(board.sources[0][0], "This content");
+    assert.deepEqual(board.sources.slice(1).map(([term]) => term), ["AL source", "app.json", "Symbol packages", "AL compiler", "Settings"]);
+  }
+  const components = await service.call("board", { id: "architecture" });
+  assert.deepEqual(components.nodes.map(({ label }) => label).sort(), ["Core", "Integration", "Sales"]);
+  assert.deepEqual(components.groups, ["Layer 0", "Layer 1", "Layer 2"]);
+  assert.ok(components.kinds.some(({ kind }) => kind === "wrong way"), "Integration uses Core without declaring it");
+  const objectBoard = await service.call("board", { id: "objects" });
+  assert.equal(objectBoard.nodes.length, 12);
+  assert.ok(objectBoard.nodes.every(({ page }) => page), "every object opens its page");
+  const findings = await service.call("board", { id: "health" });
+  assert.ok(findings.nodes.some(({ label, errors }) => label === "CON Item Sync" && errors === 1));
+  const projectBoard = await service.call("board", { id: "view:project" });
+  assert.equal(projectBoard.command, "bca export --view project");
+  await assert.rejects(service.call("board", { id: "nope" }), /unknown board/u);
+  assert.match((await service.call("overview")).sources[0][1], /5 files with 12 objects/u, "every page can say what it is read from");
+
   // The visibility view comes as a diagram and as the data points of its canvas.
   const visibility = await service.call("diagram", { view: "visibility" });
   assert.match(visibility.svg, /<svg\b/u);
@@ -315,6 +342,9 @@ test("bca export writes the app as one offline file with every page's data", () 
     assert.deepEqual(Object.keys(snapshot.diagrams).sort(), snapshot.views.map(({ id }) => id).sort());
     assert.ok(snapshot.diagrams.visibility.canvas.points.length > 12, "the visibility canvas is in the export");
     assert.match(html, /BCA_VISIBILITY/u);
+    assert.deepEqual(snapshot.boardCatalog.map(({ id }) => id), Object.keys(snapshot.boards), "every content of the Dashboard is in the export");
+    assert.ok(snapshot.boards.objects.nodes.length === 12 && snapshot.boards["view:project"].edges.length > 0);
+    assert.match(html, /BCA_BOARD/u);
     assert.ok(snapshot.diagrams.project.svg.startsWith("<"));
     assert.match(snapshot.diagrams.project.svg, /data-object="/u, "a click on a box opens its object page");
     assert.equal(snapshot.docs, undefined, "without documented UI tests there is no Docs page");
