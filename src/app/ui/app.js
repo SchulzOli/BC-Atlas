@@ -1477,15 +1477,16 @@
     workflow: [["entry", "Entry", "procedure, trigger, action, or event", true]],
     contracts: [["focus", "Focus", "name fragment (optional)"]],
     events: [["focus", "Focus", "name fragment (optional)"]],
-    ui: [["focus", "Focus", "name fragment (optional)"]]
+    ui: [["focus", "Focus", "name fragment (optional)"]],
+    visibility: [["focus", "Focus", "name fragment (optional)"]]
   };
   const VIEW_TITLES = {
     project: "Project", module: "Modules", data: "Data", call: "Calls", ui: "Pages and navigation", contracts: "Contracts",
-    events: "Events", object: "One object", boundary: "Boundary", workflow: "Workflow"
+    events: "Events", object: "One object", boundary: "Boundary", workflow: "Workflow", visibility: "Visibility"
   };
   const FOCUSED_VIEWS = ["object", "boundary", "workflow"];
   // Settings that change the diagram; anything else in the address is ignored.
-  const DIAGRAM_SETTINGS = ["object", "scope", "entry", "focus", "namespace", "groupBy", "direction", "details", "noExternal", "expand"];
+  const DIAGRAM_SETTINGS = ["object", "scope", "entry", "focus", "namespace", "groupBy", "direction", "details", "noExternal", "expand", "expandProcedures"];
 
   async function diagramsPage(page, { params }) {
     $("#main").classList.add("full");
@@ -1505,6 +1506,7 @@
         <label class="field"><span>Namespaces</span><input type="text" name="namespace" placeholder="Microsoft.Sales.**" value="${esc(params.get("namespace") ?? "")}"></label>
         ${["project", "module"].includes(view) ? `<label class="field"><span>Group by</span><select name="groupBy"><option value="">default</option>${(view === "module" ? ["namespace", "folder"] : ["role", "namespace", "folder", "type"]).map((value) => `<option${params.get("groupBy") === value ? " selected" : ""}>${value}</option>`).join("")}</select></label>` : ""}
         <label class="field"><span>Direction</span><select name="direction">${["right", "down", "left", "up"].map((value) => `<option${(params.get("direction") ?? "right") === value ? " selected" : ""}>${value}</option>`).join("")}</select></label>
+        ${view === "visibility" ? `<label class="check"><input type="checkbox" name="expandProcedures" value="1"${params.get("expandProcedures") ? " checked" : ""}> Every procedure, event, and field as a box (diagram)</label>` : ""}
         <label class="check"><input type="checkbox" name="details" value="1"${params.get("details") ? " checked" : ""}> Member counts</label>
         <label class="check"><input type="checkbox" name="noExternal" value="1"${params.get("noExternal") ? " checked" : ""}> Hide external objects</label>
         <button class="btn primary">Apply</button>
@@ -1522,7 +1524,8 @@
     });
     const form = $("#diagram-form", page);
     if (form) {
-      const submit = () => go("diagrams", { view, ...Object.fromEntries([...new FormData(form)].filter(([, value]) => value !== "")) });
+      // The visibility view stays a canvas or a diagram, whichever it is.
+      const submit = () => go("diagrams", { view, as: params.get("as") ?? (view === "visibility" && $("[name=expandProcedures]", form)?.checked ? "diagram" : undefined), ...Object.fromEntries([...new FormData(form)].filter(([, value]) => value !== "")) });
       form.addEventListener("submit", (event) => {
         event.preventDefault();
         submit();
@@ -1546,6 +1549,9 @@
       bar.body.innerHTML = `<div class="error-box">${esc(error.message)}</div>`;
       return;
     }
+    // The visibility view is a canvas of every data point first, a diagram second.
+    if (diagram.canvas && params.get("as") !== "diagram") return visibilityCanvas(bar, diagram, { view, settings, summary: summary(view) });
+    const asCanvas = diagram.canvas ? '<span class="wb-tools"><button class="icon-button" data-as="canvas" title="Every data point as a circle; zoom into graphs inside graphs">Canvas</button><button class="icon-button" data-as="diagram" disabled>Diagram</button></span>' : "";
     if (!diagram.svg) {
       const closable = LIVE && diagram.groups?.length > 1;
       bar.body.innerHTML = `<div class="empty"><h2>Nothing to draw</h2><p>${esc(diagram.empty ?? "No matching objects.")}</p>${closable ? '<button class="btn primary" data-close-groups>Show the groups as boxes</button>' : ""}</div>`;
@@ -1557,7 +1563,7 @@
     const grouping = groups.length > 1 && LIVE;
     const overview = diagram.collapsed ? ` · ${openGroups.length} of ${plural(groups.length, "group")} open` : "";
     bar.set(VIEW_TITLES[view] ?? view, `${esc(summary(view))} · ${plural(diagram.nodes, "object")}, ${plural(diagram.edges, "dependency", "dependencies")}${overview}`,
-      `${grouping ? `<span class="wb-tools"><button class="icon-button" data-groups="none" title="Show every group as one box"${openGroups.length ? "" : " disabled"}>Close groups</button><button class="icon-button" data-groups="all" title="Show every object"${diagram.collapsed ? "" : " disabled"}>Open groups</button></span>` : ""}<span class="wb-tools"><button class="icon-button" data-zoom="out" title="Zoom out">−</button><button class="icon-button" data-zoom="in" title="Zoom in">+</button><button class="icon-button" data-zoom="fit" title="Fit the diagram">Fit</button></span>
+      `${asCanvas}${grouping ? `<span class="wb-tools"><button class="icon-button" data-groups="none" title="Show every group as one box"${openGroups.length ? "" : " disabled"}>Close groups</button><button class="icon-button" data-groups="all" title="Show every object"${diagram.collapsed ? "" : " disabled"}>Open groups</button></span>` : ""}<span class="wb-tools"><button class="icon-button" data-zoom="out" title="Zoom out">−</button><button class="icon-button" data-zoom="in" title="Zoom in">+</button><button class="icon-button" data-zoom="fit" title="Fit the diagram">Fit</button></span>
        <span class="wb-tools"><button class="icon-button" data-download="svg" title="Save as SVG">SVG</button><button class="icon-button" data-download="png" title="Save as PNG">PNG</button>${diagram.d2 ? '<button class="icon-button" data-download="d2" title="Save the D2 source">D2</button>' : ""}</span>`);
     bar.body.innerHTML = `<div class="canvas"><div class="stage"></div><input type="search" class="canvas-search" placeholder="Find an object" aria-label="Find an object in the diagram"><div class="canvas-info">Hover an object for its relations, click it to open it${grouping ? "; click a gray box to open its group, a group's name to close it" : ""}; click the legend to hide a kind of relation</div></div>`;
     const canvas = $(".canvas", bar.body);
@@ -1571,6 +1577,7 @@
         : LIVE ? undefined : () => toast("Open the project in VS Code with the BC Atlas extension to open the groups.")
     });
     bar.onAction(async (data) => {
+      if (data.as) return go("diagrams", { view, ...settings });
       if (data.groups) return showGroups(data.groups === "all" ? groups.map((group) => group.key) : []);
       if (data.zoom === "fit") controls.fit();
       else if (data.zoom) controls.zoom(data.zoom === "in" ? 1.25 : 0.8);
@@ -1583,6 +1590,67 @@
           toast(error.message);
         }
       }
+    });
+  }
+
+  // The visibility view as a canvas (visibility-canvas.js): every app,
+  // object, procedure, event, and field as a circle in the color of its
+  // level, graphs inside graphs.
+  function visibilityCanvas(bar, diagram, { view, settings, summary }) {
+    const { LEVELS, REACH } = window.BCA_VISIBILITY;
+    const totals = diagram.canvas.summary;
+    const total = (level) => (totals.objects[level] ?? 0) + (totals.members[level] ?? 0);
+    const narrower = Object.values(totals.canBe).reduce((sum, value) => sum + value, 0);
+    bar.set(VIEW_TITLES[view] ?? view, `${esc(summary)} · ${LEVELS.map((level) => `${fmt(total(level))} ${level}`).join(", ")}${narrower ? ` · ${fmt(narrower)} can be narrower` : ""}`,
+      `<span class="wb-tools"><button class="icon-button" data-as="canvas" disabled>Canvas</button><button class="icon-button" data-as="diagram" title="The same as a diagram of boxes, as bca export --view visibility writes it">Diagram</button></span>
+       <span class="wb-tools"><button class="icon-button" data-zoom="out" title="Zoom out (-)">−</button><button class="icon-button" data-zoom="in" title="Zoom in (+)">+</button><button class="icon-button" data-zoom="up" title="Out of this circle (Esc)">Out</button><button class="icon-button" data-zoom="fit" title="Everything (0)">Fit</button></span>
+       <span class="wb-tools"><button class="icon-button" data-download="png" title="Save what you see as PNG">PNG</button></span>`);
+    bar.body.innerHTML = `<div class="canvas vis">
+      <input type="search" class="canvas-search" placeholder="Find an object, procedure, or field" aria-label="Find a data point">
+      <div class="vis-legend" role="group" aria-label="Levels">
+        ${LEVELS.map((level, index) => `<button class="vis-chip" data-level="${level}" aria-pressed="true" style="--c: var(--level-${level})" title="Usable by ${REACH[index]}; click to show only some levels"><i></i>${level} <span class="muted">${esc(REACH[index])}</span> <b>${fmt(total(level))}</b></button>`).join("")}
+        <button class="vis-chip can" data-can aria-pressed="true" title="A core or dashed ring in the color of the level the uses found would allow"><i></i>can be narrower <b>${fmt(narrower)}</b></button>
+      </div>
+      <div class="canvas-info vis-info"><div class="vis-path"></div><div class="vis-point"></div></div>
+    </div>`;
+    const host = $(".canvas", bar.body);
+    const hint = "Click a circle to go into it, around it to go out; scroll to zoom, drag to move. A procedure opens to what it uses and what uses it, and so on.";
+    let crumbs = [];
+    const point = (info) => `<b>${esc(info.name)}</b> · ${esc(info.kind === "object" || info.kind === "app" ? info.kind : `${info.kind}${info.declared && info.declared !== info.level ? ` (${info.declared})` : ""}`)} · <span class="vis-level" style="--c: var(--level-${info.level})">${esc(info.level)}</span>, usable by ${esc(info.reach)}${info.canBe ? ` · can be <span class="vis-level" style="--c: var(--level-${info.canBe})">${esc(info.canBe)}</span>: ${esc(info.why ?? "")}` : info.why ? ` · ${esc(info.why)}` : ""}${info.kind === "app" ? "" : ` · uses ${fmt(info.uses)}, used by ${fmt(info.usedBy)}`}`;
+    const controls = window.BCA_VISIBILITY.create(host, diagram.canvas, {
+      onInfo({ path, depth, hover, selected }) {
+        crumbs = path;
+        $(".vis-path", host).innerHTML = `<button data-crumb="-1">All apps</button>${depth > path.length ? ` › … ${fmt(depth - path.length)} more` : ""}${path.map((step, index) => ` › <button data-crumb="${index}">${esc(step.name)}</button>`).join("")}${depth > 3 ? ` <span class="muted">(${fmt(depth)} circles deep)</span>` : ""}`;
+        const shown = hover ?? selected;
+        $(".vis-point", host).innerHTML = shown
+          ? `${point(shown)}${!hover && shown.page ? ` · <a href="#/object/${encodeURIComponent(shown.page)}">Open the object</a>` : ""}`
+          : hint;
+      }
+    });
+    $(".vis-path", host).addEventListener("click", (event) => {
+      const crumb = event.target.closest("[data-crumb]");
+      if (!crumb) return;
+      if (crumb.dataset.crumb === "-1") controls.fit();
+      else controls.flyTo(crumbs[Number(crumb.dataset.crumb)].view);
+    });
+    $(".vis-legend", host).addEventListener("click", (event) => {
+      const chip = event.target.closest(".vis-chip");
+      if (!chip) return;
+      chip.setAttribute("aria-pressed", chip.getAttribute("aria-pressed") === "true" ? "false" : "true");
+      const levels = $$(".vis-chip[data-level]", host).filter((element) => element.getAttribute("aria-pressed") === "true").map((element) => element.dataset.level);
+      controls.show({ levels, canBe: $(".vis-chip[data-can]", host).getAttribute("aria-pressed") === "true" });
+    });
+    const search = $(".canvas-search", host);
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") search.classList.toggle("none", !controls.find(search.value));
+    });
+    search.addEventListener("input", () => search.classList.remove("none"));
+    bar.onAction(async (data) => {
+      if (data.as) return go("diagrams", { view, ...settings, as: "diagram" });
+      if (data.zoom === "fit") controls.fit();
+      else if (data.zoom === "up") controls.up();
+      else if (data.zoom) controls.zoom(data.zoom === "in" ? 1.35 : 1 / 1.35);
+      if (data.download === "png") download(`${view}.png`, new Uint8Array(await (await controls.image()).arrayBuffer()), "image/png");
     });
   }
 

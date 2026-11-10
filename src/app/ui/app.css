@@ -373,6 +373,31 @@ table.matrix td.self { background: var(--surface-2); }
 .canvas-tools .icon-button { background: var(--surface); }
 .canvas-info { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: #475569; background: rgba(255, 255, 255, 0.85); padding: 2px 8px; border-radius: 6px; }
 
+/* The visibility canvas (visibility-canvas.js): one color per level, on every surface */
+:root { --level-public: #D55E00; --level-internal: #0072B2; --level-local: #009E73; }
+:root[data-theme="dark"] { --level-public: #d95926; --level-internal: #3987e5; --level-local: #199e70; }
+.canvas.vis { background: #ffffff; cursor: default; }
+:root[data-theme="dark"] .canvas.vis { background: #16181d; }
+.canvas.vis.dragging { cursor: grabbing; }
+.vis-canvas { position: absolute; inset: 0; display: block; outline: none; touch-action: none; }
+.vis-canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--focus, var(--accent)); }
+.vis-legend { position: absolute; right: 12px; top: 12px; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; max-width: calc(100% - 290px); }
+.vis-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; box-shadow: var(--shadow); }
+.vis-chip[aria-pressed="false"] { opacity: 0.45; }
+.vis-chip i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+.vis-chip.can i { background: transparent; border: 2px dashed var(--muted); box-sizing: border-box; }
+@media (max-width: 760px) {
+  .vis-legend { left: 12px; right: 12px; top: 52px; max-width: none; justify-content: flex-start; }
+  .vis-chip .muted { display: none; }
+}
+.vis-info { max-width: calc(100% - 24px); padding: 5px 10px; line-height: 1.5; color: var(--text); }
+:root[data-theme="dark"] .vis-info { color: var(--text); }
+.vis-path { color: var(--muted); }
+.vis-path button { border: 0; background: none; padding: 0; font: inherit; color: var(--link, var(--accent)); cursor: pointer; }
+.vis-path button:hover { text-decoration: underline; }
+.vis-level { font-weight: 600; }
+.vis-level::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 4px; }
+
 /* Explorer and docs frames */
 .frame-wrap { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); min-height: 520px; background: var(--surface); }
 .frame-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }

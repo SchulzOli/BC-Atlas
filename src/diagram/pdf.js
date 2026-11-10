@@ -128,7 +128,7 @@ export function drawingToPdf(drawing, { title } = {}) {
   if (drawing.title) canvas.text(drawing.title.text, drawing.title.x, drawing.title.y, STYLE.title, { bold: true });
   if (drawing.empty) canvas.text(drawing.empty.text, drawing.empty.x, drawing.empty.y + 14, 14, { color: STYLE.muted });
   for (const group of drawing.groups) {
-    canvas.fill(group.external ? "#ffffff" : STYLE.group.fill).stroke(STYLE.group.stroke, 1, dashPattern(group.dash))
+    canvas.fill(group.external ? "#ffffff" : STYLE.group.fill).stroke(group.stroke ?? STYLE.group.stroke, group.stroke ? 1.6 : 1, dashPattern(group.dash))
       .roundedRect(group.x, group.y, group.width, group.height, 10).paint("B");
     canvas.text(group.label, group.x + 14, group.y + STYLE.groupLabel + 9, STYLE.groupLabel, { bold: true, color: STYLE.group.text });
   }

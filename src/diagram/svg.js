@@ -51,7 +51,7 @@ function nodeSvg(node) {
 }
 
 function groupSvg(group) {
-  return `<g class="group" data-group="${escapeXml(group.key)}"><rect x="${round(group.x)}" y="${round(group.y)}" width="${round(group.width)}" height="${round(group.height)}" rx="10" fill="${group.external ? "#ffffff" : STYLE.group.fill}" stroke="${STYLE.group.stroke}" stroke-width="1"${dashAttribute(group.dash, 1)}/><text x="${round(group.x + 14)}" y="${round(group.y + STYLE.groupLabel + 9)}" font-size="${STYLE.groupLabel}" font-weight="700" fill="${STYLE.group.text}">${escapeXml(group.label)}</text></g>`;
+  return `<g class="group" data-group="${escapeXml(group.key)}"><rect x="${round(group.x)}" y="${round(group.y)}" width="${round(group.width)}" height="${round(group.height)}" rx="10" fill="${group.external ? "#ffffff" : STYLE.group.fill}" stroke="${group.stroke ?? STYLE.group.stroke}" stroke-width="${group.stroke ? 1.6 : 1}"${dashAttribute(group.dash, 1)}/><text x="${round(group.x + 14)}" y="${round(group.y + STYLE.groupLabel + 9)}" font-size="${STYLE.groupLabel}" font-weight="700" fill="${STYLE.group.text}">${escapeXml(group.label)}</text></g>`;
 }
 
 function legendSvg(legend) {

@@ -45,8 +45,8 @@ export function collapseScene(scene, expanded = new Set()) {
       collapsed: group.key,
       label: `${group.label}\n${group.nodes.length === 1 ? "1 object" : `${group.nodes.length} objects`}${group.nodes.length > 1 ? `\n${summary(group.nodes)}` : ""}`,
       titleFirst: true,
-      fill: group.external ? "#ffffff" : "#eef2f7",
-      stroke: "#64748b",
+      fill: group.external ? "#ffffff" : group.fill ?? "#eef2f7",
+      stroke: group.stroke ?? "#64748b",
       strokeWidth: 1.6,
       ...(group.external ? { dash: 5 } : {})
     });

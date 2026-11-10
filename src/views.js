@@ -2,6 +2,7 @@ import { normalizeIdentifier } from "./resolver.js";
 import { aggregateRelations } from "./relation-aggregation.js";
 import { createCallResolver } from "./call-analysis.js";
 import { markCycles, workflowView } from "./workflow.js";
+import { analyzeVisibility, LEVELS, LEVEL_REACH, levelCounts, reachKind } from "./visibility.js";
 
 function globToRegExp(pattern) {
   const escaped = String(pattern)
@@ -703,6 +704,92 @@ function contractsView(model, options = {}) {
   return view;
 }
 
+/**
+ * What is public, internal, or local. Objects with their own level and the
+ * levels of their members, or (expandProcedures) every procedure, event, and
+ * table field as a node inside its object. A relation is as wide as the
+ * border it crosses.
+ */
+function visibilityView(model, options = {}) {
+  const analysis = analyzeVisibility(model);
+  const pointById = new Map(analysis.points.map((point) => [point.id, point]));
+  const members = new Map();
+  for (const point of analysis.points) {
+    if (point.kind === "app" || point.kind === "object") continue;
+    if (!members.has(point.parent)) members.set(point.parent, []);
+    members.get(point.parent).push(point);
+  }
+  const state = (point) => (point.canBe ? `${point.level}, can be ${point.canBe}` : point.level);
+  const owners = model.objects.filter(({ key }) => pointById.get(key)?.kind === "object");
+  const edge = (use, index) => ({
+    id: `v${index}`,
+    from: use.from,
+    to: use.to,
+    kind: reachKind(use.level),
+    reach: use.level,
+    label: Object.keys(use.kinds).sort().join(", "),
+    kinds: use.kinds,
+    weight: use.weight,
+    confidence: "resolved"
+  });
+  let objects;
+  let edges;
+  if (options.expandProcedures) {
+    objects = owners.flatMap((owner) => {
+      const point = pointById.get(owner.key);
+      const group = `${owner.type} ${owner.id ? `${owner.id} ` : ""}${owner.name} (${state(point)})`;
+      const shared = { ownerKey: owner.key, ownerName: owner.name, namespace: owner.namespace, file: owner.file, relations: [], viewGroup: group, viewGroupLevel: point.level, viewGroupCanBe: point.canBe };
+      const list = members.get(owner.key) ?? [];
+      // An object without members is its own data point.
+      if (!list.length) return [{ ...shared, key: owner.key, id: owner.id, name: owner.name, type: owner.type, location: owner.location, level: point.level, canBe: point.canBe, notes: [state(point)] }];
+      return list.map((member) => ({
+        ...shared,
+        key: member.id,
+        name: member.name,
+        type: member.kind,
+        signature: member.signature,
+        location: { line: member.line },
+        level: member.level,
+        canBe: member.canBe,
+        declared: member.declared,
+        notes: [state(member)]
+      }));
+    });
+  } else {
+    objects = owners.map((owner) => {
+      const point = pointById.get(owner.key);
+      const counts = levelCounts(members.get(owner.key) ?? []);
+      const narrower = (members.get(owner.key) ?? []).filter(({ canBe }) => canBe).length;
+      return {
+        ...owner,
+        level: point.level,
+        canBe: point.canBe,
+        notes: [state(point), counts ? `members: ${counts}` : undefined, narrower ? `${narrower} can be narrower` : undefined].filter(Boolean)
+      };
+    });
+  }
+  const keys = new Set(objects.map(({ key }) => key));
+  edges = analysis.uses.filter(({ from, to }) => keys.has(from) && keys.has(to)).map(edge);
+  let view = {
+    ...model,
+    emptyMessage: "No AL objects found",
+    objects,
+    edges,
+    visibility: analysis,
+    legendKinds: LEVELS.map(reachKind),
+    legendNotes: [
+      `Fill: ${LEVELS.map((level) => `${level} = usable by ${LEVEL_REACH[level]}`).join("; ")}`,
+      "Dashed border: the uses found need less; the label says what it can be"
+    ]
+  };
+  if (options.focus) {
+    const seeds = focusSeeds(view, options.focus);
+    if (!seeds.length) throw new Error(`Visibility focus "${options.focus}" did not match`);
+    view = connectedProjection(view, seeds);
+  }
+  return view;
+}
+
 export function subscriberAttribute(attribute) {
   const match = attribute.match(
     /EventSubscriber\s*\(\s*ObjectType::([\w.]+)\s*,\s*([^,]+?)\s*,\s*'((?:''|[^'])*)'/iu
@@ -954,6 +1041,7 @@ export function createView(model, view = "project", options = {}) {
     case "events": return eventsView(model, options);
     case "ui": return uiView(model, options);
     case "workflow": return workflowView(model, options);
+    case "visibility": return visibilityView(model, options);
     default: throw new Error(`Unsupported view: ${view}`);
   }
 }

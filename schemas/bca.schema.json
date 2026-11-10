@@ -6,7 +6,7 @@
   "type": "object",
   "properties": {
     "$schema": { "type": "string" },
-    "view": { "description": "Default diagram view.", "enum": ["project", "module", "object", "data", "call", "boundary", "contracts", "events", "ui", "workflow"] },
+    "view": { "description": "Default diagram view.", "enum": ["project", "module", "object", "data", "call", "boundary", "contracts", "events", "ui", "workflow", "visibility"] },
     "projectRoot": { "description": "Root of the AL project, relative to this file.", "type": "string" },
     "paths": { "description": "Analyze only these folders (globs allowed).", "type": "array", "items": { "type": "string" } },
     "direction": { "enum": ["right", "down", "left", "up"] },

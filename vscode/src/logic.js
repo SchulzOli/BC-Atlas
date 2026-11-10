@@ -115,7 +115,7 @@ const EXPORTS = [
   { view: "catalog", label: "Object catalog (Markdown)", detail: "One linked page per AL object", folder: "docs/codegraph" },
   { view: "handbook", label: "System handbook (Markdown)", detail: "Events, data, permissions, interfaces, UI, and code health across all objects", folder: "docs/handbook" },
   { view: "knowledge-graph", label: "Knowledge graph (RDF, OWL)", detail: "For triple stores, graph databases, and Protégé: Turtle, RDF/XML, N-Triples, or JSON-LD", file: "bc-atlas.ttl", filters: { Turtle: ["ttl"], OWL: ["owl"], "RDF/XML": ["rdf"], "N-Triples": ["nt"], "JSON-LD": ["jsonld"] } },
-  ...["project", "module", "data", "contracts", "events", "ui"].map((view) => ({
+  ...["project", "module", "data", "contracts", "events", "ui", "visibility"].map((view) => ({
     view, label: `Diagram: ${view} view`, detail: "SVG, PNG, PDF, or the D2 source", file: `${view}.svg`, filters: { SVG: ["svg"], PNG: ["png"], PDF: ["pdf"], D2: ["d2"] }
   }))
 ];

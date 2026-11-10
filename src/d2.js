@@ -1,6 +1,7 @@
 import { resolveModel } from "./resolver.js";
 import { aggregateRelations } from "./relation-aggregation.js";
 import { permissionRelationLabel } from "./permission-semantics.js";
+import { LEVELS, LEVEL_COLORS, reachKind } from "./visibility.js";
 
 const TYPE_STYLES = {
   table: ["#DCEBFF", "#2362A2"],
@@ -41,7 +42,9 @@ const RELATION_STYLES = {
   permits: { color: "#7C3AED" },
   includes: { color: "#8B5CF6" },
   starts: { color: "#15803D" },
-  events: { color: "#A21CAF", dash: 3 }
+  events: { color: "#A21CAF", dash: 3 },
+  // The visibility view: a use is as wide as the border it crosses.
+  ...Object.fromEntries(LEVELS.map((level) => [reachKind(level), { color: LEVEL_COLORS[level].color }]))
 };
 
 function quote(value) {
@@ -196,6 +199,14 @@ export function buildScene(model, options = {}) {
   let groupIndex = 0;
   for (const [namespace, objects] of [...namespaces].sort(([a], [b]) => a.localeCompare(b))) {
     const group = { key: `g${groupIndex++}`, label: namespace, dash: 3, nodes: [] };
+    // A group that stands for one object of the visibility view wears its level.
+    const groupLevel = objects[0].viewGroupLevel;
+    if (groupLevel && objects.every(({ viewGroupLevel }) => viewGroupLevel === groupLevel)) {
+      group.stroke = LEVEL_COLORS[groupLevel].color;
+      group.fill = LEVEL_COLORS[groupLevel].fill;
+      // Dashed only when the object can be narrower, like its members.
+      group.dash = objects[0].viewGroupCanBe ? 4 : 0;
+    }
     for (const object of objects.sort((a, b) => a.name.localeCompare(b.name))) {
       const key = nodes.get(object);
       const label = object.id
@@ -225,10 +236,14 @@ export function buildScene(model, options = {}) {
         object.permissionSetRoles?.length
           ? `permission set: ${object.permissionSetRoles.join(", ")}`
           : undefined,
-        object.objectAccess === "internal" ? "access: internal" : undefined
+        object.objectAccess === "internal" && !object.level ? "access: internal" : undefined,
+        ...(object.notes ?? [])
       ].filter(Boolean);
       const fullDetails = [...details, ...annotations];
-      const [fill, stroke] = TYPE_STYLES[object.type] ?? ["#F5F5F5", "#666666"];
+      // In the visibility view the color is the level, not the object type.
+      const level = LEVEL_COLORS[object.level];
+      const [fill, stroke] = level ? [level.fill, level.color] : TYPE_STYLES[object.type] ?? ["#F5F5F5", "#666666"];
+      const dashed = level ? Boolean(object.canBe) : object.type.endsWith("extension");
       const source = object.location?.line
         ? `${object.file}:${object.location.line}`
         : object.file;
@@ -252,7 +267,7 @@ export function buildScene(model, options = {}) {
         label: fullDetails.length ? `${label}\n${fullDetails.join(" • ")}` : label,
         fill,
         stroke,
-        ...(object.type.endsWith("extension") ? { dash: 4 } : {}),
+        ...(dashed ? { dash: 4 } : {}),
         ...(source ? { tooltip: source } : {}),
         ...(link ? { link } : {})
       });
@@ -342,10 +357,10 @@ export function buildScene(model, options = {}) {
   }
 
   if (options.showLegend !== false) {
-    const kinds = [...new Set(edges.map(({ kind }) => kind))].sort();
+    const kinds = model.legendKinds ?? [...new Set(edges.map(({ kind }) => kind))].sort();
     scene.legend = {
       kinds: kinds.map((kind) => ({ kind, color: RELATION_STYLES[kind]?.color ?? "#64748B", ...(RELATION_STYLES[kind]?.dash ? { dash: RELATION_STYLES[kind].dash } : {}) })),
-      notes: LEGEND_NOTES
+      notes: model.legendNotes ?? LEGEND_NOTES
     };
   }
   return scene;
@@ -370,7 +385,8 @@ export function sceneToD2(scene) {
   }
   for (const group of scene.groups) {
     lines.push(`${group.key}: ${quote(group.label)} {`);
-    lines.push(`  style.stroke-dash: ${group.dash}`);
+    if (group.dash) lines.push(`  style.stroke-dash: ${group.dash}`);
+    if (group.stroke) lines.push(`  style.stroke: ${quote(group.stroke)}`);
     for (const node of group.nodes) {
       lines.push(`  ${node.key}: ${quote(node.label)} {`);
       if (!group.external) lines.push("    shape: rectangle");

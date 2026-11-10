@@ -120,6 +120,15 @@ test("the service answers every page from one analysis", async () => {
   const opened = await service.call("diagram", { view: "project", expand: first.key });
   assert.deepEqual(opened.groups.filter(({ open }) => open).map(({ key }) => key), [first.key]);
   await assert.rejects(service.call("diagram", { view: "object" }), /--object is required/u);
+  // The visibility view comes as a diagram and as the data points of its canvas.
+  const visibility = await service.call("diagram", { view: "visibility" });
+  assert.match(visibility.svg, /<svg\b/u);
+  assert.deepEqual(visibility.canvas.levels, ["public", "internal", "local"]);
+  assert.equal(visibility.canvas.points.filter(([kind]) => kind === "app").length, 3);
+  assert.equal(visibility.canvas.points.filter(([kind]) => kind === "object").length, 12);
+  assert.ok(visibility.canvas.uses.some(([, , level]) => level === 0), "uses between the apps are public");
+  const expanded = await service.call("diagram", { view: "visibility", expandProcedures: "1" });
+  assert.ok(expanded.nodes > visibility.nodes, "every member as a box");
   assert.match(await service.call("explorer"), /window\.BCA_GRAPH/u);
   await assert.rejects(service.call("explorer", { history: "nope" }), /history must be one of/u);
   await assert.rejects(service.call("docsHtml"), /no UI-test documentation/u, "multi-app has no UI tests");
@@ -304,6 +313,8 @@ test("bca export writes the app as one offline file with every page's data", () 
     const [target] = snapshot.details[sync.id].uses;
     assert.equal(snapshot.nodes[target[0]][1], "CON Item", "links point into the node table");
     assert.deepEqual(Object.keys(snapshot.diagrams).sort(), snapshot.views.map(({ id }) => id).sort());
+    assert.ok(snapshot.diagrams.visibility.canvas.points.length > 12, "the visibility canvas is in the export");
+    assert.match(html, /BCA_VISIBILITY/u);
     assert.ok(snapshot.diagrams.project.svg.startsWith("<"));
     assert.match(snapshot.diagrams.project.svg, /data-object="/u, "a click on a box opens its object page");
     assert.equal(snapshot.docs, undefined, "without documented UI tests there is no Docs page");

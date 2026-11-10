@@ -53,10 +53,11 @@ export async function createSnapshot(workspace, { log = () => {}, history = fals
   const { nodes, details } = compactDetails(index);
   const views = [];
   const diagrams = {};
-  for (const { id, summary } of workspace.views().filter(({ id }) => REPORT_VIEWS.includes(id))) {
+  // The report views, and the visibility view with its canvas.
+  for (const { id, summary } of workspace.views().filter(({ id }) => REPORT_VIEWS.includes(id) || id === "visibility")) {
     try {
       const diagram = await workspace.diagram({ view: id });
-      if (!diagram.svg) continue;
+      if (!diagram.svg && !diagram.canvas) continue;
       const { d2: _d2, ...rest } = diagram;
       diagrams[id] = rest;
       views.push({ id, summary });
