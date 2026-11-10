@@ -11,45 +11,45 @@
 </style>
 </head>
 <body>
-<div id="shell">
-  <aside id="sidebar">
-    <a class="brand" href="#/dashboard">
+<div id="app">
+  <header id="bar" role="toolbar" aria-label="BC Atlas">
+    <span class="brand" title="BC Atlas">
       <span class="logo" aria-hidden="true"><svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8"/><ellipse class="ring" cx="16" cy="17.5" rx="13.2" ry="4.4" transform="rotate(-14 16 17.5)"/><path d="M16 7.2L8.4 24.6M16 7.2l7.6 17.4M11 18.2h10"/><circle cx="16" cy="7" r="3.2"/></svg></span>
-      <span class="brand-text"><b>BC Atlas</b><small id="project-name">Loading…</small></span>
-    </a>
-    <button class="icon-button" id="side-toggle" aria-expanded="false" aria-controls="side-panel">Contents</button>
-    <div id="side-panel">
-      <input type="search" id="side-filter" placeholder="Filter contents and views" aria-label="Filter contents and views">
-      <nav id="nav" class="wb-list" aria-label="Contents"></nav>
-      <div id="side-extra"></div>
+      <b id="project-name">BC Atlas</b>
+    </span>
+    <button class="tool menu" id="lens-button" data-menu="lens" aria-haspopup="true" aria-expanded="false" title="What the graph shows"><span id="lens-name">System</span></button>
+    <div class="segments" id="forms" role="radiogroup" aria-label="Form of the graph">
+      <button role="radio" data-form="2d" aria-checked="true" title="A graph in a plane (1)">2D</button>
+      <button role="radio" data-form="diagram" aria-checked="false" title="A diagram in layers (2)">Diagram</button>
+      <button role="radio" data-form="3d" aria-checked="false" title="A graph in space (3)">3D</button>
     </div>
-    <div class="sidebar-footer">
-      <span id="status" class="status"></span>
-      <button class="icon-button" id="theme-toggle" title="Toggle light and dark theme" aria-label="Toggle theme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></button>
+    <label class="search" title="Find a node by name, type, or group (/)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input type="search" id="search" placeholder="Find" aria-label="Find a node" autocomplete="off" spellcheck="false">
+    </label>
+    <span class="spacer"></span>
+    <button class="tool" id="check-button" aria-pressed="false" title="Show the findings on the graph (C)">Check<span class="count" id="check-count" hidden></span></button>
+    <button class="tool menu" id="story-button" data-menu="story" aria-haspopup="true" aria-expanded="false" title="Walk through the graph step by step">Story</button>
+    <button class="tool menu" id="view-button" data-menu="view" aria-haspopup="true" aria-expanded="false" title="Color, size, and grouping">View</button>
+    <button class="tool menu" id="export-button" data-menu="export" aria-haspopup="true" aria-expanded="false" title="Save what you see">Export</button>
+    <button class="tool status" id="sync-button" data-menu="sync" aria-haspopup="true" aria-expanded="false" title="What the graph is read from"><i class="dot" aria-hidden="true"></i><span id="sync-text">Reading</span></button>
+    <button class="tool icon" id="theme-toggle" title="Light or dark" aria-label="Light or dark"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></button>
+  </header>
+  <main id="stage">
+    <div id="graph"></div>
+    <div id="message" role="status"></div>
+    <aside id="legend" class="float" aria-label="Legend" hidden></aside>
+    <aside id="inspector" class="float" aria-label="Selected node" aria-live="polite" hidden></aside>
+    <div id="zoom" role="group" aria-label="Zoom">
+      <button data-zoom="in" title="Zoom in (+)" aria-label="Zoom in">+</button>
+      <button data-zoom="out" title="Zoom out (-)" aria-label="Zoom out">−</button>
+      <button data-zoom="fit" title="Show everything (0)" aria-label="Show everything"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     </div>
-  </aside>
-  <main id="main">
-    <header id="page-header">
-      <div class="heading">
-        <h1 id="page-title"></h1>
-        <p id="page-subtitle"></p>
-      </div>
-      <div id="page-actions"></div>
-    </header>
-    <div id="page" aria-live="polite"></div>
+    <section id="story" class="float" aria-label="Story" aria-live="polite" hidden></section>
   </main>
 </div>
+<div id="popover" hidden></div>
 <div id="toast" role="status"></div>
-<dialog id="confirm">
-  <form method="dialog">
-    <h2 id="confirm-title"></h2>
-    <p id="confirm-text"></p>
-    <div class="dialog-actions">
-      <button class="btn" value="cancel">Cancel</button>
-      <button class="btn primary" id="confirm-ok" value="ok">Continue</button>
-    </div>
-  </form>
-</dialog>
 <script>__BOOT__</script>
 <script>
 /*__APP__*/

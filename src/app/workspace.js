@@ -1,54 +1,33 @@
 // One analyzed AL project, shared by the VS Code extension (worker.js) and its
-// static export. Every page reads from here, so the app, `bca check`,
-// `bca architecture`, and `bca export` always show the same numbers.
+// static export. The one view reads from here (atlas.js), so the app,
+// `bca check`, `bca architecture`, and `bca export` always show the same.
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createArchitectureModel } from "../architecture.js";
 import { assessArchitecture } from "../blueprint/index.js";
 import { writeBaseline } from "../blueprint/baseline.js";
 import { architectureJson } from "../blueprint/report.js";
-import { componentDrilldown, componentDrilldowns, dependencyMatrix } from "../blueprint/drilldown.js";
+import { dependencyMatrix } from "../blueprint/drilldown.js";
 import { planExtraction } from "../blueprint/extract.js";
-import { VIEWS } from "../capabilities.js";
 import { runHealthCheck } from "../commands/check.js";
 import { writeArchitectureConfig } from "../commands/blueprint.js";
-import { sceneToD2 } from "../d2.js";
 import { findGitRoot } from "../automation/git.js";
 import { findUiTests } from "../automation/setup.js";
-import { documentationBrowser, documentationHtml } from "../docs/export.js";
 import { loadCorpus } from "../docs/model.js";
-import { createGraphDocument } from "../graph/document.js";
-import { renderExplorerHtml } from "../graph/html.js";
 import { openParseCache } from "../parse-cache.js";
-import { renderHandbook } from "../handbook.js";
 import { simulate } from "../simulation/index.js";
-import { formatSimulationMarkdown } from "../simulation/report.js";
-import { simulationText } from "../simulation/text.js";
 import { explainPlacement, placementIndex } from "../blueprint/explain.js";
 import { proposalSettings } from "../blueprint/settings.js";
-import { MAX_DIAGRAM_NODES, prepareScene, sceneToSvg } from "../diagram/index.js";
-import { compactVisibility } from "../visibility.js";
-import { boardCatalog, commonSources, createBoard } from "./board.js";
+import { commonSources, createAtlas, createInside, sourceUrl } from "./atlas.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
 // Options that select what is analyzed; every page shares them.
 const SHARED = ["projectRoot", "config", "namespace", "type", "include", "exclude", "paths", "compiler", "compilerLog", "analyzers", "alSettings", "alEditorSettings", "alExtensionPath"];
-const DIAGRAM_OPTIONS = ["view", "object", "scope", "focus", "entry", "namespace", "groupBy", "direction", "moduleDepth", "objectInboundDepth", "objectOutboundDepth", "callDepth", "callDirection", "details", "noExternal", "expandProcedures"];
 
 const MAX_EVIDENCE = 3;
 
 const pick = (values, names) => Object.fromEntries(names.filter((name) => values[name] !== undefined && values[name] !== "").map((name) => [name, values[name]]));
-
-function sourceUrl(template, options, file, line) {
-  if (!template || !file) return undefined;
-  const prefixed = [options.sourcePathPrefix, file.replaceAll("\\", "/")].filter(Boolean).join("/").replaceAll(/\/+/gu, "/");
-  return template
-    .replaceAll("{file}", prefixed)
-    .replaceAll("{line}", String(line ?? 1))
-    .replaceAll("{ref}", options.sourceRef ?? "main");
-}
 
 const members = (items, read) => (items ?? []).map(read).filter(Boolean);
 
@@ -195,43 +174,6 @@ export class Workspace {
   }
 
   /**
-   * The system handbook (src/handbook.js) for the Docs page: object names
-   * link to object pages, page links to the other handbook pages.
-   */
-  handbook({ language } = {}) {
-    return this.remember(`handbook:${language ?? ""}`, async () => {
-      const objects = new Set((await this.objectIndex()).list.map(({ id }) => id));
-      // A language asked for, else handbook.language in .bca.json, else English.
-      const chosen = language || (await this.model()).options.handbook?.language;
-      // The Docs page knows en and de (de-DE and the like are German).
-      const query = language ? `&hl=${/^de\b/iu.test(language) ? "de" : "en"}` : "";
-      const { pages, objects: count } = await renderHandbook(this.input, {
-        ...this.values,
-        language: chosen,
-        linkTo: (object) => objects.has(object.key) ? `#/object/${encodeURIComponent(object.key)}` : undefined,
-        pageLink: (file) => `#/docs?page=${encodeURIComponent(file.replace(/\.md$/u, ""))}${query}`
-      }, { assessment: await this.assessment() });
-      // With process tests, the battle test is a page of its own; its tasks link to their guides.
-      const battle = await this.battleTest({ language: chosen }).catch(() => undefined);
-      const text = simulationText(chosen).report;
-      return {
-        objects: count,
-        language: /^de\b/iu.test(chosen ?? "") ? "de" : "en",
-        pages: [
-          ...pages.map(({ file, title, summary, content }) => ({ id: file.replace(/\.md$/u, ""), file, title, summary, markdown: content })),
-          ...(battle ? [{
-            id: "battle-test",
-            file: "battle-test.md",
-            title: text.page,
-            summary: text.pageSummary,
-            markdown: formatSimulationMarkdown(battle, { lineBreak: "; ", taskLink: (id) => `#/docs?guide=1&id=${encodeURIComponent(id)}` })
-          }] : [])
-        ]
-      };
-    });
-  }
-
-  /**
    * The battle test (src/simulation): agents with the company's roles perform
    * the process tests. Undefined without documented UI tests.
    */
@@ -247,16 +189,6 @@ export class Workspace {
         language: language ?? options.simulation?.language
       }, { cache, parseCache: await this.parseCache() });
     });
-  }
-
-  /** One component up close: objects, groups inside it, and its dependencies, allowed or wrong-way. */
-  component(name, settings = {}) {
-    return this.remember(`component:${name}:${JSON.stringify(settings)}`, async () => componentDrilldown(await this.assessment(settings), name));
-  }
-
-  /** Every component up close, for the exported app. */
-  async components(settings = {}) {
-    return componentDrilldowns(await this.assessment(settings));
   }
 
   /** Saves a proposal as the configured architecture (and optionally accepts today's violations). */
@@ -419,70 +351,14 @@ export class Workspace {
     return (await this.objectIndex()).detail(id);
   }
 
-  /** Renders one diagram view as SVG. */
-  async diagram(request = {}) {
-    const options = pick(request, DIAGRAM_OPTIONS);
-    for (const name of ["namespace", "scope", "entry"]) {
-      if (typeof options[name] === "string") options[name] = [options[name]];
-    }
-    const expand = typeof request.expand === "string" ? request.expand : undefined;
-    const key = `diagram:${JSON.stringify(options)}:${expand ?? ""}`;
-    return this.remember(key, async () => {
-      const projection = await createArchitectureModel(this.input, { ...this.values, ...options }, { cache: this.cache, parseCache: await this.parseCache() });
-      const nodes = projection.model.objects.length;
-      if (!nodes) {
-        return { view: projection.view, nodes: 0, edges: 0, empty: projection.model.emptyMessage ?? "No matching objects." };
-      }
-      const prepared = prepareScene(projection.model, projection.renderOptions, { expand });
-      const result = {
-        view: projection.view,
-        nodes,
-        edges: projection.model.edges.length,
-        d2: sceneToD2(prepared.full),
-        groups: prepared.groups,
-        collapsed: prepared.collapsed,
-        // The visibility view also comes as data points for the canvas of the page.
-        ...(projection.model.visibility ? { canvas: compactVisibility(projection.model.visibility) } : {})
-      };
-      if (prepared.objects > MAX_DIAGRAM_NODES) {
-        return { ...result, empty: `${prepared.objects.toLocaleString("en-US")} objects in the open groups are too many to draw (at most ${MAX_DIAGRAM_NODES.toLocaleString("en-US")}). Close some groups, filter by namespace, or choose a focused view.` };
-      }
-      // Every box names its object (data-object) or its closed group (data-collapsed), every route its ends.
-      return { ...result, svg: await sceneToSvg(prepared.scene) };
-    });
+  /** Everything read from the source as one graph, with its lenses, findings, and stories (atlas.js). */
+  atlas() {
+    return this.remember("atlas", () => createAtlas(this));
   }
 
-  views() {
-    return VIEWS.map(([id, summary]) => ({ id, summary }));
-  }
-
-  /** What the Dashboard can show (board.js). */
-  boards() {
-    return boardCatalog();
-  }
-
-  /** One content of the Dashboard as nodes, relations, and its sources. */
-  board(id) {
-    return this.remember(`board:${id}`, () => createBoard(this, id));
-  }
-
-  /**
-   * The 3D dependency explorer for this project, as one HTML page.
-   * @param history false, or the timeline steps: commits, prs, or releases
-   * @param last only the last n steps
-   */
-  explorer({ propose = false, history = false, last } = {}) {
-    return this.remember(`explorer:${propose}:${history}:${last ?? ""}`, async () => {
-      // The snapshot reuses the shared model as it is: the explorer only reads
-      // it (a test freezes it). A path selection needs its own parse.
-      const model = this.values.paths?.length ? undefined : (await this.model()).model;
-      const document = await createGraphDocument(this.input, {
-        ...this.values,
-        propose: propose || undefined,
-        ...(history ? { history: true, historyBy: history === true ? "commits" : history, last } : {})
-      }, { parseCache: await this.parseCache(), model });
-      return renderExplorerHtml(document);
-    });
+  /** One object from the inside: its members and what each does with other objects. */
+  inside(id) {
+    return this.remember(`inside:${id}`, () => createInside(this, id));
   }
 
   /** UI-test documentation: from .bca.json (docs.tests) or the folder with the most scenarios. */
@@ -499,66 +375,6 @@ export class Workspace {
       const corpus = await loadCorpus(path.resolve(root, relative)).catch(() => undefined);
       if (!corpus?.scenarios.length) return undefined;
       return { path: relative, scenarios: corpus.scenarios.length, corpus, settings: { ...(options.docs ?? {}) } };
-    });
-  }
-
-  /**
-   * The documentation page by page for the Docs page, as a guide or a test
-   * case and in a language; the .bca.json docs settings are the defaults.
-   */
-  docsBrowser({ mode, language } = {}) {
-    return this.remember(`docs-browser:${mode ?? ""}:${language ?? ""}`, async () => {
-      const docs = await this.docs();
-      if (!docs) return undefined;
-      const root = await this.projectRoot();
-      const browser = await documentationBrowser(docs.corpus, {
-        mode: mode ?? docs.settings.as,
-        language: language ?? docs.settings.language,
-        title: docs.settings.title,
-        appRoot: path.resolve(root, docs.settings.app ?? "."),
-        version: pkg.version,
-        parseCache: await this.parseCache()
-      });
-      // Where each test is, relative to the project, so the editor can open it.
-      const files = new Map(docs.corpus.scenarios.map(({ path: file, value }) => [value.id, { file, procedure: value.procedure }]));
-      const lines = new Map();
-      const lineOf = (file, procedure) => {
-        if (!lines.has(file)) lines.set(file, readFileSync(file, "utf8").split(/\r?\n/u));
-        const name = procedure.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-        const pattern = new RegExp(`^\\s*(?:local\\s+|internal\\s+)?procedure\\s+"?${name}"?\\s*\\(`, "iu");
-        const index = lines.get(file).findIndex((line) => pattern.test(line));
-        return index < 0 ? undefined : index + 1;
-      };
-      return {
-        ...browser,
-        path: docs.path,
-        // The app whose captions and translations the guides use.
-        appPath: docs.settings.app ?? ".",
-        languages: [...new Set([browser.language, "en-US", "de-DE"])],
-        scenarios: browser.scenarios.map((scenario) => {
-          const found = files.get(scenario.id);
-          if (!found) return scenario;
-          let line;
-          try { line = lineOf(found.file, found.procedure); } catch { line = undefined; }
-          return { ...scenario, source: { ...scenario.source, file: path.relative(root, found.file).split(path.sep).join("/"), line } };
-        })
-      };
-    });
-  }
-
-  docsHtml({ mode, language } = {}) {
-    return this.remember(`docs-html:${mode ?? ""}:${language ?? ""}`, async () => {
-      const docs = await this.docs();
-      if (!docs) return undefined;
-      const root = await this.projectRoot();
-      return documentationHtml(docs.corpus, {
-        mode: mode ?? docs.settings.as,
-        language: language ?? docs.settings.language,
-        title: docs.settings.title,
-        appRoot: path.resolve(root, docs.settings.app ?? "."),
-        // The captions come from the app's source, parsed already.
-        parseCache: await this.parseCache()
-      });
     });
   }
 }

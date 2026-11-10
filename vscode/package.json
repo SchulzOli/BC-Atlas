@@ -70,8 +70,8 @@
         "icon": "$(compass)"
       },
       {
-        "command": "bcAtlas.openPage",
-        "title": "Open Page…",
+        "command": "bcAtlas.openLens",
+        "title": "Open a Lens…",
         "category": "BC Atlas"
       },
       {
@@ -86,7 +86,7 @@
       },
       {
         "command": "bcAtlas.objectDiagram",
-        "title": "Diagram of This Object",
+        "title": "Show This Object from the Inside",
         "category": "BC Atlas"
       },
       {
@@ -97,7 +97,7 @@
       },
       {
         "command": "bcAtlas.proposeArchitecture",
-        "title": "Propose an Architecture",
+        "title": "Show the Components",
         "category": "BC Atlas"
       },
       {
@@ -243,7 +243,7 @@
       "bcAtlas": [
         {
           "id": "bcAtlas.pages",
-          "name": "Pages",
+          "name": "BC Atlas",
           "icon": "media/atlas.svg"
         }
       ]
@@ -251,7 +251,7 @@
     "viewsWelcome": [
       {
         "view": "bcAtlas.pages",
-        "contents": "BC Atlas analyzes the AL apps in this workspace.\n[Open BC Atlas](command:bcAtlas.open)\n[Select Project](command:bcAtlas.selectProject)"
+        "contents": "BC Atlas reads the AL source of this workspace and draws it as one graph: every object, what it does with the others, the findings, and the stories of the system.\n[Open BC Atlas](command:bcAtlas.open)\n[Open a Lens…](command:bcAtlas.openLens)\n[Run Health Check](command:bcAtlas.check)\n[Select Project](command:bcAtlas.selectProject)"
       }
     ],
     "configuration": {
@@ -274,6 +274,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show health and architecture findings in the Problems panel."
+        },
+        "bcAtlas.followEditor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Select the object of the active editor in the BC Atlas graph."
         },
         "bcAtlas.codeLens": {
           "type": "boolean",

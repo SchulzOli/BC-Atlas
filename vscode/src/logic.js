@@ -92,26 +92,9 @@ function statusFor(overview) {
   return { text, tone: errors ? "error" : warnings ? "warning" : "ok", tooltip };
 }
 
-/** The pages of the BC Atlas panel, with a short summary for the side bar. */
-function pages(overview) {
-  const list = [
-    // Every content as a 2D graph, a 3D graph, a table, or a diagram.
-    { id: "dashboard", label: "Dashboard", icon: "compass", description: "any content, 2D, 3D, or table" },
-    { id: "overview", label: "Overview", icon: "dashboard", description: overview ? `${overview.summary.objects.toLocaleString("en-US")} objects` : undefined },
-    { id: "health", label: "Health", icon: "pulse", description: overview ? (overview.health.passed ? "passed" : `${overview.health.counts.error} errors, ${overview.health.counts.warning} warnings`) : undefined },
-    { id: "architecture", label: "Architecture", icon: "layers", description: overview ? `${overview.architecture.mode}, ${overview.architecture.violations.toLocaleString("en-US")} wrong-way` : undefined },
-    { id: "dependencies", label: "Dependencies (3D)", icon: "type-hierarchy", description: overview ? `${overview.summary.apps.length} apps` : undefined },
-    { id: "diagrams", label: "Diagrams", icon: "graph" },
-    { id: "objects", label: "Objects", icon: "symbol-class", description: overview ? overview.summary.objects.toLocaleString("en-US") : undefined },
-    // The system handbook and, when there are documented UI tests, their user guides.
-    { id: "docs", label: "Docs", icon: "book", description: overview?.docs?.scenarios ? `handbook, ${overview.docs.scenarios} user guides` : "system handbook" }
-  ];
-  return list;
-}
-
 // What `bca export` can write, for the Export command.
 const EXPORTS = [
-  { view: "app", label: "BC Atlas pages (one offline HTML file)", detail: "Share or publish everything you see in the panel", file: "bc-atlas.html", filters: { HTML: ["html"] } },
+  { view: "app", label: "BC Atlas (one offline HTML file)", detail: "The graph with every lens, finding, and story, to share or publish", file: "bc-atlas.html", filters: { HTML: ["html"] } },
   { view: "report", label: "Markdown report", detail: "README.md with health, diagrams, and an optional object catalog", folder: "docs/atlas" },
   { view: "explorer", label: "3D dependency explorer (HTML)", detail: "One offline file, replayable over Git history", file: "bc-atlas-explorer.html", filters: { HTML: ["html"] } },
   { view: "catalog", label: "Object catalog (Markdown)", detail: "One linked page per AL object", folder: "docs/codegraph" },
@@ -127,10 +110,14 @@ function exportArgs(target, project, output) {
   return ["export", project, "--view", target.view, "-o", output];
 }
 
-/** The page hash for a page id and its parameters. */
-function pageHash(page, params = {}) {
-  const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== ""));
-  return `#/${page}${query.size ? `?${query}` : ""}`;
+/**
+ * The address of a view of the BC Atlas panel: what the graph shows (lens),
+ * in which form, and what is selected, as the panel keeps it itself.
+ * @param state { lens, form, sel, inside, focus, story, check, ... }
+ */
+function viewHash(state = {}) {
+  const query = new URLSearchParams(Object.entries(state).filter(([, value]) => value !== undefined && value !== ""));
+  return `#${query}`;
 }
 
 /**
@@ -180,8 +167,7 @@ module.exports = {
   lensesForFile,
   objectAt,
   objectsInFile,
-  pageHash,
-  pages,
   projectPath,
-  statusFor
+  statusFor,
+  viewHash
 };

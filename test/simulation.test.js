@@ -865,22 +865,16 @@ test("bca simulate gates CI, writes the report, and runs as a bca run task", (t)
   assert.ok(existsSync(path.join(directory, "app", "docs", "simulation", "README.md")), "the report is written even when the battle test fails");
 });
 
-test("the app's Docs page has the battle test when the project has process tests", async () => {
+test("the app gets the battle test when the project has process tests", async () => {
   const { Workspace } = await import("../src/app/workspace.js");
   const { createService } = await import("../src/app/service.js");
   const service = createService(new Workspace(purchasing, {}, { live: false }));
-  const handbook = await service.call("handbook");
-  const page = handbook.pages.at(-1);
-  assert.equal(page.id, "battle-test");
-  assert.equal(page.title, "Battle test");
-  assert.match(page.markdown, /\*\*Result: FAILED\*\*/u);
-  assert.match(page.markdown, /\[Approve a released purchase request\]\(#\/docs\?guide=1&id=purchase-request-approve\)/u, "process tests link to their guides");
-  assert.doesNotMatch(page.markdown, /<br>|<a id=/u, "the app renders Markdown, not HTML");
   assert.equal((await service.call("battleTest")).summary.assigned.blocked, 1);
-  assert.equal((await service.call("handbook", { language: "de" })).pages.at(-1).title, "Battle-Test");
+  // The view shows it on the graph: who performs what, and what blocks them.
+  assert.equal((await service.call("atlas")).summary.battle.assigned.blocked, 1);
 
-  // Without process tests there is no such page.
+  // Without process tests there is none.
   const plain = createService(new Workspace(path.join(root, "examples", "monolith"), {}, { live: false }));
-  assert.ok(!(await plain.call("handbook")).pages.some(({ id }) => id === "battle-test"));
   await assert.rejects(plain.call("battleTest"), /no process tests found/u);
+  assert.equal((await plain.call("atlas")).summary.battle, undefined);
 });

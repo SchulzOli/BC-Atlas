@@ -1,5 +1,5 @@
-// Assembles the BC Atlas pages: the shared theme, the styles and script, and
-// either the VS Code bridge settings or an embedded snapshot.
+// Assembles the one view of BC Atlas: the shared theme, its styles and
+// script, and either the VS Code bridge settings or an embedded snapshot.
 import { readFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 
@@ -22,19 +22,16 @@ const packed = (text) => gzipSync(text, { level: 9 }).toString("base64");
 /**
  * @param mode "vscode" (a webview of the VS Code extension, which answers the
  *   page's requests) or "static" (one offline file)
- * @param snapshot for static pages: the data every page reads, plus the
- *   explorer and documentation pages as HTML strings
+ * @param snapshot for a static page: the atlas and the inside of its objects
+ *   (snapshot.js)
  * @param csp a Content-Security-Policy for the page (the extension's webview)
  */
 export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
   let boot;
   if (mode === "static") {
-    const { explorerHtml, docsHtml, ...data } = snapshot;
     boot = [
       `window.BCA_APP = ${embed({ mode, version: pkg.version })};`,
-      `window.BCA_SNAPSHOT_GZIP = "${packed(JSON.stringify(data))}";`,
-      explorerHtml ? `window.BCA_EXPLORER_GZIP = "${packed(explorerHtml)}";` : "",
-      docsHtml ? `window.BCA_DOCS_GZIP = "${packed(docsHtml)}";` : ""
+      `window.BCA_SNAPSHOT_GZIP = "${packed(JSON.stringify(snapshot))}";`
     ].join("\n");
   } else if (mode === "vscode") {
     boot = `window.BCA_APP = ${embed({ mode, version: pkg.version })};`;
@@ -48,8 +45,8 @@ export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
     .replace('<html lang="en">', () => (mode === "vscode" ? '<html lang="en" data-host="vscode">' : '<html lang="en">'))
     .replace("__TITLE__", () => escapeHtml(title))
     .replace("__GENERATOR__", () => `BC Atlas ${pkg.version}`)
-    .replace("/*__STYLE__*/", () => `${theme()}\n${read("app.css")}`)
+    .replace("/*__STYLE__*/", () => `${theme()}\n${read("atlas.css")}`)
     .replace("__BOOT__", () => boot)
-    // The visibility canvas and the graph of the Dashboard register themselves before the pages start.
-    .replace("/*__APP__*/", () => `${read("visibility-canvas.js")}\n${read("board.js")}\n${read("app.js")}`);
+    // The graph registers itself before the view starts.
+    .replace("/*__APP__*/", () => `${read("graph.js")}\n${read("atlas.js")}`);
 }

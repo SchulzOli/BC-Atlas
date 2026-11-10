@@ -30,9 +30,9 @@ function deepFreeze(value, seen = new Set()) {
   return Object.freeze(value);
 }
 
-// The architecture pages and the explorer share the one resolved model
-// instead of copying it; a write to it would throw here (modules are strict).
-test("the architecture pages and the 3D explorer only read the shared model", async () => {
+// The view shares the one resolved model instead of copying it; a write to
+// it would throw here (modules are strict).
+test("the atlas only reads the shared model", async () => {
   for (const architecture of [true, false]) {
     const directory = copyWorkspace({ architecture });
     try {
@@ -41,17 +41,16 @@ test("the architecture pages and the 3D explorer only read the shared model", as
       await shared.overview();
       await shared.architecture();
       await shared.architecture({ propose: true });
-      await shared.components({ propose: true });
-      await shared.handbook();
-      assert.match(await shared.explorer(), /<html/iu);
-      assert.match(await shared.explorer({ propose: true }), /<html/iu);
+      const atlas = await shared.atlas();
+      const object = atlas.nodes.find(({ kind, external }) => kind === "object" && !external);
+      assert.ok((await shared.inside(object.id)).nodes.length >= 0);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
   }
 });
 
-test("the service answers every page from one analysis", async () => {
+test("the service answers the view and the editor from one analysis", async () => {
   const service = createService(new Workspace(workspace));
   const overview = await service.call("overview");
   assert.equal(overview.title, "multi-app");
@@ -60,6 +59,7 @@ test("the service answers every page from one analysis", async () => {
   assert.equal(overview.architecture.mode, "configured");
   assert.equal(overview.architecture.violations, 1);
   assert.equal(overview.health.passed, false);
+  assert.match(overview.sources[0][1], /5 files with 12 objects/u, "what everything is read from");
 
   const health = await service.call("health");
   const violation = health.findings.find(({ rule }) => rule === "architecture-violation");
@@ -82,127 +82,126 @@ test("the service answers every page from one analysis", async () => {
   const configured = await service.call("architecture");
   assert.equal(configured.mode, "configured");
   assert.equal(configured.violationCount, 1);
-  assert.equal(configured.violations, undefined, "the page gets work items, not every violation");
   const proposal = await service.call("architecture", { propose: 1, groupBy: "app" });
   assert.equal(proposal.mode, "proposal");
   assert.equal(proposal.proposal.groupBy, "app");
   await assert.rejects(service.call("architecture", { groupBy: "nope" }), /groupBy must be one of/u);
-
   // Where dependencies should be (rules) and where they are (object links), top layer first.
   assert.deepEqual(configured.matrix.order, ["Integration", "Sales", "Core"]);
-  const [integration] = configured.matrix.cells;
-  assert.deepEqual(integration.slice(1).map(({ allowed, wrong }) => ({ allowed, wrong })), [{ allowed: true, wrong: 0 }, { allowed: false, wrong: 1 }]);
   assert.equal(configured.matrix.cells[2][0].allowed, false, "Core may not use Integration");
-
-  const component = await service.call("component", { name: "Integration" });
-  assert.equal(component.layer, 2);
-  assert.ok(component.objects.every(({ group }) => component.groups.some(({ key }) => key === group)), "every object is in a group");
-  assert.equal(component.objects.length, component.groups.reduce((sum, { objects: count }) => sum + count, 0));
-  const core = component.components.find(({ name }) => name === "Core");
-  assert.deepEqual({ mayUse: core.mayUse, wrong: core.out.wrong }, { mayUse: false, wrong: 1 });
-  const sales = component.components.find(({ name }) => name === "Sales");
-  assert.equal(sales.mayUse, true);
-  assert.equal(sales.out.wrong, 0);
-  const wrongWay = component.objects.find(({ out }) => out.wrong);
-  assert.equal(wrongWay.label, "CON Item Sync");
-  assert.ok(component.external.some(([index, name, direction, , wrong]) => component.objects[index] === wrongWay && name === "Core" && direction === "out" && wrong === 1));
-  await assert.rejects(service.call("component", { name: "Nope" }), /component not found/u);
-
-  const diagram = await service.call("diagram", { view: "module" });
-  assert.match(diagram.svg, /<svg\b/u);
-  const project = await service.call("diagram", { view: "project" });
-  assert.equal(project.collapsed, false, "a small view shows every object");
-  assert.ok(project.groups.length > 1 && project.groups.every(({ open }) => open));
-  const closed = await service.call("diagram", { view: "project", expand: "none" });
-  assert.equal(closed.collapsed, true);
-  assert.equal([...closed.svg.matchAll(/data-collapsed="/gu)].length, project.groups.length, "every group is one box");
-  const [first] = project.groups;
-  const opened = await service.call("diagram", { view: "project", expand: first.key });
-  assert.deepEqual(opened.groups.filter(({ open }) => open).map(({ key }) => key), [first.key]);
-  await assert.rejects(service.call("diagram", { view: "object" }), /--object is required/u);
-  // The Dashboard: every content in one shape, with what it is read from.
-  const catalog = await service.call("boards");
-  assert.deepEqual(catalog.map(({ id }) => id), ["view:project", "view:module", "view:data", "view:call", "view:contracts", "view:events", "view:ui", "view:visibility", "architecture", "objects", "apps", "health"]);
-  assert.ok(catalog.every(({ how }) => ["2d", "3d", "table"].every((form) => how.includes(form))), "every content is a 2D graph, a 3D graph, and a table");
-  assert.ok(catalog.find(({ id }) => id === "view:visibility").how.includes("circles"));
-  for (const { id } of catalog) {
-    const board = await service.call("board", { id });
-    assert.ok(board.nodes.length > 0, `${id} has nodes`);
-    assert.ok(board.nodes.every(({ label, type, color, group }) => label && type && /^#[0-9a-f]{6}$/iu.test(color) && board.groups[group] !== undefined), `${id}: every node has a label, type, color, and group`);
-    assert.ok(board.edges.every(([from, to, kind, weight]) => board.nodes[from] && board.nodes[to] && from !== to && board.kinds[kind] && weight > 0), `${id}: relations point at nodes and kinds`);
-    assert.equal(board.sources[0][0], "This content");
-    assert.deepEqual(board.sources.slice(1).map(([term]) => term), ["AL source", "app.json", "Symbol packages", "AL compiler", "Settings"]);
-  }
-  const components = await service.call("board", { id: "architecture" });
-  assert.deepEqual(components.nodes.map(({ label }) => label).sort(), ["Core", "Integration", "Sales"]);
-  assert.deepEqual(components.groups, ["Layer 0", "Layer 1", "Layer 2"]);
-  assert.ok(components.kinds.some(({ kind }) => kind === "wrong way"), "Integration uses Core without declaring it");
-  const objectBoard = await service.call("board", { id: "objects" });
-  assert.equal(objectBoard.nodes.length, 12);
-  assert.ok(objectBoard.nodes.every(({ page }) => page), "every object opens its page");
-  const findings = await service.call("board", { id: "health" });
-  assert.ok(findings.nodes.some(({ label, errors }) => label === "CON Item Sync" && errors === 1));
-  const projectBoard = await service.call("board", { id: "view:project" });
-  assert.equal(projectBoard.command, "bca export --view project");
-  await assert.rejects(service.call("board", { id: "nope" }), /unknown board/u);
-  assert.match((await service.call("overview")).sources[0][1], /5 files with 12 objects/u, "every page can say what it is read from");
-
-  // The visibility view comes as a diagram and as the data points of its canvas.
-  const visibility = await service.call("diagram", { view: "visibility" });
-  assert.match(visibility.svg, /<svg\b/u);
-  assert.deepEqual(visibility.canvas.levels, ["public", "internal", "local"]);
-  assert.equal(visibility.canvas.points.filter(([kind]) => kind === "app").length, 3);
-  assert.equal(visibility.canvas.points.filter(([kind]) => kind === "object").length, 12);
-  assert.ok(visibility.canvas.uses.some(([, , level]) => level === 0), "uses between the apps are public");
-  const expanded = await service.call("diagram", { view: "visibility", expandProcedures: "1" });
-  assert.ok(expanded.nodes > visibility.nodes, "every member as a box");
-  assert.match(await service.call("explorer"), /window\.BCA_GRAPH/u);
-  await assert.rejects(service.call("explorer", { history: "nope" }), /history must be one of/u);
-  await assert.rejects(service.call("docsHtml"), /no UI-test documentation/u, "multi-app has no UI tests");
   await assert.rejects(service.call("deleteEverything"), /unknown method/u);
 });
 
-test("the Docs page reads the documentation page by page, as a guide or test case, in a language", async () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-app-docs-"));
-  cpSync(path.join(root, "examples", "warehouse-app"), directory, { recursive: true });
-  try {
-    const service = createService(new Workspace(directory));
-    const docs = await service.call("docsBrowser");
-    assert.equal(docs.mode, "guide");
-    assert.deepEqual(Object.keys(docs.items), ["", "use-case-warehouse-requests", "warehouse-request-create", "warehouse-request-process"]);
-    assert.deepEqual(docs.useCases.map(({ scenarios }) => scenarios), [["warehouse-request-create", "warehouse-request-process"]]);
-    const [create] = docs.scenarios;
-    assert.deepEqual(create.source, { file: "WarehouseUITests.al", procedure: "WarehouseRequests_CreateRequest_PersistsDescription", line: 18 },
-      "the editor opens the test where its procedure starts");
-    const item = docs.items[create.id];
-    assert.equal(item.kind, "scenario");
-    assert.doesNotMatch(item.html, /<h2>/u, "the page shows the title above the guide");
-    assert.match(item.html, /<ol class="steps">/u);
-    assert.match(item.markdown, /^<!-- Generated by BC Atlas docs/u);
-    assert.match(item.svg, /^<svg/u);
-    assert.match(item.dita, /<task /u);
-    assert.match(docs.items["use-case-warehouse-requests"].bpmn, /<bpmn:definitions/u);
-    assert.match(docs.items[""].html, /href="#use-case-warehouse-requests"/u, "the overview links to the use cases");
+test("the atlas is everything read from the source as one graph", async () => {
+  const service = createService(new Workspace(workspace));
+  const atlas = await service.call("atlas");
+  assert.equal(atlas.title, "multi-app");
+  assert.deepEqual({ objects: atlas.summary.objects, apps: atlas.summary.apps, passed: atlas.summary.health.passed }, { objects: 12, apps: 3, passed: false });
+  assert.deepEqual(atlas.sources.map(([term]) => term), ["AL source", "app.json", "Symbol packages", "AL compiler", "Settings"]);
 
-    const german = await service.call("docsBrowser", { mode: "testcase", language: "de-DE" });
-    assert.equal(german.language, "de-DE");
-    assert.match(german.items[create.id].title, /^Testfall /u);
-    assert.match(german.items[create.id].html, /<th>Aktion<\/th>/u);
-    assert.match(await service.call("docsHtml", { mode: "testcase" }), /<!doctype html>/u);
-    await assert.rejects(service.call("docsBrowser", { mode: "manual" }), /mode must be one of: guide, testcase/u);
-    await assert.rejects(service.call("docsBrowser", { language: "<script>" }), /language must be a language tag/u);
+  // Nodes of every kind there is, each with a name and a color.
+  const count = (kind) => atlas.nodes.filter((node) => node.kind === kind && !node.external).length;
+  assert.deepEqual({ object: count("object"), app: count("app"), component: count("component"), module: count("module") }, { object: 12, app: 3, component: 3, module: 4 });
+  assert.ok(atlas.nodes.some(({ kind }) => kind === "rule"), "the rules of the health check are nodes");
+  assert.equal(new Set(atlas.nodes.map(({ id }) => id)).size, atlas.nodes.length, "every node once");
+  assert.ok(atlas.nodes.every(({ label, kind, color }) => label && kind && /^#[0-9a-f]{6}$/iu.test(color)));
+  assert.ok(atlas.nodes.some(({ external, label }) => external && label === "Customer"), "what the workspace refers to in other apps is there, marked");
 
-    // Each box of a diagram names the object behind it, so a click opens its page.
-    const diagram = await service.call("diagram", { view: "project" });
-    const objects = new Set((await service.call("objects")).map(({ id }) => id));
-    const named = [...diagram.svg.matchAll(/data-object="([^"]+)"/gu)].map(([, value]) => value.replaceAll("&quot;", "\"").replaceAll("&amp;", "&"));
-    assert.equal(named.length, diagram.nodes);
-    assert.ok(named.every((id) => objects.has(id)));
-    assert.ok(diagram.svg.includes('class="edge" data-from="'), "each route names its ends for highlighting");
-    assert.match(diagram.d2, /^direction: right/u, "the D2 source comes along");
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
+  // Relations point at nodes and at their kind; every kind has a color.
+  assert.ok(atlas.edges.every(([from, to, relation, weight]) => atlas.nodes[from] && atlas.nodes[to] && from !== to && atlas.relations[relation] && weight > 0));
+  assert.ok(atlas.relations.every(({ kind, color }) => kind && /^#[0-9a-f]{6}$/iu.test(color)));
+  const related = (from, to) => atlas.edges.filter(([a, b]) => atlas.nodes[a].label === from && atlas.nodes[b].label === to).map(([, , relation]) => atlas.relations[relation].kind).sort();
+  assert.deepEqual(related("CON Item Sync", "CON Item"), ["reads", "uses", "writes"], "one relation per kind, not one line for all");
+  assert.deepEqual(related("Integration", "Core"), ["wrong way"]);
+  assert.deepEqual(related("Sales", "Core"), ["depends on"]);
+
+  // An object carries what the view says about it.
+  const sync = atlas.nodes.find(({ label }) => label === "CON Item Sync");
+  assert.deepEqual(
+    { type: sync.type, component: sync.component, app: sync.app, namespace: sync.namespace, level: sync.level, canBe: sync.canBe, wrongWay: sync.wrongWay, file: sync.file, line: sync.line },
+    { type: "codeunit", component: "Integration", app: "Contoso Integration", namespace: "Contoso.Integration", level: "public", canBe: "internal", wrongWay: 1, file: "integration/ItemSync.al", line: 6 }
+  );
+
+  // Lenses: parts of the one graph. One without anything in it is left out.
+  assert.deepEqual(atlas.lenses.map(({ id }) => id), ["system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health"]);
+  const kinds = new Set(atlas.relations.map(({ kind }) => kind));
+  for (const lens of atlas.lenses) {
+    assert.ok(lens.title && lens.summary && lens.reads, `${lens.id} says what it shows and what it reads`);
+    assert.ok(lens.relations.length > 0 && lens.relations.every((kind) => kinds.has(kind)), `${lens.id} names relations that exist`);
+    assert.ok(lens.kinds.some((kind) => atlas.nodes.some((node) => node.kind === kind)), `${lens.id} has nodes`);
   }
+  assert.ok(atlas.lenses.find(({ id }) => id === "system").relations.includes("source"), "every relation between objects, also a page's source table");
+
+  // Findings point at the nodes they are about: the rule and the object.
+  const violation = atlas.findings.find(({ rule }) => rule === "architecture-violation");
+  assert.deepEqual(violation.nodes.map((index) => atlas.nodes[index].label), ["architecture-violation", "CON Item Sync"]);
+  assert.equal(violation.severity, "error");
+  assert.equal(atlas.nodes[violation.nodes[0]].severity, "error", "a rule is as severe as its worst finding");
+  assert.ok(atlas.findings.every(({ nodes }) => nodes.every((index) => atlas.nodes[index])));
+
+  // Stories: walks through the graph, generated from the same source.
+  assert.deepEqual(atlas.stories.map(({ id }) => id), ["system", "fix", "architecture"]);
+  const lenses = new Set(atlas.lenses.map(({ id }) => id));
+  for (const story of atlas.stories) {
+    assert.ok(story.title && story.summary && story.steps.length > 0);
+    assert.ok(story.steps.every(({ title, text, lens, nodes }) => title && text && lenses.has(lens) && nodes.every((index) => atlas.nodes[index])), `${story.id}: every step has a text, a lens, and nodes that exist`);
+  }
+  const [first] = atlas.stories[0].steps;
+  assert.match(first.text, /^12 objects in 3 apps: 5 codeunits, 3 tables, 2 pages, 1 interface, 1 permissionset\./u);
+  const wrongWay = atlas.stories.find(({ id }) => id === "architecture").steps[0];
+  assert.match(wrongWay.text, /CON Item Sync \(Integration\) depends on CON Item in Core\. Add Core to dependsOn of Integration/u);
+  assert.deepEqual(wrongWay.nodes.map((index) => atlas.nodes[index].label), ["CON Item Sync", "CON Item"]);
+
+  // One object from the inside: its procedures, and what each does with other objects.
+  const inside = await service.call("inside", { id: sync.id });
+  assert.deepEqual(inside.nodes.map(({ label, type, kind, parent }) => ({ label, type, kind, parent })), [{ label: "Sync(Code[20])", type: "procedure", kind: "member", parent: sync.id }]);
+  const item = atlas.nodes.find(({ label, type }) => label === "CON Item" && type === "table");
+  const does = inside.edges.filter(([from, to]) => from === inside.nodes[0].id && to === item.id).map(([, , relation]) => inside.relations[relation].kind).sort();
+  assert.deepEqual(does, ["reads", "writes"], "the procedure reads and writes the table");
+  await assert.rejects(service.call("inside", { id: "nope" }), /object not found/u);
+});
+
+test("process tests are nodes, lenses, findings, and stories of the same graph", async () => {
+  const service = createService(new Workspace(path.join(root, "examples", "purchasing-app"), {}, { live: false }));
+  const atlas = await service.call("atlas");
+  const count = (kind) => atlas.nodes.filter((node) => node.kind === kind).length;
+  assert.deepEqual({ process: count("process"), task: count("task"), person: count("person"), requirement: count("requirement") }, { process: 2, task: 5, person: 4, requirement: 6 });
+  assert.deepEqual(atlas.lenses.map(({ id }) => id).slice(-3), ["processes", "people", "requirements"]);
+  assert.equal(atlas.summary.battle.company, "Contoso GmbH");
+
+  const index = (label) => atlas.nodes.findIndex((node) => node.label === label);
+  const related = (from, to) => atlas.edges.filter(([a, b]) => a === index(from) && b === index(to)).map(([, , relation]) => atlas.relations[relation].kind);
+  // A process test touches the objects its steps need; people perform it, or are blocked.
+  assert.deepEqual(related("Create a new Purchase Request", "Purchase Requests"), ["touches"]);
+  assert.deepEqual(related("Purchase requests", "Create a new Purchase Request"), ["step"]);
+  assert.deepEqual(related("Create a new Purchase Request", "Release a purchase request so that it can be approved"), ["next"]);
+  assert.deepEqual(related("Anna (Employee)", "Create a new Purchase Request"), ["performs"]);
+  assert.deepEqual(related("Anna (Employee)", "Approve a released purchase request"), ["must not"]);
+  assert.deepEqual(related("Ben (Team lead)", "Approve a released purchase request"), ["blocked"]);
+  assert.deepEqual(related("Anna (Employee)", "PR - REQUEST"), ["holds"]);
+  assert.equal(atlas.nodes[index("Approve a released purchase request")].status, "blocked");
+
+  // What blocks someone is a finding on that person and that process test.
+  const blocked = atlas.findings.find(({ rule }) => rule === "task-blocked");
+  assert.deepEqual(blocked.nodes.map((node) => atlas.nodes[node].label), ["Ben (Team lead)", "Approve a released purchase request"]);
+  assert.match(blocked.fix, /codeunit "Request Notifications" = X/u);
+
+  // A process is a story: its tests in order, step by step, each on the objects it touches.
+  const story = atlas.stories.find(({ id }) => id === "process:use-case-purchase-requests");
+  assert.equal(story.kind, "process");
+  assert.equal(story.steps[0].title, "Create a new Purchase Request");
+  const step = story.steps[1];
+  assert.equal(step.title, "Create a new Purchase Request · step 1");
+  assert.match(step.text, /^Choose the .+ icon, enter Purchase Requests.+Needs: execute on page 50210 Purchase Requests \(the user opens the page\)/u);
+  assert.deepEqual(step.nodes.map((node) => atlas.nodes[node].label), ["Create a new Purchase Request", "Purchase Requests", "Purchase Request"]);
+  assert.ok(story.steps.every(({ lens }) => lens === "processes"));
+  const people = atlas.stories.find(({ id }) => id === "people");
+  assert.match(people.steps.find(({ title }) => title === "Ben (Team lead)").text, /Blocked: Approve a released purchase request \(/u);
+
+  // Without process tests there are no such nodes, lenses, or stories.
+  const plain = await createService(new Workspace(workspace)).call("atlas");
+  assert.ok(!plain.nodes.some(({ kind }) => ["process", "task", "person", "requirement"].includes(kind)));
+  assert.ok(!plain.lenses.some(({ id }) => ["processes", "people", "requirements"].includes(id)));
 });
 
 test("adopting an architecture writes .bca.json and the baseline", async () => {
@@ -276,7 +275,7 @@ test("the worker process answers requests over IPC, for editors", async () => {
   }
 });
 
-test("the VS Code page talks to the extension and carries its Content-Security-Policy", () => {
+test("in VS Code the view talks to the extension and carries its Content-Security-Policy", () => {
   const html = renderAppHtml({ mode: "vscode", csp: "default-src 'none'" });
   assert.match(html, /window\.BCA_APP = \{"mode":"vscode"/u);
   assert.match(html, /<meta http-equiv="Content-Security-Policy" content="default-src 'none'">/u);
@@ -284,7 +283,7 @@ test("the VS Code page talks to the extension and carries its Content-Security-P
   assert.throws(() => renderAppHtml({ mode: "live" }), /unknown page mode/u);
 });
 
-test("in VS Code the page inherits the editor's color theme", () => {
+test("in VS Code the view inherits the editor's color theme", () => {
   const html = renderAppHtml({ mode: "vscode", csp: "default-src 'none'" });
   assert.match(html, /<html lang="en" data-host="vscode">/u);
   for (const [token, variable] of [
@@ -295,95 +294,59 @@ test("in VS Code the page inherits the editor's color theme", () => {
     assert.match(html, new RegExp(`${token}: var\\(${variable}`, "u"), `${token} follows ${variable}`);
   }
   assert.match(html, /body\.vscode-high-contrast[\s\S]*--accent: var\(--vscode-focusBorder/u, "high contrast themes use their contrast colors");
-  // Embedded pages are documents of their own: they get the resolved colors.
-  assert.match(html, /type: "bca-theme", theme, tokens/u);
-  const viewer = readFileSync(path.join(root, "src", "graph", "viewer", "viewer.js"), "utf8");
-  assert.match(viewer, /setTheme\(event\.data\.theme, event\.data\.tokens\)/u);
+  assert.match(html, /:root\[data-host="vscode"\] \{ --canvas: var\(--bg\); \}/u, "the graph stands on the editor's background");
 
   const exported = renderAppHtml({ mode: "static", snapshot: {} });
-  assert.match(exported, /<html lang="en">/u, "an exported page keeps the BC Atlas design");
+  assert.match(exported, /<html lang="en">/u, "an exported file keeps the BC Atlas design");
 });
 
-test("in VS Code the panel has its own list of contents, and tells the extension which page it shows", () => {
+test("the app is one view: a toolbar and the graph", () => {
   const html = renderAppHtml({ mode: "vscode", csp: "default-src 'none'" });
-  assert.match(html, /:root\[data-host="vscode"\] #sidebar \.brand, :root\[data-host="vscode"\] \.sidebar-footer \{ display: none; \}/u, "in VS Code the panel keeps its list of contents");
-  assert.match(html, /id="side-filter"/u);
-  // One list instead of tabs: every page is an entry of it, next to the contents of the Dashboard.
-  for (const entry of ["Diagrams with settings", "Architecture work", "Object list", "Dependencies over time", "Findings with fixes"]) assert.ok(html.includes(`title: "${entry}"`), `${entry} is in the list`);
-  assert.doesNotMatch(html, /const PAGES = \[/u, "no tabs");
-  // The panel tells the extension which page it shows, so its side bar marks it.
-  assert.match(html, /vscode\.postMessage\(\{ type: "page", page \}\)/u);
+  const body = html.slice(html.indexOf("<body>"), html.indexOf("<script>"));
+  assert.match(body, /<header id="bar" role="toolbar"/u);
+  assert.match(body, /<div id="graph"><\/div>/u);
+  // No list of pages, no tabs, no side bar: what shows is chosen in the toolbar.
+  assert.doesNotMatch(body, /<nav\b|role="tablist"|id="sidebar"|id="page"/u);
+  assert.deepEqual([...body.matchAll(/data-form="(\w+)"/gu)].map(([, form]) => form), ["2d", "diagram", "3d"], "any part of the graph in three forms");
+  assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "view", "export", "sync"]);
+  // What floats on the graph starts hidden: the legend, the selected node, the story.
+  for (const id of ["legend", "inspector", "story"]) assert.match(body, new RegExp(`id="${id}" class="float"[^>]* hidden>`, "u"));
+  assert.match(html, /root\.BCA_GRAPH = \{ create, seed, step, random, layered \}/u, "the graph is part of the file");
+  // The whole state of the view is in its address, and the editor hears of it.
+  assert.match(html, /const DEFAULTS = \{ lens: "system", form: "2d", q: "", sel: ""/u);
+  assert.match(html, /vscode\.postMessage\(\{ type: "state", lens: state\.lens, story: state\.story \}\)/u);
+  // Everything that shows can be saved.
+  for (const format of ["png", "svg", "json", "nodes", "relations", "lens", "docs", "link"]) assert.ok(html.includes(`["${format}", "`), `export: ${format}`);
 });
 
-test("the embedded 3D explorer asks for the theme once its graph is unpacked", () => {
-  // The explorer inflates its data asynchronously, so a theme sent on the
-  // frame's load event can arrive before it listens; it asks instead.
-  const viewer = readFileSync(path.join(root, "src", "graph", "viewer", "viewer.js"), "utf8");
-  assert.match(viewer, /window\.parent\.postMessage\(\{ type: "bca-ready" \}, "\*"\)/u);
-  assert.ok(viewer.indexOf('"bca-ready"') > viewer.indexOf("await inflate("), "asks only after the graph is unpacked");
-  const html = renderAppHtml({ mode: "vscode", csp: "default-src 'none'" });
-  assert.match(html, /event\.data\?\.type === "bca-ready"[\s\S]{0,200}type: "bca-theme"/u);
-});
-
-test("bca export writes the app as one offline file with every page's data", () => {
+test("bca export writes the app as one offline file with the whole atlas", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-export-"));
   try {
     const output = path.join(directory, "atlas.html");
     const result = spawnSync(process.execPath, [cli, "export", workspace, "-o", output], { encoding: "utf8", timeout: 180_000 });
     assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr + result.stdout, /multi-app: 12 object\(s\), health failed, 1 wrong-way dependency/u);
     const html = readFileSync(output, "utf8");
     assert.match(html, /window\.BCA_APP = \{"mode":"static"/u);
+    assert.match(html, /<title>multi-app · BC Atlas<\/title>/u);
     assert.doesNotMatch(html, /"token"/u);
-    const packed = (name) => /window\.(\w+) = "([A-Za-z0-9+/=]+)";/gu.exec(html.slice(html.indexOf(`window.${name}`)))[2];
-    const snapshot = JSON.parse(gunzipSync(Buffer.from(packed("BCA_SNAPSHOT_GZIP"), "base64")).toString("utf8"));
-    assert.equal(snapshot.overview.summary.objects, 12);
-    assert.equal(snapshot.overview.root, undefined, "no local paths in a file meant to be shared");
-    assert.equal(Object.keys(snapshot.details).length, 12);
-    assert.ok(Object.values(snapshot.details).every(({ source }) => !source.editor));
-    const sync = snapshot.objects.find(({ label }) => label === "CON Item Sync");
-    const [target] = snapshot.details[sync.id].uses;
-    assert.equal(snapshot.nodes[target[0]][1], "CON Item", "links point into the node table");
-    assert.deepEqual(Object.keys(snapshot.diagrams).sort(), snapshot.views.map(({ id }) => id).sort());
-    assert.ok(snapshot.diagrams.visibility.canvas.points.length > 12, "the visibility canvas is in the export");
-    assert.match(html, /BCA_VISIBILITY/u);
-    assert.deepEqual(snapshot.boardCatalog.map(({ id }) => id), Object.keys(snapshot.boards), "every content of the Dashboard is in the export");
-    assert.ok(snapshot.boards.objects.nodes.length === 12 && snapshot.boards["view:project"].edges.length > 0);
-    assert.match(html, /BCA_BOARD/u);
-    assert.ok(snapshot.diagrams.project.svg.startsWith("<"));
-    assert.match(snapshot.diagrams.project.svg, /data-object="/u, "a click on a box opens its object page");
-    assert.equal(snapshot.docs, undefined, "without documented UI tests there is no Docs page");
-    assert.deepEqual(Object.keys(snapshot.components).sort(), ["Core", "Integration", "Sales"], "every component page is in the export");
-    assert.ok(snapshot.architecture.matrix.cells.length === 3);
-    assert.deepEqual(snapshot.handbook.pages.map(({ id }) => id), ["README", "events", "data", "permissions", "interfaces", "ui", "code-health"], "the Handbook page is in the export");
-    const explorer = gunzipSync(Buffer.from(packed("BCA_EXPLORER_GZIP"), "base64")).toString("utf8");
-    assert.match(explorer, /^<!doctype html>/u);
+    const packed = /window\.BCA_SNAPSHOT_GZIP = "([A-Za-z0-9+/=]+)";/u.exec(html)[1];
+    const text = gunzipSync(Buffer.from(packed, "base64")).toString("utf8");
+    const snapshot = JSON.parse(text);
+    assert.deepEqual(Object.keys(snapshot), ["generatedAt", "atlas", "inside"]);
+    assert.equal(snapshot.atlas.summary.objects, 12);
+    assert.equal(snapshot.atlas.live, false);
+    assert.ok(!text.includes(JSON.stringify(workspace).slice(1, -1)), "no local paths in a file meant to be shared");
+    assert.ok(snapshot.atlas.lenses.length >= 10 && snapshot.atlas.stories.length >= 2 && snapshot.atlas.findings.length > 0);
+    // What is inside every object comes along, so a double click works offline.
+    const objects = snapshot.atlas.nodes.filter(({ kind, external }) => kind === "object" && !external);
+    const withMembers = objects.filter(({ id }) => snapshot.inside[id]);
+    assert.ok(withMembers.length >= 5 && withMembers.length <= objects.length);
+    assert.ok(Object.values(snapshot.inside).every(({ nodes, edges, relations }) => nodes.length && edges.every(([, , relation]) => relations[relation])));
+    assert.ok(html.length < 400_000, `one small file (${html.length} bytes)`);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
-});
-
-test("the Handbook page links object names to object pages and pages to each other", async () => {
-  const service = createService(new Workspace(workspace));
-  const handbook = await service.call("handbook");
-  assert.equal(handbook.objects, 12);
-  const readme = handbook.pages.find(({ id }) => id === "README").markdown;
-  assert.match(readme, /\(#\/docs\?page=events\)/u, "contents link to the other pages in the app");
-  assert.match(readme, /## Sources\n/u, "the overview lists where the handbook is read from");
-  assert.match(handbook.pages.find(({ id }) => id === "events").markdown, /\*\*Based on:\*\* `\[IntegrationEvent\]`/u);
-  assert.equal(handbook.pages.find(({ id }) => id === "data").summary, "tables, who reads and writes them, and how");
-  const objects = new Set((await service.call("objects")).map(({ id }) => id));
-  const links = handbook.pages.flatMap(({ markdown }) => [...markdown.matchAll(/\]\(#\/object\/([^)]+)\)/gu)].map(([, id]) => decodeURIComponent(id)));
-  assert.ok(links.length > 0);
-  for (const id of links) assert.ok(objects.has(id), `${id} has an object page`);
-});
-
-test("the Handbook page is available in German", async () => {
-  const service = createService(new Workspace(workspace));
-  const german = await service.call("handbook", { language: "de-DE" });
-  assert.equal(german.language, "de");
-  assert.equal(german.pages.find(({ id }) => id === "data").title, "Daten");
-  assert.match(german.pages.find(({ id }) => id === "README").markdown, /\(#\/docs\?page=events&hl=de\)/u, "page links keep the language");
-  await assert.rejects(service.call("handbook", { language: "fr" }), /language must be en or de/u);
 });
 
 test("the app keeps a component and excludes an object in architecture.proposal of .bca.json", async () => {

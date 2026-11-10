@@ -1,7 +1,9 @@
 // BC Atlas for VS Code. Thin by design: the bc-atlas engine analyzes the
-// project in a worker process and renders the pages; the extension shows
-// them in a panel and connects them to the editor (Problems panel, CodeLens,
-// status bar, side bar, commands, and the MCP server for AI agents).
+// project in a worker process and draws it as one graph; the extension shows
+// that view in a panel and connects it to the editor (Problems panel,
+// CodeLens, status bar, commands, and the MCP server for AI agents). The
+// panel follows the source: a saved file is read again, and the object of
+// the active editor is the selected node.
 "use strict";
 
 const { existsSync } = require("node:fs");
@@ -153,7 +155,7 @@ async function updateProblems() {
 
 function updateStatus(current) {
   const { text, tooltip, tone } = logic.statusFor(current);
-  status.command = { command: "bcAtlas.open", title: "Open BC Atlas", arguments: ["#/overview"] };
+  status.command = { command: "bcAtlas.open", title: "Open BC Atlas" };
   status.text = text;
   status.tooltip = tooltip;
   status.backgroundColor = tone === "error" ? new vscode.ThemeColor("statusBarItem.errorBackground") : tone === "warning" ? new vscode.ThemeColor("statusBarItem.warningBackground") : undefined;
@@ -163,7 +165,7 @@ function updateStatus(current) {
 // -------------------------------------------------------------------- panel
 
 class AtlasPanel {
-  static async show(context, hash = "#/dashboard") {
+  static async show(context, hash = "#") {
     if (!engine) {
       vscode.window.showWarningMessage("BC Atlas found no AL project (app.json) in this workspace. Open an AL project or choose one with \"BC Atlas: Select Project\".");
       return;
@@ -180,7 +182,7 @@ class AtlasPanel {
   constructor(context) {
     this.webview = vscode.window.createWebviewPanel("bcAtlas", "BC Atlas", vscode.ViewColumn.Active, {
       enableScripts: true,
-      // Keeps the 3D view and filters when the tab is in the background.
+      // Keeps the graph as it is when the tab is in the background.
       retainContextWhenHidden: true,
       localResourceRoots: []
     });
@@ -202,7 +204,7 @@ class AtlasPanel {
       "worker-src blob:",
       "frame-src data: blob:"
     ].join("; ");
-    // The page starts on the requested page; later navigation goes through messages.
+    // The view starts in the requested state; later changes go through messages.
     const html = renderAppHtml({ mode: "vscode", csp, title: "BC Atlas" })
       .replace("</head>", () => `<script>history.replaceState(null, "", ${JSON.stringify(hash)});</script>\n</head>`);
     this.webview.webview.html = html;
@@ -213,10 +215,6 @@ class AtlasPanel {
   }
 
   async receive(message) {
-    if (message?.type === "page" && typeof message.page === "string") {
-      this.page = message.page;
-      tree.select(message.page);
-    }
     if (message?.type !== "request") return;
     const { id, method, params } = message;
     try {
@@ -248,13 +246,12 @@ class AtlasPanel {
 
 // ----------------------------------------------------------- editor helpers
 
-// The navigation of the BC Atlas panel: the panel itself shows only the page.
-class PagesProvider {
+// The side bar has no list: the panel is one view, and the side bar opens it
+// (the welcome text of the view in package.json) and holds the commands.
+class EmptyTree {
   constructor() {
     this.changed = new vscode.EventEmitter();
     this.onDidChangeTreeData = this.changed.event;
-    // Items keep their identity across refreshes, so the shown page stays selected.
-    this.items = new Map();
   }
 
   refresh() {
@@ -265,31 +262,8 @@ class PagesProvider {
     return item;
   }
 
-  getParent() {
-    return undefined;
-  }
-
   getChildren() {
-    if (!engine) {
-      const item = new vscode.TreeItem("No AL project found", vscode.TreeItemCollapsibleState.None);
-      item.command = { command: "bcAtlas.selectProject", title: "Select Project" };
-      return [item];
-    }
-    return logic.pages(overview).map((page) => {
-      const item = this.items.get(page.id) ?? new vscode.TreeItem(page.label, vscode.TreeItemCollapsibleState.None);
-      item.id = page.id;
-      item.description = page.description;
-      item.iconPath = new vscode.ThemeIcon(page.icon);
-      item.command = { command: "bcAtlas.open", title: "Open", arguments: [logic.pageHash(page.id)] };
-      this.items.set(page.id, item);
-      return item;
-    });
-  }
-
-  /** Marks the page the panel shows. */
-  select(page) {
-    const item = this.items.get(page);
-    if (item && treeView?.visible) treeView.reveal(item, { select: true, focus: false }).then(undefined, () => {});
+    return [];
   }
 }
 
@@ -401,11 +375,8 @@ async function activate(context) {
   diagnostics = vscode.languages.createDiagnosticCollection("bc-atlas");
   status = vscode.window.createStatusBarItem("bcAtlas.status", vscode.StatusBarAlignment.Left, 50);
   status.name = "BC Atlas";
-  tree = new PagesProvider();
+  tree = new EmptyTree();
   treeView = vscode.window.createTreeView("bcAtlas.pages", { treeDataProvider: tree });
-  treeView.onDidChangeVisibility(({ visible }) => {
-    if (visible && panel?.page) tree.select(panel.page);
-  });
   const lensChanged = new vscode.EventEmitter();
   lenses = lensChanged;
 
@@ -414,16 +385,18 @@ async function activate(context) {
   }
 
   const command = (id, handler) => context.subscriptions.push(vscode.commands.registerCommand(id, handler));
-  command("bcAtlas.open", (hash) => AtlasPanel.show(context, typeof hash === "string" ? hash : "#/dashboard"));
-  command("bcAtlas.openPage", async () => {
-    const page = await vscode.window.showQuickPick(logic.pages(overview).map((item) => ({ label: item.label, description: item.description, id: item.id })), { placeHolder: "Open which BC Atlas page?" });
-    if (page) AtlasPanel.show(context, logic.pageHash(page.id));
+  command("bcAtlas.open", (hash) => AtlasPanel.show(context, typeof hash === "string" ? hash : "#"));
+  command("bcAtlas.openLens", async () => {
+    // What the graph can show, as the engine lists it.
+    const { LENSES } = await import(pathToFileURL(enginePath("src", "app", "atlas.js")).href);
+    const lens = await vscode.window.showQuickPick(LENSES.map((item) => ({ label: item.title, detail: item.summary, id: item.id })), { placeHolder: "What should the graph show?" });
+    if (lens) AtlasPanel.show(context, logic.viewHash({ lens: lens.id }));
   });
-  command("bcAtlas.openObject", (id) => AtlasPanel.show(context, `#/object/${encodeURIComponent(id)}`));
-  command("bcAtlas.showObject", () => withCurrentObject(context, (object) => `#/object/${encodeURIComponent(object.id)}`));
-  command("bcAtlas.showObjectIn3D", () => withCurrentObject(context, (object) => logic.pageHash("dependencies", { select: object.id })));
-  command("bcAtlas.objectDiagram", () => withCurrentObject(context, (object) => logic.pageHash("diagrams", { view: "object", object: `${object.type}:${object.objectId ?? object.label}` })));
-  command("bcAtlas.proposeArchitecture", () => AtlasPanel.show(context, logic.pageHash("architecture", { propose: 1 })));
+  command("bcAtlas.openObject", (id) => AtlasPanel.show(context, logic.viewHash({ sel: id })));
+  command("bcAtlas.showObject", () => withCurrentObject(context, (object) => logic.viewHash({ sel: object.id })));
+  command("bcAtlas.showObjectIn3D", () => withCurrentObject(context, (object) => logic.viewHash({ form: "3d", focus: object.id, sel: object.id })));
+  command("bcAtlas.objectDiagram", () => withCurrentObject(context, (object) => logic.viewHash({ form: "diagram", inside: object.id, sel: object.id })));
+  command("bcAtlas.proposeArchitecture", () => AtlasPanel.show(context, logic.viewHash({ lens: "components", form: "diagram" })));
   command("bcAtlas.acceptViolations", async () => {
     const choice = await vscode.window.showWarningMessage("Accept today's wrong-way dependencies in the baseline? bca check then fails only on new ones.", { modal: true }, "Accept");
     if (choice !== "Accept") return;
@@ -469,6 +442,12 @@ async function activate(context) {
           arguments: [lens.id]
         }));
       }
+    }),
+    // The graph follows the editor: the object at the cursor of the file that comes to the front is the selected node.
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      if (!panel || !config().get("followEditor")) return;
+      const object = currentObject();
+      if (object) panel.post({ type: "reveal", id: object.id });
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       const restart = ["bcAtlas.project", "bcAtlas.paths", "bcAtlas.nodePath", "bcAtlas.alCompiler", "bcAtlas.alAnalyzers",

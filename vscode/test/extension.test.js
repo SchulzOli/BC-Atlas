@@ -14,7 +14,7 @@ process.env.BCA_AL_COMPILER ??= "off";
 const manifest = JSON.parse(readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
 
 function fakeVscode() {
-  const registered = { commands: new Map(), lenses: [], trees: [], treeViews: [], webviews: [], diagnostics: new Map(), status: undefined, messages: [], mcp: [] };
+  const registered = { commands: new Map(), lenses: [], trees: [], treeViews: [], webviews: [], editorListeners: [], diagnostics: new Map(), status: undefined, messages: [], mcp: [] };
   class EventEmitter {
     constructor() {
       this.listeners = [];
@@ -59,6 +59,10 @@ function fakeVscode() {
     McpStdioServerDefinition: class { constructor(label, command, args, env) { Object.assign(this, { label, command, args, env }); } },
     window: {
       activeTextEditor: undefined,
+      onDidChangeActiveTextEditor: (listener) => {
+        registered.editorListeners.push(listener);
+        return disposable;
+      },
       createOutputChannel: () => ({ appendLine() {}, show() {}, dispose() {} }),
       createStatusBarItem: () => {
         registered.status = { show() {}, dispose() {} };
@@ -101,7 +105,7 @@ function fakeVscode() {
       workspaceFolders: [{ uri: Uri.file(project) }],
       getWorkspaceFolder: () => ({ uri: Uri.file(project) }),
       getConfiguration: () => ({
-        get: (key) => ({ project: "", paths: [], problems: true, codeLens: true, nodePath: "" })[key],
+        get: (key) => ({ project: "", paths: [], problems: true, codeLens: true, followEditor: true, nodePath: "" })[key],
         inspect: () => undefined
       }),
       findFiles: async () => ["core", "sales", "integration"].map((app) => Uri.file(path.join(project, app, "app.json"))),
@@ -170,28 +174,27 @@ test("the extension analyzes the workspace and fills the editor and the panel", 
   const lenses = registered.lenses[0].provideCodeLenses({ uri: { fsPath: path.join(project, "integration", "ItemSync.al") } });
   assert.ok(lenses.length > 0);
   assert.match(lenses.find(({ command }) => command.title.includes("against the architecture")).command.title, /\$\(warning\) used by \d+ · uses 1 · component Integration · 1 dependency against the architecture/u);
-  assert.deepEqual(registered.trees[0].getChildren().map(({ label }) => label), ["Dashboard", "Overview", "Health", "Architecture", "Dependencies (3D)", "Diagrams", "Objects", "Docs"]);
+  // The side bar holds no list of pages: the panel is one view.
+  assert.deepEqual(registered.trees[0].getChildren(), []);
 
   // The MCP server for agents runs the bundled engine.
   const [definition] = registered.mcp[0].provider.provideMcpServerDefinitions();
   assert.match(definition.args[0], /src[\\/]mcp\.js$/u);
 
-  // The panel shows the pages with a strict policy and answers their requests.
-  await registered.commands.get("bcAtlas.open")("#/architecture");
+  // The panel shows the one view with a strict policy and answers its requests.
+  await registered.commands.get("bcAtlas.open")("#lens=components");
   const panel = registered.webviews[0];
   assert.match(panel.webview.html, /Content-Security-Policy" content="default-src 'none'/u);
   assert.match(panel.webview.html, /"mode":"vscode"/u);
-  assert.match(panel.webview.html, /history\.replaceState\(null, "", "#\/architecture"\)/u);
-  await panel.receive({ type: "request", id: 7, method: "architecture", params: {} });
+  assert.match(panel.webview.html, /history\.replaceState\(null, "", "#lens=components"\)/u);
+  await panel.receive({ type: "request", id: 7, method: "atlas", params: {} });
   const response = panel.posted.find(({ id }) => id === 7);
-  assert.equal(response.result.mode, "configured");
+  assert.deepEqual(response.result.lenses.slice(0, 3).map(({ id }) => id), ["system", "components", "apps"]);
+  assert.ok(response.result.stories.length > 0);
   await panel.receive({ type: "request", id: 8, method: "nope", params: {} });
-
-  // The side bar is the panel's navigation: it marks the page the panel shows.
-  await panel.receive({ type: "page", page: "architecture" });
-  assert.equal(registered.treeViews[0].revealed.at(-1).item.label, "Architecture");
-  assert.deepEqual(registered.treeViews[0].revealed.at(-1).options, { select: true, focus: false });
   assert.match(panel.posted.find(({ id }) => id === 8).error, /unknown method/u);
+  // What the view tells about its state needs no answer.
+  await panel.receive({ type: "state", lens: "components" });
 
   // Commands about the object at the cursor navigate the panel.
   vscode.window.activeTextEditor = {
@@ -199,5 +202,13 @@ test("the extension analyzes the workspace and fills the editor and the panel", 
     selection: { active: { line: 8 } }
   };
   await registered.commands.get("bcAtlas.showObjectIn3D")();
-  assert.match(panel.posted.at(-1).hash, /^#\/dependencies\?select=/u);
+  assert.match(panel.posted.at(-1).hash, /^#form=3d&focus=.+&sel=/u);
+  await registered.commands.get("bcAtlas.objectDiagram")();
+  assert.match(panel.posted.at(-1).hash, /^#form=diagram&inside=.+codeunit.+50201&sel=/u);
+
+  // The graph follows the editor: the object of the file that comes to the front is selected.
+  registered.editorListeners[0]();
+  assert.deepEqual(Object.keys(panel.posted.at(-1)), ["type", "id"]);
+  assert.equal(panel.posted.at(-1).type, "reveal");
+  assert.match(panel.posted.at(-1).id, /codeunit::50201$/u);
 });

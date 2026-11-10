@@ -31,7 +31,6 @@ const PLATFORM_ATTRIBUTE = /\[\s*(?:Test|\w*Handler|ServiceEnabled|ExternalBusin
 
 const property = (item, name) => item.properties?.find((entry) => entry.name?.toLowerCase() === name)?.value?.trim();
 const appOf = (object) => object.app?.id ?? object.app?.name ?? "(app)";
-const objectLabel = (object) => `${object.type} ${object.id ? `${object.id} ` : ""}${object.name}`;
 const isSubscriber = (procedure) => (procedure.attributes ?? []).some((attribute) => /\[\s*EventSubscriber\b/iu.test(attribute));
 
 function declaredObjectLevel(object) {
@@ -285,31 +284,4 @@ export function levelCounts(points) {
     .filter(([, total]) => total)
     .map(([level, total]) => `${total} ${level}`)
     .join(", ");
-}
-
-/**
- * The analysis as arrays for the canvas of the app pages: points by index
- * (apps, then objects, then members), uses as index pairs.
- */
-export function compactVisibility(analysis) {
-  const order = { app: 0, object: 1 };
-  const points = [...analysis.points].sort((a, b) => (order[a.kind] ?? 2) - (order[b.kind] ?? 2));
-  const index = new Map(points.map((point, position) => [point.id, position]));
-  return {
-    levels: analysis.levels,
-    summary: analysis.summary,
-    // [kind, parent, name, type, level, canBe, why, object page, declared]
-    points: points.map((point) => [
-      point.kind,
-      point.parent === undefined ? -1 : index.get(point.parent),
-      point.kind === "object" ? objectLabel({ type: point.type, id: point.objectId, name: point.name }) : point.name,
-      point.type,
-      rank(point.level),
-      point.canBe ? rank(point.canBe) : -1,
-      point.why ?? null,
-      point.kind === "object" ? point.id : null,
-      point.declared ?? null
-    ]),
-    uses: analysis.uses.map(({ from, to, level, weight }) => [index.get(from), index.get(to), rank(level), weight])
-  };
 }
