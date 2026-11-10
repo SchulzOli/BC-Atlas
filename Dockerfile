@@ -11,6 +11,9 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY src ./src
 COPY vendor ./vendor
+COPY schemas ./schemas
+# Built-in plugins: manifest and code only (.dockerignore keeps out their AL apps, tests, and e2e runs).
+COPY plugins ./plugins
 COPY LICENSE THIRD_PARTY_NOTICES.md README.md ./
 
 USER node
