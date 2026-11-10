@@ -55,6 +55,106 @@ const EXTENSION_TARGET = {
   pagecustomization: "page"
 };
 
+/**
+ * Declarations whose header is split by preprocessor directives, while the
+ * body is shared:
+ *
+ *   #if CLEAN25
+ *   table 50100 "New Name"
+ *   #else
+ *   table 50100 "Old Name"
+ *   #endif
+ *   { ... }
+ *
+ * The grammar gives them a node type of their own, with the header of every
+ * branch as direct children. They are modeled as the declaration they are,
+ * once, with the header of the first branch (`#if`): its ID, name, type,
+ * modifier, parameters, and attributes. `conditionalSymbols` names the
+ * condition of that branch. What the other branches refer to (an `implements`
+ * list, another base object) still becomes a relation with the condition of
+ * its branch, as for any other code inside `#if`.
+ */
+const SPLIT_OBJECT = "preproc_split_declaration";
+const SPLIT_MEMBERS = new Map([
+  ["preproc_split_table_field", "field_declaration"],
+  ["preproc_split_field", "page_field"],
+  ["preproc_split_procedure", "procedure"],
+  ["preproc_split_procedure_preamble", "procedure"]
+]);
+const OBJECT_KEYWORDS = new Map(
+  [...OBJECT_TYPES.values()].map((type) => [`${type}_keyword`, type])
+);
+
+/** The plain node type a member node stands for (a split table field is a field_declaration). */
+function memberType(node) {
+  return SPLIT_MEMBERS.get(node.type) ?? node.type;
+}
+
+/**
+ * The header of a declaration: its named children and its fields. For a split
+ * header these are the children of the first branch and what follows `#endif`;
+ * the other branches are left out, so a field missing in the first branch (no
+ * `local`, no return type) is not read from another one.
+ */
+function headerOf(node) {
+  if (node.type !== SPLIT_OBJECT && !SPLIT_MEMBERS.has(node.type)) {
+    return {
+      split: false,
+      start: node.startIndex,
+      children: node.namedChildren,
+      field: (name) => node.childForFieldName(name) ?? undefined,
+      includes: () => true
+    };
+  }
+  const children = [];
+  const fields = new Map();
+  // The first branch lies between `#if` and the directive after it; the other
+  // branches end with `#endif`.
+  const branch = {};
+  const others = {};
+  for (let index = 0; index < node.childCount; index++) {
+    const child = node.child(index);
+    if (child.type === "preproc_if") branch.start ??= child.endIndex;
+    else if (child.type === "preproc_elif" || child.type === "preproc_else") {
+      branch.end ??= child.startIndex;
+      others.start ??= child.startIndex;
+    } else if (child.type === "preproc_endif") {
+      branch.end ??= child.startIndex;
+      others.end ??= child.startIndex;
+    } else if (child.isNamed && !(child.startIndex >= others.start && others.end === undefined)) {
+      children.push(child);
+      const field = node.fieldNameForChild(index);
+      if (field && !fields.has(field)) fields.set(field, child);
+    }
+  }
+  branch.start ??= node.startIndex;
+  branch.end ??= node.endIndex;
+  branch.children = children.filter((child) => child.endIndex <= branch.end);
+  return {
+    split: true,
+    // Where the header starts: after `#if` and the comments above the declaration.
+    start: branch.children.find((child) => child.type !== "comment")?.startIndex ?? branch.start,
+    children,
+    branch,
+    field: (name) => fields.get(name),
+    includes: (descendant) =>
+      !(descendant.startIndex >= others.start && descendant.endIndex <= (others.end ?? node.endIndex))
+  };
+}
+
+/** The type of the object a node declares, if it declares one. */
+function objectType(node) {
+  if (node.type !== SPLIT_OBJECT) return OBJECT_TYPES.get(node.type);
+  return headerOf(node).children.map((child) => OBJECT_KEYWORDS.get(child.type)).find(Boolean);
+}
+
+/** The condition of the branch a split header is read from, with those of the `#if`s around it. */
+function splitConditions(header, source) {
+  return header.split && header.branch.children.length
+    ? { conditionalSymbols: preprocessorConditions(header.branch.children[0], source) }
+    : {};
+}
+
 const IGNORED_DIRECTORIES = new Set([
   ".git",
   ".alpackages",
@@ -96,9 +196,12 @@ function objectNameField(node, field, source) {
   return qualified ? qualified.replace(/\s*\.\s*/gu, ".") : fieldText(node, field, source);
 }
 
+function nodeText(node, source) {
+  return node ? cleanName(source.slice(node.startIndex, node.endIndex)) : undefined;
+}
+
 function fieldText(node, field, source) {
-  const child = node.childForFieldName(field);
-  return child ? cleanName(source.slice(child.startIndex, child.endIndex)) : undefined;
+  return nodeText(node.childForFieldName(field), source);
 }
 
 function locationFor(node, file) {
@@ -179,7 +282,7 @@ function tableRelationRelations(valueNode, source, add) {
       kind: "relates",
       property: "tablerelation",
       relationClass: "schema",
-      sourceField: enclosingMember(node, source, ["field_declaration"]),
+      sourceField: enclosingMember(node, source, ["field_declaration", "preproc_split_table_field"]),
       relatedField: parts.length > 1 ? parts.at(-1) : undefined,
       condition: tableRelationCondition(node, source),
       filters: tableRelationFilters(node, source)
@@ -257,12 +360,21 @@ function containerFor(node, source) {
   return undefined;
 }
 
-function procedureHeader(node, source) {
-  const body = node.namedChildren.find((child) =>
-    ["code_block", "statement_block", "declaration_body"].includes(child.type)
-  );
-  const end = body?.startIndex ?? node.endIndex;
-  return source.slice(node.startIndex, end).trim().replace(/\s+/gu, " ").replace(/;$/u, "");
+function procedureHeader(node, source, header) {
+  let start = node.startIndex;
+  let end;
+  if (header.split) {
+    // The header as written in the first branch, without its attributes and variables.
+    const { children } = header.branch;
+    start = children.find((child) => !["comment", "attribute_item"].includes(child.type))?.startIndex ?? header.start;
+    end = children.find((child) => child.type === "var_section")?.startIndex ?? header.branch.end;
+  } else {
+    const body = node.namedChildren.find((child) =>
+      ["code_block", "statement_block", "declaration_body"].includes(child.type)
+    );
+    end = body?.startIndex ?? node.endIndex;
+  }
+  return source.slice(start, end).trim().replace(/\s+/gu, " ").replace(/;$/u, "");
 }
 
 function enclosingMember(node, source, types) {
@@ -312,8 +424,9 @@ function preprocessorConditions(node, source) {
   while (current.parent) {
     const parent = current.parent;
     if (parent.type.startsWith("preproc_")) {
+      // What follows `#endif` (the shared body of a split header) is unconditional.
       const markers = parent.namedChildren.filter(
-        (child) => ["preproc_if", "preproc_elif", "preproc_else"].includes(child.type) &&
+        (child) => ["preproc_if", "preproc_elif", "preproc_else", "preproc_endif"].includes(child.type) &&
           child.startIndex <= node.startIndex
       );
       const marker = markers.at(-1);
@@ -586,7 +699,7 @@ function enclosingRoutine(node) {
   ]);
   let parent = node.parent;
   while (parent) {
-    if (routineTypes.has(parent.type)) return parent;
+    if (routineTypes.has(memberType(parent))) return parent;
     parent = parent.parent;
   }
   return undefined;
@@ -765,17 +878,19 @@ function membersFor(objectNode, source, file) {
   const variables = [];
   const keys = [];
   walk(objectNode, (node) => {
-    if (["procedure", "trigger_declaration", "event_declaration", "interface_procedure"].includes(node.type)) {
-      const name = fieldText(node, "name", source);
+    const type = memberType(node);
+    if (["procedure", "trigger_declaration", "event_declaration", "interface_procedure"].includes(type)) {
+      const declaration = headerOf(node);
+      const name = nodeText(declaration.field("name"), source);
       if (name) {
-        const returnTypeNode = node.childForFieldName("return_type");
-        const header = procedureHeader(node, source);
+        const returnTypeNode = declaration.field("return_type");
+        const header = procedureHeader(node, source, declaration);
         const returnTypeText = returnTypeNode
           ? source.slice(returnTypeNode.startIndex, returnTypeNode.endIndex).trim()
           : header.match(/\)\s*:\s*([^;\r\n]+)$/u)?.[1]?.trim();
         const returnType = declaredType(returnTypeText);
         const attributes = [
-          ...node.namedChildren
+          ...declaration.children
           .filter((child) => child.type === "attribute_item")
           .map((child) => source.slice(child.startIndex, child.endIndex)),
           ...attributesFor(node, source)
@@ -789,7 +904,7 @@ function membersFor(objectNode, source, file) {
           header,
           visibility: node.type === "trigger_declaration"
             ? undefined
-            : fieldText(node, "modifier", source)?.toLowerCase() ?? "public",
+            : nodeText(declaration.field("modifier"), source)?.toLowerCase() ?? "public",
           scope: node.startPosition.row + 1,
           kind: node.type === "trigger_declaration"
             ? "trigger"
@@ -809,36 +924,40 @@ function membersFor(objectNode, source, file) {
           action: node.type === "trigger_declaration"
             ? enclosingActionName(node, source)
             : undefined,
-          properties: propertiesFor(node, source)
+          properties: propertiesFor(node, source),
+          ...splitConditions(declaration, source)
         });
         const procedure = procedures.at(-1);
         procedure.metadata = procedureMetadata({
           ...procedure,
-          documentation: documentationComment(source, node.startIndex),
+          documentation: documentationComment(source, declaration.start),
           complexity: hasBody ? cyclomaticComplexity(node) : undefined
         });
       }
     }
-    if (node.type === "field_declaration" || node.type === "page_field") {
-      const name = fieldText(node, "name", source);
-      const typeNode = node.childForFieldName("type");
-      const numberNode = node.type === "field_declaration"
-        ? node.namedChildren.find((child) => child.type === "integer")
+    if (type === "field_declaration" || type === "page_field") {
+      const declaration = headerOf(node);
+      const nameNode = declaration.field("name");
+      const name = nodeText(nameNode, source);
+      const typeNode = declaration.field("type");
+      const numberNode = type === "field_declaration"
+        ? declaration.children.find((child) => child.type === "integer")
         : undefined;
-      const directValues = node.namedChildren.filter((child) =>
+      const directValues = declaration.children.filter((child) =>
         !["integer", "property", "declaration_body"].includes(child.type) &&
-        child !== node.childForFieldName("name") && child !== typeNode
+        child.id !== nameNode?.id && child.id !== typeNode?.id
       );
       fields.push({
         name: name ?? `(field ${fields.length + 1})`,
-        kind: node.type === "page_field" ? "page-field" : "field",
+        kind: type === "page_field" ? "page-field" : "field",
         number: numberNode ? source.slice(numberNode.startIndex, numberNode.endIndex) : undefined,
         type: typeNode ? source.slice(typeNode.startIndex, typeNode.endIndex).trim() : undefined,
-        sourceExpression: node.type === "page_field" && directValues.length
+        sourceExpression: type === "page_field" && directValues.length
           ? cleanName(source.slice(directValues.at(-1).startIndex, directValues.at(-1).endIndex))
           : undefined,
-        container: node.type === "page_field" ? containerFor(node, source) : undefined,
+        container: type === "page_field" ? containerFor(node, source) : undefined,
         properties: propertiesFor(node, source),
+        ...splitConditions(declaration, source),
         location: locationFor(node, file)
       });
       fields.at(-1).metadata = fieldMetadata(fields.at(-1));
@@ -962,7 +1081,8 @@ function membersFor(objectNode, source, file) {
     if (node.type === "parameter") {
       const routine = enclosingRoutine(node);
       const name = fieldText(node, "name", source);
-      if (routine && name) {
+      // The parameters of a split header are those of its first branch.
+      if (routine && name && headerOf(routine).includes(node)) {
         variables.push({
           name,
           ...variableType(node, source),
@@ -1143,25 +1263,49 @@ async function objectsFromSource(source, file) {
   const objects = [];
 
   walk(tree.rootNode, (node) => {
-    const type = OBJECT_TYPES.get(node.type);
+    const type = objectType(node);
     if (!type) return;
 
-    const name = fieldText(node, "object_name", source);
+    const declaration = headerOf(node);
+    const name = nodeText(declaration.field("object_name"), source);
     if (!name) return;
 
-    const id = fieldText(node, "object_id", source);
-    let base = fieldText(node, "base_object", source);
-    if (type === "pagecustomization") base = fieldText(node, "target_page", source);
-    if (type === "interface") base = fieldText(node, "extends_interface", source);
+    const id = nodeText(declaration.field("object_id"), source);
+    let base = nodeText(declaration.field("base_object"), source);
+    if (type === "pagecustomization") base = nodeText(declaration.field("target_page"), source);
+    if (type === "interface") base = nodeText(declaration.field("extends_interface"), source);
 
     const relations = referencesFor(node, source, file);
+    // The branches of a split header may extend different objects: one
+    // relation each, with the condition of its branch.
+    const otherBases = new Map();
+    if (declaration.split && base) {
+      for (const baseNode of node.childrenForFieldName("base_object")) {
+        const target = nodeText(baseNode, source);
+        const key = target.toLowerCase();
+        if (key !== base.toLowerCase() && !otherBases.has(key)) otherBases.set(key, { target, baseNode });
+      }
+    }
     if (base) {
       relations.push({
         target: base,
         targetType: type === "interface" ? "interface" : EXTENSION_TARGET[type],
         kind: "extends",
         relationClass: "schema",
+        ...(otherBases.size
+          ? { conditionalSymbols: preprocessorConditions(declaration.field("base_object"), source) }
+          : {}),
         location: locationFor(node, file)
+      });
+    }
+    for (const { target, baseNode } of otherBases.values()) {
+      relations.push({
+        target,
+        targetType: EXTENSION_TARGET[type],
+        kind: "extends",
+        relationClass: "schema",
+        conditionalSymbols: preprocessorConditions(baseNode, source),
+        location: locationFor(baseNode, file)
       });
     }
     const members = membersFor(node, source, file);
@@ -1206,12 +1350,13 @@ async function objectsFromSource(source, file) {
       transactionBoundaries: members.transactionBoundaries,
       assignable: type === "permissionset" ? /^true$/iu.test(assignableValue ?? "false") : undefined,
       objectAccess,
+      ...splitConditions(declaration, source),
       location: locationFor(node, file),
       parseError: node.hasError
     });
     objects.at(-1).metadata = objectMetadata({
       ...objects.at(-1),
-      documentation: documentationComment(source, node.startIndex)
+      documentation: documentationComment(source, declaration.start)
     });
   });
 
