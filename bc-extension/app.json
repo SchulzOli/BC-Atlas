@@ -1,0 +1,33 @@
+{
+  "id": "eec2f588-b335-4f50-8ff7-f0f63dd83336",
+  "name": "OpenBridge Interop",
+  "publisher": "OpenBridge",
+  "version": "1.0.0.0",
+  "brief": "API-first companion app for the bc-openbridge gateway.",
+  "description": "Exposes custom CRUD APIs under api/openbridge/interop/v1.0 and a control plane (master switch, read-only mode, per-entity CRUD permissions, write audit log) that governs every API page of this app.",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [],
+  "screenshots": [],
+  "platform": "26.0.0.0",
+  "application": "26.0.0.0",
+  "idRanges": [
+    {
+      "from": 50100,
+      "to": 50149
+    }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": false,
+    "includeSourceInSymbolFile": false
+  },
+  "runtime": "15.0",
+  "target": "Cloud",
+  "features": [
+    "NoImplicitWith"
+  ]
+}

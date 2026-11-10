@@ -1,0 +1,37 @@
+services:
+  openbridge:
+    build: .
+    image: bc-openbridge:0.1.0
+    env_file: .env
+    environment:
+      AUDIT_LOG_FILE: /data/audit.jsonl
+      API_KEYS_FILE: /run/secrets/api-keys
+      EVENT_SUBSCRIBERS_FILE: /run/secrets/event-subscribers
+      BC_CLIENT_SECRET_FILE: /run/secrets/bc-client-secret
+      CURSOR_SECRET_FILE: /run/secrets/cursor-secret
+    secrets: [api-keys, event-subscribers, bc-client-secret, cursor-secret]
+    ports:
+      - "127.0.0.1:8080:8080" # TLS terminiert ein Reverse Proxy davor
+    volumes:
+      - audit:/data
+    # Härtung
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 200
+    mem_limit: 256m
+    restart: unless-stopped
+
+secrets:
+  api-keys:
+    file: ./secrets/api-keys.json
+  event-subscribers:
+    file: ./secrets/event-subscribers.json
+  bc-client-secret:
+    file: ./secrets/bc-client-secret.txt
+  cursor-secret:
+    file: ./secrets/cursor-secret.txt
+
+volumes:
+  audit:
