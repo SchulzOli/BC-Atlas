@@ -67,7 +67,7 @@ test("summarizes health in the status bar and the side bar", () => {
   assert.match(status.tooltip, /Contoso: 1,200 objects in 2 apps/u);
   assert.equal(logic.statusFor(undefined).tone, "busy");
   assert.equal(logic.statusFor({ ...overview, health: { passed: true, counts: { error: 0, warning: 0, info: 0 } } }).text, "$(pass) BC Atlas");
-  assert.deepEqual(logic.pages(overview).map(({ id }) => id), ["overview", "health", "architecture", "dependencies", "diagrams", "objects", "docs"]);
+  assert.deepEqual(logic.pages(overview).map(({ id }) => id), ["dashboard", "overview", "health", "architecture", "dependencies", "diagrams", "objects", "docs"]);
   assert.equal(logic.pages(overview).find(({ id }) => id === "docs").description, "handbook, 4 user guides");
   assert.equal(logic.pages({ ...overview, docs: { scenarios: 0 } }).find(({ id }) => id === "docs").description, "system handbook",
     "Docs holds the handbook, so it is there without UI tests too");

@@ -16,7 +16,7 @@ h1, h2, h3 { margin: 0; line-height: 1.25; }
 [hidden] { display: none !important; }
 
 /* Shell */
-#shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); height: 100%; }
+#shell { display: grid; grid-template-columns: 296px minmax(0, 1fr); height: 100%; }
 #sidebar {
   display: flex; flex-direction: column; gap: 4px;
   background: var(--surface); border-right: 1px solid var(--border);
@@ -32,17 +32,20 @@ h1, h2, h3 { margin: 0; line-height: 1.25; }
 .brand-text { display: grid; min-width: 0; }
 .brand-text b { font-size: 15px; }
 .brand-text small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#nav { display: grid; gap: 2px; overflow: auto; }
-#nav a {
-  display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px;
-  color: var(--text); font-weight: 500;
-}
-#nav a:hover { background: var(--hover); text-decoration: none; }
-#nav a[aria-current="page"] { background: var(--selected); color: var(--selected-text); outline: 1px solid var(--vscode-contrastActiveBorder, transparent); outline-offset: -1px; }
-#nav a[aria-current="page"] .count { color: inherit; }
-#nav svg { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-#nav .count { margin-left: auto; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* One list instead of tabs: every content and page, by topic, with the sources of what is shown below it */
+#side-toggle { display: none; }
+#side-panel { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; gap: 8px; }
+#side-filter { width: 100%; }
+#nav { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 0 8px; margin: 0 -4px; }
 #nav .count.bad { color: var(--error); font-weight: 600; }
+#nav .wb-item[aria-current] .count { color: inherit; }
+#side-extra { flex: none; max-height: 36%; overflow: auto; border-top: 1px solid var(--border); padding: 12px 4px 4px; }
+#side-extra:empty { display: none; }
+/* In the side panel a source and what it is are one line. */
+#side-extra .sources { display: block; }
+#side-extra .sources dt, #side-extra .sources dd { display: inline; }
+#side-extra .sources dt::after { content: " "; white-space: pre; }
+#side-extra .sources dd::after { content: ""; display: block; margin-bottom: 5px; }
 .sidebar-footer { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 10px 8px 0; border-top: 1px solid var(--border); }
 .status { flex: 1; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; min-width: 0; }
 .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
@@ -51,9 +54,12 @@ h1, h2, h3 { margin: 0; line-height: 1.25; }
 @keyframes pulse { from { opacity: 0.35; } to { opacity: 1; } }
 
 #main { overflow: auto; min-width: 0; display: flex; flex-direction: column; }
-/* In VS Code the extension's side bar lists the pages; the panel shows only the page. */
-:root[data-host="vscode"] #shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
-:root[data-host="vscode"] #sidebar { display: none; }
+/* In VS Code the panel keeps its list of contents; the name and the theme switch belong to the editor. */
+:root[data-host="vscode"] #sidebar .brand, :root[data-host="vscode"] .sidebar-footer { display: none; }
+/* The Dashboard names its content in its own bar. */
+#main.board #page-header { display: none; }
+#main.board #page { padding-top: 20px; }
+.workbench.solo { grid-template-columns: minmax(0, 1fr); }
 #page-header {
   display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;
   padding: 22px 28px 14px; position: sticky; top: 0; z-index: 5;
@@ -373,6 +379,61 @@ table.matrix td.self { background: var(--surface-2); }
 .canvas-tools .icon-button { background: var(--surface); }
 .canvas-info { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: #475569; background: rgba(255, 255, 255, 0.85); padding: 2px 8px; border-radius: 6px; }
 
+/* The visibility canvas (visibility-canvas.js): one color per level, on every surface */
+:root { --level-public: #D55E00; --level-internal: #0072B2; --level-local: #009E73; }
+:root[data-theme="dark"] { --level-public: #d95926; --level-internal: #3987e5; --level-local: #199e70; }
+.canvas.vis { background: #ffffff; cursor: default; }
+:root[data-theme="dark"] .canvas.vis { background: #16181d; }
+.canvas.vis.dragging { cursor: grabbing; }
+.vis-canvas { position: absolute; inset: 0; display: block; outline: none; touch-action: none; }
+.vis-canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--focus, var(--accent)); }
+.vis-legend { position: absolute; right: 12px; top: 12px; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; max-width: calc(100% - 290px); }
+.vis-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; box-shadow: var(--shadow); }
+.vis-chip[aria-pressed="false"] { opacity: 0.45; }
+.vis-chip i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+.vis-chip.can i { background: transparent; border: 2px dashed var(--muted); box-sizing: border-box; }
+@media (max-width: 760px) {
+  .vis-legend { left: 12px; right: 12px; top: 52px; max-width: none; justify-content: flex-start; }
+  .vis-chip .muted { display: none; }
+}
+.vis-info { max-width: calc(100% - 24px); padding: 5px 10px; line-height: 1.5; color: var(--text); }
+:root[data-theme="dark"] .vis-info { color: var(--text); }
+.vis-path { color: var(--muted); }
+.vis-path button { border: 0; background: none; padding: 0; font: inherit; color: var(--link, var(--accent)); cursor: pointer; }
+.vis-path button:hover { text-decoration: underline; }
+.vis-level { font-weight: 600; }
+.vis-level::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 4px; }
+
+/* The Dashboard: any content as a 2D graph, a 3D graph, a table, or a diagram (board.js) */
+.board-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); flex: none; }
+.board-tools input[type="search"] { width: 240px; }
+.board-tools select { max-width: 200px; }
+.board-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.board-chips .vis-chip { box-shadow: none; }
+.board-chips:empty { display: none; }
+.board-status { font-size: 12.5px; color: var(--muted); display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.board-status .icon-button { padding: 1px 8px; font-size: 12px; }
+.board-view { flex: 1 1 auto; min-height: 0; position: relative; display: flex; flex-direction: column; }
+.board-view.scroll { overflow: auto; display: block; }
+.board-view > .canvas { flex: 1; height: auto; min-height: 0; border: 0; border-radius: 0 0 var(--radius) var(--radius); }
+.board-view > .board-table { border: 0; border-radius: 0; }
+.canvas.board { background: #ffffff; cursor: grab; }
+:root[data-theme="dark"] .canvas.board { background: #16181d; }
+.board-canvas { position: absolute; inset: 0; display: block; outline: none; touch-action: none; }
+.board-canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--focus, var(--accent)); }
+.board-info { max-width: calc(100% - 24px); padding: 5px 10px; line-height: 1.5; color: var(--text); }
+.board-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
+.board-actions .icon-button { background: var(--surface); font-size: 12px; padding: 2px 9px; color: var(--text); text-decoration: none; }
+.wb-tools .icon-button[aria-pressed="true"] { background: var(--selected); color: var(--selected-text); opacity: 1; }
+#board-sources:not(:empty) { margin-top: 14px; }
+.board-save { display: flex; gap: 6px; }
+.board-save input { flex: 1; min-width: 0; }
+@media (max-width: 760px) {
+  /* On a phone the graph keeps a height of its own below the tools. */
+  .board-view > .canvas { flex: none; height: 420px; }
+  .board-tools input[type="search"] { width: 100%; }
+}
+
 /* Explorer and docs frames */
 .frame-wrap { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); min-height: 520px; background: var(--surface); }
 .frame-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
@@ -413,12 +474,15 @@ dialog p { color: var(--muted); margin: 0 0 16px; }
 }
 @media (max-width: 860px) {
   #shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  #sidebar { flex-direction: row; align-items: center; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--border); overflow-x: auto; }
+  #sidebar { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--border); }
   .brand { padding: 0 8px 0 0; }
   .brand-text small { display: none; }
-  #nav { display: flex; overflow: visible; }
-  #nav a { white-space: nowrap; }
-  #nav .count { display: none; }
+  /* The list opens from a button and closes when something is chosen. */
+  #side-toggle { display: inline-block; }
+  #side-panel { display: none; flex: 1 0 100%; order: 9; max-height: 70vh; padding-top: 8px; }
+  #sidebar.open #side-panel { display: flex; }
+  #side-extra { max-height: 22vh; }
+  #nav { max-height: none; min-height: 40vh; }
   .sidebar-footer { margin: 0 0 0 auto; border: 0; padding: 0; }
   .status { display: none; }
   #page-header { padding: 16px 16px 10px; position: static; }

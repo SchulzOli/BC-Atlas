@@ -20,7 +20,8 @@ const VIEW_TITLES = {
   call: "Call graph",
   workflow: "Workflows",
   boundary: "Boundaries",
-  object: "Object"
+  object: "Object",
+  visibility: "Visibility"
 };
 const SHARED_OPTIONS = [
   "projectRoot", "config", "namespace", "type", "include", "exclude",
@@ -31,7 +32,7 @@ function selectedViews(value, configured) {
   const views = (Array.isArray(requested) ? requested : String(requested).split(","))
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
-  const supported = new Set(REPORT_VIEWS.concat("call"));
+  const supported = new Set(REPORT_VIEWS.concat("call", "visibility"));
   const invalid = views.filter((view) => !supported.has(view));
   if (invalid.length) {
     throw new Error(`report views must be chosen from ${[...supported].join(", ")}; unsupported: ${invalid.join(", ")}`);

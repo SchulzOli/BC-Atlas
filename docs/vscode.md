@@ -13,12 +13,15 @@ VS Code tasks also recommends it in `.vscode/extensions.json`.
 ## The BC Atlas panel
 
 Open it with **BC Atlas: Open**, the BC Atlas icon in the activity bar, the
-status bar item, or the BC Atlas button above an AL file. The pages are listed
-in the BC Atlas side bar, which marks the page the panel shows; the panel
-itself has no second navigation.
+status bar item, or the BC Atlas button above an AL file. The panel has one
+list on its left instead of tabs: everything BC Atlas shows, by topic, with a
+filter above it and the sources of what is shown below it. The BC Atlas side
+bar lists the same pages as shortcuts and marks the one the panel shows; you
+do not need it to get anywhere.
 
 | Page | Shows | Same as |
 | --- | --- | --- |
+| Dashboard | Where the panel opens, and the first entries of each topic in the list: a diagram view, the components, the objects, the apps, or the findings as a 2D graph, a 3D graph, a table, or a diagram, with one filter and one set of tools. See [The Dashboard](#the-dashboard). | |
 | Overview | Objects, apps, health, the architecture at a glance, the most connected objects, and next steps. | |
 | Health | Every finding, filterable by severity, linked to its object. | `bca check` |
 | Architecture | The configured architecture or a proposal: components in layers, work items with the steps to resolve them, data ownership, checks, the plan to extract a component as an app, components with Martin metrics, and objects that belong elsewhere. | `bca architecture` |
@@ -35,6 +38,77 @@ step through the list, **‹** and **›** too, and **Enter** in the filter open
 the first match. Settings apply at once; a typed value (an object, a scope, an
 entry point) with **Apply** or **Enter**. The address keeps the selection and
 the settings, so the back button and a copied link return to the same view.
+
+The list on the left holds every page, by topic, and next to each topic's
+page the contents the Dashboard shows as graphs and tables:
+
+| Topic | Dashboard contents | Page |
+| --- | --- | --- |
+| Start | | Overview |
+| Diagram views | Project, Modules, Data, Calls, Contracts, Events, Pages, Visibility | Diagrams with settings (every view with its settings; one object, a boundary, a workflow; SVG, PNG, D2) |
+| Architecture | Components | Architecture work (layers, the matrix, work items, adopt and propose) |
+| Objects and dependencies | Objects, Apps | Object list; Dependencies over time (the 3D explorer with its timeline) |
+| Health | Findings | Findings with fixes |
+| Docs | | Docs |
+| My views | the views you saved | |
+
+An object page marks **Object list**, a component page **Architecture work**.
+On a narrow window the list opens from **Contents** and closes when you
+choose something.
+
+Every page says what it is read from, below the list: **Sources** (AL files
+and objects, apps, symbol packages, the AL compiler, and `.bca.json`). For a
+content of the Dashboard it starts with what that content reads, and Docs
+adds the sources of each page in its own panel.
+
+### The Dashboard
+
+The Dashboard is where the panel and an exported page open. It holds
+everything that is a set of things and the relations between them, and lets
+you choose what to look at and how, independently:
+
+| What | Nodes | Relations |
+| --- | --- | --- |
+| Diagram views: Project, Modules, Data, Calls, Contracts, Events, Pages, Visibility | what the view draws as boxes | the relations of the view |
+| Components | the components of the architecture, grouped by layer | dependencies between them: allowed, not declared, or the wrong way |
+| Objects | every AL object, grouped by component or namespace | what uses what |
+| Apps | the apps of the workspace and the apps they depend on | declared, implicit, and undeclared dependencies |
+| Findings | the objects with health findings, colored by the worst one | their dependencies |
+
+| How | Shows |
+| --- | --- |
+| **2D graph** | The nodes in a plane. Groups pull together, relations pull their ends together, everything else pushes apart. |
+| **3D graph** | The same graph in space. Drag to turn it, Shift-drag to move it. |
+| **Table** | One row per node with its type, group, facts, and how many nodes it uses and is used by. Click a column to sort; **CSV** saves the rows. |
+| **Diagram** | For a diagram view: its boxes with routed relations, as `bca export --view <view>` writes them. |
+| **Circles** | For the visibility view: graphs in graphs. |
+
+So a diagram view can be a 3D graph, the architecture a table, and the
+objects a graph. The form stays when you choose another content.
+
+The tools are the same for every content, and for the graphs and the table:
+
+- **Filter** by name, type, or group; switch types of node and kinds of
+  relation on and off with their chips; pick one group.
+- **Select** a node with a click. **Only this and its neighbors** shows the
+  node and what is one step away; **+** goes a step further. **Hide** takes
+  a node out. **Open the object** opens its page; a double click does too.
+- **Size by** uses, used by, or a number of the content (objects of a
+  component, findings of an object).
+- **Drag a node** to put it where you want it; it stays there. **Layout**
+  starts the layout again.
+- **Sources**, below the list, says what this content is read from, and
+  which command writes it as files.
+
+**New view from this** keeps what you see (the content, its form, the filter,
+what is hidden, and what is in focus) under a name in **My views**. The
+address holds the same, so a copied link opens the same picture. Views are
+kept with the panel in VS Code, and in the browser for an exported page;
+they are not written to `.bca.json`.
+
+The views that start from one object, a boundary, or an entry point
+(`object`, `boundary`, `workflow`) are under **Diagrams with settings**, the
+timeline of the dependencies under **Dependencies over time**.
 
 The panel takes its design from your VS Code color theme: background,
 text, borders, accent, selection, error and warning colors, and the editor's

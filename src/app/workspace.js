@@ -28,12 +28,14 @@ import { simulationText } from "../simulation/text.js";
 import { explainPlacement, placementIndex } from "../blueprint/explain.js";
 import { proposalSettings } from "../blueprint/settings.js";
 import { MAX_DIAGRAM_NODES, prepareScene, sceneToSvg } from "../diagram/index.js";
+import { compactVisibility } from "../visibility.js";
+import { boardCatalog, commonSources, createBoard } from "./board.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
 // Options that select what is analyzed; every page shares them.
 const SHARED = ["projectRoot", "config", "namespace", "type", "include", "exclude", "paths", "compiler", "compilerLog", "analyzers", "alSettings", "alEditorSettings", "alExtensionPath"];
-const DIAGRAM_OPTIONS = ["view", "object", "scope", "focus", "entry", "namespace", "groupBy", "direction", "moduleDepth", "objectInboundDepth", "objectOutboundDepth", "callDepth", "callDirection", "details", "noExternal"];
+const DIAGRAM_OPTIONS = ["view", "object", "scope", "focus", "entry", "namespace", "groupBy", "direction", "moduleDepth", "objectInboundDepth", "objectOutboundDepth", "callDepth", "callDirection", "details", "noExternal", "expandProcedures"];
 
 const MAX_EVIDENCE = 3;
 
@@ -155,6 +157,8 @@ export class Workspace {
         baseline: { new: assessment.baseline.new.length, known: assessment.baseline.known.length, fixed: assessment.baseline.fixed.length }
       },
       docs: { scenarios: docs?.scenarios ?? 0, path: docs?.path },
+      // What every page is read from.
+      sources: commonSources({ model: (await this.model()).model, assessment }),
       config: assessment.context.config.path ? path.relative(this.input, assessment.context.config.path).replaceAll("\\", "/") || ".bca.json" : undefined
     };
   }
@@ -436,7 +440,9 @@ export class Workspace {
         edges: projection.model.edges.length,
         d2: sceneToD2(prepared.full),
         groups: prepared.groups,
-        collapsed: prepared.collapsed
+        collapsed: prepared.collapsed,
+        // The visibility view also comes as data points for the canvas of the page.
+        ...(projection.model.visibility ? { canvas: compactVisibility(projection.model.visibility) } : {})
       };
       if (prepared.objects > MAX_DIAGRAM_NODES) {
         return { ...result, empty: `${prepared.objects.toLocaleString("en-US")} objects in the open groups are too many to draw (at most ${MAX_DIAGRAM_NODES.toLocaleString("en-US")}). Close some groups, filter by namespace, or choose a focused view.` };
@@ -448,6 +454,16 @@ export class Workspace {
 
   views() {
     return VIEWS.map(([id, summary]) => ({ id, summary }));
+  }
+
+  /** What the Dashboard can show (board.js). */
+  boards() {
+    return boardCatalog();
+  }
+
+  /** One content of the Dashboard as nodes, relations, and its sources. */
+  board(id) {
+    return this.remember(`board:${id}`, () => createBoard(this, id));
   }
 
   /**

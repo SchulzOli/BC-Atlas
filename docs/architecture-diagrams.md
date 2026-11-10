@@ -24,6 +24,7 @@ contracts, events, and UI views into one Markdown page. See
 | Which publishers connect to subscribers? | `events` | `bca export ./app --view events -o events.svg` |
 | How do pages connect to data and actions? | `ui` | `bca export ./app --view ui -o ui.svg` |
 | What happens after an entry point? | `workflow` | `bca export ./app --view workflow --entry ProcessDocument -o workflow.svg` |
+| What is public, internal, or local? | `visibility` | `bca export ./app --view visibility -o visibility.svg` |
 
 ## Read a data view
 
@@ -49,6 +50,63 @@ does not claim to model implicit runtime transaction starts, ends, or rollbacks.
 
 In SVG output and on the Diagrams page, hover an access edge to see its operation names, source
 procedures, relation class, transaction segments, and cardinality evidence.
+
+## Read a visibility view
+
+The visibility view answers who may use what, in three levels:
+
+| Level | Usable by | In AL | Color |
+| --- | --- | --- | --- |
+| public | other apps | no `Access` property, `Access = Public`, `procedure`, `protected procedure` | orange |
+| internal | this app | `Access = Internal`, `internal procedure`, `[InternalEvent]` | blue |
+| local | this object | `local procedure`, `Access = Local` on a table field | green |
+
+Every app, object, procedure, event, and table field is a data point with one
+level. A member is never wider than its object: a public procedure of an
+`Access = Internal` codeunit is internal. An event is as wide as who may
+subscribe, so a `local procedure` with `[IntegrationEvent]` is public.
+Triggers have no level; the platform runs them.
+
+A relation is as wide as the border it crosses: a use inside one object is
+local, between objects of one app internal, between apps public. The three
+relation colors are the three level colors.
+
+**What it can be.** Where the uses found in the analyzed source need less
+than the level a data point has, the view says what it can be, with a dashed
+border:
+
+- a procedure nobody calls from outside its object can be `local`, one nobody
+  calls from another app can be `internal`;
+- an event subscriber can be `local`, because only the platform calls it;
+- a codeunit, query, or enum no other app uses can be `Access = Internal`.
+
+This is a reading of the source, not a finding: an app you publish for others
+has callers BC Atlas cannot see. It never suggests a level for interface
+methods and their implementations, events, `[Test]` and handler procedures,
+codeunits that publish events, extensible enums, tables, and pages. A call it
+cannot resolve counts as a use of every procedure of that name.
+
+```sh
+bca export ./app --view visibility -o visibility.svg                      # one box per object
+bca export ./app --view visibility --expand-procedures -o members.svg    # every procedure, event, and field inside its object
+bca export ./app --view visibility --focus Pricing -o pricing.svg         # objects that match, and what is connected
+bca export ./app --view visibility --format json                          # the data points and uses
+```
+
+JSON output has a `visibility` object: `points` (each with `kind`, `level`,
+`declared`, and, where it applies, `canBe` and `why`), `uses` (each with
+`from`, `to`, `level`, and `kinds`), and a `summary` with counts per level.
+
+On the Diagrams page of the BC Atlas panel and in the offline app
+(`bca export --view app`), the view opens as a **canvas** of every data point:
+graphs in graphs. An app is a circle that holds its objects, an object holds
+its members, and a procedure or event holds the data points it uses and that
+use it, which open again, without an end. In every circle what is local sits
+at the core and what is public at the rim. A core or dashed ring in another
+color says what a data point can be. Click a circle to fill the window with
+it, scroll to zoom, drag to move, press Esc to go out, and search for an
+object, procedure, or field by name. **Diagram** switches to the boxes the
+command writes.
 
 ## Read permissions
 

@@ -304,7 +304,7 @@ export function createMcpServer(version = pkg.version) {
     inputSchema: z.object({
       ...projectFields,
       outputDir: z.string().min(1).default("docs/atlas"),
-      views: z.array(z.enum([...REPORT_VIEWS, "call"])).optional(),
+      views: z.array(z.enum([...REPORT_VIEWS, "call", "visibility"])).optional(),
       format: z.enum(["svg", "d2"]).default("svg"),
       codegraph: z.boolean().optional(),
       handbook: z.boolean().optional().describe("Also write the system handbook to <outputDir>/handbook"),

@@ -53,16 +53,26 @@ export async function createSnapshot(workspace, { log = () => {}, history = fals
   const { nodes, details } = compactDetails(index);
   const views = [];
   const diagrams = {};
-  for (const { id, summary } of workspace.views().filter(({ id }) => REPORT_VIEWS.includes(id))) {
+  // The report views, and the visibility view with its canvas.
+  for (const { id, summary } of workspace.views().filter(({ id }) => REPORT_VIEWS.includes(id) || id === "visibility")) {
     try {
       const diagram = await workspace.diagram({ view: id });
-      if (!diagram.svg) continue;
+      if (!diagram.svg && !diagram.canvas) continue;
       const { d2: _d2, ...rest } = diagram;
       diagrams[id] = rest;
       views.push({ id, summary });
       log(`Rendered ${id} view (${diagram.nodes} nodes, ${diagram.edges} edges)`);
     } catch (error) {
       log(`Skipped ${id} view: ${error.message}`);
+    }
+  }
+  // Every content of the Dashboard, so the export shows each as a graph or a table.
+  const boards = {};
+  for (const { id } of workspace.boards()) {
+    try {
+      boards[id] = await workspace.board(id);
+    } catch (error) {
+      log(`Skipped ${id} on the Dashboard: ${error.message}`);
     }
   }
   const explorerHtml = await workspace.explorer({ history, last });
@@ -77,6 +87,8 @@ export async function createSnapshot(workspace, { log = () => {}, history = fals
     details,
     views,
     diagrams,
+    boardCatalog: workspace.boards().filter(({ id }) => boards[id]),
+    boards,
     // The Docs page in the settings of .bca.json; the whole page for download.
     docs: docs ? { ...docs, languages: [docs.language] } : undefined,
     explorerHtml,

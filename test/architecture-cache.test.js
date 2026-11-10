@@ -23,7 +23,9 @@ const VIEWS = [
   { view: "contracts" },
   { view: "events" },
   { view: "ui" },
-  { view: "workflow" }
+  { view: "workflow" },
+  { view: "visibility" },
+  { view: "visibility", expandProcedures: true }
 ];
 
 // Views share one resolved model per project and copy only its top level;
