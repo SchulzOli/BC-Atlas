@@ -61,6 +61,11 @@ export function createService(workspace) {
       if (language && !/^(en|de)\b/iu.test(String(language))) throw new Error("language must be en or de");
       return workspace.handbook({ language: language || undefined });
     },
+    battleTest: async ({ language } = {}) => {
+      const report = await workspace.battleTest({ language: language || undefined });
+      if (!report) throw new Error("no process tests found");
+      return report;
+    },
     diagram: (params = {}) => workspace.diagram(params),
     boards: () => workspace.boards(),
     board: ({ id } = {}) => workspace.board(String(id ?? "")),

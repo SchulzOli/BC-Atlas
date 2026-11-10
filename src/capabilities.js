@@ -41,7 +41,7 @@ export const FEATURE_AREAS = Object.freeze([
   {
     id: "analyze",
     title: "Analyze",
-    summary: "Gate CI on architecture health and keep a target architecture in place."
+    summary: "Gate CI on architecture health, keep a target architecture in place, and battle-test the app as your company uses it."
   },
   {
     id: "export",
@@ -262,7 +262,7 @@ export function createCapabilities(version) {
     transport: {
       stdout: "json",
       encoding: "utf-8",
-      rule: "For machine reads, use check, architecture, docs, or export (a diagram view, -o -) with --format json, and help --format json for this contract. Parse stdout only after exit code 0."
+      rule: "For machine reads, use check, simulate, architecture, docs, or export (a diagram view, -o -) with --format json, and help --format json for this contract. Parse stdout only after exit code 0."
     },
     exitCodes: { success: 0, operation: 1, usage: 2 },
     conventions: {
@@ -363,6 +363,37 @@ export function createCapabilities(version) {
           "bca check ./app",
           "bca check ./app --fail-on warning",
           "bca check ./app --format markdown -o health.md"
+        ]
+      }),
+      command({
+        id: "simulate",
+        area: "analyze",
+        argv: ["bca", "simulate", "[app-root]"],
+        purpose: "Battle-test the app as your company uses it: agents with roles, permission sets, and task groups perform the process tests (AL UI tests) step by step; reports who is blocked where and who can do what they must not, explains every permission a step needs, and writes the fit-gap analysis.",
+        options: {
+          tests: string("Folder with the process tests: AL UI tests with [SCENARIO] (default: simulation.tests, then docs.tests in .bca.json, then the app itself).", { group: GENERAL, value: "path" }),
+          company: string("JSON file with the company (roles, agents, task groups, requirements) instead of the simulation section of .bca.json.", { group: GENERAL, value: "path" }),
+          failOn: string("Lowest severity that fails the battle test.", { group: GENERAL, enum: FAIL_LEVELS, default: "error" }),
+          format: string("Report format (default: text, or the extension of --output).", { group: OUTPUT, short: "f", enum: ["text", "markdown", "json"] }),
+          output: string("Write the report to a file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
+          language: string("Language of the report and the steps, en (default) or de.", { group: OUTPUT, value: "tag" }),
+          title: string("Title of the report.", { group: OUTPUT, value: "text" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config,
+          compiler: projectOptions.compiler,
+          compilerLog: projectOptions.compilerLog
+        },
+        output: { type: "json", when: "--format json", schema: "SimulationReport" },
+        rules: [
+          "Exit code 1 means a finding reached --fail-on: an agent cannot complete an assigned task, or can complete one it must not.",
+          "Without roles in .bca.json (simulation.roles), every combination of [PERMISSIONS] in the tests is a role that performs the tests naming it.",
+          "The battle test reads the source; it does not run the app or the tests."
+        ],
+        examples: [
+          "bca simulate ./app --tests ./test",
+          "bca simulate ./app --format markdown -o docs/simulation/README.md",
+          "bca simulate ./app --company company.json --language de",
+          "bca simulate ./app --format json"
         ]
       }),
       command({
@@ -640,7 +671,7 @@ export function createCapabilities(version) {
             enum: ["pre-commit", "pre-push", "ci", "schedule", "manual"],
             default: "manual"
           }),
-          tasks: string("Run these features instead: check, report, docs, codegraph, diagrams.", { value: "list" }),
+          tasks: string("Run these features instead: check, simulate, report, docs, codegraph, handbook, diagrams.", { value: "list" }),
           sync: string("Override the sync mode.", { enum: ["none", "verify", "stage", "artifact", "pull-request", "commit"] }),
           config: projectOptions.config,
           format: string("Output mode.", { enum: ["text", "json"], default: "text" })

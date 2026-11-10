@@ -1,0 +1,60 @@
+{
+  "$schema": "../../schemas/bca.schema.json",
+  "docs": {
+    "tests": "processes"
+  },
+  "simulation": {
+    "company": "Contoso GmbH",
+    "tests": "processes",
+    "taskGroups": [
+      { "name": "Requesting", "description": "Ask for something to be bought.", "tasks": ["purchase-request-create", "purchase-request-release"] },
+      { "name": "Approval", "description": "Decide about released requests.", "tasks": ["purchase-request-approve"] },
+      { "name": "Ordering", "description": "Order what was approved.", "tasks": ["purchase-request-order"] },
+      { "name": "Administration", "description": "Keep the process settings.", "features": ["purchase-setup"] }
+    ],
+    "roles": [
+      {
+        "name": "Employee",
+        "description": "Anyone who needs something bought.",
+        "permissionSets": ["PR - REQUEST"],
+        "taskGroups": ["Requesting"],
+        "mustNot": ["Approval", "Ordering"]
+      },
+      {
+        "name": "Team lead",
+        "description": "Approves the requests of the team.",
+        "permissionSets": ["PR - REQUEST", "PR - APPROVE"],
+        "taskGroups": ["Requesting", "Approval"],
+        "mustNot": ["Ordering"]
+      },
+      {
+        "name": "Purchaser",
+        "description": "Orders approved requests.",
+        "permissionSets": ["PR - ORDER"],
+        "taskGroups": ["Ordering"],
+        "mustNot": ["Approval"]
+      },
+      {
+        "name": "Administrator",
+        "description": "Sets up the process; does not take part in it.",
+        "permissionSets": ["PR - ADMIN"],
+        "taskGroups": ["Administration"],
+        "mustNot": ["Approval"]
+      }
+    ],
+    "agents": [
+      { "name": "Anna", "roles": ["Employee"] },
+      { "name": "Ben", "roles": ["Team lead"] },
+      { "name": "Carla", "roles": ["Purchaser"] },
+      { "name": "Dana", "roles": ["Administrator"] }
+    ],
+    "requirements": [
+      { "id": "REQ-1", "title": "Employees request purchases themselves", "tasks": ["purchase-request-create", "purchase-request-release"] },
+      { "id": "REQ-2", "title": "A team lead approves every request", "tasks": ["purchase-request-approve"] },
+      { "id": "REQ-3", "title": "Purchasing orders approved requests", "tasks": ["purchase-request-order"] },
+      { "id": "REQ-4", "title": "The approval limit is set centrally", "features": ["purchase-setup"] },
+      { "id": "REQ-5", "title": "Audit can see who approved what", "objects": ["page:Request Approval Entries"] },
+      { "id": "REQ-6", "title": "Requests above the limit go to the management board", "tasks": ["purchase-request-escalate"] }
+    ]
+  }
+}

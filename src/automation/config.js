@@ -15,6 +15,7 @@ import path from "node:path";
 
 export const TASKS = Object.freeze({
   check: "Architecture health gate (cycles, policies, diagnostics)",
+  simulate: "Battle test: agents with the company's roles perform the process tests; report with fit-gap analysis (docs/simulation)",
   report: "Architecture report with diagrams (docs/atlas)",
   docs: "User guides or test cases from AL UI tests",
   codegraph: "One Markdown page per AL object",
@@ -49,7 +50,8 @@ export const DEFAULTS = Object.freeze({
   report: { outputDir: "docs/atlas" },
   docs: { outputDir: "docs/guides", export: ["markdown", "html"], as: "guide" },
   codegraph: { outputDir: "docs/codegraph" },
-  handbook: { outputDir: "docs/handbook" }
+  handbook: { outputDir: "docs/handbook" },
+  simulation: { outputDir: "docs/simulation" }
 });
 
 export function syncModesFor(trigger) {
@@ -106,6 +108,7 @@ export function taskOutputs(task, config = {}) {
   if (task === "docs") return [config.docs?.outputDir ?? DEFAULTS.docs.outputDir];
   if (task === "codegraph") return [config.codegraph?.outputDir ?? DEFAULTS.codegraph.outputDir];
   if (task === "handbook") return [config.handbook?.outputDir ?? DEFAULTS.handbook.outputDir];
+  if (task === "simulate") return [config.simulation?.outputDir ?? DEFAULTS.simulation.outputDir];
   if (task === "diagrams") {
     return (config.diagrams ?? []).flatMap(({ output }) => {
       if (!output) return [];

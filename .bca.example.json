@@ -113,6 +113,31 @@
     "maxFanIn": 25,
     "maxFanOut": 25
   },
+  "simulation": {
+    "company": "Contoso GmbH",
+    "tests": "test",
+    "taskGroups": [
+      { "name": "Order entry", "description": "Take and release orders.", "features": ["sales-orders"] },
+      { "name": "Posting", "tasks": ["sales-order-post"] }
+    ],
+    "roles": [
+      { "name": "Order processor", "permissionSets": ["CONTOSO SALES"], "taskGroups": ["Order entry"], "mustNot": ["Posting"] },
+      { "name": "Accountant", "permissionSets": ["CONTOSO SALES", "CONTOSO POST"], "taskGroups": ["Posting"] }
+    ],
+    "agents": [
+      { "name": "Anna", "roles": ["Order processor"] },
+      { "name": "Ben", "roles": ["Accountant"], "permissionSets": ["CONTOSO REPORTS"] }
+    ],
+    "requirements": [
+      { "id": "REQ-1", "title": "Orders are released before they are posted", "tasks": ["sales-order-release", "sales-order-post"] },
+      { "id": "REQ-2", "title": "Credit limits are checked", "objects": ["codeunit:Credit Limit Check"] }
+    ],
+    "fullAccess": ["SUPER"],
+    "otherApps": "assume",
+    "failOn": "error",
+    "language": "en",
+    "outputDir": "docs/simulation"
+  },
   "al": {
     "compiler": "auto",
     "analyzers": ["CodeCop", "UICop"],

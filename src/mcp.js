@@ -26,6 +26,8 @@ import { applyRefactoring } from "./refactor/move.js";
 import { planSurface } from "./refactor/surface.js";
 import { generateReport } from "./commands/report.js";
 import { renderHandbook } from "./handbook.js";
+import { simulate } from "./simulation/index.js";
+import { formatSimulationMarkdown } from "./simulation/report.js";
 import { resolveOutput, writeArchitecture } from "./output.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
 import { documentationGlossary } from "./docs/tags.js";
@@ -335,6 +337,39 @@ export function createMcpServer(version = pkg.version) {
     return { objects, pages: selected.map(({ file, title, content }) => ({ page: file.replace(/\.md$/u, ""), title, markdown: content })) };
   }));
 
+  server.registerTool("bc_atlas_simulate", {
+    description: "Battle-test the app as a company uses it: agents with roles, permission sets, and task groups (simulation section of .bca.json, or derived from the [PERMISSIONS] of the tests) perform the process tests (AL UI tests with [SCENARIO]) step by step. Returns who completes or is blocked at which step and which permission is missing, who can do what they must not, whether each process runs end to end, the fit-gap analysis against the company's requirements, and findings with what to do. Pass agent or task for the details: an agent's attempts and unused permissions, or what every step of a process test needs and why. Reads the source; runs nothing.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      compiler: projectFields.compiler,
+      tests: z.string().optional().describe("Folder with the process tests (default: simulation.tests, docs.tests, or the app)"),
+      company: z.string().optional().describe("JSON file with roles, agents, taskGroups, and requirements instead of .bca.json"),
+      failOn: z.enum(FAIL_LEVELS).optional(),
+      language: z.string().optional().describe("en (default) or de"),
+      agent: z.string().optional().describe("Return this agent's attempts, missing permissions, and unused permissions"),
+      task: z.string().optional().describe("Return this process test's steps with what each needs and why"),
+      markdown: z.boolean().optional().describe("Return the whole report as Markdown documentation instead of JSON")
+    }),
+    annotations: { readOnlyHint: true, idempotentHint: true }
+  }, tool(async ({ path: input, agent, task, markdown, ...values }) => {
+    const report = await simulate(input, values);
+    if (markdown) return formatSimulationMarkdown(report);
+    const { agents, tasks, ...rest } = report;
+    const named = (list, name, key) => {
+      const found = list.filter((item) => String(item[key]).toLowerCase() === name.toLowerCase());
+      if (!found.length) throw new Error(`${key === "name" ? "agent" : "process test"} "${name}" was not found; known: ${list.map((item) => item[key]).join(", ")}`);
+      return found;
+    };
+    return {
+      ...rest,
+      // The overview names every agent and process test; the details come on request.
+      agents: agent ? named(agents, agent, "name") : agents.map(({ name, roles, permissionSets, taskGroups }) => ({ name, roles, permissionSets: permissionSets.map((set) => set.name), taskGroups })),
+      tasks: task ? named(tasks, task, "id") : tasks.map(({ id, title, features, permissions, source }) => ({ id, title, features, permissions, source }))
+    };
+  }));
+
   server.registerTool("bc_atlas_setup_plan", {
     description: "Detect an AL project and return setup questions with recommended answers for features, Git hooks, pipelines, schedules, and sync.",
     inputSchema: z.object({ path: z.string().min(1).describe("AL app folder") }),
@@ -378,7 +413,7 @@ export function createMcpServer(version = pkg.version) {
     inputSchema: z.object({
       path: z.string().min(1),
       trigger: z.enum(["pre-commit", "pre-push", "ci", "schedule", "manual"]).default("manual"),
-      tasks: z.array(z.enum(["check", "report", "docs", "codegraph", "diagrams"])).optional(),
+      tasks: z.array(z.enum(["check", "simulate", "report", "docs", "codegraph", "handbook", "diagrams"])).optional(),
       sync: z.enum(["none", "verify", "stage", "artifact", "pull-request", "commit"]).optional()
     })
   }, tool(async ({ path: input, ...options }) => {

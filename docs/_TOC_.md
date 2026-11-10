@@ -19,6 +19,7 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 - [Clean architecture: find, resolve, enforce](./clean-architecture.md)
 - [Split a monolith into apps](./modularization.md)
 - [Architecture health checks](./health-checks.md)
+- [Battle test: simulate the use in your company](./battle-test.md)
 
 ## Export
 
@@ -49,5 +50,6 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 - [Architecture report (warehouse example)](./../examples/report/README.md)
 - [System handbook (warehouse example)](./../examples/handbook/README.md)
 - [User guides from AL UI tests (warehouse example)](./../examples/docs/index.md)
+- [Battle test (purchasing example)](./../examples/simulation/README.md)
 - [Dependency explorer (multi-app example)](./../examples/explorer/README.md)
 - [Knowledge graph (warehouse example)](./../examples/knowledge-graph/warehouse-app.ttl)

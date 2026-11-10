@@ -17,6 +17,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Get started | `setup apply` | Write `.bca.json`, Git hooks, and a pipeline from setup answers. |
 | Get started | `setup agent` | Add a `/bca-setup` command for Claude Code, Copilot, or Cursor. |
 | Analyze | `check` | Score architecture health and fail CI on cycles, policy violations, architecture violations, or diagnostics. |
+| Analyze | `simulate` | Battle-test the app as your company uses it: agents with roles, permission sets, and task groups perform the process tests; fails CI when a role is blocked or can do what it must not, and writes the fit-gap analysis. |
 | Analyze | `graph query` | Query a saved graph as reusable JSON without analyzing AL. |
 | Export | `graph render` | Render a saved graph selection as SVG, HTML, DOT, or JSON. |
 | Analyze | `architecture` | Find a target architecture, list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
@@ -41,6 +42,7 @@ bca setup plan [app-root] [options]
 bca setup apply [app-root] [options]
 bca setup agent [app-root] [options]
 bca check [app-root] [options]
+bca simulate [app-root] [--tests <path>] [--company <path>] [-o <path>] [options]
 bca graph query <graph.json> [options]
 bca graph render <graph.json> [-o <path>] [options]
 bca architecture [app-root] [options]
@@ -75,7 +77,7 @@ Several commands are now part of `export` and the [VS Code extension](./vscode.m
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Operation failed, or a check (`check`, `architecture`, `docs validate`) found blocking issues. |
+| `1` | Operation failed, or a check (`check`, `simulate`, `architecture`, `docs validate`) found blocking issues. |
 | `2` | Invalid usage: unknown command, unknown option, invalid enum value, or missing required value. |
 
 Global flags: `-h`, `--help` shows help; `-V`, `--version` shows the version.
@@ -346,6 +348,47 @@ bca check ./app --compiler off --compiler-log .output/errorlogs
 | `--config` | path | Configuration file. |
 | `--strict` | flag | Shortcut for `--fail-on warning`. |
 
+### `simulate`
+
+```text
+bca simulate [app-root] [options]
+```
+
+The battle test: agents with the roles, permission sets, and task groups of
+your company perform the process tests of the app (AL UI tests with
+`[SCENARIO]`) step by step. Every step is checked against what the code behind
+it needs: Execute on the page and on every object its code runs, and the
+table-data rights for what that code reads and writes. The report says who
+completes which task, who is blocked at which step and by which missing
+permission, who can do what they must not, whether each process runs end to
+end, and how the company's requirements fit the app (fit-gap analysis). Exits
+with `1` when a finding reaches `--fail-on`. See
+[Battle test](./battle-test.md).
+
+```text
+bca simulate ./app --tests ./test
+bca simulate ./app --format markdown -o docs/simulation/README.md
+bca simulate ./app --company company.json --language de
+bca simulate ./app --format json
+```
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--tests` | path | Folder with the process tests. Default: `simulation.tests`, then `docs.tests` in `.bca.json`, then the app itself. |
+| `--company` | path | JSON file with the company (`roles`, `agents`, `taskGroups`, `requirements`) instead of the `simulation` section of `.bca.json`. |
+| `--fail-on` | level | `error`, `warning`, `info`, or `never`. Default: `error`. |
+| `-f`, `--format` | format | `text`, `markdown`, or `json`. Default: `text`, or the extension of `--output` (`.md`, `.json`). |
+| `-o`, `--output` | path | Write the report to a file; the result line goes to stderr. |
+| `--language` | tag | Language of the report and the steps: `en` (default) or `de`. |
+| `--title` | text | Title of the report. |
+| `--compiler` | mode | As for `check`. |
+| `--compiler-log` | path | As for `check`. |
+| `--project-root` | path | Analyze a wider workspace. |
+| `--config` | path | Configuration file. |
+
+Without roles in `.bca.json`, every combination of `[PERMISSIONS]` in the
+tests is a role that performs the tests naming it.
+
 ## Export
 
 ### `export`
@@ -601,7 +644,7 @@ commands, target filename, and pipeline content.
 
 ```text
 bca run [app-root] --trigger pre-commit|pre-push|ci|schedule|manual
-bca run [app-root] --tasks check,report [--sync verify]
+bca run [app-root] --tasks check,simulate,report [--sync verify]
 ```
 
 Runs the tasks configured for a trigger in `.bca.json` and syncs their output.
@@ -611,13 +654,13 @@ See [Automation](./automation-and-ci.md).
 | Option | Value | Description |
 | --- | --- | --- |
 | `--trigger` | `pre-commit`, `pre-push`, `ci`, `schedule`, `manual` | Trigger whose tasks and sync mode are used. Default: `manual`. |
-| `--tasks` | list | Run these tasks instead: `check`, `report`, `docs`, `codegraph`, `diagrams`. |
+| `--tasks` | list | Run these tasks instead: `check`, `simulate`, `report`, `docs`, `codegraph`, `handbook`, `diagrams`. |
 | `--sync` | `none`, `verify`, `stage`, `artifact`, `pull-request`, `commit` | Override the sync mode. |
 | `--config` | path | Configuration file. |
 | `--format` | `text` or `json` | Output mode. Default: `text`. |
 
-Exits with `1` when a task fails, `check` finds blocking issues, or `verify`
-finds outdated generated files.
+Exits with `1` when a task fails, `check` or `simulate` finds blocking issues,
+or `verify` finds outdated generated files.
 
 ### `update`
 
@@ -695,6 +738,7 @@ Configuration-only settings:
 | `check` | Health-check defaults: `failOn`, `cycles` (`error`, `warning`, `info`, `off`), `maxFanIn`, `maxFanOut`. |
 | `automation` | `hooks`, `ci`, and `triggers` (`pre-commit`, `pre-push`, `ci`, `schedule`), each with `tasks`, `sync`, and for `schedule` a `cron`. Written by `bca setup`. |
 | `docs` | Settings for the `docs` task of `bca run`: `tests`, `app`, `export`, `as`, `language`, `title`, `outputDir`. |
+| `simulation` | The company for `bca simulate`: `company`, `tests`, `taskGroups`, `roles`, `agents`, `requirements`, `fullAccess`, `otherApps`, `failOn`, `language`, `outputDir`. See [Battle test](./battle-test.md#describe-your-company). |
 | `codegraph` | `outputDir` for the `codegraph` task. |
 | `diagrams` | List of `export` diagram option objects with a `view` and an `output`, rendered by the `diagrams` task. |
 | `report` | Report defaults: `outputDir`, `views`, `format`, `codegraph`, `json`, `title`. |
