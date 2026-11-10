@@ -1,0 +1,33 @@
+{
+  "id": "c2222bef-362e-43d0-a5c2-9386a952c7ed",
+  "name": "BC Atlas Sync",
+  "publisher": "OpenBridge",
+  "version": "1.0.0.0",
+  "brief": "Business Central side of bc-atlas-sync: records a business process (clicks, data writes and AL call stacks), builds fact snapshots and generates the documentation that bc-atlas-sync syncs into BC Atlas.",
+  "description": "BC Atlas Sync is the Business Central side of bc-atlas-sync. It records a business process - user clicks (imported Page Scripting recordings), every database write of the recording session together with the full AL call stack, and optional sampling-profiler call trees. A recording is condensed into an Atlas Sync Fact Snapshot - a fingerprinted set of facts (UI steps, technical steps, objects, methods, data footprint, drift against the previous snapshot) - from which every registered documentation type is generated. bc-atlas-sync syncs that documentation into BC Atlas.",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [],
+  "screenshots": [],
+  "platform": "26.0.0.0",
+  "application": "26.0.0.0",
+  "idRanges": [
+    {
+      "from": 50150,
+      "to": 50199
+    }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": false,
+    "includeSourceInSymbolFile": false
+  },
+  "runtime": "15.0",
+  "target": "Cloud",
+  "features": [
+    "NoImplicitWith"
+  ]
+}

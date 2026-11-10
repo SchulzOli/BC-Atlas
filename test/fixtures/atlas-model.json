@@ -1,0 +1,211 @@
+{
+ "_note": "Minimal BC Atlas model (objects + architecture) for tests; the shape of the model embedded in 'bca export --view app'.",
+ "overview": {
+  "title": "Fixture Atlas"
+ },
+ "architecture": {
+  "settings": {
+   "allowSameLayer": false
+  },
+  "components": [
+   {
+    "name": "Sales",
+    "layer": 31,
+    "metrics": {
+     "objects": 10,
+     "instability": 0.3
+    },
+    "violations": 0
+   },
+   {
+    "name": "Inventory",
+    "layer": 25,
+    "metrics": {
+     "objects": 10,
+     "instability": 0.3
+    },
+    "violations": 0
+   },
+   {
+    "name": "Finance",
+    "layer": 20,
+    "metrics": {
+     "objects": 10,
+     "instability": 0.3
+    },
+    "violations": 0
+   },
+   {
+    "name": "No. Series",
+    "layer": 1,
+    "metrics": {
+     "objects": 10,
+     "instability": 0.3
+    },
+    "violations": 0
+   }
+  ]
+ },
+ "objects": [
+  {
+   "id": "app::Microsoft::page::42",
+   "label": "page 42",
+   "type": "page",
+   "objectId": "42",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::page::46",
+   "label": "page 46",
+   "type": "page",
+   "objectId": "46",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::table::36",
+   "label": "table 36",
+   "type": "table",
+   "objectId": "36",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::table::37",
+   "label": "table 37",
+   "type": "table",
+   "objectId": "37",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::codeunit::80",
+   "label": "codeunit 80",
+   "type": "codeunit",
+   "objectId": "80",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::codeunit::81",
+   "label": "codeunit 81",
+   "type": "codeunit",
+   "objectId": "81",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::codeunit::815",
+   "label": "codeunit 815",
+   "type": "codeunit",
+   "objectId": "815",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::table::110",
+   "label": "table 110",
+   "type": "table",
+   "objectId": "110",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::table::111",
+   "label": "table 111",
+   "type": "table",
+   "objectId": "111",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::table::112",
+   "label": "table 112",
+   "type": "table",
+   "objectId": "112",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::table::113",
+   "label": "table 113",
+   "type": "table",
+   "objectId": "113",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::table::21",
+   "label": "table 21",
+   "type": "table",
+   "objectId": "21",
+   "app": "Base Application",
+   "component": "Sales"
+  },
+  {
+   "id": "app::Microsoft::codeunit::22",
+   "label": "codeunit 22",
+   "type": "codeunit",
+   "objectId": "22",
+   "app": "Base Application",
+   "component": "Inventory"
+  },
+  {
+   "id": "app::Microsoft::table::32",
+   "label": "table 32",
+   "type": "table",
+   "objectId": "32",
+   "app": "Base Application",
+   "component": "Inventory"
+  },
+  {
+   "id": "app::Microsoft::table::5802",
+   "label": "table 5802",
+   "type": "table",
+   "objectId": "5802",
+   "app": "Base Application",
+   "component": "Inventory"
+  },
+  {
+   "id": "app::Microsoft::codeunit::12",
+   "label": "codeunit 12",
+   "type": "codeunit",
+   "objectId": "12",
+   "app": "Base Application",
+   "component": "Finance"
+  },
+  {
+   "id": "app::Microsoft::table::17",
+   "label": "table 17",
+   "type": "table",
+   "objectId": "17",
+   "app": "Base Application",
+   "component": "Finance"
+  },
+  {
+   "id": "app::Microsoft::table::45",
+   "label": "table 45",
+   "type": "table",
+   "objectId": "45",
+   "app": "Base Application",
+   "component": "Finance"
+  },
+  {
+   "id": "app::Microsoft::codeunit::310",
+   "label": "codeunit 310",
+   "type": "codeunit",
+   "objectId": "310",
+   "app": "Base Application",
+   "component": "No. Series"
+  },
+  {
+   "id": "app::Microsoft::table::309",
+   "label": "table 309",
+   "type": "table",
+   "objectId": "309",
+   "app": "Base Application",
+   "component": "No. Series"
+  }
+ ]
+}

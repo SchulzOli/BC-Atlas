@@ -1,0 +1,176 @@
+{
+  "schema": "bc-atlas-sync.architecture/1",
+  "process": "Demo: Post sales order",
+  "feature": "Order to cash",
+  "snapshot": 1,
+  "fingerprint": "demo-hand-derived",
+  "atlas": {
+    "title": "Base Application",
+    "objects": 9502,
+    "components": 182,
+    "allowSameLayer": false
+  },
+  "components": [
+    {
+      "name": "Sales",
+      "layer": 31,
+      "objectsInProcess": 14,
+      "objectsInAtlas": 558,
+      "instability": 0.298,
+      "atlasViolations": 75,
+      "hits": 113,
+      "objects": [
+        "Codeunit 80 Sales-Post",
+        "Codeunit 81 Sales-Post (Yes/No)",
+        "Codeunit 815 Sales Post Invoice",
+        "Page 42 Sales Order",
+        "Page 46 Sales Order Subform",
+        "Table 36 Sales Header",
+        "Table 37 Sales Line",
+        "table 110 Sales Shipment Header",
+        "table 111 Sales Shipment Line",
+        "table 112 Sales Invoice Header",
+        "table 113 Sales Invoice Line",
+        "table 21 Cust. Ledger Entry",
+        "table 36 Sales Header",
+        "table 37 Sales Line"
+      ]
+    },
+    {
+      "name": "Inventory",
+      "layer": 25,
+      "objectsInProcess": 3,
+      "objectsInAtlas": 1030,
+      "instability": 0.326,
+      "atlasViolations": 1264,
+      "hits": 6,
+      "objects": [
+        "Codeunit 22 Item Jnl.-Post Line",
+        "table 32 Item Ledger Entry",
+        "table 5802 Value Entry"
+      ]
+    },
+    {
+      "name": "Finance",
+      "layer": 20,
+      "objectsInProcess": 3,
+      "objectsInAtlas": 859,
+      "instability": 0.207,
+      "atlasViolations": 1296,
+      "hits": 16,
+      "objects": [
+        "Codeunit 12 Gen. Jnl.-Post Line",
+        "table 17 G/L Entry",
+        "table 45 G/L Register"
+      ]
+    },
+    {
+      "name": "(global)",
+      "layer": 16,
+      "objectsInProcess": 1,
+      "objectsInAtlas": 154,
+      "instability": 0.272,
+      "atlasViolations": 371,
+      "hits": 1,
+      "objects": [
+        "table 309 No. Series Line"
+      ]
+    },
+    {
+      "name": "No. Series",
+      "layer": 1,
+      "objectsInProcess": 1,
+      "objectsInAtlas": 33,
+      "instability": 0.006,
+      "atlasViolations": 0,
+      "hits": 1,
+      "objects": [
+        "Codeunit 310 No. Series"
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase": 1,
+      "title": "Enter the data on the Sales Order page",
+      "components": [
+        "Sales"
+      ]
+    },
+    {
+      "phase": 2,
+      "title": "On the Sales Order page, choose Post",
+      "components": [
+        "Sales",
+        "Finance"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "phase": 1,
+      "description": "Page saved changes to Sales Header directly (no AL code)",
+      "path": []
+    },
+    {
+      "step": 2,
+      "phase": 1,
+      "description": "Validate field \"Sell-to Customer Name\" on Page 42 \"Sales Order\"",
+      "path": [
+        "Sales"
+      ]
+    },
+    {
+      "step": 3,
+      "phase": 1,
+      "description": "Page saved changes to Sales Line directly (no AL code)",
+      "path": []
+    },
+    {
+      "step": 4,
+      "phase": 1,
+      "description": "Validate field \"Type\" on Page 46 \"Sales Order Subform\"",
+      "path": [
+        "Sales"
+      ]
+    },
+    {
+      "step": 5,
+      "phase": 1,
+      "description": "Validate field \"No.\" on Page 46 \"Sales Order Subform\"",
+      "path": [
+        "Sales"
+      ]
+    },
+    {
+      "step": 6,
+      "phase": 1,
+      "description": "Validate field \"Quantity\" on Page 46 \"Sales Order Subform\"",
+      "path": [
+        "Sales"
+      ]
+    },
+    {
+      "step": 7,
+      "phase": 2,
+      "description": "Action \"Post\" on Page 42 \"Sales Order\"",
+      "path": [
+        "Sales",
+        "Finance"
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "Sales",
+      "to": "Finance",
+      "calls": 1,
+      "rule": "ok",
+      "examples": [
+        "T7: Page 42 Sales Order.Post - OnAction → Codeunit 12 Gen. Jnl.-Post Line.RunWithCheck"
+      ]
+    }
+  ],
+  "unmapped": []
+}

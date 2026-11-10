@@ -1,0 +1,40 @@
+{
+  "id": "0f0341b9-e0e7-4c95-80e6-aea8d5a588f8",
+  "name": "BC Atlas Sync Tests",
+  "publisher": "OpenBridge",
+  "version": "1.0.0.0",
+  "brief": "Unit and integration tests for BC Atlas Sync, with a self-test page that runs without the Microsoft test framework.",
+  "description": "Validates the call stack parser, Page Scripting import, recorder session, profiler import, snapshot builder (steps, linking, phases, fingerprint, drift) and every documentation type. Run from the AL Test Tool or from the Atlas Sync Self-Test page.",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [
+    {
+      "id": "c2222bef-362e-43d0-a5c2-9386a952c7ed",
+      "name": "BC Atlas Sync",
+      "publisher": "OpenBridge",
+      "version": "1.0.0.0"
+    }
+  ],
+  "screenshots": [],
+  "platform": "26.0.0.0",
+  "application": "26.0.0.0",
+  "idRanges": [
+    {
+      "from": 50250,
+      "to": 50299
+    }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": false,
+    "includeSourceInSymbolFile": false
+  },
+  "runtime": "15.0",
+  "target": "Cloud",
+  "features": [
+    "NoImplicitWith"
+  ]
+}

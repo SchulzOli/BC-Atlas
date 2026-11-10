@@ -1,0 +1,364 @@
+{
+  "schema": "bc-atlas-sync.version-build-snapshot/1",
+  "builtAt": "2026-11-10T20:01:15.3472891Z",
+  "compiler": {
+    "name": "AL Compiler (alc)",
+    "version": "18.1.43.24897",
+    "analyzers": [
+      "Microsoft.Dynamics.Nav.CodeCop.dll",
+      "Microsoft.Dynamics.Nav.UICop.dll",
+      "Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll"
+    ]
+  },
+  "requested": {
+    "symbolVersion": "26.5",
+    "platformVersion": "26.0",
+    "feed": "MSSymbols (dynamicssmb2 DynamicsBCPublicFeeds)"
+  },
+  "symbols": [
+    {
+      "file": "Microsoft_Application_26.5.38752.40541.app",
+      "bytes": 1815,
+      "sha256": "f6728ff0d4abb5f8ed7d5aa2e71ce9a12a3c5cfa360a4882fffd9ccf197265c5"
+    },
+    {
+      "file": "Microsoft_Base Application_26.5.38752.40541.app",
+      "bytes": 6390434,
+      "sha256": "9a4ed00b702348ac69274e10dd6758561a9394d8fd87297b266d07411a5097e7"
+    },
+    {
+      "file": "Microsoft_Business Foundation_26.5.38752.40541.app",
+      "bytes": 26664,
+      "sha256": "bfadb3bfe59796b8334a373281e12c6a84f29da5466b3d5636eaea24f9a28d57"
+    },
+    {
+      "file": "Microsoft_System Application_26.5.38752.40541.app",
+      "bytes": 314450,
+      "sha256": "b1c6dff65775ab2793e54e592726eb2726a6e7e06c31b67ad4f0529a28e3cb16"
+    },
+    {
+      "file": "System.app",
+      "bytes": 47044,
+      "sha256": "f7dffeb265c8d8bd2db5ed1e05ada53c63e7b5f29ade4c5ab59780c1678c615c"
+    }
+  ],
+  "apps": [
+    {
+      "name": "BC Atlas Sync",
+      "id": "c2222bef-362e-43d0-a5c2-9386a952c7ed",
+      "version": "1.0.0.0",
+      "file": "OpenBridge_BC Atlas Sync_1.0.0.0.app",
+      "sha256": "1ca673056f222360009ec884ac306bd23171b75303130e3f75c4a202d947c44e",
+      "succeeded": true,
+      "errors": 0,
+      "warnings": 0,
+      "infos": 52,
+      "byRule": {
+        "AA0247": 47,
+        "AW0006": 5
+      },
+      "problems": [],
+      "source": {
+        "files": 48,
+        "sha256": "d888b5a81ce25cccdb9b8a04cd95790e7b561bae119f9161de1c853ae7c61ec1",
+        "perFile": [
+          {
+            "path": "app.json",
+            "sha256": "e2a3362093415788ebbc0893633a1701f31b1e9122c18a6a1ac9202272832a7e"
+          },
+          {
+            "path": "src/Docs/BASDocGenALTest.Codeunit.al",
+            "sha256": "991c265fb11b959c08bff9ed41bef0d1e188fef738be14b3e708c79400f83ed6"
+          },
+          {
+            "path": "src/Docs/BASDocGenInventory.Codeunit.al",
+            "sha256": "8a0b1ea2533c432f566f03dbd5207d016668acb7c3f2c9c1025a0e5d93e00652"
+          },
+          {
+            "path": "src/Docs/BASDocGenJSON.Codeunit.al",
+            "sha256": "9a6610f4f6082c358cc4966469826666d4a4189c93ed38a1e90d7273fc4f33a7"
+          },
+          {
+            "path": "src/Docs/BASDocGenLayered.Codeunit.al",
+            "sha256": "da81409bc91bdfee4fc0584316da2f16632363e65d701d98d5d47b20814968d7"
+          },
+          {
+            "path": "src/Docs/BASDocGenPageScript.Codeunit.al",
+            "sha256": "901fd129e3b7ac8672760d44acf4edfafa4e5a8b83ed7d80b4689bbb85e1b98b"
+          },
+          {
+            "path": "src/Docs/BASDocGenSequence.Codeunit.al",
+            "sha256": "1ebd52210b2e2ea56ad380723365351fee6c71114d067c9073e94df890443ecf"
+          },
+          {
+            "path": "src/Docs/BASDocGenTechnical.Codeunit.al",
+            "sha256": "163ffd0d6ed9ee0071c2e80cb6c02caead643d06c344d1f016dd90388a817b76"
+          },
+          {
+            "path": "src/Docs/BASDocGenUserGuide.Codeunit.al",
+            "sha256": "c9f74517a91618dd17b81e8d416569255c8c6fada93426275213721cd20fbfa1"
+          },
+          {
+            "path": "src/Docs/BASDocManager.Codeunit.al",
+            "sha256": "213b909e4acf3538b2a5d62d04a8e83531f31a41381c2ccc0300bbe5d1f7a06a"
+          },
+          {
+            "path": "src/Docs/BASDocType.Enum.al",
+            "sha256": "50679e3c72d37e67de622c4bccf86bfea292484e42d334a5e3d0f739c5742c92"
+          },
+          {
+            "path": "src/Docs/BASIDocGenerator.Interface.al",
+            "sha256": "d5b9c300b4db3a05f6582774e91c22ec4ea10321dcef9581ccc55ba513677e31"
+          },
+          {
+            "path": "src/Docs/BASSnapshotDocument.Table.al",
+            "sha256": "75809e241b2a67ffde00ce2e583fada12674bad38a46343b401c23ae3f5ca18e"
+          },
+          {
+            "path": "src/Docs/BASStepPhrases.Codeunit.al",
+            "sha256": "e033b7a0d60964dec9c7a6cc937d256d4e7d564d5531be0e8cb41b298087f57e"
+          },
+          {
+            "path": "src/Docs/BASUINameResolver.Codeunit.al",
+            "sha256": "d42a68762d1ffa7af9a3bd542d5fcb67cc4fab73ce628fc530d1499483178971"
+          },
+          {
+            "path": "src/Permissions/BASRECORDER.PermissionSet.al",
+            "sha256": "4fd265b86680e5c6db416ca8a23d5dad669fb5c993fc0111168ed01af686ec6f"
+          },
+          {
+            "path": "src/Recorder/BASCallFrame.Table.al",
+            "sha256": "3671571a01926fcad1aca68ef21447d57dc7b9628a1b12536309876951cc6f2e"
+          },
+          {
+            "path": "src/Recorder/BASCallStackParser.Codeunit.al",
+            "sha256": "6f73051fb40212b01bc936d4fd06aa3b751763b9e7c494e67a744ef5c8f1e71f"
+          },
+          {
+            "path": "src/Recorder/BASEventType.Enum.al",
+            "sha256": "db579facf5442fc8c23326ecb5525ac7f61be96a9f94ef289815d59b062e93e9"
+          },
+          {
+            "path": "src/Recorder/BASFrameSource.Enum.al",
+            "sha256": "3366fddf8a5960dcc34a5f2ddcbe8507494bb735946a2c040f510d8a666a7fc6"
+          },
+          {
+            "path": "src/Recorder/BASPageScriptImporter.Codeunit.al",
+            "sha256": "be2d3e336ca0324d1928cacafad24375cf22635233a5da2524d7afea6342c622"
+          },
+          {
+            "path": "src/Recorder/BASProfilerBridge.Codeunit.al",
+            "sha256": "7bdae2e4302eca5a3d3846758abaa10bc875dc6162e5f812615921244afd9ab7"
+          },
+          {
+            "path": "src/Recorder/BASRecorder.Codeunit.al",
+            "sha256": "da34f145c1c29a10cf903c8c637fb1280573c043be8016a40f0eaee51e6a7a57"
+          },
+          {
+            "path": "src/Recorder/BASRecorderSubscribers.Codeunit.al",
+            "sha256": "645cb605eaf787427f8d155bf0ffcd152afd78e51f88cbcc80618fd06f7ed3a1"
+          },
+          {
+            "path": "src/Recorder/BASRecording.Table.al",
+            "sha256": "c1b046150e54c1348d79d6009fce6ec933abdda712fe0ea1a313e0e1c54e9a98"
+          },
+          {
+            "path": "src/Recorder/BASRecordingEvent.Table.al",
+            "sha256": "2d0108c8790144e46f6c006ec14c93f5dec9d204a96f0d869cbbac315c439e78"
+          },
+          {
+            "path": "src/Recorder/BASRecordingStatus.Enum.al",
+            "sha256": "9c23b6e5ce54d99721a4268cf0c79e35267eb3da5685b6851a06ce8f6a058ab3"
+          },
+          {
+            "path": "src/Setup/BASDemoData.Codeunit.al",
+            "sha256": "ec09864c724a43876c663b8df99607b6c8705305c7e9faa66ac5a18166cc874c"
+          },
+          {
+            "path": "src/Setup/BASInstall.Codeunit.al",
+            "sha256": "bccbc3927687ace200cebf2b908fed7116eefd30dde0dae69aa6efa652c3bd0e"
+          },
+          {
+            "path": "src/Setup/BASSetup.Table.al",
+            "sha256": "f7ad89a4188ede6ed767f9ef165239b60debbb3ed76c056e6e1b6c1376146ead"
+          },
+          {
+            "path": "src/Setup/BASTextHelper.Codeunit.al",
+            "sha256": "14ba2bee14e4da923d3eb88ccd26a7771a694584e94409c3c7ac6aeb1180c950"
+          },
+          {
+            "path": "src/Snapshot/BASFactType.Enum.al",
+            "sha256": "f9ef532171184d9943e16f124a9ef2f181dc7d77819c5764f021d282fb8247f7"
+          },
+          {
+            "path": "src/Snapshot/BASSnapshot.Table.al",
+            "sha256": "208671425b1f0f528daf68919a3556efe74ad8f27a78005a6bbf8d079aec6272"
+          },
+          {
+            "path": "src/Snapshot/BASSnapshotBuilder.Codeunit.al",
+            "sha256": "af05054e0b78929520924e4415f4426af739983416ba458c2de65ee3697ed898"
+          },
+          {
+            "path": "src/Snapshot/BASSnapshotFact.Table.al",
+            "sha256": "f80b849d5ddb373ce0ee0eb66dbb1de28f40d5099dba72e3c23634fdfa01e529"
+          },
+          {
+            "path": "src/UI/BASCallFrames.Page.al",
+            "sha256": "6e8c23a7def339baa5c7ab11fe6d12dacf6cb7e48c5023660e19bc56484563cd"
+          },
+          {
+            "path": "src/UI/BASEventActions.Codeunit.al",
+            "sha256": "944c53df30958981d7f00430da7e339b5cec6c1b7d52742c69a8114a766a0a45"
+          },
+          {
+            "path": "src/UI/BASMarkerDialog.Page.al",
+            "sha256": "285c803d18d6864c05dc38e7a6bc1a74ef00ea566d8eefa9d8d678c98418f1d6"
+          },
+          {
+            "path": "src/UI/BASRecordingCard.Page.al",
+            "sha256": "04f4aa254a29765cb834edbfed8e831c1b65d04e1418ac1e99b12cd2dad9de8f"
+          },
+          {
+            "path": "src/UI/BASRecordingEvents.Page.al",
+            "sha256": "09f0f1a5ba9ef44cb7ec088f9df873c7a80d8fc7afa16a36b01f46fb1b6de831"
+          },
+          {
+            "path": "src/UI/BASRecordingEventsPart.Page.al",
+            "sha256": "4fdbcd4f084a3917180dd9a88a2f49202b1e24187eea2dfe2e112d4af0855706"
+          },
+          {
+            "path": "src/UI/BASRecordings.Page.al",
+            "sha256": "60eac68a7325fe444bd31da07c993f5fb245c26fa0810c22169562a72faebdfa"
+          },
+          {
+            "path": "src/UI/BASSetup.Page.al",
+            "sha256": "ab166f1665c1183510005562e18a839e653e79c9ce6b8bd031b1470a365dc873"
+          },
+          {
+            "path": "src/UI/BASSnapshotCard.Page.al",
+            "sha256": "c7da37b7f8bc593f007c8b4068f54830fee67a1d8c50c1ea9e00e4fceaed0a39"
+          },
+          {
+            "path": "src/UI/BASSnapshotDocsPart.Page.al",
+            "sha256": "ebb754aa91de7a8b93e007d6c575989284416c464e971115f86156932040c147"
+          },
+          {
+            "path": "src/UI/BASSnapshotFactsPart.Page.al",
+            "sha256": "0f7bba1711296105b00e7ce873938fc619bb2dd17620e16cffa017f56efb3b17"
+          },
+          {
+            "path": "src/UI/BASSnapshots.Page.al",
+            "sha256": "16780295b45cc3db8031ce272106c6202c8c38c69340ffa5e689d292605a9493"
+          },
+          {
+            "path": "src/UI/BASTextPreview.Page.al",
+            "sha256": "f52513a88562a28ae81c8c53f9eee85a01baf063c7fd77dc068fc9de4ef36229"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BC Atlas Sync Tests",
+      "id": "0f0341b9-e0e7-4c95-80e6-aea8d5a588f8",
+      "version": "1.0.0.0",
+      "file": "OpenBridge_BC Atlas Sync Tests_1.0.0.0.app",
+      "sha256": "29241b351d70ac7f24ca1f36e67baf4182c5773a2c46620c25aa4ca0c4bafa93",
+      "succeeded": true,
+      "errors": 0,
+      "warnings": 0,
+      "infos": 14,
+      "byRule": {
+        "AA0247": 14
+      },
+      "problems": [],
+      "source": {
+        "files": 15,
+        "sha256": "fb84636aea7eae1d25339cab37791dc1670d1b77d32f20201f53777fd5c7a948",
+        "perFile": [
+          {
+            "path": "app.json",
+            "sha256": "f8ffb3c0668757a4bd56dee844f404c2f50e5728e0c58898816b54ad87dfed5c"
+          },
+          {
+            "path": "src/BASSelfTest.Page.al",
+            "sha256": "33c32857242ca12ad71e4b7a26ca7619834f3279a08e7844ade6c9ebc4419453"
+          },
+          {
+            "path": "src/BASSelfTestRunner.Codeunit.al",
+            "sha256": "d3089f8ac2073367872aa2885411b5ca6e58a12006eec75654685f9589d815bc"
+          },
+          {
+            "path": "src/BASTEST.PermissionSet.al",
+            "sha256": "5792d68641c1be530f1686aec37c0ab602fa0b4b61a136ba45814e63ffc977bd"
+          },
+          {
+            "path": "src/BASTestAssert.Codeunit.al",
+            "sha256": "ef616ed8aeec44521f96cc10e1369235b278206812687640c60440a72e9114fb"
+          },
+          {
+            "path": "src/BASTestCallStackParser.Codeunit.al",
+            "sha256": "bf4ee5f64d106a6d207e941dd1e56c21fec9b4526b94e945771e26c7f2e90fe9"
+          },
+          {
+            "path": "src/BASTestDocGeneration.Codeunit.al",
+            "sha256": "30cd355ad8cf1c80c8315ae5c4300bf42a8e46bfc0af5c04b620055c23a57f06"
+          },
+          {
+            "path": "src/BASTestLibrary.Codeunit.al",
+            "sha256": "329fd979ec9c156d878e4486034b96da74df6cce39f200b98eb679aa7a267127"
+          },
+          {
+            "path": "src/BASTestPageScriptImport.Codeunit.al",
+            "sha256": "118ae2d832919e8b0a0499c6c6d51105e7acf845dcde936b467d0a5b1dc2ee5e"
+          },
+          {
+            "path": "src/BASTestProfilerImport.Codeunit.al",
+            "sha256": "b131a1022391a99c04dca9c0b2d90912add6296c672043bd9a189ffec3c836f9"
+          },
+          {
+            "path": "src/BASTestRecorder.Codeunit.al",
+            "sha256": "c5ba55f48af45b1a9e2f2779c013f1ebddf8e5987320581aaa47aceb1eb2a494"
+          },
+          {
+            "path": "src/BASTestResult.Table.al",
+            "sha256": "8b4d87fb29d9fa65706a653708f35815e68356ca3efd854dd878101fb53e8f28"
+          },
+          {
+            "path": "src/BASTestResultStore.Codeunit.al",
+            "sha256": "8eafe55cdd5ac96723e4e9b57094d201fa7173a5463615e4c74aeaa726baf60e"
+          },
+          {
+            "path": "src/BASTestSnapshotBuilder.Codeunit.al",
+            "sha256": "7b78a2cffd939ef728fcc0dbaff4029b07b18f17bcb79fb2d24bcf70cadf3d3d"
+          },
+          {
+            "path": "src/BASTestTextHelper.Codeunit.al",
+            "sha256": "5ececdb03f60019634ff37254e666985588372bd2f9703bb68fd7cf21c055fa7"
+          }
+        ]
+      }
+    }
+  ],
+  "documentation": {
+    "types": [
+      "JSON Facts",
+      "Technical Markdown",
+      "User Guide Markdown",
+      "Mermaid Sequence",
+      "Object Inventory CSV",
+      "Page Script YAML",
+      "AL Test Codeunit",
+      "Layered Markdown"
+    ]
+  },
+  "tools": {
+    "node": "v24.11.1",
+    "powershell": "7.6.9"
+  },
+  "reproduce": [
+    "pwsh ./scripts/Build-AL.ps1 -SymbolVersion 26.5 -PlatformVersion 26.0",
+    "Publish build/*.app to a sandbox (app first, then tests); Atlas Sync Recordings > Create Demo Data",
+    "Atlas Sync Self-Test > Run All Tests",
+    "cd e2e; npm install; npx playwright install chromium; npm run login; npm run video"
+  ]
+}
