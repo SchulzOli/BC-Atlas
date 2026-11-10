@@ -1,0 +1,46 @@
+name: Post sales order
+description: Create a sales order for Adatum Corporation and post it
+start:
+  profile: BUSINESS MANAGER
+steps:
+  - type: navigate
+    target:
+      - page: Sales Orders
+    description: "Navigate to <caption>Sales Orders</caption>"
+  - type: invoke
+    target:
+      - page: Sales Orders
+      - action: "New"
+    description: "Invoke <caption>New</caption> on <caption>Sales Orders</caption>"
+  - type: input
+    target:
+      - page: Sales Order
+      - field: "Customer Name"
+    value: "Adatum Corporation"
+    description: "Input <value>Adatum Corporation</value> into <caption>Customer Name</caption>"
+  - type: input
+    target:
+      - page: Sales Order
+      - part: Lines
+      - field: "Type"
+    value: "Item"
+    description: "Input <value>Item</value> into <caption>Type</caption>"
+  - type: input
+    target:
+      - page: Sales Order
+      - part: Lines
+      - field: "No."
+    value: "1896-S"
+    description: "Input <value>1896-S</value> into <caption>No.</caption>"
+  - type: input
+    target:
+      - page: Sales Order
+      - part: Lines
+      - field: "Quantity"
+    value: "1"
+    description: "Input <value>1</value> into <caption>Quantity</caption>"
+  - type: invoke
+    target:
+      - page: Sales Order
+      - action: "Post..."
+    description: "Invoke <caption>Post...</caption> on <caption>Sales Order</caption>"

@@ -1,0 +1,23 @@
+{
+  "name": "bc-atlas-sync-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright end-to-end run of the BC Atlas Sync extension in the Business Central web client, recorded as video.",
+  "scripts": {
+    "login": "tsx scripts/login.ts",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "video": "playwright test || echo Test failed - collecting the video anyway. && node scripts/collect-video.mjs",
+    "collect-video": "node scripts/collect-video.mjs",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.10.0",
+    "dotenv": "^16.4.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

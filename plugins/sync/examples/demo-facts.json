@@ -1,0 +1,407 @@
+{
+  "schema": "bc-atlas-sync.fact-snapshot/1",
+  "_note": "Hand-derived from the demo call stacks of codeunit 50170 BAS Demo Data (version 1) to exercise the `architecture` format of bc-atlas-sync. A real file comes from a snapshot's JSON Fact Sheet document.",
+  "snapshot": {
+    "no": 1,
+    "processName": "Demo: Post sales order",
+    "feature": "Order to cash",
+    "fingerprint": "demo-hand-derived"
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "title": "Enter the data on the Sales Order page"
+    },
+    {
+      "phase": 2,
+      "title": "On the Sales Order page, choose Post"
+    }
+  ],
+  "technicalSteps": [
+    {
+      "step": 1,
+      "phase": 1,
+      "kind": "Page Autosave",
+      "description": "Page saved changes to Sales Header directly (no AL code)",
+      "callStack": []
+    },
+    {
+      "step": 2,
+      "phase": 1,
+      "kind": "Field Validation",
+      "description": "Validate field \"Sell-to Customer Name\" on Page 42 \"Sales Order\"",
+      "callStack": [
+        {
+          "objectType": "Page",
+          "objectId": 42,
+          "objectName": "Sales Order",
+          "method": "Sell-to Customer Name - OnValidate",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 36,
+          "objectName": "Sales Header",
+          "method": "Validate",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 36,
+          "objectName": "Sales Header",
+          "method": "Sell-to Customer No. - OnValidate",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 36,
+          "objectName": "Sales Header",
+          "method": "Modify",
+          "app": "Base Application"
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "phase": 1,
+      "kind": "Page Autosave",
+      "description": "Page saved changes to Sales Line directly (no AL code)",
+      "callStack": []
+    },
+    {
+      "step": 4,
+      "phase": 1,
+      "kind": "Field Validation",
+      "description": "Validate field \"Type\" on Page 46 \"Sales Order Subform\"",
+      "callStack": [
+        {
+          "objectType": "Page",
+          "objectId": 46,
+          "objectName": "Sales Order Subform",
+          "method": "Type - OnValidate",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 37,
+          "objectName": "Sales Line",
+          "method": "Type - OnValidate",
+          "app": "Base Application"
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "phase": 1,
+      "kind": "Field Validation",
+      "description": "Validate field \"No.\" on Page 46 \"Sales Order Subform\"",
+      "callStack": [
+        {
+          "objectType": "Page",
+          "objectId": 46,
+          "objectName": "Sales Order Subform",
+          "method": "No. - OnValidate",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 37,
+          "objectName": "Sales Line",
+          "method": "No. - OnValidate",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 37,
+          "objectName": "Sales Line",
+          "method": "UpdateUnitPrice",
+          "app": "Base Application"
+        }
+      ]
+    },
+    {
+      "step": 6,
+      "phase": 1,
+      "kind": "Field Validation",
+      "description": "Validate field \"Quantity\" on Page 46 \"Sales Order Subform\"",
+      "callStack": [
+        {
+          "objectType": "Page",
+          "objectId": 46,
+          "objectName": "Sales Order Subform",
+          "method": "Quantity - OnValidate",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 37,
+          "objectName": "Sales Line",
+          "method": "Quantity - OnValidate",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 37,
+          "objectName": "Sales Line",
+          "method": "UpdateAmounts",
+          "app": "Base Application"
+        }
+      ]
+    },
+    {
+      "step": 7,
+      "phase": 2,
+      "kind": "Action",
+      "description": "Action \"Post\" on Page 42 \"Sales Order\"",
+      "callStack": [
+        {
+          "objectType": "Page",
+          "objectId": 42,
+          "objectName": "Sales Order",
+          "method": "Post - OnAction",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Page",
+          "objectId": 42,
+          "objectName": "Sales Order",
+          "method": "PostDocument",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 81,
+          "objectName": "Sales-Post (Yes/No)",
+          "method": "OnRun",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 81,
+          "objectName": "Sales-Post (Yes/No)",
+          "method": "Code",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 80,
+          "objectName": "Sales-Post",
+          "method": "OnRun",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 80,
+          "objectName": "Sales-Post",
+          "method": "RunWithCheck",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 80,
+          "objectName": "Sales-Post",
+          "method": "PostInvoice",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 815,
+          "objectName": "Sales Post Invoice",
+          "method": "PostLedgerEntry",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 12,
+          "objectName": "Gen. Jnl.-Post Line",
+          "method": "RunWithCheck",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 12,
+          "objectName": "Gen. Jnl.-Post Line",
+          "method": "PostGLAcc",
+          "app": "Base Application"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 12,
+          "objectName": "Gen. Jnl.-Post Line",
+          "method": "InsertGLEntry",
+          "app": "Base Application"
+        }
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "objectType": "Page",
+      "objectId": 42,
+      "objectName": "Sales Order",
+      "app": "Base Application",
+      "hits": 9
+    },
+    {
+      "objectType": "Table",
+      "objectId": 36,
+      "objectName": "Sales Header",
+      "app": "Base Application",
+      "hits": 4
+    },
+    {
+      "objectType": "Table",
+      "objectId": 37,
+      "objectName": "Sales Line",
+      "app": "Base Application",
+      "hits": 9
+    },
+    {
+      "objectType": "Page",
+      "objectId": 46,
+      "objectName": "Sales Order Subform",
+      "app": "Base Application",
+      "hits": 3
+    },
+    {
+      "objectType": "Codeunit",
+      "objectId": 310,
+      "objectName": "No. Series",
+      "app": "Base Application",
+      "hits": 1
+    },
+    {
+      "objectType": "Codeunit",
+      "objectId": 80,
+      "objectName": "Sales-Post",
+      "app": "Base Application",
+      "hits": 40
+    },
+    {
+      "objectType": "Codeunit",
+      "objectId": 81,
+      "objectName": "Sales-Post (Yes/No)",
+      "app": "Base Application",
+      "hits": 30
+    },
+    {
+      "objectType": "Codeunit",
+      "objectId": 22,
+      "objectName": "Item Jnl.-Post Line",
+      "app": "Base Application",
+      "hits": 4
+    },
+    {
+      "objectType": "Codeunit",
+      "objectId": 12,
+      "objectName": "Gen. Jnl.-Post Line",
+      "app": "Base Application",
+      "hits": 12
+    },
+    {
+      "objectType": "Codeunit",
+      "objectId": 815,
+      "objectName": "Sales Post Invoice",
+      "app": "Base Application",
+      "hits": 5
+    }
+  ],
+  "tables": [
+    {
+      "tableId": 36,
+      "tableName": "Sales Header",
+      "inserts": 1,
+      "modifies": 1,
+      "deletes": 1,
+      "renames": 0
+    },
+    {
+      "tableId": 37,
+      "tableName": "Sales Line",
+      "inserts": 1,
+      "modifies": 3,
+      "deletes": 1,
+      "renames": 0
+    },
+    {
+      "tableId": 309,
+      "tableName": "No. Series Line",
+      "inserts": 0,
+      "modifies": 1,
+      "deletes": 0,
+      "renames": 0
+    },
+    {
+      "tableId": 110,
+      "tableName": "Sales Shipment Header",
+      "inserts": 1,
+      "modifies": 0,
+      "deletes": 0,
+      "renames": 0
+    },
+    {
+      "tableId": 111,
+      "tableName": "Sales Shipment Line",
+      "inserts": 1,
+      "modifies": 0,
+      "deletes": 0,
+      "renames": 0
+    },
+    {
+      "tableId": 32,
+      "tableName": "Item Ledger Entry",
+      "inserts": 1,
+      "modifies": 0,
+      "deletes": 0,
+      "renames": 0
+    },
+    {
+      "tableId": 5802,
+      "tableName": "Value Entry",
+      "inserts": 1,
+      "modifies": 0,
+      "deletes": 0,
+      "renames": 0
+    },
+    {
+      "tableId": 112,
+      "tableName": "Sales Invoice Header",
+      "inserts": 1,
+      "modifies": 0,
+      "deletes": 0,
+      "renames": 0
+    },
+    {
+      "tableId": 113,
+      "tableName": "Sales Invoice Line",
+      "inserts": 1,
+      "modifies": 0,
+      "deletes": 0,
+      "renames": 0
+    },
+    {
+      "tableId": 45,
+      "tableName": "G/L Register",
+      "inserts": 1,
+      "modifies": 0,
+      "deletes": 0,
+      "renames": 0
+    },
+    {
+      "tableId": 17,
+      "tableName": "G/L Entry",
+      "inserts": 3,
+      "modifies": 0,
+      "deletes": 0,
+      "renames": 0
+    },
+    {
+      "tableId": 21,
+      "tableName": "Cust. Ledger Entry",
+      "inserts": 1,
+      "modifies": 0,
+      "deletes": 0,
+      "renames": 0
+    }
+  ]
+}

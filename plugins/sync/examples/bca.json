@@ -1,0 +1,34 @@
+{
+  "modules": ["bc-atlas-sync"],
+  "docs": { "tests": "test/UITest", "outputDir": "docs/guides" },
+  "sync": {
+    "state": ".bca/sync-state.json",
+    "sources": {
+      "bc": { "type": "fact-snapshots", "path": "bc-snapshots" },
+      "atlas": { "type": "atlas-model" }
+    },
+    "channels": [
+      {
+        "id": "processes",
+        "description": "Every recorded process: documentation from the use case down to the clicks, and where it runs in the architecture.",
+        "what": { "from": "bc", "processes": ["*"], "versions": "latest" },
+        "when": { "triggers": ["ci", "schedule", "manual"], "condition": "drift" },
+        "how": { "formats": ["documents", "architecture", "index"], "outputDir": "docs/processes", "atlas": "atlas" }
+      },
+      {
+        "id": "scenarios",
+        "description": "Recorded processes as BC Atlas UI tests, documented by the docs task in the same run.",
+        "what": { "from": "bc", "processes": ["Order to cash"] },
+        "when": { "triggers": ["schedule", "manual"], "condition": "drift" },
+        "how": { "formats": ["ui-tests"], "outputDir": "test/UITest/Recorded" }
+      }
+    ]
+  },
+  "automation": {
+    "ci": "github",
+    "triggers": {
+      "ci": { "tasks": ["check", "sync", "docs"], "sync": "verify" },
+      "schedule": { "cron": "0 6 * * 1", "tasks": ["sync", "docs"], "sync": "pull-request" }
+    }
+  }
+}
