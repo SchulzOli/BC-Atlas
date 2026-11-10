@@ -189,12 +189,13 @@ function tableRelationRelations(valueNode, source, add) {
 
 function permissionRelations(value, node, add) {
   const pattern =
-    /\btabledata\s+(?:"((?:""|[^"])*)"|([A-Za-z_][\w]*))\s*=\s*([RIMDX]+)/giu;
+    /\btabledata\s+(?:"((?:""|[^"])*)"|([A-Za-z_][\w]*)|(\*))\s*=\s*([RIMDX]+)/giu;
   for (const match of value.matchAll(pattern)) {
     add(node, {
-      target: (match[1] ?? match[2]).replaceAll('""', '"'),
+      target: (match[1] ?? match[2] ?? match[3]).replaceAll('""', '"'),
       kind: "permits",
-      ...permissionGrant("tabledata", match[3])
+      ...(match[3] ? { wildcard: true } : {}),
+      ...permissionGrant("tabledata", match[4])
     });
   }
 }
@@ -336,6 +337,8 @@ function permissionRelation(node, source, add) {
   add(node, {
     target,
     kind: "permits",
+    // `tabledata * = R`: every object of the type. A quoted "*" is a name.
+    ...(node.childForFieldName("table_name")?.type === "*" ? { wildcard: true } : {}),
     ...permissionGrant(type, permission)
   });
 }

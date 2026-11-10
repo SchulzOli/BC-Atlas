@@ -250,6 +250,8 @@ export function dependencyLens(model, { filter = () => true } = {}) {
   ];
   for (const relation of relations) {
     if (!selected.has(relation.from) || relation.from === relation.to) continue;
+    // `tabledata * = R` depends on no object in particular.
+    if (relation.wildcard) continue;
     const source = byKey.get(relation.from);
     const target = relation.to ? byKey.get(relation.to) : undefined;
     if (relation.to && !target) continue;

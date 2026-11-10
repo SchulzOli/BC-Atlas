@@ -78,6 +78,23 @@ test("with a catalog, object names in the handbook link to their catalog pages",
   }
 });
 
+test("a wildcard permission covers every table and is listed as a wildcard", async (t) => {
+  const { renderHandbook } = await import("../src/handbook.js");
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bca-handbook-wildcard-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  writeFileSync(path.join(directory, "app.json"), JSON.stringify({ id: "wildcard-app", name: "Wildcard", publisher: "Example", version: "1.0.0.0" }));
+  const tables = "table 50000 T { fields { field(1; A; Integer) { } } }";
+  writeFileSync(path.join(directory, "App.al"), `${tables}\npermissionset 50000 All { Permissions = tabledata * = RIMD, codeunit * = X; }`);
+  const permissions = async () => (await renderHandbook(directory, {})).pages.find(({ file }) => file === "permissions.md").content;
+  const wildcard = await permissions();
+  assert.match(wildcard, /\| `table \*` \| tabledata \| RIMD \|/u);
+  assert.match(wildcard, /\| `codeunit \*` \| execute \| X \|/u);
+  assert.doesNotMatch(wildcard, /Tables without table data permissions/u, "tabledata * covers every table");
+
+  writeFileSync(path.join(directory, "App.al"), `${tables}\npermissionset 50000 All { Permissions = codeunit * = X; }`);
+  assert.match(await permissions(), /## Tables without table data permissions[^#]*Table 50000 T/u);
+});
+
 test("the handbook speaks German with a de language tag", async () => {
   const { renderHandbook } = await import("../src/handbook.js");
   const { pages } = await renderHandbook(warehouse, { language: "de-DE" });
