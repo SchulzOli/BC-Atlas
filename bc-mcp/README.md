@@ -56,7 +56,7 @@ that file by itself, so **no client needs any environment variables**.
 
 ### 2. Register the server in your client
 
-Ready-made files in the `NewPriojects` workspace:
+Ready-made files at the repository root:
 
 | Client | Config | Status |
 |---|---|---|

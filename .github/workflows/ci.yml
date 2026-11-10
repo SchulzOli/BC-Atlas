@@ -17,12 +17,28 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm audit signatures
-      - run: npm run typecheck
-      - run: npm test
+          cache-dependency-path: |
+            bc-openbridge/package-lock.json
+            bc-mcp/package-lock.json
+
+      - name: Gateway – install, verify signatures, typecheck, test
+        working-directory: bc-openbridge
+        run: |
+          npm ci
+          npm audit signatures
+          npm run typecheck
+          npm test
+
+      - name: MCP server – install, typecheck, test (uses the gateway next to it)
+        working-directory: bc-mcp
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+
       - name: SBOM (CycloneDX)
-        run: npm run sbom > sbom.cdx.json
+        working-directory: bc-openbridge
+        run: npm run sbom > ../sbom.cdx.json
       - uses: actions/upload-artifact@v4
         with:
           name: sbom
@@ -33,7 +49,7 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t bc-openbridge:ci .
+      - run: docker build -t bc-openbridge:ci bc-openbridge
       - name: Smoke test (config validation must fail closed)
         run: |
           if docker run --rm bc-openbridge:ci; then echo "expected startup to fail without config"; exit 1; fi
