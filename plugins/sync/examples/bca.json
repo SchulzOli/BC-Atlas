@@ -1,5 +1,4 @@
 {
-  "modules": ["bc-atlas-sync"],
   "docs": { "tests": "test/UITest", "outputDir": "docs/guides" },
   "sync": {
     "state": ".bca/sync-state.json",

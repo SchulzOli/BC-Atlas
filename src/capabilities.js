@@ -1,6 +1,11 @@
 // Single source of truth for every BC Atlas command. The CLI parser, the
 // built-in help, the generated documentation, and the machine-readable
 // `bca help --format json` contract are all derived from this catalog.
+// Commands of plugins come from their manifests (plugin.json).
+import { BUILTIN_PLUGINS } from "./plugins/builtin.js";
+import { parseManifest } from "./plugins/manifest.js";
+
+const BUILTIN_MANIFESTS = BUILTIN_PLUGINS.map(({ manifest }) => parseManifest(manifest, `built-in plugin ${manifest.id}`));
 
 export const VIEWS = Object.freeze([
   ["project", "AL objects grouped into role lanes (Data, UI, Services, ...)"],
@@ -254,7 +259,38 @@ function command(definition) {
   };
 }
 
-export function createCapabilities(version) {
+/**
+ * Catalog entries for plugin commands (`bca <plugin> <command>`), built from manifests only.
+ * Every command gets --config; commands with a project path also get [app-root].
+ */
+export function pluginCommands(manifests) {
+  return manifests.flatMap((manifest) => manifest.contributes.commands.map((definition) => {
+    const positional = definition.argv ?? "[app-root]";
+    const options = Object.fromEntries(Object.entries(definition.options).map(([name, option]) => {
+      const { type, description, ...extra } = option;
+      return [name, type === "boolean" ? flag(description, extra) : string(description, extra)];
+    }));
+    if (!options.config) options.config = projectOptions.config;
+    return command({
+      id: `${manifest.id}.${definition.name}`,
+      area: manifest.area,
+      plugin: manifest.id,
+      argv: ["bca", manifest.id, definition.name, ...(positional ? [positional] : [])],
+      purpose: definition.purpose,
+      options,
+      output: definition.output ? { type: "json", when: "--format json", schema: definition.output } : { type: "text" },
+      rules: definition.rules,
+      examples: definition.examples
+    });
+  }));
+}
+
+/**
+ * @param version BC Atlas version
+ * @param plugins plugin manifests whose commands join the catalog: the built-in ones by default,
+ *   plus project plugins when the CLI found any (bca plugins list shows where they come from)
+ */
+export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}) {
   return {
     schemaVersion: 1,
     name: "bc-atlas",
@@ -687,35 +723,51 @@ export function createCapabilities(version) {
           "bca run --tasks report,docs --sync verify"
         ]
       }),
-      ...["plan", "run", "status"].map((sub) => command({
-        id: `sync.${sub}`,
+      command({
+        id: "plugins.list",
         area: "integrate",
-        argv: ["bca", "sync", sub, "[app-root]"],
-        purpose: {
-          plan: "Show what each sync channel would write for a trigger, without writing (module bc-atlas-sync).",
-          run: "Sync data from outside the AL source into the project: Business Central process recordings into documents, UI tests, architecture layer, and process index (module bc-atlas-sync).",
-          status: "Show for every sync channel which processes are new, changed, drifted, or removed (module bc-atlas-sync)."
-        }[sub],
+        argv: ["bca", "plugins", "list", "[app-root]"],
+        purpose: "List the plugins of a project: built-in, npm (bc-atlas-plugin-*), .bca.json, and BCA_PLUGINS, with what each contributes.",
+        options: { config: projectOptions.config, format: string("Output mode.", { enum: ["text", "json"], default: "text" }) },
+        output: { type: "json", when: "--format json", schema: "PluginList" },
+        examples: ["bca plugins list", "bca plugins list --format json"]
+      }),
+      command({
+        id: "plugins.show",
+        area: "integrate",
+        argv: ["bca", "plugins", "show", "<plugin-id>"],
+        purpose: "Show one plugin: manifest, commands, tasks, health rules, MCP tools, hooks, and extension points.",
         options: {
-          ...(sub === "status" ? {} : {
-            trigger: string("Trigger whose channels run.", { enum: ["pre-commit", "pre-push", "ci", "schedule", "manual"], default: "manual" })
-          }),
-          channel: string("Only this channel; ignores the trigger.", { repeatable: true, value: "id" }),
-          ...(sub === "run" ? { force: flag("Rewrite every process, whatever the channel condition says.") } : {}),
+          projectRoot: string("Project whose plugins are listed.", { value: "path", default: "." }),
           config: projectOptions.config,
           format: string("Output mode.", { enum: ["text", "json"], default: "text" })
         },
-        output: { type: "json", when: "--format json", schema: "SyncResult" },
-        rules: [
-          "Needs the bc-atlas-sync module: install it in the project and list it under \"modules\" in .bca.json.",
-          "What, when, and how to sync is the \"sync\" section of .bca.json; the sync task of bca run uses the same channels."
-        ],
-        examples: {
-          plan: ["bca sync plan --trigger ci"],
-          run: ["bca sync run", "bca sync run --channel processes --force"],
-          status: ["bca sync status --format json"]
-        }[sub]
-      })),
+        output: { type: "json", when: "--format json", schema: "PluginManifest" },
+        examples: ["bca plugins show sync"]
+      }),
+      command({
+        id: "plugins.doctor",
+        area: "integrate",
+        argv: ["bca", "plugins", "doctor", "[app-root]"],
+        purpose: "Check every plugin: manifest, plugin API version, activation, contributions, and config sections.",
+        options: { config: projectOptions.config, format: string("Output mode.", { enum: ["text", "json"], default: "text" }) },
+        output: { type: "json", when: "--format json", schema: "PluginDoctor" },
+        rules: ["Exit code 1 when a plugin cannot be loaded or activated."],
+        examples: ["bca plugins doctor"]
+      }),
+      command({
+        id: "plugins.new",
+        area: "integrate",
+        argv: ["bca", "plugins", "new", "<plugin-id>"],
+        purpose: "Create a plugin from the template: plugin.json, an activate() with a command, a task, a health rule, and a hook, a test, and a README.",
+        options: {
+          output: string("Folder of the new plugin.", { short: "o", value: "path", default: "plugins/<plugin-id>" }),
+          dryRun: flag("List the files without writing them.")
+        },
+        output: { type: "process" },
+        examples: ["bca plugins new telemetry", "bca plugins new my-plugin -o ../bc-atlas-plugin-my"]
+      }),
+      ...pluginCommands(plugins),
       command({
         id: "update",
         area: "integrate",

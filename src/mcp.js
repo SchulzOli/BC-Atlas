@@ -33,6 +33,8 @@ import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
 import { documentationGlossary } from "./docs/tags.js";
 import { DOCUMENT_MODES, EXPORT_FORMATS, exportDocumentation } from "./docs/export.js";
 import { loadCorpus, scenarioSummary } from "./docs/model.js";
+import { loadConfig } from "./config.js";
+import { loadPlugins } from "./plugins/registry.js";
 
 const pkg = JSON.parse(await fs.readFile(new URL("../package.json", import.meta.url)));
 const VIEWS = VIEW_CATALOG.map(([id]) => id);
@@ -140,7 +142,7 @@ const graphFields = {
   frame: z.number().int().nonnegative().optional()
 };
 
-export function createMcpServer(version = pkg.version) {
+export function createMcpServer(version = pkg.version, { plugins } = {}) {
   const server = new McpServer({ name: "bc-atlas", version });
 
   server.registerTool("bc_atlas_capabilities", {
@@ -506,11 +508,41 @@ export function createMcpServer(version = pkg.version) {
     annotations: { readOnlyHint: true, idempotentHint: true }
   }, tool(async () => documentationGlossary()));
 
+  // Tools of plugins (plugin.json contributes.mcpTools); the plugin is activated on the first call.
+  for (const { plugin, tool: definition } of plugins?.mcpTools() ?? []) {
+    const shape = Object.fromEntries(Object.entries(definition.input).map(([name, field]) => {
+      let schema = field.enum ? z.enum(field.enum) : field.type === "boolean" ? z.boolean() : field.type === "number" ? z.number() : z.string();
+      if (field.description) schema = schema.describe(field.description);
+      return [name, field.optional ? schema.optional() : schema];
+    }));
+    server.registerTool(definition.name, {
+      description: `${definition.description} (plugin ${plugin.id})`,
+      inputSchema: z.object(shape),
+      annotations: { readOnlyHint: definition.readOnly, idempotentHint: definition.readOnly }
+    }, tool(async (args) => {
+      const implementation = (await plugins.activate(plugin.id)).mcpTools?.[definition.name];
+      if (typeof implementation !== "function") throw new Error(`plugin "${plugin.id}" declares ${definition.name} but does not implement it`);
+      return implementation(args);
+    }));
+  }
+
   return server;
 }
 
+/** The plugins of the project the server starts in (built-in ones when there is no .bca.json). */
+async function serverPlugins() {
+  try {
+    const root = process.cwd();
+    return await loadPlugins(root, (await loadConfig(root)).values);
+  } catch (error) {
+    console.error(`bca-mcp: plugins: ${error.message}; continuing with the built-in plugins`);
+    return loadPlugins(process.cwd(), {});
+  }
+}
+
 export async function startMcpServer(version = pkg.version) {
-  serveStdio(() => createMcpServer(version), {
+  const plugins = await serverPlugins();
+  serveStdio(() => createMcpServer(version, { plugins }), {
     onerror: (error) => console.error(`bca-mcp: ${error.message}`)
   });
   console.error(`BC Atlas ${version} MCP server running on stdio.`);

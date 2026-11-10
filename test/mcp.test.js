@@ -79,6 +79,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_setup_apply",
         "bc_atlas_setup_plan",
         "bc_atlas_simulate",
+        "bc_atlas_sync_status",
         "bc_atlas_update_check"
       ]
     );

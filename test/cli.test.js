@@ -625,9 +625,10 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
   assert.deepEqual(contract.areas.map(({ id }) => id), ["start", "analyze", "export", "integrate"]);
   assert.ok(contract.commands.every(({ area }) => contract.areas.some(({ id }) => id === area)));
   assert.deepEqual([...new Set(contract.commands.map(({ id }) => id.split(".")[0]))],
-    ["setup", "check", "simulate", "graph", "architecture", "refactor", "export", "docs", "run", "sync", "update", "mcp"]);
-  assert.deepEqual(contract.commands.filter(({ id }) => id.startsWith("sync.")).map(({ argv }) => argv.join(" ")),
-    ["bca sync plan [app-root]", "bca sync run [app-root]", "bca sync status [app-root]"], "commands of the bc-atlas-sync module");
+    ["setup", "check", "simulate", "graph", "architecture", "refactor", "export", "docs", "run", "plugins", "sync", "update", "mcp"]);
+  assert.deepEqual(contract.commands.filter(({ id }) => id.startsWith("sync.")).map(({ argv, plugin }) => `${argv.join(" ")} (${plugin})`),
+    ["bca sync plan [app-root] (sync)", "bca sync run [app-root] (sync)", "bca sync status [app-root] (sync)", "bca sync describe (sync)"],
+    "commands of the built-in sync plugin, from its plugin.json");
   assert.ok(contract.commands.some(({ argv }) =>
     argv.join(" ") === "bca docs validate <test-root>"));
   assert.ok(!contract.commands.some(({ id }) => id === "app"), "the app lives in the VS Code extension");
@@ -652,8 +653,8 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
 test("every catalog command resolves to a handler, and --version loads no command module", async () => {
   const { createCapabilities } = await import("../src/capabilities.js");
   const { loadHandler } = await import("../src/cli/handlers.js");
-  for (const { id } of createCapabilities("0.0.0").commands) {
-    assert.equal(typeof await loadHandler(id, "0.0.0"), "function", id);
+  for (const definition of createCapabilities("0.0.0").commands) {
+    assert.equal(typeof await loadHandler(definition, "0.0.0"), "function", definition.id);
   }
   await assert.rejects(loadHandler("nope", "0.0.0"), /no handler for command "nope"/u);
 

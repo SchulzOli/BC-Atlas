@@ -55,9 +55,17 @@ async function differs(file, content) {
  * @param {boolean} [options.force] rewrite every process regardless of the condition
  * @param {object} [options.host] what BC Atlas provides: atlasModel(), renderDocs(), log()
  */
-export async function runSync({ root, projectConfig = {}, trigger = "manual", channels: only, dryRun = false, force = false, host, log = () => {} }) {
+export async function runSync({ root, projectConfig = {}, trigger = "manual", channels: only, dryRun = false, force = false, decisionsOnly = false, host, extensions = {}, log = () => {} }) {
   root = path.resolve(root);
-  const config = normalizeSyncConfig(projectConfig);
+  if (decisionsOnly) dryRun = true;
+  // Source types and formats of other plugins (extension points sync.sources, sync.formats).
+  const contributedSources = new Map((extensions.sources ?? []).map((source) => [source.type, source]));
+  const formats = new Map([...FORMAT_IMPLEMENTATIONS, ...(extensions.formats ?? []).map((format) => [format.id, format])]);
+  const extras = {
+    sourceTypes: Object.fromEntries([...contributedSources].map(([type, source]) => [type, source.summary ?? `from plugin ${source.plugin}`])),
+    formats: Object.fromEntries((extensions.formats ?? []).map((format) => [format.id, format.summary ?? `from plugin ${format.plugin}`]))
+  };
+  const config = normalizeSyncConfig(projectConfig, extras);
   const unknown = (only ?? []).filter((id) => !config.channels.some((channel) => channel.id === id));
   if (unknown.length) throw new Error(`unknown sync channel(s): ${unknown.join(", ")}; defined: ${config.channels.map(({ id }) => id).join(", ") || "none"}`);
 
@@ -70,7 +78,13 @@ export async function runSync({ root, projectConfig = {}, trigger = "manual", ch
   let wroteAnything = false;
 
   const sourceItems = async (id) => {
-    if (!sources.has(id)) sources.set(id, await loadFactSnapshots(root, config.sources[id]));
+    if (!sources.has(id)) {
+      const source = config.sources[id];
+      const contributed = contributedSources.get(source.type);
+      sources.set(id, contributed
+        ? await contributed.load(root, source, host)
+        : await loadFactSnapshots(root, source));
+    }
     return sources.get(id);
   };
   const atlasModel = async (id, warnings) => {
@@ -118,6 +132,13 @@ export async function runSync({ root, projectConfig = {}, trigger = "manual", ch
     }
 
     result.status = dryRun ? "planned" : "synced";
+    if (decisionsOnly) {
+      // Which processes would be written and why; no formats rendered, no BC Atlas services used.
+      for (const { item, reason } of selected) result.processes.push({ key: item.key, process: item.process, snapshot: item.snapshotNo, reason, drift: item.driftDetected });
+      for (const key of removedKeys) result.processes.push({ key, process: key, reason: "no longer in the source", removed: true });
+      result.reason = `${selected.length} process(es) to write, ${removedKeys.length} removed`;
+      continue;
+    }
     const outDir = path.resolve(root, channel.how.outputDir);
     const rel = (file) => toPosix(path.relative(root, path.join(outDir, file)));
     const channelState = { config: configHash, processes: { ...previous.processes }, files: [] };
@@ -150,7 +171,7 @@ export async function runSync({ root, projectConfig = {}, trigger = "manual", ch
     for (const { item, reason } of selected) {
       const produced = [];
       for (const entry of channel.how.formats) {
-        const format = FORMAT_IMPLEMENTATIONS.get(entry.format);
+        const format = formats.get(entry.format);
         if (format.scope !== "process") continue;
         const { files, warnings } = await format.render({ item, channel, atlasModel: model, host, options: entry });
         result.warnings.push(...warnings);
@@ -170,7 +191,7 @@ export async function runSync({ root, projectConfig = {}, trigger = "manual", ch
 
     const channelFiles = [];
     for (const entry of channel.how.formats) {
-      const format = FORMAT_IMPLEMENTATIONS.get(entry.format);
+      const format = formats.get(entry.format);
       if (format.scope !== "channel") continue;
       const { files, warnings } = await format.render({ items, channel, state: channelState, host, options: entry });
       result.warnings.push(...warnings);
@@ -200,7 +221,7 @@ export async function runSync({ root, projectConfig = {}, trigger = "manual", ch
     dryRun,
     state: toPosix(path.relative(root, statePath)),
     channels: results,
-    outputs: syncOutputs(projectConfig),
+    outputs: syncOutputs(projectConfig, extras),
     changed: wroteAnything,
     passed: true
   };

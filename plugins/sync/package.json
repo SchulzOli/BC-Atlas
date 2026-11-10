@@ -1,46 +1,12 @@
 {
-  "name": "bc-atlas-sync",
-  "version": "0.1.0",
-  "description": "Sync layer for BC Atlas: what to sync (data from Business Central), when (BC Atlas triggers and conditions) and how (formats). Ships the Business Central side that records processes: clicks, writes and AL call stacks.",
+  "name": "@bc-atlas/plugin-sync",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Built-in BC Atlas plugin: syncs Business Central process recordings (fact snapshots) into documents, UI tests, the architecture layer, and a process index. Ships with BC Atlas; this file only holds the scripts of the plugin folder.",
   "type": "module",
   "main": "./src/index.js",
-  "exports": {
-    ".": "./src/index.js",
-    "./package.json": "./package.json"
-  },
-  "bin": {
-    "bca-sync": "./src/cli.js"
-  },
-  "files": [
-    "src/",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "engines": {
-    "node": ">=20"
-  },
   "scripts": {
     "test": "node --test \"test/*.test.js\"",
-    "check": "node --check src/index.js src/cli.js src/engine.js src/config.js src/util.js src/zip.js src/sources/fact-snapshots.js src/sources/atlas-model.js src/formats/index.js src/formats/architecture.js",
     "build:al": "pwsh -NoProfile -File scripts/Build-AL.ps1"
-  },
-  "peerDependencies": {
-    "bc-atlas": ">=0.17.0"
-  },
-  "peerDependenciesMeta": {
-    "bc-atlas": {
-      "optional": true
-    }
-  },
-  "keywords": [
-    "business-central",
-    "al",
-    "bc-atlas",
-    "documentation",
-    "sync"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/SchulzOli/bc-atlas-sync.git"
   }
 }

@@ -6,6 +6,34 @@
   "type": "object",
   "properties": {
     "$schema": { "type": "string" },
+    "plugins": {
+      "description": "Plugins of this project besides the built-in ones (see docs/plugins.md): package names, paths, or switches. Packages named bc-atlas-plugin-* in package.json are found without this list. Each plugin may own a section of its own in this file (its configKey, e.g. sync).",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string", "description": "npm package name or path to a plugin folder" },
+              {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string" },
+                  "name": { "type": "string", "description": "npm package" },
+                  "path": { "type": "string", "description": "Folder with plugin.json" },
+                  "enabled": { "type": "boolean" }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        {
+          "type": "object",
+          "description": "Plugin id to true, false (switch a built-in plugin off), a path, or { path, enabled }.",
+          "additionalProperties": { "oneOf": [{ "type": "boolean" }, { "type": "string" }, { "type": "object" }] }
+        }
+      ]
+    },
     "view": { "description": "Default diagram view.", "enum": ["project", "module", "object", "data", "call", "boundary", "contracts", "events", "ui", "workflow", "visibility"] },
     "projectRoot": { "description": "Root of the AL project, relative to this file.", "type": "string" },
     "paths": { "description": "Analyze only these folders (globs allowed).", "type": "array", "items": { "type": "string" } },

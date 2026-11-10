@@ -305,6 +305,23 @@ function evidenceSummary(item, { markdown = false } = {}) {
   ];
 }
 
+/**
+ * Adds findings (from plugin health rules) to a report with the same ordering, counts, and
+ * fail threshold as assessHealth.
+ */
+export function withFindings(report, extra) {
+  if (!extra.length) return report;
+  const findings = [...report.findings, ...extra].sort((left, right) =>
+    SEVERITY_RANK[right.severity] - SEVERITY_RANK[left.severity] ||
+    left.rule.localeCompare(right.rule) ||
+    left.message.localeCompare(right.message)
+  );
+  const counts = { error: 0, warning: 0, info: 0 };
+  for (const item of findings) counts[item.severity]++;
+  const threshold = SEVERITY_RANK[report.failOn] ?? Infinity;
+  return { ...report, passed: !findings.some(({ severity }) => SEVERITY_RANK[severity] >= threshold), counts, findings };
+}
+
 /** One line on what the AL toolchain contributed, for text and Markdown reports. */
 export function compilerLine(compiler) {
   if (!compiler) return undefined;

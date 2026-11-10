@@ -60,14 +60,20 @@ function list(value, allowed, name) {
   return [...new Set(items)];
 }
 
-function normalizeFormat(format, channelId) {
+function normalizeFormat(format, channelId, formats) {
   const entry = typeof format === "string" ? { format } : { ...format };
-  if (!FORMATS[entry.format]) fail(`channel "${channelId}": unknown format "${entry.format}"; use ${Object.keys(FORMATS).join(", ")}`);
+  if (!formats[entry.format]) fail(`channel "${channelId}": unknown format "${entry.format}"; use ${Object.keys(formats).join(", ")}`);
   return entry;
 }
 
-/** Validates the sync section and fills in the defaults. */
-export function normalizeSyncConfig(projectConfig = {}) {
+/**
+ * Validates the sync section and fills in the defaults.
+ * @param extras source types and formats contributed by other plugins (extension points
+ *   sync.sources and sync.formats): { sourceTypes: { type: summary }, formats: { id: summary } }
+ */
+export function normalizeSyncConfig(projectConfig = {}, extras = {}) {
+  const sourceTypes = { ...SOURCE_TYPES, ...extras.sourceTypes };
+  const formatTypes = { ...FORMATS, ...extras.formats };
   const section = projectConfig.sync;
   if (section === undefined) return { state: STATE_DEFAULT, sources: {}, channels: [] };
   if (!section || typeof section !== "object" || Array.isArray(section)) fail("must be an object");
@@ -75,10 +81,12 @@ export function normalizeSyncConfig(projectConfig = {}) {
   const sources = {};
   for (const [id, source] of Object.entries(section.sources ?? {})) {
     if (!ID.test(id)) fail(`source id "${id}" must be lowercase letters, digits and hyphens`);
-    if (!SOURCE_TYPES[source?.type]) fail(`source "${id}" needs a type: ${Object.keys(SOURCE_TYPES).join(", ")}`);
+    if (!sourceTypes[source?.type]) fail(`source "${id}" needs a type: ${Object.keys(sourceTypes).join(", ")}`);
     if (source.type === "fact-snapshots" && !source.path) fail(`source "${id}" (fact-snapshots) needs a "path"`);
     sources[id] = { id, ...source };
   }
+  // Every source type except the architecture model delivers processes.
+  const delivers = (type) => type !== "atlas-model";
 
   const ids = new Set();
   const channels = (section.channels ?? []).map((channel, index) => {
@@ -88,9 +96,9 @@ export function normalizeSyncConfig(projectConfig = {}) {
     ids.add(id);
 
     const what = channel.what ?? {};
-    const from = what.from ?? Object.values(sources).find(({ type }) => type === "fact-snapshots")?.id;
+    const from = what.from ?? Object.values(sources).find(({ type }) => delivers(type))?.id;
     if (!from || !sources[from]) fail(`channel "${id}": what.from must name a source (${Object.keys(sources).join(", ") || "none defined"})`);
-    if (sources[from].type !== "fact-snapshots") fail(`channel "${id}": what.from must be a fact-snapshots source`);
+    if (!delivers(sources[from].type)) fail(`channel "${id}": what.from must be a source of processes, not an atlas-model`);
     const versions = what.versions ?? "latest";
     if (!VERSIONS.includes(versions)) fail(`channel "${id}": what.versions must be ${VERSIONS.join(" or ")}`);
 
@@ -100,7 +108,7 @@ export function normalizeSyncConfig(projectConfig = {}) {
     if (!CONDITIONS[condition]) fail(`channel "${id}": when.condition must be ${Object.keys(CONDITIONS).join(", ")}`);
 
     const how = channel.how ?? {};
-    const formats = (how.formats ?? ["documents", "index"]).map((format) => normalizeFormat(format, id));
+    const formats = (how.formats ?? ["documents", "index"]).map((format) => normalizeFormat(format, id, formatTypes));
     if (!formats.length) fail(`channel "${id}": how.formats is empty`);
     const atlas = how.atlas ?? Object.values(sources).find(({ type }) => type === "atlas-model")?.id;
     if (formats.some(({ format }) => format === "architecture")) {
@@ -122,8 +130,8 @@ export function normalizeSyncConfig(projectConfig = {}) {
  * Paths (relative to the project root) a sync writes: every channel's output directory and the
  * state file. BC Atlas uses them for verify, stage, artifacts and pull requests.
  */
-export function syncOutputs(projectConfig = {}) {
-  const config = normalizeSyncConfig(projectConfig);
+export function syncOutputs(projectConfig = {}, extras = {}) {
+  const config = normalizeSyncConfig(projectConfig, extras);
   if (!config.channels.length) return [];
   return [...new Set([...config.channels.map(({ how }) => how.outputDir), config.state])];
 }

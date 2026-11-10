@@ -7,6 +7,7 @@ import path from "node:path";
 import { createStarterConfig } from "./starter.js";
 import { EXPORT_FORMATS } from "../docs/export.js";
 import { loadCorpus } from "../docs/model.js";
+import { loadPlugins } from "../plugins/registry.js";
 import { CI_PROVIDERS, DEFAULTS, HOOK_MANAGERS, outputsFor, parseList, TASKS, validateCron } from "./config.js";
 import { findGitRoot, git, hostOf, remoteUrl } from "./git.js";
 import {
@@ -360,15 +361,27 @@ export function answersFromConfig(config, fallback) {
 function buildConfig(existing, answers) {
   const config = { ...existing };
   const triggers = {};
+  // Setup asks only about its FEATURES; tasks it does not manage (simulate, handbook, diagrams,
+  // plugin tasks such as sync) stay in the triggers they were configured for.
+  const kept = (name, tasks) => [...new Set([
+    ...tasks,
+    ...(existing.automation?.triggers?.[name]?.tasks ?? []).filter((task) => !FEATURES.includes(task))
+  ])];
   // A sync mode only matters for tasks that write files (check writes none).
-  const hookSync = (tasks) => (outputsFor(tasks, existing).length ? answers.hookSync : "none");
-  if (answers.preCommit.length) triggers["pre-commit"] = { tasks: answers.preCommit, sync: hookSync(answers.preCommit) };
-  if (answers.prePush.length) triggers["pre-push"] = { tasks: answers.prePush, sync: hookSync(answers.prePush) };
-  if (answers.ci !== "none") triggers.ci = { tasks: answers.features, sync: answers.ciSync };
+  const hookSync = (tasks) => (tasks.some((task) => !TASKS[task]) || outputsFor(tasks, existing).length ? answers.hookSync : "none");
+  if (answers.preCommit.length) {
+    const tasks = kept("pre-commit", answers.preCommit);
+    triggers["pre-commit"] = { tasks, sync: hookSync(tasks) };
+  }
+  if (answers.prePush.length) {
+    const tasks = kept("pre-push", answers.prePush);
+    triggers["pre-push"] = { tasks, sync: hookSync(tasks) };
+  }
+  if (answers.ci !== "none") triggers.ci = { tasks: kept("ci", answers.features), sync: answers.ciSync };
   if (answers.schedule !== "none") {
     triggers.schedule = {
       cron: answers.schedule,
-      tasks: answers.features.filter((task) => task !== "check"),
+      tasks: kept("schedule", answers.features.filter((task) => task !== "check")),
       sync: answers.scheduleSync
     };
   }
@@ -503,9 +516,17 @@ export async function applySetup(input, rawAnswers = {}, { dryRun = false, force
 
   if (answers.ci !== "none") {
     const triggers = {};
+    // Plugin tasks say themselves what they write (artifacts, pull requests, commits need the paths).
+    const plugins = await loadPlugins(root, config);
+    const pluginOutputs = {};
+    for (const name of ["ci", "schedule"]) {
+      for (const task of config.automation.triggers[name]?.tasks ?? []) {
+        if (plugins.pluginForTask(task) && !pluginOutputs[task]) pluginOutputs[task] = await plugins.taskOutputs(task, config);
+      }
+    }
     for (const name of ["ci", "schedule"]) {
       const trigger = config.automation.triggers[name];
-      if (trigger) triggers[name] = { ...trigger, outputs: outputsFor(trigger.tasks, config, appPath) };
+      if (trigger) triggers[name] = { ...trigger, outputs: outputsFor(trigger.tasks, config, appPath, pluginOutputs) };
     }
     // CI uses the AL compiler like the developer's machine, unless .bca.json turns it off.
     const alTools = (config.al?.compiler ?? "auto") !== "off";

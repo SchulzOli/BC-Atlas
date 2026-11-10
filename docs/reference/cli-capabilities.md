@@ -55,9 +55,14 @@ Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents.
 | Command | Invocation | Purpose |
 | --- | --- | --- |
 | `run` | `bca run [app-root]` | Run the features configured for a trigger (Git hook, pipeline, schedule) and sync their output. |
-| `sync.plan` | `bca sync plan [app-root]` | Show what each sync channel would write for a trigger, without writing (module bc-atlas-sync). |
-| `sync.run` | `bca sync run [app-root]` | Sync data from outside the AL source into the project: Business Central process recordings into documents, UI tests, architecture layer, and process index (module bc-atlas-sync). |
-| `sync.status` | `bca sync status [app-root]` | Show for every sync channel which processes are new, changed, drifted, or removed (module bc-atlas-sync). |
+| `plugins.list` | `bca plugins list [app-root]` | List the plugins of a project: built-in, npm (bc-atlas-plugin-*), .bca.json, and BCA_PLUGINS, with what each contributes. |
+| `plugins.show` | `bca plugins show <plugin-id>` | Show one plugin: manifest, commands, tasks, health rules, MCP tools, hooks, and extension points. |
+| `plugins.doctor` | `bca plugins doctor [app-root]` | Check every plugin: manifest, plugin API version, activation, contributions, and config sections. |
+| `plugins.new` | `bca plugins new <plugin-id>` | Create a plugin from the template: plugin.json, an activate() with a command, a task, a health rule, and a hook, a test, and a README. |
+| `sync.plan` | `bca sync plan [app-root]` | Show what each sync channel would write for a trigger, without writing. |
+| `sync.run` | `bca sync run [app-root]` | Sync Business Central process recordings into documents, UI tests, the architecture layer, and the process index. |
+| `sync.status` | `bca sync status [app-root]` | Show for every sync channel which processes are new, changed, drifted, or removed. |
+| `sync.describe` | `bca sync describe` | List what a sync manifest can use: sources, triggers, conditions, and formats, including those contributed by other plugins. |
 | `update` | `bca update [app-root]` | Check for a new BC Atlas version, show what changed, and update it together with the generated setup files. |
 | `mcp` | `bca mcp` | Start the Model Context Protocol server on stdio for AI agents. |
 

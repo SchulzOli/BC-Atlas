@@ -9,20 +9,39 @@ import { loadHandler } from "./cli/handlers.js";
 import { maybeNotifyUpdate } from "./update.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-const capabilities = createCapabilities(pkg.version);
 
-const TOP_LEVEL = new Set(capabilities.commands
-  .filter(({ variantOf }) => !variantOf)
-  .map(({ id }) => id.split(".")[0]));
+/**
+ * The command catalog of this call: BC Atlas, its built-in plugins, and the plugins of the
+ * project in the current directory (.bca.json "plugins", bc-atlas-plugin-* dependencies,
+ * BCA_PLUGINS). A broken project plugin never blocks BC Atlas itself; "bca plugins doctor"
+ * reports it.
+ */
+async function loadCatalog() {
+  const projectMayHavePlugins = existsSync(".bca.json") || existsSync("package.json") || process.env.BCA_PLUGINS;
+  if (!projectMayHavePlugins) return createCapabilities(pkg.version);
+  try {
+    const [{ loadConfig }, { loadPlugins }] = await Promise.all([import("./config.js"), import("./plugins/registry.js")]);
+    const registry = await loadPlugins(process.cwd(), (await loadConfig(process.cwd())).values);
+    return createCapabilities(pkg.version, { plugins: registry.enabled().map(({ manifest }) => manifest) });
+  } catch {
+    return createCapabilities(pkg.version);
+  }
+}
 
-function suggestion(name) {
-  const candidates = [...TOP_LEVEL];
-  const close = candidates.find((candidate) => candidate.startsWith(name.slice(0, 3)));
-  return close ? ` Did you mean "${close}"?` : "";
+/** First words that have subcommands: docs, setup, graph, refactor, plugins, and every plugin. */
+function families(capabilities) {
+  return new Set(capabilities.commands.filter(({ id }) => id.includes(".")).map(({ id }) => id.split(".")[0]));
+}
+
+function familyHelp(capabilities, family) {
+  const commands = capabilities.commands.filter(({ id }) => id.startsWith(`${family}.`));
+  const width = Math.max(...commands.map(({ argv }) => argv.slice(0, 3).join(" ").length));
+  return `${commands.map(({ argv, purpose }) => `  ${argv.slice(0, 3).join(" ").padEnd(width)}  ${purpose}`).join("\n")}\n\nRun "bca ${family} <command> --help" for details.\n`;
 }
 
 /** Maps argv to a catalog command id and the remaining arguments. */
-function resolveCommand(args) {
+function resolveCommand(capabilities, args) {
+  const topLevel = new Set(capabilities.commands.filter(({ variantOf }) => !variantOf).map(({ id }) => id.split(".")[0]));
   const [first, second, ...rest] = args;
   if (first === "docs") {
     if (!second || second === "-h" || second === "--help" || second === "help") return { help: "docs" };
@@ -43,26 +62,30 @@ function resolveCommand(args) {
     if (["-h", "--help", "help"].includes(second)) return { id: "refactor.move", args: ["--help"] };
     throw new UsageError(`unknown refactoring "${second ?? ""}"; use "bca refactor move" or "bca refactor surface"`);
   }
-  if (first === "sync") {
-    if (findCommand(capabilities, `sync.${second}`)) return { id: `sync.${second}`, args: rest };
-    if (!second || ["-h", "--help", "help"].includes(second)) return { id: "sync.run", args: ["--help"] };
-    throw new UsageError(`unknown sync command "${second}"; use "bca sync plan", "bca sync run", or "bca sync status"`);
+  // bca plugins <command> and bca <plugin> <command>.
+  if (families(capabilities).has(first) && !findCommand(capabilities, first)) {
+    if (findCommand(capabilities, `${first}.${second}`)) return { id: `${first}.${second}`, args: rest };
+    if (!second || ["-h", "--help", "help"].includes(second)) return { help: "family", family: first };
+    const known = capabilities.commands.filter(({ id }) => id.startsWith(`${first}.`)).map(({ id }) => `"bca ${first} ${id.split(".")[1]}"`);
+    throw new UsageError(`unknown ${first} command "${second}"; use ${known.join(", ")}`);
   }
-  if (TOP_LEVEL.has(first)) return { id: first, args: args.slice(1) };
+  if (topLevel.has(first)) return { id: first, args: args.slice(1) };
   if (first && !first.startsWith("-") && existsSync(first)) {
     throw new UsageError(`"${first}" is a path, not a command; try "bca check ${first}" or "bca export ${first}", or open it in VS Code with the BC Atlas extension`);
   }
-  throw new UsageError(first?.startsWith("-") ? `"${first}" needs a command first` : `unknown command "${first}".${suggestion(first)}`);
+  const close = [...topLevel].find((candidate) => candidate.startsWith(String(first).slice(0, 3)));
+  throw new UsageError(first?.startsWith("-") ? `"${first}" needs a command first` : `unknown command "${first}".${close ? ` Did you mean "${close}"?` : ""}`);
 }
 
 async function main(args) {
-  if (!args.length || args[0] === "-h" || args[0] === "--help") {
-    process.stdout.write(overviewHelp(capabilities));
-    return maybeNotifyUpdate(pkg.version, { command: "help" });
-  }
   if (args[0] === "-V" || args[0] === "--version") {
     console.log(pkg.version);
     return maybeNotifyUpdate(pkg.version, { command: "version" });
+  }
+  const capabilities = await loadCatalog();
+  if (!args.length || args[0] === "-h" || args[0] === "--help") {
+    process.stdout.write(overviewHelp(capabilities));
+    return maybeNotifyUpdate(pkg.version, { command: "help" });
   }
   if (args[0] === "help") {
     if (args[1] === "--format" || args[1]?.startsWith("--format=")) {
@@ -74,17 +97,19 @@ async function main(args) {
     if (!args[1]) return process.stdout.write(overviewHelp(capabilities));
     const id = args[2] && findCommand(capabilities, `${args[1]}.${args[2]}`) ? `${args[1]}.${args[2]}` : args[1];
     if (id === "docs") return process.stdout.write(docsOverviewHelp(capabilities));
+    if (!findCommand(capabilities, id) && families(capabilities).has(id)) return process.stdout.write(familyHelp(capabilities, id));
     const definition = findCommand(capabilities, id);
     if (!definition) throw new UsageError(`unknown command "${args.slice(1).join(" ")}"`);
     return process.stdout.write(commandHelp(definition));
   }
 
-  const resolved = resolveCommand(args);
+  const resolved = resolveCommand(capabilities, args);
   if (resolved.help === "docs") return process.stdout.write(docsOverviewHelp(capabilities));
+  if (resolved.help === "family") return process.stdout.write(familyHelp(capabilities, resolved.family));
   const definition = findCommand(capabilities, resolved.id);
   const parsed = parseCommandArgs(definition, resolved.args);
   if (parsed.help) return process.stdout.write(commandHelp(definition));
-  const run = await loadHandler(definition.id, pkg.version);
+  const run = await loadHandler(definition, pkg.version);
   await run(parsed.input, parsed.values);
   await maybeNotifyUpdate(pkg.version, { command: definition.id.split(".")[0], values: parsed.values });
 }

@@ -1,0 +1,86 @@
+{
+  "id": "sync",
+  "name": "BC Atlas Sync",
+  "version": "0.2.0",
+  "description": "Syncs what the AL source cannot show into the project: Business Central process recordings (clicks, writes, AL call stacks as fact snapshots) into documents, BC Atlas UI tests, the architecture layer, and a process index. What, when, and how is the \"sync\" section of .bca.json.",
+  "apiVersion": 1,
+  "main": "src/index.js",
+  "area": "integrate",
+  "configKey": "sync",
+  "contributes": {
+    "commands": [
+      {
+        "name": "plan",
+        "purpose": "Show what each sync channel would write for a trigger, without writing.",
+        "options": {
+          "trigger": { "description": "Trigger whose channels run.", "enum": ["pre-commit", "pre-push", "ci", "schedule", "manual"], "default": "manual" },
+          "channel": { "description": "Only this channel; ignores the trigger.", "repeatable": true, "value": "id" },
+          "format": { "description": "Output mode.", "enum": ["text", "json"], "default": "text" }
+        },
+        "output": "SyncResult",
+        "examples": ["bca sync plan --trigger ci"]
+      },
+      {
+        "name": "run",
+        "purpose": "Sync Business Central process recordings into documents, UI tests, the architecture layer, and the process index.",
+        "options": {
+          "trigger": { "description": "Trigger whose channels run.", "enum": ["pre-commit", "pre-push", "ci", "schedule", "manual"], "default": "manual" },
+          "channel": { "description": "Only this channel; ignores the trigger.", "repeatable": true, "value": "id" },
+          "force": { "type": "boolean", "description": "Rewrite every process, whatever the channel condition says." },
+          "format": { "description": "Output mode.", "enum": ["text", "json"], "default": "text" }
+        },
+        "output": "SyncResult",
+        "rules": ["The sync task of bca run uses the same channels; its sync mode delivers the output."],
+        "examples": ["bca sync run", "bca sync run --channel processes --force"]
+      },
+      {
+        "name": "status",
+        "purpose": "Show for every sync channel which processes are new, changed, drifted, or removed.",
+        "options": {
+          "channel": { "description": "Only this channel.", "repeatable": true, "value": "id" },
+          "format": { "description": "Output mode.", "enum": ["text", "json"], "default": "text" }
+        },
+        "output": "SyncResult",
+        "examples": ["bca sync status --format json"]
+      },
+      {
+        "name": "describe",
+        "purpose": "List what a sync manifest can use: sources, triggers, conditions, and formats, including those contributed by other plugins.",
+        "argv": "",
+        "options": {
+          "format": { "description": "Output mode.", "enum": ["text", "json"], "default": "text" }
+        },
+        "examples": ["bca sync describe --format json"]
+      }
+    ],
+    "tasks": [
+      {
+        "id": "sync",
+        "summary": "Business Central process recordings into documents, UI tests, architecture, and index (\"sync\" in .bca.json)",
+        "before": ["docs"],
+        "after": ["check"]
+      }
+    ],
+    "healthRules": [
+      {
+        "id": "sync-outdated",
+        "severity": "warning",
+        "summary": "A recorded process changed in Business Central (new fingerprint) but its synced documentation was not updated yet."
+      }
+    ],
+    "mcpTools": [
+      {
+        "name": "bc_atlas_sync_status",
+        "description": "Report for every sync channel which Business Central processes are new, changed, drifted, or removed, and which files a sync would write. Writes nothing.",
+        "input": {
+          "path": { "type": "string", "description": "Project root with .bca.json" },
+          "channel": { "type": "string", "description": "Only this channel", "optional": true }
+        }
+      }
+    ],
+    "extensionPoints": [
+      { "id": "sync.sources", "summary": "Source types for sync channels (what): { type, summary, load(root, source, context) -> { items, warnings } }" },
+      { "id": "sync.formats", "summary": "Output formats for sync channels (how): { id, summary, scope: process|channel, render(input) -> { files, warnings } }" }
+    ]
+  }
+}

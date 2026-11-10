@@ -8,18 +8,33 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Modules** (`"modules"` in `.bca.json`, `BCA_MODULES`): separately installed
-  packages add tasks and commands while BC Atlas stays independent of them.
-  A module gets a host (project, trigger, log, architecture model, docs
-  renderer) instead of importing BC Atlas internals; the module API version is
-  checked on load. See [Modules and bc-atlas-sync](docs/modules.md).
-- **`bca sync plan|run|status` and the `sync` task** for the first module,
-  [bc-atlas-sync](https://github.com/SchulzOli/bc-atlas-sync): Business Central
-  process recordings (clicks, writes, AL call stacks as fact snapshots) synced
-  into documents, BC Atlas UI tests, the architecture layer, and a process
-  index. What, when, and how is the `sync` section of `.bca.json`; the task
-  runs before `docs` and its outputs take part in verify, stage, artifacts,
-  and pull requests.
+- **Plugins** (plugin API 1, [docs](docs/plugins.md)): a plugin declares in
+  `plugin.json` what it contributes — commands (`bca <plugin> <command>`),
+  tasks for `bca run` (placed with before/after, outputs included in verify,
+  stage, artifacts, and pull requests), health rules for `bca check`, MCP
+  tools, hooks (`run:before`, `task:after`, `run:after`, `check:after`), and
+  extension points for other plugins. Code runs only when a contribution is
+  used, through `activate(context)` with the project, its config section, a
+  log, and services (architecture model, docs renderer). Plugins come built in
+  (`plugins/`), from npm (`bc-atlas-plugin-*` dependencies, no configuration),
+  from `"plugins"` in `.bca.json`, or from `BCA_PLUGINS`.
+- **`bca plugins list|show|doctor|new`**: see what a project's plugins
+  contribute, check every declared contribution, and start a plugin from a
+  working template.
+- **Built-in plugin `sync`** (formerly the separate bc-atlas-sync repository,
+  imported with its history into `plugins/sync`): Business Central process
+  recordings (clicks, writes, AL call stacks as fact snapshots) synced into
+  documents, BC Atlas UI tests, the architecture layer, and a process index —
+  `bca sync plan|run|status|describe`, the `sync` task (before `docs`), the
+  `sync-outdated` health rule, the `bc_atlas_sync_status` MCP tool, and the
+  extension points `sync.sources` and `sync.formats`. Includes the BC Atlas
+  Sync AL extension, its tests, and the Playwright run.
+
+### Changed
+
+- `bca setup` (and `bca update`, which runs `setup apply --from-config`) keeps
+  the tasks it does not ask about in their triggers: plugin tasks, `simulate`,
+  `handbook`, and `diagrams` were dropped before.
 - **Visibility view** (`bca export --view visibility`): what is public,
   internal, or local, in three levels and three colors. Every app, object,
   procedure, event, and table field is a data point with its level: public

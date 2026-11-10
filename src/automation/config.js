@@ -20,9 +20,9 @@ export const TASKS = Object.freeze({
   docs: "User guides or test cases from AL UI tests",
   codegraph: "One Markdown page per AL object",
   handbook: "System handbook: events, data, permissions, interfaces, UI, code health (docs/handbook)",
-  diagrams: "Extra diagrams listed under \"diagrams\" in .bca.json",
-  sync: "Data from outside the AL source via the bc-atlas-sync module: Business Central process recordings into documents, UI tests, architecture, and index (\"sync\" in .bca.json)"
+  diagrams: "Extra diagrams listed under \"diagrams\" in .bca.json"
 });
+// Plugins add tasks of their own (plugin.json contributes.tasks); see src/plugins.
 
 export const TRIGGERS = Object.freeze({
   "pre-commit": "Git hook before each commit",
@@ -80,8 +80,12 @@ export function validateCron(value) {
   return fields.join(" ");
 }
 
-/** Normalizes and validates the automation section. */
-export function automationConfig(config = {}) {
+/**
+ * Normalizes and validates the automation section.
+ * @param pluginTasks ids of the tasks the project's plugins contribute
+ */
+export function automationConfig(config = {}, { pluginTasks = [] } = {}) {
+  const allowed = [...Object.keys(TASKS), ...pluginTasks];
   const automation = config.automation ?? {};
   const triggers = {};
   for (const [name, trigger] of Object.entries(automation.triggers ?? {})) {
@@ -91,7 +95,7 @@ export function automationConfig(config = {}) {
       throw new Error(`trigger "${name}" supports sync ${syncModesFor(name).join(", ")}, not "${sync}"`);
     }
     triggers[name] = {
-      tasks: parseList(trigger.tasks ?? [], Object.keys(TASKS), `${name} tasks`),
+      tasks: parseList(trigger.tasks ?? [], allowed, `${name} tasks`),
       sync,
       ...(name === "schedule" && trigger.cron ? { cron: validateCron(trigger.cron) } : {})
     };
@@ -104,22 +108,11 @@ export function automationConfig(config = {}) {
 }
 
 /**
- * What the sync task writes: every channel's output directory and the state file. Mirrors the
- * defaults of the bc-atlas-sync manifest (module API 1), so pipelines know the paths without
- * loading the module.
+ * Output directories (relative to the project root) that a task writes.
+ * @param pluginOutputs outputs of plugin tasks, already asked from the plugins: { [task]: paths }
  */
-export function syncOutputs(config = {}) {
-  const channels = config.sync?.channels ?? [];
-  if (!channels.length) return [];
-  return [...new Set([
-    ...channels.map(({ id, how }) => how?.outputDir ?? `docs/sync/${id}`),
-    config.sync?.state ?? ".bca/sync-state.json"
-  ])];
-}
-
-/** Output directories (relative to the project root) that a task writes. */
-export function taskOutputs(task, config = {}) {
-  if (task === "sync") return syncOutputs(config);
+export function taskOutputs(task, config = {}, pluginOutputs = {}) {
+  if (pluginOutputs[task]) return pluginOutputs[task];
   if (task === "report") return [config.report?.outputDir ?? DEFAULTS.report.outputDir];
   if (task === "docs") return [config.docs?.outputDir ?? DEFAULTS.docs.outputDir];
   if (task === "codegraph") return [config.codegraph?.outputDir ?? DEFAULTS.codegraph.outputDir];
@@ -135,7 +128,7 @@ export function taskOutputs(task, config = {}) {
   return [];
 }
 
-export function outputsFor(tasks, config, base = "") {
-  return [...new Set(tasks.flatMap((task) => taskOutputs(task, config)))]
+export function outputsFor(tasks, config, base = "", pluginOutputs = {}) {
+  return [...new Set(tasks.flatMap((task) => taskOutputs(task, config, pluginOutputs)))]
     .map((output) => path.posix.join(base.replaceAll("\\", "/") || ".", output.replaceAll("\\", "/")));
 }
