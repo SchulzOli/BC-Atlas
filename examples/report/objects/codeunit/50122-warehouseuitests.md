@@ -34,8 +34,8 @@ Verifies and documents the primary warehouse request workflows through the user 
 
 | Visibility | Procedure header | Lines | Complexity | Description |
 | --- | --- | --- | --- | --- |
-| public | `procedure WarehouseRequests_CreateRequest_PersistsDescription() var WarehouseRequest: Record "Warehouse Request"; WarehouseRequests: TestPage "Warehouse Requests"` | 26 | 2 | `[Test]` |
-| public | `procedure WarehouseRequests_ProcessRequest_MarksRequestProcessed() var WarehouseRequest: Record "Warehouse Request"; WarehouseRequests: TestPage "Warehouse Requests"` | 29 | 2 | `[Test]` |
+| public | `procedure WarehouseRequests_CreateRequest_PersistsDescription()` | 26 | 2 | `[Test]` |
+| public | `procedure WarehouseRequests_ProcessRequest_MarksRequestProcessed()` | 29 | 2 | `[Test]` |
 
 ## Dependencies
 

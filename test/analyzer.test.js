@@ -977,6 +977,182 @@ interface Contract {
   assert.equal(classifyFallbackBody({ name: "SymbolOnly" }).kind, "unknown");
 });
 
+test("the header of a procedure ends before its variables", async () => {
+  const source = `codeunit 50100 "C"
+{
+    local procedure Plain(var R: Record Customer): Boolean
+    var
+        L: Integer;
+    begin
+    end;
+
+    procedure OneLine(): Integer; var L: Integer; begin end;
+
+    procedure ConditionalVariables(): Text
+#if X
+    var
+        L: Record Customer;
+#endif
+    begin
+    end;
+
+    internal procedure Annotated(P: Integer /* in */) /* mid */ : Integer // trailing
+    // above the variables
+#pragma warning disable AA0137
+    var
+        L: Integer;
+#pragma warning restore AA0137
+    begin
+    end;
+
+    trigger OnRun()
+    var
+        L: Integer;
+    begin
+    end;
+
+    procedure NoVariables(): Boolean // trailing
+    begin
+    end;
+}
+`;
+  const result = await testing.objectsFromSource(source, "a.al");
+  const [codeunit] = result.objects;
+
+  assert.equal(result.hasError, false);
+  assert.deepEqual(codeunit.procedures.map(({ header, returnType, hasBody }) => ({ header, returnType, hasBody })), [
+    { header: "local procedure Plain(var R: Record Customer): Boolean", returnType: "Boolean", hasBody: true },
+    { header: "procedure OneLine(): Integer", returnType: "Integer", hasBody: true },
+    { header: "procedure ConditionalVariables(): Text", returnType: "Text", hasBody: true },
+    // A comment inside the header is part of it as written; what follows the header is not.
+    { header: "internal procedure Annotated(P: Integer /* in */) /* mid */ : Integer", returnType: "Integer", hasBody: true },
+    { header: "trigger OnRun()", returnType: undefined, hasBody: true },
+    { header: "procedure NoVariables(): Boolean", returnType: "Boolean", hasBody: true }
+  ]);
+  // The variables still belong to their procedure.
+  assert.deepEqual(
+    codeunit.procedures.map(({ scope }) =>
+      codeunit.variables.filter((variable) => variable.scope === scope).map(({ name }) => name)),
+    [["R", "L"], ["L"], ["L"], ["P", "L"], ["L"], []]
+  );
+});
+
+test("a procedure whose body is split by #if has a body, and its header is only the header", async () => {
+  const source = `codeunit 50101 C
+{
+    procedure A()
+#if X
+    var
+        L: Record Customer;
+    begin
+        L.Modify();
+    end;
+#elif Y
+    begin
+        Error('failed');
+    end;
+#else
+    begin
+    end;
+#endif
+
+    local procedure SharedEnd(P: Integer): Boolean
+#if X
+    begin
+        if P > 0 then
+            exit(false);
+#else
+    begin
+#endif
+        Helper();
+        exit(true);
+    end;
+
+    trigger OnRun()
+#if not X
+    var
+        V: Record Vendor;
+    begin
+        V.Insert();
+    end;
+#else
+    begin
+        Helper();
+    end;
+#endif
+
+    procedure Helper()
+    begin
+    end;
+}
+`;
+  const result = await testing.objectsFromSource(source, "a.al");
+  const [codeunit] = result.objects;
+  const procedure = (wanted) => codeunit.procedures.find(({ name }) => name === wanted);
+  const shape = (statements) => statements.map((statement) => statement.kind === "conditional"
+    ? { branches: (statement.branches ?? [statement.then, statement.else]).map((branch) => branch && shape(branch)) }
+    : `${statement.kind}${statement.target ? ` ${statement.target}` : ""}${statement.conditional ? " (conditional)" : ""}`);
+
+  assert.equal(result.hasError, false);
+  assert.deepEqual(codeunit.procedures.map(({ name, header, hasBody, returnType }) => ({ name, header, hasBody, returnType })), [
+    { name: "A", header: "procedure A()", hasBody: true, returnType: undefined },
+    { name: "SharedEnd", header: "local procedure SharedEnd(P: Integer): Boolean", hasBody: true, returnType: "Boolean" },
+    { name: "OnRun", header: "trigger OnRun()", hasBody: true, returnType: undefined },
+    { name: "Helper", header: "procedure Helper()", hasBody: true, returnType: undefined }
+  ]);
+
+  // Every branch is a body of its own: one path per branch, the empty one included.
+  const a = procedure("A");
+  assert.equal(a.fallbackFacts.complete, true);
+  assert.equal(a.fallbackFacts.limitations, undefined);
+  assert.deepEqual(shape(a.fallbackFacts.statements), [
+    { branches: [["call Modify (conditional)"], ["call Error (conditional)"], []] }
+  ]);
+  assert.equal(a.fallbackFacts.statements[0].hasImplicitEmptyPath, false);
+  assert.deepEqual(
+    (({ file, line, endLine }) => ({ file, line, endLine }))(a.fallbackFacts.statements[0].location),
+    { file: "a.al", line: 4, endLine: 17 }
+  );
+  assert.equal(classifyFallbackBody(a).kind, "conditional");
+  assert.equal(a.metadata.complexity, 1);
+  assert.deepEqual(a.calls.map(({ name }) => name), ["Modify", "Error"]);
+  assert.deepEqual(
+    codeunit.variables.filter(({ scope }) => scope === a.scope).map(({ name }) => name),
+    ["L"]
+  );
+  assert.ok(codeunit.relations.some(({ target, kind, member }) =>
+    target === "Customer" && kind === "writes" && member === "A()"
+  ));
+
+  // The branches open the body and its end is shared: what follows #endif runs on every path.
+  const sharedEnd = procedure("SharedEnd");
+  assert.equal(sharedEnd.visibility, "local");
+  assert.equal(sharedEnd.fallbackFacts.complete, true);
+  assert.deepEqual(shape(sharedEnd.fallbackFacts.statements), [
+    {
+      branches: [
+        [{ branches: [["return (conditional)"], null] }],
+        []
+      ]
+    },
+    "call Helper",
+    "return"
+  ]);
+  assert.equal(sharedEnd.fallbackFacts.statements[1].resolved, true);
+  assert.equal(sharedEnd.metadata.complexity, 2);
+  assert.equal(classifyFallbackBody(sharedEnd).kind, "conditional");
+
+  // A trigger, and a call that resolves inside a branch.
+  const onRun = procedure("OnRun");
+  assert.equal(onRun.kind, "trigger");
+  assert.deepEqual(shape(onRun.fallbackFacts.statements), [
+    { branches: [["call Insert (conditional)"], ["call Helper (conditional)"]] }
+  ]);
+  assert.equal(onRun.fallbackFacts.statements[0].branches[1][0].resolved, true);
+
+  assert.deepEqual(procedure("Helper").fallbackFacts, { complete: true, statements: [] });
+});
+
 test("contract expectations honor explicit bindings, interface defaults, and uncertainty", async () => {
   const source = `
 namespace Demo;
