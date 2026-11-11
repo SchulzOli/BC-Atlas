@@ -221,3 +221,16 @@ test("layers is a command with options for every setting, and a task of bca run"
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("the pages of the example in the repository link to files that are in the repository", () => {
+  // The pictures are generated files: a rule that ignores them leaves the pages without pictures and breaks the website.
+  const example = path.join(root, "examples", "layers");
+  const manifest = JSON.parse(readFileSync(path.join(example, "layers.json"), "utf8"));
+  const tracked = new Set(spawnSync("git", ["ls-files", "examples/layers"], { cwd: root, encoding: "utf8" }).stdout.split("\n").filter(Boolean).map((file) => file.slice("examples/layers/".length)));
+  for (const file of manifest.files) {
+    assert.ok(existsSync(path.join(example, file)), `examples/layers/${file} exists`);
+    if (tracked.size) assert.ok(tracked.has(file), `examples/layers/${file} is committed, not ignored`);
+    if (!file.endsWith(".md")) continue;
+    for (const target of links(readFileSync(path.join(example, file), "utf8"))) assert.ok(existsSync(path.join(example, path.dirname(file), target)), `examples/layers/${file} links to ${target}`);
+  }
+});
