@@ -67,8 +67,9 @@ follows [Semantic Versioning](https://semver.org/).
   **See in** on the card of a node lists the other lenses it is in and
   changes the lens around it. A node that is in the picture before and
   after a step stays where it is; between 2D, Diagram, and 3D the nodes
-  glide and the camera turns; the Back and Forward keys of a browser follow
-  every step. Keys: `[` `]` the lens before and after, `Backspace` one step
+  glide and the camera turns; the picture fits next to the card of the
+  selected node, not under it; the Back and Forward keys of a browser
+  follow every step. Keys: `[` `]` the lens before and after, `Backspace` one step
   up. `bca view --inside` takes an app, a component, or a namespace too.
 - **Plugins add to the graph.** The new contribution `atlas` lets a plugin
   put nodes, relations, lenses, findings, and stories into the one graph;

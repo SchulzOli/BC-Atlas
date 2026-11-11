@@ -59,7 +59,8 @@ Nothing jumps. A node that is in the picture before and after a step stays
 where it is, and the rest comes and goes around it: when the lens changes,
 when you go into a component or come back, when the source changes. Between
 2D, Diagram, and 3D the nodes glide to their new places and the camera
-turns. Every step to another place (a lens, something you went into, a
+turns. The picture fits next to the card of the selected node, not under
+it. Every step to another place (a lens, something you went into, a
 story) is one the **Back** and **Forward** keys of a browser take back and
 forth; in an exported file the address changes with it. With "reduce
 motion" set in the operating system, the next picture stands at once.

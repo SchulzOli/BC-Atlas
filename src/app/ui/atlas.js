@@ -203,6 +203,10 @@
     if (!atlas.lenses.some(({ id }) => id === state.lens)) state.lens = atlas.lenses[0].id;
 
     const next = await sceneFor();
+    // The card of the selected node floats on the right: the picture fits next to it.
+    const stage = $("#stage").clientWidth;
+    const room = { right: state.sel && next.place.has(state.sel) && stage > 680 ? Math.min(340, stage - 24) + 24 : 0 };
+    const moved = !graph || next.key !== applied.key || applied.form !== state.form;
     if (!graph || next.key !== applied.key) {
       // What stays in the picture stays where it is; the rest comes and goes around it.
       const before = graph?.snapshot();
@@ -211,6 +215,7 @@
       graph = BCA_GRAPH.create($("#graph"), scene, {
         mode: state.form,
         from: before,
+        room,
         onInfo: ({ selected }) => {
           const id = selected >= 0 ? scene.entries[selected].node.id : "";
           if (id === state.sel) return;
@@ -239,6 +244,7 @@
       if (applied.show !== undefined || state.hide || state.off) graph.show(flags.nodes, flags.kinds.length ? flags.kinds : new Uint8Array(1).fill(1));
       applied.show = showKey;
     }
+    graph.room(room, { follow: moved });
     graph.size(S.sizeValues(scene, found, state.size, flags.degree));
     // Check: a ring in the color of the worst finding on a node.
     graph.rings(state.check ? S.rings(scene, found) : undefined);

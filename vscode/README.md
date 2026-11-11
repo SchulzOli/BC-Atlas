@@ -29,7 +29,11 @@ graph, and the toolbar decides what you see of it:
 - **Find** lights up what you look for, **Check** puts the findings on the
   nodes they are about;
 - click a node for what it is, its findings with the fix, and its
-  relations; **Go to source** opens its line.
+  relations; **Go to source** opens its line;
+- double-click to go into it: an app, a component, or a namespace opens to
+  its objects, an object to its procedures. A trail next to the lens says
+  where you are, and every part of it is one click back. Nothing jumps:
+  what stays in the picture stays where it is.
 
 There are no pages, no tabs, and no lists to learn.
 
@@ -91,6 +95,17 @@ With process tests in the project, BC Atlas lets agents with the roles and
 permission sets of your company perform them, step by step, from the source.
 The graph shows who performs what, who is blocked and by which missing
 permission, and who can do what they must not.
+
+## What really runs in Business Central
+
+![The Recordings lens: a channel, two recorded processes, and the pages, codeunits, and tables each one runs through and changes](marketing/screenshots/recordings.png)
+
+The source says what can happen; a recording says what does. With
+[BC Atlas Sync](https://github.com/SchulzOli/BC-Atlas/blob/main/plugins/sync/README.md)
+set up, every process recorded in Business Central is a node of the same
+graph: the objects it runs through, the tables it changes, and whether it is
+synced into the project or waits for it. Plugins add lenses, findings, and
+stories of their own in the same way.
 
 ## Right where you code
 

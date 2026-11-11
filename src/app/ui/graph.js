@@ -592,6 +592,7 @@
 
   /** Moves the camera so that everything visible is in the window. */
   function frameOn(v) {
+    const free = freeOf(v);
     if (v.form === "diagram") {
       let left = Infinity;
       let right = -Infinity;
@@ -606,14 +607,22 @@
         bottom = Math.max(bottom, box.y + box.h / 2);
       }
       if (left === Infinity) left = right = top = bottom = 0;
-      v.camera.zoom = Math.min(1.4, (v.width - 48) / Math.max(right - left, 1), (v.height - 48) / Math.max(bottom - top, 1));
-      v.camera.x = -((left + right) / 2) * v.camera.zoom;
-      v.camera.y = -((top + bottom) / 2) * v.camera.zoom;
+      v.camera.zoom = Math.min(1.4, (free.width - 48) / Math.max(right - left, 1), (free.height - 48) / Math.max(bottom - top, 1));
+      v.camera.x = free.x - ((left + right) / 2) * v.camera.zoom;
+      v.camera.y = free.y - ((top + bottom) / 2) * v.camera.zoom;
       return;
     }
-    v.camera.zoom = Math.min(3, Math.min(v.width, v.height) / 2 / (extentOf(v) * 1.08 + 46));
-    v.camera.x = 0;
-    v.camera.y = 0;
+    v.camera.zoom = Math.min(3, Math.min(free.width, free.height) / 2 / (extentOf(v) * 1.08 + 46));
+    v.camera.x = free.x;
+    v.camera.y = free.y;
+  }
+
+  /** The part of the window nothing floats on (v.room: what is taken at each side), and where its middle is. */
+  function freeOf(v) {
+    const { left = 0, right = 0, top = 0, bottom = 0 } = v.room ?? {};
+    const width = Math.max(v.width - left - right, v.width / 3);
+    const height = Math.max(v.height - top - bottom, v.height / 3);
+    return { width, height, x: width < v.width - left - right + 1 ? (left - right) / 2 : 0, y: height < v.height - top - bottom + 1 ? (top - bottom) / 2 : 0 };
   }
 
   /** Draws the picture as it is now through a pen. */
@@ -829,10 +838,11 @@
    * @param scene { title, nodes: [{ label, group, color }], edges: [[from, to, kind, weight]], kinds: [{ kind, color, dash }], groups }
    * @param from the picture before this one (snapshot() of its graph): nodes that were in it start
    *   where they were and glide to their new places, and the camera moves on from where it stood
+   * @param room { left, right, top, bottom }: what floats on the window at each side; the picture fits in the rest
    * @param onInfo called with { hover, selected } (node indexes) when one changes
    * @param onOpen called with a node index on a double click
    */
-  function create(container, scene, { mode = "2d", from, onInfo = () => {}, onOpen = () => {} } = {}) {
+  function create(container, scene, { mode = "2d", from, room: taken, onInfo = () => {}, onOpen = () => {} } = {}) {
     const { nodes, edges, kinds } = scene;
     const canvas = document.createElement("canvas");
     canvas.className = "graph-canvas";
@@ -859,6 +869,9 @@
     let glide;
     // Nodes on their way from one layout to another: { from: [{ x, y, z }], start, duration }.
     let morph;
+    // What floats on the window at each side, and whether the camera is on its way to fit the picture in the rest.
+    let room = taken ?? {};
+    let following = true;
     // The camera on its way from one angle to another (2D to 3D and back).
     let turn;
     let hover = -1;
@@ -874,7 +887,7 @@
     const labels = nodes.map(({ label }) => shorten(label));
     const diagram = () => form === "diagram";
     /** The picture as it is now (see picture). */
-    const state = () => ({ nodes, edges, kinds, labels, visible, shown, form, points, boxes, routes: morph ? NO_ROUTES : routes, camera, width, height, hover, selected, highlight, rings, sizes, pinned, degree, neighbors, place: morph ? current : undefined });
+    const state = () => ({ nodes, edges, kinds, labels, visible, shown, form, points, boxes, routes: morph ? NO_ROUTES : routes, camera, width, height, room, hover, selected, highlight, rings, sizes, pinned, degree, neighbors, place: morph ? current : undefined });
 
     function connect() {
       for (const set of neighbors) set.clear();
@@ -950,11 +963,14 @@
       camera.y += y * 0.18;
       return false;
     }
-    function fit() {
+    /** The camera goes to where the picture fits, without a jump. */
+    function settle() {
       touched = false;
       glide = undefined;
+      following = true;
       redraw();
     }
+    const fit = settle;
 
     const project = (point, distance, view = camera) => projectOn(state(), point, distance, view);
     const radius = (index) => radiusOf({ sizes }, index);
@@ -996,8 +1012,11 @@
         }
         redraw();
       }
-      // Until someone moves the picture, the camera follows it, without a jump.
-      if (!touched && !glide && !follow()) redraw();
+      // Until someone moves the picture, the camera follows it to where it fits, without a jump.
+      if (!touched && !glide && following) {
+        if (!follow()) redraw();
+        else if (!morph && (diagram() || alpha <= 0.012)) following = false;
+      }
       const ratio = root.devicePixelRatio || 1;
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       draw.placed = paint(canvasPen(context));
@@ -1031,6 +1050,7 @@
       // The first picture stands at once; later the camera follows.
       if (!touched && !started) frameAll();
       started = true;
+      following = true;
       redraw();
     }
 
@@ -1180,6 +1200,7 @@
       if (!wanted.length) return;
       const unit = { ...camera, zoom: 1, x: 0, y: 0 };
       const distance = Math.max(extent() * 3, 400);
+      const free = freeOf(state());
       let left = Infinity;
       let right = -Infinity;
       let top = Infinity;
@@ -1197,8 +1218,8 @@
       // One node comes to the middle as large as the picture is, or large enough to read; several fill the window.
       const target = wanted.length === 1
         ? Math.min(most, Math.max(camera.zoom, diagram() ? 0.8 : 1))
-        : Math.max(0.05, Math.min(most, (width * 0.62) / Math.max(right - left, 1), (height * 0.56) / Math.max(bottom - top, 1)));
-      const to = { zoom: target, x: -((left + right) / 2) * target, y: -((top + bottom) / 2) * target };
+        : Math.max(0.05, Math.min(most, (free.width * 0.62) / Math.max(right - left, 1), (free.height * 0.56) / Math.max(bottom - top, 1)));
+      const to = { zoom: target, x: free.x - ((left + right) / 2) * target, y: free.y - ((top + bottom) / 2) * target };
       touched = true;
       if (!animate) {
         Object.assign(camera, to);
@@ -1263,8 +1284,7 @@
         // The camera turns to its new angle, and the nodes glide to their new places.
         turn = { from: { yaw: camera.yaw, pitch: camera.pitch }, to: { yaw: flat ? 0 : 0.6, pitch: flat ? 0 : 0.35 }, start: performance.now(), duration: 520 };
         if (!flat) for (const point of points) if (Math.abs(point.z) < 1) point.z = (next() - 0.5) * LINK * 2;
-        touched = false;
-        glide = undefined;
+        settle();
         if (diagram()) arrange();
         else reheat(0.7);
         arrive(before);
@@ -1278,8 +1298,7 @@
         const before = depart();
         connect();
         arrange();
-        touched = false;
-        glide = undefined;
+        settle();
         if (diagram()) arrive(before.map((start, index) => (start && boxes[index] ? start : undefined)));
         else reheat(0.45);
       },
@@ -1315,10 +1334,15 @@
         pinned.clear();
         points = seed(nodes, scene.groups?.length ?? 1);
         arrange();
-        touched = false;
-        glide = undefined;
+        settle();
         alpha = 1;
         arrive(before);
+      },
+      /** What floats on the window at each side; with follow, the picture moves to fit in the rest. */
+      room(value, { follow: move = false } = {}) {
+        const changed = ["left", "right", "top", "bottom"].some((side) => (value?.[side] ?? 0) !== (room[side] ?? 0));
+        room = value ?? {};
+        if (changed && move && !touched) settle();
       },
       /** Where every node is drawn and where the camera stands, for the picture that follows this one (see `from`). */
       snapshot() {

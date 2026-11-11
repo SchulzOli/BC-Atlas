@@ -68,7 +68,7 @@ button { cursor: pointer; }
   min-width: 0;
   z-index: 3;
 }
-.brand { display: inline-flex; align-items: center; gap: 9px; margin-right: 6px; min-width: 0; }
+.brand { display: inline-flex; align-items: center; gap: 9px; margin-right: 6px; min-width: 0; flex: 0 1 auto; }
 .brand b { font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22ch; }
 .logo { display: inline-grid; flex: none; }
 .logo svg { width: 22px; height: 22px; }
@@ -107,13 +107,14 @@ button { cursor: pointer; }
 /* Where the view is, after the lens: Core › Purchase Request */
 #trail { display: flex; align-items: center; min-width: 0; flex: 0 1 auto; font-size: 13px; white-space: nowrap; }
 #trail[hidden] { display: none; }
-#trail button, #trail b { height: 28px; padding: 0 7px; border: 0; border-radius: 7px; background: none; overflow: hidden; text-overflow: ellipsis; max-width: 24ch; }
-#trail button { color: var(--muted); flex: 0 1 auto; }
+#trail button, #trail b { height: 28px; padding: 0 7px; border: 0; border-radius: 7px; background: none; line-height: 28px; overflow: hidden; text-overflow: ellipsis; max-width: 28ch; min-width: 4ch; }
+#trail button { color: var(--muted); flex: 0 3 auto; }
 #trail button:hover { background: var(--hover); color: var(--text); }
-#trail b { display: inline-flex; align-items: center; font-weight: 600; flex: 0 2 auto; }
-#trail .up { order: -1; flex: none; width: 26px; padding: 0; font-size: 17px; line-height: 1; color: var(--text); }
+#trail b { font-weight: 600; flex: 0 1 auto; }
+#trail .up { flex: none; width: 26px; min-width: 26px; padding: 0; font-size: 17px; line-height: 26px; color: var(--text); }
 #trail button:not(.up)::before, #trail b::before { content: "›"; margin-right: 9px; color: var(--muted); opacity: 0.7; font-weight: 400; }
 #trail .up + button::before, #trail .up + b::before { content: none; }
+#trail:not([hidden]) ~ .search { min-width: 36px; }
 .tool.icon { width: 32px; padding: 0; justify-content: center; }
 .tool svg, .search svg, #zoom svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .count {
@@ -148,7 +149,8 @@ button { cursor: pointer; }
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--muted);
-  flex: 0 1 220px;
+  /* The search gives way first when the trail needs the room. */
+  flex: 0 10000 220px;
   min-width: 90px;
 }
 .search:focus-within { border-color: var(--focus); color: var(--text); }
@@ -367,8 +369,16 @@ code { font-family: var(--mono); font-size: 0.92em; padding: 1px 4px; border-rad
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 /* ---------------------------------------------------------- small windows */
+/* Where the view is matters more than the name of the project. */
+@media (max-width: 1280px) {
+  #bar:has(#trail:not([hidden])) .brand b { display: none; }
+}
 @media (max-width: 900px) {
   .brand b { display: none; }
+  #trail button:not(.up) { display: none; }
+  #trail b::before { content: none; }
+  #trail b { min-width: 10ch; }
+  #bar { overflow-x: auto; }
   .search { flex-basis: 130px; }
   .tool { padding: 0 8px; }
 }
