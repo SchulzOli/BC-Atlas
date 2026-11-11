@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.19.0
 
+- The engine is BC Atlas 0.19.0.
 - **One view: a toolbar and the graph.** The pages, the list of contents,
   and the tabs are gone. Everything BC Atlas reads from the AL source is one
   graph; a lens shows a part of it (system, components, apps, data, calls,
