@@ -720,7 +720,8 @@
           strong.push(edge);
           continue;
         }
-        const depth = flat ? 1 : (near(placed[edge[0]]) + near(placed[edge[1]])) / 2;
+        // A very large graph keeps one stroke per kind.
+        const depth = flat || many ? 1 : (near(placed[edge[0]]) + near(placed[edge[1]])) / 2;
         const into = depth < 0.88 ? behind : depth > 1.2 ? front : path;
         for (const value of anchors(edge)) into.push(value);
       }
@@ -789,7 +790,7 @@
       // A ring of the surface keeps overlapping v.nodes apart.
       pen.circle(item.x, item.y, size, color, opacity, marked ? look.text : look.background, index === v.selected ? 2.5 : 1);
       // In space a node is a ball: light falls on it from the upper left.
-      if (!flat && size > 3) pen.circle(item.x - size * 0.3, item.y - size * 0.32, size * 0.36, "#FFFFFF", 0.34 * opacity);
+      if (!flat && size > 3 && order.length <= 1500) pen.circle(item.x - size * 0.3, item.y - size * 0.32, size * 0.36, "#FFFFFF", 0.34 * opacity);
       if (v.pinned.has(index) && size > 4) pen.circle(item.x, item.y, Math.max(1.2, size * 0.3), look.background, 1);
     }
 

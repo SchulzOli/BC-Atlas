@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **3D is in space.** What is in front is larger, what is behind fades;
+  nodes are balls, the graph stands over a floor and turns slowly until you
+  turn it, point at it, or select a node.
+
 ## 0.19.0
 
 - The engine is BC Atlas 0.19.0.

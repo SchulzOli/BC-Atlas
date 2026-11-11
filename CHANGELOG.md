@@ -4,6 +4,39 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- **`bca layers`: the layered documentation, in sync with the source.** The
+  system explained from the whole down to each procedure: one page per app,
+  component, namespace, and object, each with a picture and a sentence that
+  says what it is; the procedures, triggers, and events of an object with
+  what each reads, writes, and calls; and lenses, stories, and findings
+  across them. Every page links one layer up and one layer down. See
+  [Layered documentation](./docs/layers.md).
+  - **In sync.** The same source gives the same files, byte for byte, so a
+    run writes only what changed and removes what it no longer writes.
+    `--check` writes nothing and fails when the pages are behind the
+    source. `layers` is a task of `bca run`, with `layers.outputDir`,
+    `pictures`, `history`, and `view` in `.bca.json`.
+  - **The source as it was.** `--at <commit, tag, or release>` records the
+    same pages for that state below `history/`, read from a temporary
+    checkout; `--releases` records every release not recorded yet.
+    `history/README.md` lists the states and what changed from each to the
+    next: objects added, removed, and changed, relations, and findings new
+    and fixed. A recorded state also holds `view.html`, the BC Atlas view
+    of it to open in a browser.
+
+### Fixed
+
+- **The 3D form is in space.** It looked like the 2D graph seen from the
+  side. Now the eye stands closer, so what is in front is clearly larger;
+  nodes are balls with light on them; relations behind are fainter and
+  those in front stronger; the graph stands over a floor of rings and
+  spokes and turns slowly until you turn it, point at it, or select a
+  node. Pictures of `bca view --form 3d` show the same.
+
 ## 0.19.0 - 2026-11-11
 
 ### Changed

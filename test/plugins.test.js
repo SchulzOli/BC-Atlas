@@ -132,7 +132,7 @@ test("tasks: plugin tasks validate, take their place in the order, run with hook
   globalThis.events = [];
   try {
     const registry = await loadPlugins(root, JSON.parse(readFileSync(path.join(root, ".bca.json"), "utf8")), { env: {} });
-    assert.deepEqual(registry.taskOrder(), ["check", "simulate", "report", "diagrams", "sync", "audit", "docs", "codegraph", "handbook"],
+    assert.deepEqual(registry.taskOrder(), ["check", "simulate", "report", "diagrams", "sync", "audit", "docs", "codegraph", "handbook", "layers"],
       "before wins over after: both plugin tasks right before docs, in plugin order");
     assert.throws(() => automationConfig({ automation: { triggers: { ci: { tasks: ["audit"] } } } }), /unsupported: audit/u, "without the plugin the task is unknown");
 

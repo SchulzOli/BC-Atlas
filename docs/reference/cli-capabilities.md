@@ -40,6 +40,7 @@ Write what the app shows as files, look at any part of it from the terminal, and
 | `graph.render` | `bca graph render <graph.json>` | Render a saved graph selection as local SVG/HTML, Graphviz DOT, or reusable JSON without analyzing AL. |
 | `export` | `bca export [app-root]` | Write files: the BC Atlas view as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view. |
 | `view` | `bca view [app-root]` | The BC Atlas view without a window: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. What the toolbar of the app does, from the terminal. |
+| `layers` | `bca layers [app-root]` | The layered documentation, in sync with the source: the system explained from the whole down to each procedure, one page per app, component, namespace, and object, each with a picture. For the source as it is now, and for any commit, tag, or release. |
 | `docs.list` | `bca docs list <test-root>` | List documented UI-test scenarios. |
 | `docs.show` | `bca docs show <test-root>` | Show one scenario, its prerequisites, and its diagnostics. |
 | `docs.validate` | `bca docs validate <test-root>` | Validate IDs, tags, links, and prerequisite cycles. |

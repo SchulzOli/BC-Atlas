@@ -635,6 +635,41 @@ bca view ./app --format json > atlas.json                 # the whole graph
 - Text, JSON, CSV, and Markdown hold what shows: what `--hide`, `--off`,
   `--find`, and `--focus` leave.
 
+### `layers`
+
+```text
+bca layers [app-root] [-o <folder>] [--at <ref>]... [--releases [--last <n>]] [--check] [options]
+```
+
+The layered documentation, in sync with the source: the system explained
+from the whole down to each procedure, one page per app, component,
+namespace, and object, each with a picture. For the source as it is now, and
+for any commit, tag, or release. See [Layered documentation](./layers.md).
+
+```sh
+bca layers ./app                       # docs/layers: the source as it is now
+bca layers ./app --check               # fails when the pages are behind the source
+bca layers ./app --at v1.4.0           # docs/layers/history/v1.4.0: the source as it was
+bca layers ./app --releases --last 5   # the working tree, and the newest five releases
+```
+
+| Option | Value | Meaning |
+| --- | --- | --- |
+| `-o`, `--output` | path | The folder of the pages (default: `layers.outputDir` in `.bca.json`, else `docs/layers`). States of the past go below `history/` in it. |
+| `--at` | ref | Record the source as it was at a commit, a tag, or a release, below `history/<name>`. Repeatable, or comma-separated. Only these states are written, not the working tree. |
+| `--releases` | | Also record every release (Git tag) the current commit descends from that is not recorded yet. |
+| `--last` | n | With `--releases`: only the newest n releases. |
+| `--refresh` | | Write a state that is already recorded again, for example after an update of BC Atlas. |
+| `--check` | | Write nothing; fail (exit code 1) when the pages are not in sync with the source, or an asked state is not recorded. |
+| `--pictures` | `auto`, `all`, `none` | Pictures of single objects: `auto` (up to 400 objects), `all`, or `none` (no pictures at all). |
+| `--view` | | Also write `view.html`, the BC Atlas view of the working tree as one offline file. A state of the past always has it. |
+| `-f`, `--format` | `text`, `json` | What the command reports. |
+
+The same source gives the same files, byte for byte: a run changes only what
+changed and removes what it wrote before and no longer writes. A state of
+the past is read from a temporary checkout (`git worktree`); the working
+tree is not touched. `layers` is also a task of [`run`](#run).
+
 ### `docs` commands
 
 AL UI-test files are the only persisted scenario source. See
