@@ -9,7 +9,7 @@ const MAX_INSIDES = 2500;
 /**
  * @returns { generatedAt, atlas, inside: { [object id]: inside } }
  */
-export async function createSnapshot(workspace, { log = () => {}, title } = {}) {
+export async function createSnapshot(workspace, { log = () => {}, title, generatedAt } = {}) {
   const atlas = { ...await workspace.atlas(), live: false, ...(title ? { title } : {}) };
   const objects = atlas.nodes.filter((node) => node.kind === "object" && !node.external);
   const inside = {};
@@ -22,7 +22,7 @@ export async function createSnapshot(workspace, { log = () => {}, title } = {}) 
     log(`${objects.length.toLocaleString("en-US")} objects: the export leaves out what is inside each object (at most ${MAX_INSIDES.toLocaleString("en-US")}).`);
   }
   log(`Read ${atlas.nodes.length.toLocaleString("en-US")} nodes, ${atlas.edges.length.toLocaleString("en-US")} relations, ${atlas.lenses.length} lenses, ${atlas.stories.length} stories`);
-  return { generatedAt: new Date().toISOString(), atlas, inside };
+  return { generatedAt: generatedAt ?? new Date().toISOString(), atlas, inside };
 }
 
 export async function renderSnapshotHtml(workspace, options = {}) {

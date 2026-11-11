@@ -119,6 +119,16 @@
         "catalog": { "description": "Folder of the object catalog that object names link to; bca run uses the codegraph task's folder when the same run writes it.", "type": "string" }
       }
     },
+    "layers": {
+      "description": "The layered documentation (bca layers, the layers task of bca run): the system explained from the whole down to each procedure, kept in sync with the source.",
+      "type": "object",
+      "properties": {
+        "outputDir": { "type": "string", "default": "docs/layers" },
+        "pictures": { "description": "Pictures of single objects: auto (up to 400 objects), all, or none (no pictures at all).", "enum": ["auto", "all", "none"], "default": "auto" },
+        "history": { "description": "releases: every run also records each release (Git tag) that is not recorded yet below <outputDir>/history.", "enum": ["none", "releases"], "default": "none" },
+        "view": { "description": "Also write view.html, the BC Atlas view of the working tree as one offline file.", "type": "boolean", "default": false }
+      }
+    },
     "simulation": {
       "description": "The battle test (bca simulate): the company whose agents perform the process tests.",
       "type": "object",
