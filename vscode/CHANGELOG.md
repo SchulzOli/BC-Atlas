@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.21.0
 
+- The engine is BC Atlas 0.21.0.
 - **Simulate › Run, step by step** plays the simulation of one person on
   the graph: each step shows where the person is, what the step needs, and
   where it stops, and the picture is built step by step. The new lens
