@@ -27,7 +27,7 @@ configKey       its section of .bca.json       context.settings; validateConfig(
 
 | Source | How | Example |
 |---|---|---|
-| Built-in | `plugins/<id>` in BC Atlas, enabled unless switched off | `sync` |
+| Built-in | `plugins/<id>` in BC Atlas, enabled unless switched off | `sync`, `ai` |
 | npm | A dependency of the project named `bc-atlas-plugin-*` or `@scope/bc-atlas-plugin-*`; no configuration needed | `npm install --save-dev bc-atlas-plugin-telemetry` |
 | `.bca.json` | `"plugins"`: names, paths, or switches | `["bc-atlas-plugin-x", { "path": "../my-plugin" }]` or `{ "sync": false }` |
 | Environment | `BCA_PLUGINS` (comma-separated names or paths) | development, pipelines |
@@ -45,6 +45,7 @@ or `.bca.json` keys of BC Atlas or of each other; `bca plugins doctor` checks th
 | `context.root`, `context.config`, `context.settings` | Project, `.bca.json`, and the plugin's own section (`configKey`) |
 | `context.trigger`, `context.log(line)` | The trigger of `bca run` and a log that BC Atlas prints |
 | `context.services.atlasModel()` | The architecture model: objects with their component, components with their layer |
+| `context.services.atlas()` | The atlas: everything BC Atlas reads from the source as one graph (nodes, relations, lenses, findings, stories, the simulation) |
 | `context.services.renderDocs({ testsDir, outputDir, formats, mode })` | The documentation pipeline for AL UI tests |
 | `context.services.cacheDir` | `.bca/cache/<plugin>` for data that is not committed |
 | `context.extensions.get("<plugin>.<point>")` | What other plugins contribute to an extension point |
@@ -121,6 +122,16 @@ commands (`bca sync plan|run|status|describe`), the `sync` task, the `sync-outda
 Central" in the view, and two extension points of its own, `sync.sources` (what) and `sync.formats`
 (how), so other plugins can feed it.
 
+## Built-in: ai
+
+[BC Atlas AI](../plugins/ai/README.md) writes narrative documentation with a language model, from
+the facts BC Atlas reads from the source: one page per process and one for the system, each next to
+the grounding it was written from. BC Atlas itself calls no model; this plugin is the one place one
+is called, through one OpenAI-compatible endpoint, so a gateway routes to any model of any provider.
+It is optional: without an `ai` section in `.bca.json` it only prepares the facts
+(`bca ai context`, `bc_atlas_ai_context`). Commands `bca ai status|context|write`, the `ai` task,
+and two MCP tools.
+
 ## Plugins we expect to need
 
 These are assumptions about where BC Atlas goes next; each uses the contribution points above.
@@ -134,7 +145,6 @@ None of them exists yet.
 | **compat** | Compatibility between releases: removed or obsolete procedures, events, fields against the previous app symbols (AppSource rules) | health rules (`breaking-change`), `bca compat diff`, task |
 | **translation** | XLIFF coverage and terminology per language | health rules (missing translations, inconsistent terms), `bca translation report` |
 | **performance** | Profiles (`.alcpuprofile`) and SQL statistics from Business Central | `sync.sources` (profiles), health rule (hotspots on the architecture) |
-| **ai** | Explanations and summaries by a language model for handbook and guides | `bca ai explain`, MCP tools; needs the planned `export:page` hook |
 
 ## Planned contribution points
 

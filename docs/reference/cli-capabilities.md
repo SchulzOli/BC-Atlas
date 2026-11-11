@@ -50,6 +50,9 @@ Write what the app shows as files, look at any part of it from the terminal, and
 | `docs.unset` | `bca docs unset <test-root>` | Remove documentation metadata from AL source. |
 | `docs.automation` | `bca docs automation <test-root>` | Print a CI pipeline that keeps generated guides in sync. |
 | `docs.glossary` | `bca docs glossary` | List supported documentation tags and prerequisite types. |
+| `ai.status` | `bca ai status [app-root]` | Show what the AI plugin would use: the endpoint, the model, whether a key is set, and what there is to write about. |
+| `ai.context` | `bca ai context [app-root]` | Print the grounding of a subject: the facts BC Atlas read from the source that a model (or a person, or another agent) writes from. Calls no model. |
+| `ai.write` | `bca ai write [app-root]` | Write narrative documentation with the configured model: one page per subject, next to the grounding it was written from. |
 
 ### Integrate
 

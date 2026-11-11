@@ -887,6 +887,38 @@ manifest can use, including those of other plugins.
 | `--config` | path | Configuration file. |
 | `--format` | `text` or `json` | Output mode. Default: `text`. |
 
+### `ai status`, `ai context`, `ai write`
+
+```text
+bca ai status [app-root]
+bca ai context [app-root] [--subject <id>]
+bca ai write [app-root] [--subject <id>] [--output <folder>] [--force] [--dry-run]
+```
+
+Commands of the built-in [AI plugin](../plugins/ai/README.md): narrative
+documentation written by a language model from the facts BC Atlas reads from
+the source. BC Atlas itself calls no model; this plugin is the one place one
+is called, through one OpenAI-compatible endpoint, so a gateway can route to
+any model of any provider. `status` shows the endpoint, the model, whether a
+key is set, and the subjects; `context` prints the grounding of a subject
+and calls no model; `write` writes one page per subject next to the
+grounding it was written from, and again only when the grounding, the
+model, or the language changed. The `ai` task of `bca run` writes the same
+pages.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--subject` | id | What to write about: `system`, or `process:<id>` (see `bca ai status`). Default: every subject. Repeatable. |
+| `--output` | path | Folder of the pages (`write`). Default: `ai.outputDir`, else `docs/narrative`. |
+| `--force` | flag | Write a page again although its grounding and model did not change (`write`). |
+| `--dry-run` | flag | Call no model and write nothing; say which pages would be written (`write`). |
+| `--config` | path | Configuration file. |
+| `--format` | `text` or `json` | Output mode. Default: `text`. |
+
+The endpoint, the model, and the key come from the `ai` section of
+`.bca.json` or from `BCA_AI_ENDPOINT`, `BCA_AI_MODEL`, and `BCA_AI_API_KEY`.
+The key is never read from `.bca.json`.
+
 ### `update`
 
 ```text

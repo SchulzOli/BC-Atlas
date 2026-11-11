@@ -17,6 +17,15 @@ export function createServices({ root, config = {}, values = {} }) {
       const [overview, architecture, index] = await Promise.all([workspace.overview(), workspace.architecture(), workspace.objectIndex()]);
       return { overview: { title: overview.title }, architecture, objects: index.list };
     },
+    /**
+     * The atlas: everything BC Atlas reads from the source as one graph (src/app/atlas.js):
+     * nodes, relations, edges, lenses, findings, stories, and the simulation as it is defined.
+     * @param project another project than the one of the session (an MCP tool is given its path)
+     */
+    async atlas(project = root) {
+      const { Workspace } = await import("../app/workspace.js");
+      return new Workspace(project, values, { live: false }).atlas();
+    },
     /** Renders AL UI tests with the BC Atlas docs pipeline (guides, test cases, DITA, BPMN, ...). */
     async renderDocs({ testsDir, outputDir, formats = ["markdown"], mode = "guide", language, title }) {
       const [{ loadCorpus }, { exportDocumentation }] = await Promise.all([import("../docs/model.js"), import("../docs/export.js")]);

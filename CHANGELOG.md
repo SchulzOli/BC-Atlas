@@ -28,6 +28,25 @@ follows [Semantic Versioning](https://semver.org/).
     and fixed. A recorded state also holds `view.html`, the BC Atlas view
     of it to open in a browser.
 
+- **BC Atlas AI, an optional built-in plugin: narrative documentation
+  written by a language model, from facts.** BC Atlas itself still calls no
+  model. The plugin `ai` is the one place one is called, through one
+  OpenAI-compatible endpoint, so a gateway routes to any model of any
+  provider. See [BC Atlas AI](./plugins/ai/README.md).
+  - `bca ai context` prints the **grounding** of a subject (the system, or a
+    process of the battle test): steps with what each needs, who performs
+    or is blocked, requirements, what the recording of Business Central
+    shows, findings with fixes. No source code. It calls no model.
+  - `bca ai write` writes one page per subject next to its grounding, and
+    again only when the grounding, the model, or the language changed, so a
+    run without changes calls no model. `--dry-run` says what would be
+    written.
+  - Settings: `ai.endpoint`, `ai.model`, `ai.outputDir`, `ai.language` in
+    `.bca.json`, or `BCA_AI_ENDPOINT` and `BCA_AI_MODEL`. The key comes
+    from `BCA_AI_API_KEY` only, never from a file.
+  - The `ai` task of `bca run`, and the MCP tools `bc_atlas_ai_context` and
+    `bc_atlas_ai_write`.
+  - Plugins get `context.services.atlas()`: the whole graph.
 - **Define the simulation, from the view, the terminal, and an agent.** The
   company of the battle test is changed by operations instead of by hand:
   add or change an agent, a role, a task group, or a requirement, remove

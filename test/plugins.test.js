@@ -88,7 +88,7 @@ test("discovery: built-in, .bca.json paths, switching off, npm packages, BCA_PLU
   try {
     const registry = await loadPlugins(root, JSON.parse(readFileSync(path.join(root, ".bca.json"), "utf8")), { env: {} });
     assert.deepEqual(registry.list().map(({ id, source, enabled }) => `${id}:${source}:${enabled}`),
-      ["sync:built-in:true", "audit:path plugins/audit:true", "extra:path plugins/extra:true"]);
+      ["sync:built-in:true", "ai:built-in:true", "audit:path plugins/audit:true", "extra:path plugins/extra:true"]);
 
     const off = await loadPlugins(root, { plugins: { sync: false } }, { env: {} });
     assert.equal(off.get("sync").enabled, false);
@@ -100,7 +100,7 @@ test("discovery: built-in, .bca.json paths, switching off, npm packages, BCA_PLU
     writeFileSync(path.join(npmDir, "package.json"), JSON.stringify({ name: "bc-atlas-plugin-npmtest", type: "module", main: "index.js" }));
     writeFileSync(path.join(root, "package.json"), JSON.stringify({ devDependencies: { "bc-atlas-plugin-npmtest": "1.0.0", "bc-atlas-plugin-missing": "1.0.0" } }));
     const npm = await loadPlugins(root, {}, { env: { BCA_PLUGINS: "./plugins/extra" } });
-    assert.deepEqual(npm.list().map(({ id, source }) => `${id}:${source}`), ["sync:built-in", "npmtest:npm bc-atlas-plugin-npmtest", "extra:path ./plugins/extra"]);
+    assert.deepEqual(npm.list().map(({ id, source }) => `${id}:${source}`), ["sync:built-in", "ai:built-in", "npmtest:npm bc-atlas-plugin-npmtest", "extra:path ./plugins/extra"]);
     assert.ok(npm.warnings.some((warning) => warning.includes("bc-atlas-plugin-missing")), "a declared but missing npm plugin is a warning");
 
     // A project plugin with a built-in id replaces it, with a warning.
@@ -132,7 +132,7 @@ test("tasks: plugin tasks validate, take their place in the order, run with hook
   globalThis.events = [];
   try {
     const registry = await loadPlugins(root, JSON.parse(readFileSync(path.join(root, ".bca.json"), "utf8")), { env: {} });
-    assert.deepEqual(registry.taskOrder(), ["check", "simulate", "report", "diagrams", "sync", "audit", "docs", "codegraph", "handbook", "layers"],
+    assert.deepEqual(registry.taskOrder(), ["check", "simulate", "report", "diagrams", "sync", "audit", "docs", "codegraph", "handbook", "layers", "ai"],
       "before wins over after: both plugin tasks right before docs, in plugin order");
     assert.throws(() => automationConfig({ automation: { triggers: { ci: { tasks: ["audit"] } } } }), /unsupported: audit/u, "without the plugin the task is unknown");
 
@@ -230,7 +230,7 @@ test("atlas: a plugin adds nodes, relations, a lens, findings, and a story to th
     assert.match(view.stdout, /: Owners\n2 nodes, 1 relation\. Who owns what\.\n[\s\S]*team Team Stock \(1 finding, worst warning\)\n {4}-> owns Warehouse Request\n/u);
     assert.match(bca(["plugins", "show", "owners"], { cwd: root }).stdout, /Atlas \(the graph of the view and of bca view\):\n {2}Who owns which object\./u);
     const list = JSON.parse(bca(["plugins", "list", ".", "--format", "json"], { cwd: root }).stdout);
-    assert.deepEqual(list.plugins.map(({ id, contributes }) => `${id}:${contributes.atlas}`), ["sync:1", "owners:1", "broken:1"]);
+    assert.deepEqual(list.plugins.map(({ id, contributes }) => `${id}:${contributes.atlas}`), ["sync:1", "ai:0", "owners:1", "broken:1"]);
     writePlugin(path.join(root, "plugins", "broken"), manifest("broken", { atlas: { summary: "Nothing." } }), "{}");
     const doctor = JSON.parse(bca(["plugins", "doctor", ".", "--format", "json"], { cwd: root }).stdout);
     assert.deepEqual(doctor.plugins.find(({ id }) => id === "broken").problems, ["atlas is declared but not implemented"]);
@@ -253,8 +253,8 @@ test("CLI: plugin commands, help, and the plugins commands", () => {
     assert.ok(contract.commands.some(({ id, plugin }) => id === "audit.hello" && plugin === "audit"), "project plugins join the catalog");
 
     const list = JSON.parse(bca(["plugins", "list", ".", "--format", "json"], { cwd: root }).stdout);
-    assert.deepEqual(list.plugins.map(({ id, configured }) => `${id}:${configured}`), ["sync:false", "audit:true", "extra:false"]);
-    assert.equal(list.plugins[1].contributes.healthRules, 2);
+    assert.deepEqual(list.plugins.map(({ id, configured }) => `${id}:${configured}`), ["sync:false", "ai:false", "audit:true", "extra:false"]);
+    assert.equal(list.plugins.find(({ id }) => id === "audit").contributes.healthRules, 2);
 
     assert.match(bca(["plugins", "show", "audit"], { cwd: root }).stdout, /Extension points:\n {2}audit\.checks/u);
 

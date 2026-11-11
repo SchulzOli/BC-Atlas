@@ -1,0 +1,150 @@
+{
+  "id": "ai",
+  "name": "BC Atlas AI",
+  "version": "0.1.0",
+  "description": "Writes narrative documentation with a language model, from the facts BC Atlas reads from the source: each process with its steps, the people who perform it, what blocks them, the requirements it proves, and the recording it stands on. Talks to one OpenAI-compatible endpoint, so a gateway can route to any model of any provider. Optional: without an \"ai\" section in .bca.json it only prepares the facts.",
+  "apiVersion": 1,
+  "main": "src/index.js",
+  "area": "export",
+  "configKey": "ai",
+  "contributes": {
+    "commands": [
+      {
+        "name": "status",
+        "purpose": "Show what the AI plugin would use: the endpoint, the model, whether a key is set, and what there is to write about.",
+        "options": {
+          "format": {
+            "description": "Output mode.",
+            "enum": [
+              "text",
+              "json"
+            ],
+            "default": "text"
+          }
+        },
+        "examples": [
+          "bca ai status"
+        ]
+      },
+      {
+        "name": "context",
+        "purpose": "Print the grounding of a subject: the facts BC Atlas read from the source that a model (or a person, or another agent) writes from. Calls no model.",
+        "options": {
+          "subject": {
+            "description": "What to write about: system, or process:<id> (see bca ai status). Default: every subject.",
+            "repeatable": true,
+            "value": "id"
+          },
+          "format": {
+            "description": "Output mode.",
+            "enum": [
+              "text",
+              "json"
+            ],
+            "default": "text"
+          }
+        },
+        "rules": [
+          "The grounding is deterministic: the same source gives the same text."
+        ],
+        "examples": [
+          "bca ai context --subject process:use-case-purchase-requests",
+          "bca ai context --format json"
+        ]
+      },
+      {
+        "name": "write",
+        "purpose": "Write narrative documentation with the configured model: one page per subject, next to the grounding it was written from.",
+        "options": {
+          "subject": {
+            "description": "What to write about: system, or process:<id>. Default: every subject.",
+            "repeatable": true,
+            "value": "id"
+          },
+          "output": {
+            "description": "Folder of the pages (default: ai.outputDir, else docs/narrative).",
+            "value": "path"
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Write a page again although its grounding and model did not change."
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Call no model and write nothing; say which pages would be written."
+          },
+          "format": {
+            "description": "Output mode.",
+            "enum": [
+              "text",
+              "json"
+            ],
+            "default": "text"
+          }
+        },
+        "rules": [
+          "A page is written again only when its grounding, the model, or the language changed; otherwise it stays as it is, so a run without changes calls no model.",
+          "What is sent to the model is the grounding: names of objects, procedures, permission sets, process steps, people of the simulation, and findings. Source code is not sent.",
+          "The endpoint, the model, and the key come from the ai section of .bca.json or from BCA_AI_ENDPOINT, BCA_AI_MODEL, and BCA_AI_API_KEY. The key is never read from .bca.json."
+        ],
+        "examples": [
+          "bca ai write",
+          "bca ai write --subject system --force",
+          "bca ai write --dry-run --format json"
+        ]
+      }
+    ],
+    "tasks": [
+      {
+        "id": "ai",
+        "summary": "Narrative documentation written by a language model from the facts of the source (\"ai\" in .bca.json)",
+        "after": [
+          "layers"
+        ]
+      }
+    ],
+    "mcpTools": [
+      {
+        "name": "bc_atlas_ai_context",
+        "description": "The grounding for narrative documentation: for the system or one process, the facts BC Atlas read from the source as Markdown (steps with what each needs, who performs or is blocked, requirements, the recording of Business Central it stands on, findings with fixes). An agent that writes documentation itself writes from this; it calls no model. Without subject it lists the subjects.",
+        "input": {
+          "path": {
+            "type": "string",
+            "description": "AL app folder"
+          },
+          "subject": {
+            "type": "string",
+            "description": "system, or process:<id>; omit to list the subjects",
+            "optional": true
+          }
+        }
+      },
+      {
+        "name": "bc_atlas_ai_write",
+        "description": "Write narrative documentation with the model configured for the project (ai section of .bca.json or BCA_AI_* variables): one page per subject next to its grounding. A page whose grounding and model did not change is left as it is. dryRun calls no model and reports which pages would be written.",
+        "input": {
+          "path": {
+            "type": "string",
+            "description": "AL app folder"
+          },
+          "subject": {
+            "type": "string",
+            "description": "system, or process:<id>; omit for every subject",
+            "optional": true
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Write again although nothing changed",
+            "optional": true
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Call no model, write nothing",
+            "optional": true
+          }
+        },
+        "readOnly": false
+      }
+    ]
+  }
+}
