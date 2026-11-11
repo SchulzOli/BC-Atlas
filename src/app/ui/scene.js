@@ -13,7 +13,7 @@
   const RANK = { error: 3, warning: 2, info: 1 };
   // Calm colors that stay apart for people who see colors differently.
   const PALETTE = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#7C3AED", "#4E5D78", "#A23636", "#14766E", "#8B7400", "#A21CAF"];
-  const KIND_NAMES = { object: "Object", app: "App", component: "Component", module: "Namespace", rule: "Rule", process: "Process", task: "Process test", person: "Person", requirement: "Requirement", member: "Member" };
+  const KIND_NAMES = { object: "Object", app: "App", component: "Component", module: "Namespace", rule: "Rule", process: "Process", task: "Process test", person: "Person", role: "Role", requirement: "Requirement", member: "Member", recording: "Recording", channel: "Channel" };
   const DEFAULTS = Object.freeze({ lens: "system", form: "2d", q: "", sel: "", focus: "", depth: "1", check: "", story: "", step: "0", color: "", size: "", group: "", off: "", hide: "", inside: "" });
   const FORMS = Object.freeze(["2d", "diagram", "3d"]);
   const COLORS = Object.freeze(["type", "component", "namespace", "app", "level", "findings"]);
@@ -358,6 +358,8 @@
     }
     const home = atlas.lenses.find(({ id, kinds }) => id === state.lens && kinds.includes(node.kind))
       ?? atlas.lenses.find(({ kinds }) => kinds[0] === node.kind)
+      // What a plugin added lives in the lens of that plugin.
+      ?? atlas.lenses.find(({ kinds, plugin }) => node.plugin && plugin === node.plugin && kinds.includes(node.kind))
       ?? atlas.lenses.find(({ kinds }) => kinds.includes(node.kind));
     return { lens: home?.id ?? state.lens, inside: "", focus: node.id, depth: node.kind === "process" ? "2" : "1", sel: node.id, story: "" };
   }

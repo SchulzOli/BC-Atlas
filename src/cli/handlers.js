@@ -10,6 +10,7 @@ const MODULES = {
   "setup.agent": ["../commands/setup.js", "setupAgentCommand"],
   check: ["../commands/check.js", "checkCommand"],
   simulate: ["../commands/simulate.js", "simulateCommand"],
+  "simulate.define": ["../commands/simulate.js", "simulateDefineCommand"],
   architecture: ["../commands/blueprint.js", "architectureCommand"],
   "refactor.move": ["../commands/refactor.js", "refactorMoveCommand"],
   "refactor.surface": ["../commands/refactor.js", "refactorSurfaceCommand"],

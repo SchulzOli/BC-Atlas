@@ -219,7 +219,7 @@ class AtlasPanel {
     const { id, method, params } = message;
     try {
       const result = LOCAL_METHODS.has(method) ? await this[method](params) : await engine.request(method, params);
-      if (["adoptArchitecture", "updateBaseline", "updateProposal"].includes(method)) scheduleRefresh();
+      if (["adoptArchitecture", "updateBaseline", "updateProposal", "defineSimulation"].includes(method)) scheduleRefresh();
       this.post({ type: "response", id, result });
     } catch (error) {
       this.post({ type: "response", id, error: error.message });

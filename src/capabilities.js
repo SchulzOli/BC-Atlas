@@ -37,7 +37,7 @@ export const SEVERITIES = Object.freeze(["error", "warning", "info"]);
 export const FAIL_LEVELS = Object.freeze(["error", "warning", "info", "never"]);
 export const REPORT_VIEWS = Object.freeze(["project", "module", "data", "contracts", "events", "ui"]);
 // What the view shows (the lenses of src/app/atlas.js), its forms, and what `bca view` writes.
-export const VIEW_LENSES = Object.freeze(["system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements"]);
+export const VIEW_LENSES = Object.freeze(["system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements", "simulation"]);
 export const VIEW_FORMS = Object.freeze(["2d", "diagram", "3d"]);
 export const VIEW_FORMATS = Object.freeze(["text", "json", "md", "csv", "svg", "png", "link"]);
 
@@ -434,6 +434,58 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           "bca simulate ./app --format markdown -o docs/simulation/README.md",
           "bca simulate ./app --company company.json --language de",
           "bca simulate ./app --format json"
+        ]
+      }),
+      command({
+        id: "simulate.define",
+        area: "analyze",
+        argv: ["bca", "simulate", "define", "[app-root]"],
+        purpose: "Define the simulation: the company of the battle test. Add or change an agent, a role, a task group, or a requirement, ground a process test on a recording of Business Central, and run the changed simulation at once. Without options it shows the simulation as it is.",
+        options: {
+          agent: string("Add or change this agent (a person who uses the app): --roles, --permission-sets, --task-groups, --tasks, --must-not.", { group: SELECTION, value: "name" }),
+          role: string("Add or change this role: --permission-sets, --task-groups, --tasks, --features, --must-not, --description.", { group: SELECTION, value: "name" }),
+          taskGroup: string("Add or change this task group (what there is to do): --tasks, --features, --description.", { group: SELECTION, value: "name" }),
+          requirement: string("Add or change this requirement of the company, by its id: --title, --tasks, --features, --objects, --description.", { group: SELECTION, value: "id" }),
+          roles: string("The roles of an agent, comma-separated. An empty value takes them away.", { group: GENERAL, value: "list" }),
+          permissionSets: string("The permission sets of a role or an agent, comma-separated.", { group: GENERAL, value: "list" }),
+          taskGroups: string("The task groups a role or an agent does, comma-separated.", { group: GENERAL, value: "list" }),
+          tasks: string("Process tests by document ID, comma-separated: what a role, an agent, or a task group does, or what proves a requirement.", { group: GENERAL, value: "list" }),
+          features: string("Process tests by [FEATURE], comma-separated.", { group: GENERAL, value: "list" }),
+          mustNot: string("What a role or an agent must not be able to do: process tests, features, or task groups, comma-separated.", { group: GENERAL, value: "list" }),
+          objects: string("Objects that should cover a requirement, comma-separated: page:Name, codeunit:Name.", { group: GENERAL, value: "list" }),
+          title: string("The title of a requirement.", { group: GENERAL, value: "text" }),
+          description: string("What a role, a task group, or a requirement is.", { group: GENERAL, value: "text" }),
+          remove: string("Remove something, as kind:name: agent:Anna, role:Team lead, taskGroup:Approval, requirement:REQ-2. Repeatable.", { group: SELECTION, repeatable: true, value: "kind:name" }),
+          ground: string("Ground a process test on a recording of Business Central (a fact snapshot of the sync plugin): <document ID>=<recording>. Repeatable.", { group: SELECTION, repeatable: true, value: "task=recording" }),
+          unground: string("Take the recording of a process test away. Repeatable.", { group: SELECTION, repeatable: true, value: "task" }),
+          companyName: string("The name of the company.", { group: GENERAL, value: "text" }),
+          init: flag("Write the company the process tests describe (a role per combination of [PERMISSIONS]) into .bca.json, as the start of a definition.", { group: SELECTION }),
+          from: string("Apply the operations of a JSON file: a list of { op, kind, name, ... } (set, remove, ground, unground, company). What the Simulate menu of the view saves.", { group: SELECTION, value: "path" }),
+          dryRun: flag("Run the changed simulation and report it; write nothing.", { group: OUTPUT }),
+          format: string("text (default) or json: the definition and the result of the run.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          tests: string("Folder with the process tests (default: simulation.tests, then docs.tests in .bca.json, then the app itself).", { group: GENERAL, value: "path" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config,
+          compiler: projectOptions.compiler,
+          compilerLog: projectOptions.compilerLog
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.simulation-definition" },
+        rules: [
+          "A change names what it changes and keeps the rest: --agent Ben --roles \"Team lead\" leaves Ben's other settings as they are. An empty value takes a field away.",
+          "The first change of a project that defines nothing yet starts from the company the process tests describe, so nothing is lost.",
+          "The changed simulation runs before anything is written; a definition that is not valid never reaches .bca.json.",
+          "The exit code is 0 when the definition was applied, whatever the simulation finds; bca simulate is the gate."
+        ],
+        examples: [
+          "bca simulate define ./app",
+          "bca simulate define ./app --init",
+          "bca simulate define ./app --role \"Team lead\" --permission-sets \"PR - REQUEST,PR - APPROVE\" --task-groups Requesting,Approval",
+          "bca simulate define ./app --agent Ben --roles \"Team lead\"",
+          "bca simulate define ./app --agent Dana --roles Purchaser --must-not Approval --dry-run",
+          "bca simulate define ./app --requirement REQ-7 --title \"Orders are created from approved requests\" --tasks purchase-request-order",
+          "bca simulate define ./app --ground purchase-request-approve=approve-a-released-purchase-request",
+          "bca simulate define ./app --remove agent:Dana",
+          "bca simulate define ./app --from operations.json --format json"
         ]
       }),
       command({

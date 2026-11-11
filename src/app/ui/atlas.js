@@ -329,6 +329,9 @@
     check.setAttribute("aria-pressed", String(Boolean(state.check)));
     check.title = `${plural(counts.error, "error")}, ${plural(counts.warning, "warning")}, ${counts.info} info. Show them on the graph (C)`;
     $("#story-button").setAttribute("aria-pressed", String(Boolean(state.story)));
+    // Simulate is there when the project has process tests to perform.
+    $("#simulate-button").hidden = !atlas.simulation;
+    $("#simulate-button").setAttribute("aria-pressed", String(state.lens === "simulation" && !state.inside));
     const sync = $("#sync-button");
     sync.className = `tool status menu ${LIVE ? "live" : ""}`;
     $("#sync-text").textContent = LIVE ? "Live" : new Date(SNAPSHOT.generatedAt).toLocaleDateString();
@@ -404,6 +407,7 @@
         <button class="btn" data-act="focus">${state.focus === node.id ? "Show all" : "Neighbors"}</button>
         ${node.file ? `<button class="btn" data-act="source">${LIVE ? "Go to source" : "Source"}</button>` : ""}
         <button class="btn" data-act="link">Link</button>
+        ${atlas.simulation && SIM_NODES[node.kind] ? `<button class="btn" data-act="define" title="Change it in the simulation">${node.kind === "task" ? "Ground…" : "Define…"}</button>` : ""}
       </div>
       ${sides.length ? `<h3>See in</h3><div class="chips sides">${sides.map((lens) => `<button class="chip" data-side="${esc(lens.id)}" title="${esc(lens.summary)}">${esc(lens.title)}</button>`).join("")}</div>` : ""}
       ${findings.length ? `<h3>${plural(findings.length, "finding")}</h3>${findings.slice(0, 20).map((finding) => `<div class="finding ${esc(finding.severity)}"><b>${esc(finding.severity)} · ${esc(finding.rule)}</b><p>${rich(finding.message)}</p>${finding.fix ? `<p class="fix">${rich(finding.fix)}</p>` : ""}</div>`).join("")}` : ""}
@@ -433,6 +437,12 @@
     if (act === "focus") return set({ focus: state.focus === entry.node.id ? "" : entry.node.id, story: "" });
     if (act === "source") return source(entry.node);
     if (act === "link") return copyLink();
+    if (act === "define") {
+      // The node of a person, a role, a requirement, or a process test, as the simulation names it.
+      const kind = SIM_NODES[entry.node.kind];
+      const name = entry.node.id.slice(entry.node.id.indexOf("::") + 2);
+      return simulateEdit(kind, name);
+    }
     return undefined;
   });
 
@@ -548,6 +558,148 @@
       <dl class="facts">${[["This lens", scene.lens.reads], ...atlas.sources].map(([name, value]) => `<dt>${esc(name)}</dt><dd>${rich(value)}</dd>`).join("")}</dl>
       ${LIVE ? `<div class="actions"><button class="btn" data-sync="refresh">Read the source again</button>${architectureAction()}</div>` : ""}`
   };
+  // ----------------------------------------------------------- simulation
+  // Simulate: who uses the app. The menu shows the company of the battle test and defines it:
+  // every change is an operation (src/simulation/define.js). In VS Code it is applied to
+  // .bca.json and the simulation runs again; an exported file collects the changes to save.
+  const SIM_NODES = { person: "agent", role: "role", requirement: "requirement", task: "ground" };
+  const SIM_KINDS = {
+    agent: { title: "Agent", list: "agents", key: "name", lists: ["roles", "permissionSets", "taskGroups", "tasks", "mustNot"], texts: [] },
+    role: { title: "Role", list: "roles", key: "name", lists: ["permissionSets", "taskGroups", "tasks", "mustNot"], texts: ["description"] },
+    taskGroup: { title: "Task group", list: "taskGroups", key: "name", lists: ["tasks", "features"], texts: ["description"] },
+    requirement: { title: "Requirement", list: "requirements", key: "id", lists: ["tasks", "features"], texts: ["title", "description"] }
+  };
+  const SIM_LABELS = { roles: "Roles", permissionSets: "Permission sets", taskGroups: "Task groups", tasks: "Process tests", features: "Features", mustNot: "Must not be able to do", title: "Title", description: "Description" };
+  let simForm;
+  const simChanges = [];
+  const simOptions = (field) => {
+    const { definition, tasks, permissionSets } = atlas.simulation;
+    const names = (list) => (list ?? []).map(({ name }) => [name, name]);
+    const tests = tasks.map(({ id, title }) => [id, title]);
+    const features = [...new Set(tasks.flatMap((task) => task.features ?? []))].map((feature) => [feature, feature]);
+    if (field === "roles") return names(definition.roles);
+    if (field === "permissionSets") return permissionSets.map((name) => [name, name]);
+    if (field === "taskGroups") return names(definition.taskGroups);
+    if (field === "tasks") return tests;
+    if (field === "features") return features;
+    return [...tests, ...names(definition.taskGroups).map(([name]) => [name, `${name} (task group)`])];
+  };
+  const simEntry = (kind, name) => (atlas.simulation.definition[SIM_KINDS[kind].list] ?? []).find((entry) => entry[SIM_KINDS[kind].key] === name);
+  function simulateForm() {
+    if (simForm.kind === "ground") {
+      const { tasks, recordings, definition } = atlas.simulation;
+      const grounded = definition.grounding?.[simForm.name] ?? "";
+      return `<h3>Ground a process test</h3>
+        <p class="text" style="color:var(--muted);font-size:12.5px">A recording of Business Central says what really ran. The process test stands on it; where they differ is a finding.</p>
+        <label class="field"><span>Test</span><select data-f="task">${tasks.map(({ id, title }) => `<option value="${esc(id)}" ${id === simForm.name ? "selected" : ""}>${esc(title)}</option>`).join("")}</select></label>
+        <label class="field"><span>Recording</span><select data-f="snapshot"><option value="">None, or the one with the same title</option>${recordings.map(({ id, label }) => `<option value="${esc(id)}" ${id === grounded ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>
+        ${recordings.length ? "" : '<p class="text" style="color:var(--muted);font-size:12.5px">The project has no recordings yet. Record a process in Business Central and sync it with <code>bca sync run</code>.</p>'}
+        <hr><div class="actions"><button class="btn primary" data-sim="apply">Apply</button><button class="btn" data-sim="back">Back</button></div>`;
+    }
+    const kind = SIM_KINDS[simForm.kind];
+    const entry = simForm.name ? simEntry(simForm.kind, simForm.name) ?? {} : {};
+    const checks = (field) => {
+      const chosen = new Set(entry[field] ?? []);
+      const options = simOptions(field);
+      for (const value of chosen) if (!options.some(([key]) => key === value)) options.push([value, value]);
+      return options.length ? `<fieldset class="checks"><legend>${SIM_LABELS[field]}</legend>${options.map(([value, label]) => `<label><input type="checkbox" data-f="${field}" value="${esc(value)}" ${chosen.has(value) ? "checked" : ""}>${esc(label)}${label !== value ? ` <small>${esc(value)}</small>` : ""}</label>`).join("")}</fieldset>` : "";
+    };
+    return `<h3>${simForm.name ? `${kind.title} ${esc(simForm.name)}` : `New ${kind.title.toLowerCase()}`}</h3>
+      <label class="field"><span>${kind.key === "id" ? "ID" : "Name"}</span><input type="text" data-f="name" value="${esc(simForm.name ?? "")}" ${simForm.name ? "readonly" : ""} autocomplete="off" spellcheck="false"></label>
+      ${kind.texts.map((field) => `<label class="field"><span>${SIM_LABELS[field]}</span><input type="text" data-f="${field}" value="${esc(entry[field] ?? "")}" autocomplete="off"></label>`).join("")}
+      ${kind.lists.map(checks).join("")}
+      <hr><div class="actions"><button class="btn primary" data-sim="apply">Apply</button>${simForm.name && simEntry(simForm.kind, simForm.name) ? '<button class="btn" data-sim="remove">Remove</button>' : ""}<button class="btn" data-sim="back">Back</button></div>`;
+  }
+  MENUS.simulate = () => {
+    if (simForm) return simulateForm();
+    const { definition, derived } = atlas.simulation;
+    const battle = atlas.summary.battle ?? {};
+    const people = atlas.nodes.filter((node) => node.kind === "person");
+    const stopped = people.filter((node) => (findingsOf.get(position.get(node.id)) ?? []).some(({ severity }) => severity === "error")).length;
+    const items = (kind) => (definition[SIM_KINDS[kind].list] ?? []).map((entry) => {
+      const name = entry[SIM_KINDS[kind].key];
+      const detail = kind === "agent" ? (entry.roles ?? []).join(", ") : kind === "role" ? (entry.permissionSets ?? []).join(", ") : kind === "requirement" ? entry.title : plural((entry.tasks ?? entry.features ?? []).length, kind === "taskGroup" && !entry.tasks ? "feature" : "process test");
+      return `<button class="item" role="menuitem" data-sim-edit="${kind}" data-name="${esc(name)}"><b>${esc(name)}</b><small>${esc(detail ?? "")}</small></button>`;
+    }).join("");
+    return `<p class="text"><b>${esc(definition.company ?? battle.company ?? "The company")}</b>${derived ? ", as the process tests describe it. Nothing is defined yet: the first change starts from this." : ", as <code>.bca.json</code> defines it."}
+        ${plural(people.length, "agent")}, ${stopped ? `${stopped} stopped or able to do what they must not` : "all get through"}.</p>
+      <button class="item" role="menuitem" data-sim="show" ${state.lens === "simulation" && !state.inside ? 'aria-current="true"' : ""}><b>Show the simulation</b><small>People and roles, the process tests each does or must not do, the recordings they stand on, the requirements they prove</small></button>
+      <h3>Agents</h3>${items("agent")}
+      <h3>Roles</h3>${items("role")}
+      ${definition.taskGroups?.length ? `<h3>Task groups</h3>${items("taskGroup")}` : ""}
+      ${definition.requirements?.length ? `<h3>Requirements</h3>${items("requirement")}` : ""}
+      <hr><h3>Define</h3>
+      <div class="actions"><button class="btn" data-sim-new="agent">Agent…</button><button class="btn" data-sim-new="role">Role…</button><button class="btn" data-sim-new="taskGroup">Task group…</button><button class="btn" data-sim-new="requirement">Requirement…</button><button class="btn" data-sim-new="ground">Ground…</button></div>
+      ${simChanges.length ? `<hr><h3>${plural(simChanges.length, "change")} to save</h3><ul class="pending">${simChanges.map((operation) => `<li>${esc(operation.op)} ${esc(operation.kind ?? "")} ${esc(operation.name ?? operation.task ?? "")}</li>`).join("")}</ul>
+        <div class="actions"><button class="btn primary" data-sim="save">Save the changes (JSON)</button><button class="btn" data-sim="forget">Forget them</button></div>
+        <p class="text" style="color:var(--muted);font-size:12.5px">This file is a snapshot. Apply the changes to the project with <code>bca simulate define --from simulation-changes.json</code>.</p>` : ""}
+      <hr><p class="text" style="color:var(--muted);font-size:12.5px">${LIVE ? "A change is written to <code>.bca.json</code> and the simulation runs again." : "The same from a terminal or an agent: <code>bca simulate define</code>, or the MCP tool <code>bc_atlas_simulation_define</code>."}</p>`;
+  };
+  /** Opens the Simulate menu on the form of one thing: from the menu, or from the card of a node. */
+  function simulateEdit(kind, name) {
+    closeMenu();
+    simForm = { kind, name };
+    showMenu($("#simulate-button"));
+  }
+  /** Sends one operation: applied and run again in VS Code, kept to save in an exported file. */
+  async function simulateApply(operation) {
+    simForm = undefined;
+    closeMenu();
+    if (!LIVE) {
+      simChanges.push(operation);
+      toast(`Kept: ${operation.op} ${operation.kind ?? ""} ${operation.name ?? operation.task ?? ""}. Save the changes from the Simulate menu.`);
+      return;
+    }
+    try {
+      const result = await call("defineSimulation", { operations: [operation] });
+      toast(result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}. ${result.line}` : "Nothing changed.");
+      await reload("Running the simulation");
+    } catch (error) {
+      toast(error.message);
+    }
+  }
+  function simulateClick(item) {
+    if (item.dataset.sim === "show") {
+      closeMenu();
+      return set({ lens: "simulation", form: "diagram", inside: "", focus: "", story: "", hide: "", off: "" });
+    }
+    if (item.dataset.simEdit || item.dataset.simNew) {
+      simForm = { kind: item.dataset.simEdit ?? item.dataset.simNew, name: item.dataset.name };
+      if (simForm.kind === "ground") simForm.name = atlas.simulation.tasks[0]?.id;
+      $("#popover").innerHTML = MENUS.simulate();
+      return $("#popover").querySelector("input:not([readonly]), select")?.focus({ preventScroll: true });
+    }
+    if (item.dataset.sim === "back") {
+      simForm = undefined;
+      $("#popover").innerHTML = MENUS.simulate();
+      return undefined;
+    }
+    if (item.dataset.sim === "forget") {
+      simChanges.length = 0;
+      $("#popover").innerHTML = MENUS.simulate();
+      return undefined;
+    }
+    if (item.dataset.sim === "save") {
+      closeMenu();
+      return download("simulation-changes.json", `${JSON.stringify({ operations: simChanges }, null, 2)}\n`, "application/json");
+    }
+    const value = (field) => $(`#popover [data-f="${field}"]`)?.value.trim() ?? "";
+    if (simForm.kind === "ground") {
+      return simulateApply(value("snapshot") ? { op: "ground", task: value("task"), snapshot: value("snapshot") } : { op: "unground", task: value("task") });
+    }
+    const name = value("name");
+    if (!name) return toast("It needs a name.");
+    if (item.dataset.sim === "remove") return simulateApply({ op: "remove", kind: simForm.kind, name });
+    const kind = SIM_KINDS[simForm.kind];
+    const operation = { op: "set", kind: simForm.kind, name };
+    for (const field of kind.texts) operation[field] = value(field);
+    for (const field of kind.lists) {
+      if ($(`#popover [data-f="${field}"]`)) operation[field] = $$(`#popover [data-f="${field}"]:checked`).map((box) => box.value);
+    }
+    if (simForm.kind === "requirement" && !operation.title) return toast("A requirement needs a title.");
+    return simulateApply(operation);
+  }
+
   // What the view may write back: the architecture it proposes, and the baseline of what is accepted.
   function architectureAction() {
     const { mode, violations } = atlas.summary.architecture;
@@ -557,6 +709,7 @@
   let openMenu;
   function closeMenu() {
     if (!openMenu) return;
+    if (openMenu.dataset.menu === "simulate") simForm = undefined;
     $("#popover").hidden = true;
     openMenu.setAttribute("aria-expanded", "false");
     openMenu = undefined;
@@ -584,7 +737,8 @@
   $("#popover").addEventListener("click", async (event) => {
     const item = event.target.closest("button");
     if (!item) return;
-    if (item.dataset.setLens) {
+    if (item.dataset.sim || item.dataset.simEdit || item.dataset.simNew) simulateClick(item);
+    else if (item.dataset.setLens) {
       closeMenu();
       set({ lens: item.dataset.setLens, inside: "", focus: "", story: "", hide: "", off: "", size: "", color: "", group: "" });
     } else if (item.dataset.setStory) {

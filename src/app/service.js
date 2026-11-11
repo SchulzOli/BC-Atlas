@@ -62,6 +62,8 @@ export function createService(workspace) {
     },
     adoptArchitecture: (params = {}) => workspace.adoptArchitecture(architectureSettings(params), { updateBaseline: params.updateBaseline !== false }),
     updateBaseline: () => workspace.updateBaseline(),
+    // The Simulate menu of the view: operations on the simulation section, applied and run at once.
+    defineSimulation: (params = {}) => workspace.defineSimulation(params),
     updateProposal: (params = {}) => workspace.updateProposal({
       keep: params.keep,
       release: params.release || undefined,

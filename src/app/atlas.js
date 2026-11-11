@@ -20,6 +20,7 @@ import path from "node:path";
 import { dependencyMatrix } from "../blueprint/drilldown.js";
 import { RELATION_STYLES, TYPE_STYLES } from "../d2.js";
 import { pluginAtlas } from "../plugins/atlas.js";
+import { definitionOf } from "../simulation/define.js";
 import { analyzeVisibility, LEVEL_COLORS } from "../visibility.js";
 
 const NEUTRAL = "#64748B";
@@ -32,6 +33,7 @@ const KIND_COLORS = {
   process: "#15803D",
   task: "#0891B2",
   person: "#7C3AED",
+  role: "#4F46E5",
   requirement: "#A21CAF"
 };
 // Relations the atlas adds to those of the AL source (src/d2.js).
@@ -50,6 +52,11 @@ const ATLAS_RELATIONS = {
   next: { color: "#15803D", dash: true },
   touches: { color: "#0891B2" },
   performs: { color: "#15803D" },
+  "has role": { color: "#7C3AED" },
+  does: { color: "#15803D", dash: true },
+  forbids: { color: "#B91C1C", dash: true },
+  grants: { color: "#64748B", dash: true },
+  grounds: { color: "#0F766E" },
   blocked: { color: SEVERITY_COLORS.error },
   "must not": { color: NEUTRAL, dash: true },
   "can, but must not": { color: SEVERITY_COLORS.error, dash: true },
@@ -81,7 +88,8 @@ export const LENSES = [
   { id: "health", title: "Findings", summary: "The rules of the health check and the objects they found.", kinds: ["rule", "object"], relations: ["error", "warning", "info"], connected: true, group: "kind", color: "severity", reads: "the findings of `bca check` (rules, AL compiler, analyzers) and the objects they are on" },
   { id: "processes", title: "Processes", summary: "The process tests step by step, and the objects each one touches.", kinds: ["process", "task", "object"], relations: ["step", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the AL UI tests with `[SCENARIO]`, and the code behind every step" },
   { id: "people", title: "People", summary: "Who performs which process test with which permission sets, and what blocks them.", kinds: ["person", "task", "object"], relations: ["performs", "blocked", "must not", "can, but must not", "holds"], connected: true, group: "kind", color: "kind", reads: "the roles and agents of `simulation` in .bca.json, their permission sets, and the process tests" },
-  { id: "requirements", title: "Requirements", summary: "What the company needs, and the process tests that prove it.", kinds: ["requirement", "task"], relations: ["proven by"], group: "kind", color: "status", reads: "the `requirements` of `simulation` in .bca.json and the process tests" }
+  { id: "requirements", title: "Requirements", summary: "What the company needs, and the process tests that prove it.", kinds: ["requirement", "task"], relations: ["proven by"], group: "kind", color: "status", reads: "the `requirements` of `simulation` in .bca.json and the process tests" },
+  { id: "simulation", title: "Simulation", summary: "The company that uses the app: its people and roles, the process tests each role does or must not do, the recordings they stand on, and the requirements they prove.", kinds: ["person", "role", "task", "requirement", "recording"], needs: ["person", "role"], relations: ["has role", "does", "forbids", "blocked", "can, but must not", "proven by", "grounds"], group: "kind", color: "status", reads: "the `simulation` section of .bca.json (or the [PERMISSIONS] of the process tests), the process tests, and the recordings of the sync plugin" }
 ];
 
 const plural = (count, word, many = `${word}s`) => `${Number(count).toLocaleString("en-US")} ${count === 1 ? word : many}`;
@@ -349,6 +357,17 @@ async function processes(workspace, graph, findings) {
       previous = step.task;
     }
   }
+  // The roles of the company: what they hold, do, and must not do, as it is defined.
+  for (const role of battle.roles ?? []) {
+    const id = `role::${role.name}`;
+    graph.node(compact({ id, kind: "role", label: role.name, color: KIND_COLORS.role, about: role.description, permissionSets: role.permissionSets?.join(", "), taskGroups: role.taskGroups?.join(", ") }));
+    for (const set of role.permissionSets ?? []) {
+      const object = graph.nodes.find((node) => node.kind === "object" && node.type === "permissionset" && String(node.label).toLowerCase() === String(set).toLowerCase());
+      if (object) graph.edge(id, object.id, "grants");
+    }
+    for (const task of role.tasks ?? []) if (graph.at(`task::${task}`) !== undefined) graph.edge(id, `task::${task}`, "does");
+    for (const task of role.mustNot ?? []) if (graph.at(`task::${task}`) !== undefined) graph.edge(id, `task::${task}`, "forbids");
+  }
   for (const agent of battle.agents ?? []) {
     const id = `person::${agent.name}`;
     const blocked = (agent.attempts ?? []).some(({ expected, outcome }) => (expected === "complete" && outcome !== "completed") || (expected === "deny" && outcome !== "denied"));
@@ -364,6 +383,7 @@ async function processes(workspace, graph, findings) {
       const object = byNumber.get(`permissionset:${set.id}`);
       if (object) graph.edge(id, object, "holds");
     }
+    for (const role of agent.roles ?? []) if (graph.at(`role::${role}`) !== undefined) graph.edge(id, `role::${role}`, "has role");
     for (const attempt of agent.attempts ?? []) {
       const kind = attempt.expected === "deny"
         ? (attempt.outcome === "denied" ? "must not" : "can, but must not")
@@ -396,6 +416,52 @@ async function processes(workspace, graph, findings) {
     }));
   }
   return battle;
+}
+
+/**
+ * Grounding: a process test stands on a recording of the same process in Business Central
+ * (a fact snapshot of the sync plugin). The test says what should happen, the recording what
+ * did; where the two differ is a finding.
+ * @param settings the simulation section: grounding { <document ID>: <recording> }; without an
+ *   entry, a test is grounded on the recording that has its title
+ */
+function grounding(graph, findings, settings = {}) {
+  const tasks = graph.nodes.filter((node) => node.kind === "task");
+  const recordings = graph.nodes.filter((node) => node.kind === "recording");
+  if (!tasks.length) return;
+  const plain = (text) => String(text).toLowerCase().replace(/[^a-z0-9]+/gu, " ").trim();
+  const explicit = new Map(Object.entries(settings.grounding ?? {}).map(([task, snapshot]) => [plain(task), snapshot]));
+  const targets = (from, kind) => new Set(graph.edges.filter(([a, , relation]) => a === from && graph.relations[relation].kind === kind).map(([, to]) => to));
+  const names = (indexes) => [...indexes].map((index) => graph.nodes[index].label).sort().join(", ");
+  for (const task of tasks) {
+    const wanted = explicit.get(plain(task.id.slice("task::".length)));
+    const recording = wanted
+      ? recordings.find((node) => node.id === `sync::recording::${wanted}` || plain(node.label) === plain(wanted) || plain(node.id.split("::").at(-1)) === plain(wanted))
+      : recordings.find((node) => plain(node.label) === plain(task.label));
+    if (!recording) {
+      if (wanted) {
+        findings.push({ severity: "warning", rule: "grounding-missing", message: `The process test "${task.label}" is grounded on the recording "${wanted}", which is not among the recordings of the project.`, fix: "Record the process in Business Central and sync it (`bca sync run`), or change the grounding with `bca simulate define --ground`.", nodes: [graph.at(task.id)], origin: "battle test" });
+      }
+      if (recordings.length || wanted) task.grounded = "no";
+      continue;
+    }
+    graph.edge(recording.id, task.id, "grounds");
+    task.grounded = recording.label;
+    const touched = targets(graph.at(task.id), "touches");
+    const ran = targets(graph.at(recording.id), "runs through");
+    const beyond = [...ran].filter((index) => !touched.has(index));
+    const unseen = [...touched].filter((index) => !ran.has(index));
+    if (beyond.length || unseen.length) {
+      findings.push({
+        severity: "info",
+        rule: "grounding-differs",
+        message: `The recording "${recording.label}" and the process test "${task.label}" differ: ${[beyond.length ? `what ran in Business Central went through ${names(beyond)}, which the test does not touch` : "", unseen.length ? `the test touches ${names(unseen)}, which the recording did not run through` : ""].filter(Boolean).join("; ")}.`,
+        fix: "Extend the process test so it covers what really runs, or record the process again if the app changed since.",
+        nodes: [graph.at(task.id), graph.at(recording.id), ...beyond, ...unseen],
+        origin: "battle test"
+      });
+    }
+  }
 }
 
 /**
@@ -638,6 +704,8 @@ export async function createAtlas(workspace) {
   const report = await health(workspace, graph, findings);
   const battle = await processes(workspace, graph, findings);
   const added = await contributions(workspace, graph, findings, assessment);
+  const simulationSettings = assessment.context.options?.simulation ?? {};
+  if (battle) grounding(graph, findings, simulationSettings);
   const overview = await workspace.overview();
 
   // A lens with nothing in it is left out.
@@ -647,7 +715,7 @@ export async function createAtlas(workspace) {
   const between = new Set(graph.edges.filter(([from, to]) => graph.nodes[from].kind === "object" && graph.nodes[to].kind === "object").map(([, , relation]) => relation));
   const betweenObjects = graph.relations.filter((_, relation) => between.has(relation)).map(({ kind }) => kind);
   const lenses = LENSES.filter((lens) => {
-    const special = lens.kinds.filter((kind) => kind !== "object" && kind !== "task");
+    const special = lens.needs ?? lens.kinds.filter((kind) => kind !== "object" && kind !== "task");
     if (special.length ? !special.every((kind) => kinds.has(kind)) : !kinds.has(lens.kinds[0])) return false;
     return lens.relations === "*" || !lens.connected || lens.relations.some((kind) => present.has(kind));
   })
@@ -675,6 +743,14 @@ export async function createAtlas(workspace) {
     sources: commonSources({ model, assessment }),
     config: overview.config,
     levels: Object.fromEntries(Object.entries(LEVEL_COLORS).map(([level, { color }]) => [level, color])),
+    // The simulation as it is defined, and what a definition can name: for the Simulate menu of the view.
+    ...(battle ? { simulation: {
+      derived: Boolean(battle.company?.derived),
+      definition: battle.company?.derived ? { ...definitionOf(battle), ...(simulationSettings.grounding ? { grounding: simulationSettings.grounding } : {}) } : Object.fromEntries(["company", "taskGroups", "roles", "agents", "requirements", "grounding"].filter((key) => simulationSettings[key] !== undefined).map((key) => [key, simulationSettings[key]])),
+      tasks: (battle.tasks ?? []).map(({ id, title, features }) => ({ id, title, features })),
+      permissionSets: graph.nodes.filter((node) => node.kind === "object" && node.type === "permissionset").map(({ label }) => label).sort(),
+      recordings: graph.nodes.filter((node) => node.kind === "recording").map(({ id, label }) => ({ id: id.split("::").at(-1), label }))
+    } } : {}),
     nodes: graph.nodes,
     relations: graph.relations,
     edges: graph.edges,
