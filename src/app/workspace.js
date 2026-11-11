@@ -191,6 +191,27 @@ export class Workspace {
     });
   }
 
+  /**
+   * Changes the simulation (src/simulation/define.js) in .bca.json and runs it.
+   * @param change { operations, init, dryRun }
+   * @returns { file, written, derived, definition, line, passed }
+   */
+  async defineSimulation({ operations = [], init = false, dryRun = false } = {}) {
+    const { options } = await this.model();
+    const docs = await this.docs();
+    const { defineSimulation } = await import("../simulation/define.js");
+    const { simulationResultLine } = await import("../simulation/report.js");
+    const result = await defineSimulation(this.input, {
+      ...this.values,
+      tests: path.resolve(options.projectRoot, options.simulation?.tests ?? docs?.path ?? "."),
+      operations,
+      init,
+      dryRun
+    }, { parseCache: await this.parseCache() });
+    if (result.written) this.reset();
+    return { file: result.file, written: result.written, derived: result.derived, definition: result.definition, line: simulationResultLine(result.report), passed: result.report.passed };
+  }
+
   /** Saves a proposal as the configured architecture (and optionally accepts today's violations). */
   async adoptArchitecture(settings = {}, { updateBaseline = true } = {}) {
     const assessment = await this.assessment({ ...settings, propose: true });

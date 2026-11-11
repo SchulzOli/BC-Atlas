@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Simulate**, next to Story: define who uses the app (agents, roles, task
+  groups, requirements) in a form; a change is written to `.bca.json` and
+  the simulation runs again. The new lens **Simulation** shows the company
+  as one picture, with the recordings each process test stands on.
 - **3D is in space.** What is in front is larger, what is behind fades;
   nodes are balls, the graph stands over a floor and turns slowly until you
   turn it, point at it, or select a node.

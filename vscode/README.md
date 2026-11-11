@@ -107,6 +107,17 @@ graph: the objects it runs through, the tables it changes, and whether it is
 synced into the project or waits for it. Plugins add lenses, findings, and
 stories of their own in the same way.
 
+## Simulate: define who uses the app
+
+![The Simulation lens: four people, their roles, the process tests each role does or must not do, requirements, and recordings](marketing/screenshots/simulation.png)
+
+**Simulate**, next to Story, is where the company is defined: add an agent,
+give a role its permission sets and task groups, say what a role must not be
+able to do. Every change is written to `.bca.json` and the simulation runs
+again, so the graph shows at once who gets through and who is stopped. The
+same works from a terminal (`bca simulate define`) and for AI agents (the
+MCP tool `bc_atlas_simulation_define`).
+
 ## Right where you code
 
 - **The graph follows the source**: save a file and it is read again.

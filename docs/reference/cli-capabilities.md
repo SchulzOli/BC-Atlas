@@ -26,6 +26,7 @@ Gate CI on architecture health, keep a target architecture in place, and battle-
 | --- | --- | --- |
 | `check` | `bca check [app-root]` | Score architecture health and fail CI on cycles, policy violations, or diagnostics. |
 | `simulate` | `bca simulate [app-root]` | Battle-test the app as your company uses it: agents with roles, permission sets, and task groups perform the process tests (AL UI tests) step by step; reports who is blocked where and who can do what they must not, explains every permission a step needs, and writes the fit-gap analysis. |
+| `simulate.define` | `bca simulate define [app-root]` | Define the simulation: the company of the battle test. Add or change an agent, a role, a task group, or a requirement, ground a process test on a recording of Business Central, and run the changed simulation at once. Without options it shows the simulation as it is. |
 | `graph.query` | `bca graph query <graph.json>` | Query a saved Atlas graph or nodes/edges snapshot without analyzing AL; retain IDs and evidence as reusable JSON. |
 | `architecture` | `bca architecture [app-root]` | Find a target architecture (components, layers, allowed dependencies), list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
 | `refactor.move` | `bca refactor move [app-root]` | Move an AL object to another component: its file goes to the component's folder (cut out of a shared file), its namespace becomes the component's, and referencing files get the using they need. |

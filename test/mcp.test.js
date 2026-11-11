@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -80,6 +80,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_setup_apply",
         "bc_atlas_setup_plan",
         "bc_atlas_simulate",
+        "bc_atlas_simulation_define",
         "bc_atlas_sync_status",
         "bc_atlas_update_check",
         "bc_atlas_view"
@@ -121,7 +122,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     // The view without a window: what there is to see, a lens, an opened object, a story, a picture.
     const view = async (args) => client.callTool({ name: "bc_atlas_view", arguments: { path: path.join(root, "examples", "purchasing-app"), ...args } });
     const overview = JSON.parse((await view({})).content[0].text);
-    assert.deepEqual(overview.lenses.slice(-4).map(({ id, nodes }) => [id, nodes]), [["processes", 15], ["people", 14], ["requirements", 11], ["sync", 9]]);
+    assert.deepEqual(overview.lenses.slice(-5).map(({ id, nodes }) => [id, nodes]), [["processes", 15], ["people", 14], ["requirements", 11], ["simulation", 21], ["sync", 9]]);
     assert.equal(overview.nodes, undefined, "not every node of the project at once");
     const people = JSON.parse((await view({ lens: "people", focus: "person:Ben" })).content[0].text);
     assert.ok(people.relations.some(({ kind }) => kind === "blocked"));
@@ -139,6 +140,29 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     const noFile = await view({ lens: "data", format: "png" });
     assert.equal(noFile.isError, true);
     assert.match(noFile.content[0].text, /a png picture needs output/u);
+
+    // Defining the simulation: the same operations as the Simulate menu and bca simulate define.
+    const copy = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-mcp-simulation-"));
+    try {
+      cpSync(path.join(root, "examples", "purchasing-app"), copy, { recursive: true });
+      const define = async (args) => JSON.parse((await client.callTool({ name: "bc_atlas_simulation_define", arguments: { path: copy, ...args } })).content[0].text);
+      const shown = await define({});
+      assert.deepEqual([shown.written, shown.derived, shown.definition.agents.map(({ name }) => name)], [false, false, ["Anna", "Ben", "Carla", "Dana"]]);
+      const tried = await define({ dryRun: true, operations: [{ op: "set", kind: "agent", name: "Eve", roles: ["Purchaser"], mustNot: ["Approval"] }] });
+      assert.equal(tried.written, false);
+      assert.ok(tried.definition.agents.some(({ name }) => name === "Eve"));
+      assert.ok(!JSON.parse(readFileSync(path.join(copy, ".bca.json"), "utf8")).simulation.agents.some(({ name }) => name === "Eve"), "a dry run writes nothing");
+      // The fix an agent would make: give the team lead what the blocked step needs, and ask again.
+      const before = shown.result.findings.filter(({ code }) => code === "forbidden-task-possible").length;
+      const fixed = await define({ operations: [{ op: "remove", kind: "agent", name: "Dana" }] });
+      assert.equal(fixed.written, true);
+      assert.equal(fixed.result.findings.filter(({ code }) => code === "forbidden-task-possible").length, before - 1);
+      const wrong = await client.callTool({ name: "bc_atlas_simulation_define", arguments: { path: copy, operations: [{ op: "remove", kind: "role", name: "Nobody" }] } });
+      assert.equal(wrong.isError, true);
+      assert.match(wrong.content[0].text, /there is no role "Nobody" to remove/u);
+    } finally {
+      rmSync(copy, { recursive: true, force: true });
+    }
 
     const unknownAgent = await client.callTool({
       name: "bc_atlas_simulate",

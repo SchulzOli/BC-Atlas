@@ -171,7 +171,7 @@ test("process tests are nodes, lenses, findings, and stories of the same graph",
   const count = (kind) => atlas.nodes.filter((node) => node.kind === kind).length;
   assert.deepEqual({ process: count("process"), task: count("task"), person: count("person"), requirement: count("requirement") }, { process: 2, task: 5, person: 4, requirement: 6 });
   // After the lenses of BC Atlas come those of plugins: here the recordings of the sync plugin.
-  assert.deepEqual(atlas.lenses.map(({ id }) => id).slice(-4), ["processes", "people", "requirements", "sync"]);
+  assert.deepEqual(atlas.lenses.map(({ id }) => id).slice(-5), ["processes", "people", "requirements", "simulation", "sync"]);
   assert.equal(atlas.summary.battle.company, "Contoso GmbH");
 
   const index = (label) => atlas.nodes.findIndex((node) => node.label === label);
@@ -358,7 +358,10 @@ test("the app is one view: a toolbar and the graph", () => {
   // The picture after a step starts from the picture before it.
   assert.match(html, /const before = graph\?\.snapshot\(\);[\s\S]{0,260}from: before,/u);
   assert.deepEqual([...body.matchAll(/data-form="(\w+)"/gu)].map(([, form]) => form), ["2d", "diagram", "3d"], "any part of the graph in three forms");
-  assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "view", "export", "sync"]);
+  assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "simulate", "view", "export", "sync"]);
+  // Simulate stands next to Story, and is there when the project has process tests.
+  assert.match(body, /id="story-button"[^\n]+\n\s*<button class="tool menu" id="simulate-button" data-menu="simulate"[^>]* hidden>Simulate<\/button>/u);
+  assert.match(html, /call\("defineSimulation", \{ operations: \[operation\] \}\)/u, "a change is an operation, applied and run again");
   // What floats on the graph starts hidden: the legend, the selected node, the story.
   for (const id of ["legend", "inspector", "story"]) assert.match(body, new RegExp(`id="${id}" class="float"[^>]* hidden>`, "u"));
   assert.match(html, /root\.BCA_GRAPH = \{ create, drawing, seed, step, random, layered \}/u, "the graph is part of the file");

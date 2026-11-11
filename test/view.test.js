@@ -259,7 +259,7 @@ test("bca view prints to the terminal and writes files by their extension", () =
     assert.equal(JSON.parse(json.stdout).id, "people");
     const wrong = run("--lens", "nope");
     assert.equal(wrong.status, 2);
-    assert.match(wrong.stderr, /unknown lens "nope"; this project has: system, components, .+, requirements, sync\n/u);
+    assert.match(wrong.stderr, /unknown lens "nope"; this project has: system, components, .+, requirements, simulation, sync\n/u);
     const noFile = run("--format", "png");
     assert.equal(noFile.status, 2);
     assert.match(noFile.stderr, /a PNG needs --output/u);

@@ -417,6 +417,47 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
     };
   }));
 
+  server.registerTool("bc_atlas_simulation_define", {
+    description: "Define the simulation: the company of the battle test in the simulation section of .bca.json. Send operations to add or change an agent (a person who uses the app, with roles), a role (permission sets, task groups, what it must not do), a task group (process tests), or a requirement, to remove one, or to ground a process test on a recording of Business Central (a fact snapshot of the sync plugin). The changed simulation runs at once and the result comes back: who completes or is blocked where, who can do what they must not, and every finding. Without operations it returns the simulation as it is (derived: true when nothing is defined and the process tests describe the company). dryRun runs the change and writes nothing. A change keeps the fields it does not name; the first change starts from the company the process tests describe.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      compiler: projectFields.compiler,
+      tests: z.string().optional().describe("Folder with the process tests (default: simulation.tests, docs.tests, or the app)"),
+      operations: z.array(z.object({
+        op: z.enum(["set", "remove", "ground", "unground", "company"]),
+        kind: z.enum(["agent", "role", "taskGroup", "requirement"]).optional().describe("For set and remove"),
+        name: z.string().optional().describe("Name of the agent, role, or task group; id of the requirement; name of the company"),
+        roles: z.array(z.string()).optional(),
+        permissionSets: z.array(z.string()).optional(),
+        taskGroups: z.array(z.string()).optional(),
+        tasks: z.array(z.string()).optional().describe("Process tests by document ID"),
+        features: z.array(z.string()).optional(),
+        mustNot: z.array(z.string()).optional().describe("Process tests, features, or task groups the role or agent must not be able to do"),
+        objects: z.array(z.string()).optional().describe("Requirement: objects that should cover it, as page:Name"),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        task: z.string().optional().describe("ground, unground: the process test by document ID"),
+        snapshot: z.string().optional().describe("ground: the recording, by its key or name")
+      })).optional().describe("Applied in order; all or nothing"),
+      init: z.boolean().optional().describe("Write the company the process tests describe into .bca.json, as the start of a definition"),
+      dryRun: z.boolean().optional().describe("Run the changed simulation and return it; write nothing")
+    }),
+    annotations: { readOnlyHint: false, idempotentHint: true }
+  }, tool(async ({ path: input, operations, init, dryRun, ...values }) => {
+    const { defineSimulation } = await import("./simulation/define.js");
+    const result = await defineSimulation(input, { ...values, operations: operations ?? [], init, dryRun });
+    const { report } = result;
+    return {
+      file: result.file,
+      written: result.written,
+      derived: result.derived,
+      definition: result.definition,
+      result: { passed: report.passed, summary: report.summary, counts: report.counts, findings: report.findings }
+    };
+  }));
+
   server.registerTool("bc_atlas_setup_plan", {
     description: "Detect an AL project and return setup questions with recommended answers for features, Git hooks, pipelines, schedules, and sync.",
     inputSchema: z.object({ path: z.string().min(1).describe("AL app folder") }),

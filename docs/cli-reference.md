@@ -390,6 +390,62 @@ bca simulate ./app --format json
 Without roles in `.bca.json`, every combination of `[PERMISSIONS]` in the
 tests is a role that performs the tests naming it.
 
+### `simulate define`
+
+```text
+bca simulate define [app-root] [--agent <name> | --role <name> | --task-group <name> | --requirement <id>] [options]
+```
+
+Define the simulation: the company of the battle test. Without options it
+shows the simulation as it is, defined in `.bca.json` or as the process
+tests describe it. With options it changes the `simulation` section and
+runs the changed simulation at once. See
+[Define the simulation](./battle-test.md#define-the-simulation).
+
+```sh
+bca simulate define ./app                                   # the simulation as it is
+bca simulate define ./app --init                            # write the company the process tests describe
+bca simulate define ./app --role "Team lead" --permission-sets "PR - REQUEST,PR - APPROVE" --task-groups Requesting,Approval
+bca simulate define ./app --agent Ben --roles "Team lead"
+bca simulate define ./app --agent Dana --roles Purchaser --must-not Approval --dry-run
+bca simulate define ./app --requirement REQ-7 --title "Orders come from approved requests" --tasks purchase-request-order
+bca simulate define ./app --ground purchase-request-approve=approve-a-released-purchase-request
+bca simulate define ./app --remove agent:Dana
+bca simulate define ./app --from simulation-changes.json --format json
+```
+
+| Option | Value | Meaning |
+| --- | --- | --- |
+| `--agent` | name | Add or change this agent, a person who uses the app: `--roles`, `--permission-sets`, `--task-groups`, `--tasks`, `--must-not`. |
+| `--role` | name | Add or change this role: `--permission-sets`, `--task-groups`, `--tasks`, `--features`, `--must-not`, `--description`. |
+| `--task-group` | name | Add or change this task group, what there is to do: `--tasks`, `--features`, `--description`. |
+| `--requirement` | id | Add or change this requirement of the company: `--title`, `--tasks`, `--features`, `--objects`, `--description`. |
+| `--roles` | list | The roles of an agent, comma-separated. An empty value takes them away. |
+| `--permission-sets` | list | The permission sets of a role or an agent. |
+| `--task-groups` | list | The task groups a role or an agent does. |
+| `--tasks` | list | Process tests by document ID: what a role, an agent, or a task group does, or what proves a requirement. |
+| `--features` | list | Process tests by `[FEATURE]`. |
+| `--must-not` | list | What a role or an agent must not be able to do: process tests, features, or task groups. |
+| `--objects` | list | Objects that should cover a requirement: `page:Name`, `codeunit:Name`. |
+| `--title` | text | The title of a requirement. |
+| `--description` | text | What a role, a task group, or a requirement is. |
+| `--remove` | kind:name | Remove something: `agent:Anna`, `role:Team lead`, `taskGroup:Approval`, `requirement:REQ-2`. Repeatable. |
+| `--ground` | task=recording | Ground a process test on a recording of Business Central (a fact snapshot of the sync plugin). Repeatable. |
+| `--unground` | task | Take the recording of a process test away. Repeatable. |
+| `--company-name` | text | The name of the company. |
+| `--init` | | Write the company the process tests describe (a role per combination of `[PERMISSIONS]`) into `.bca.json`, as the start of a definition. |
+| `--from` | path | Apply the operations of a JSON file: a list of `{ op, kind, name, ... }`. What the Simulate menu of the view saves. |
+| `--dry-run` | | Run the changed simulation and report it; write nothing. |
+| `-f`, `--format` | `text`, `json` | The definition and the result of the run. |
+| `--tests` | path | Folder with the process tests. |
+
+A change names what it changes and keeps the rest. The first change of a
+project that defines nothing yet starts from the company the process tests
+describe. The changed simulation runs before anything is written, so a
+definition that is not valid never reaches `.bca.json`. The exit code is 0
+when the definition was applied, whatever the simulation finds;
+[`simulate`](#simulate) is the gate.
+
 ## Export
 
 ### `export`
