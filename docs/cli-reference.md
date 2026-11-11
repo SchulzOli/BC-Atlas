@@ -377,6 +377,8 @@ bca simulate ./app --format json
 | --- | --- | --- |
 | `--tests` | path | Folder with the process tests. Default: `simulation.tests`, then `docs.tests` in `.bca.json`, then the app itself. |
 | `--company` | path | JSON file with the company (`roles`, `agents`, `taskGroups`, `requirements`) instead of the `simulation` section of `.bca.json`. |
+| `--recordings` | path | Folder with recordings of Business Central (fact snapshots as JSON) the agents perform as well. A recording with the title of a process test adds what really ran to that test; any other is a process of its own. Default: `simulation.recordings`. |
+| `--snapshots` | path | Also write one fact snapshot per process test into this folder, from the source. Default: `simulation.snapshotDir`, when set. |
 | `--fail-on` | level | `error`, `warning`, `info`, or `never`. Default: `error`. |
 | `-f`, `--format` | format | `text`, `markdown`, or `json`. Default: `text`, or the extension of `--output` (`.md`, `.json`). |
 | `-o`, `--output` | path | Write the report to a file; the result line goes to stderr. |
@@ -632,6 +634,7 @@ bca view ./app --inside component:Core                    # a component, an app,
 bca view ./app --lens sync                                # a lens of a plugin: the recordings of Business Central
 bca view ./app --focus "table:Sales Header" --depth 2 --format json
 bca view ./app --story fix                                # a story, step by step
+bca view ./app --story run:Ben --step 13 --form diagram -o stopped.svg   # a run of the simulation, as that step built it
 bca view ./app --stories -o docs/system.md                # every story as one document
 bca view ./app --lens system --rows relations -o relations.csv
 bca view ./app --format json > atlas.json                 # the whole graph
@@ -657,7 +660,7 @@ bca view ./app --format json > atlas.json                 # the whole graph
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--lens` | id | What the graph shows: `system` (default), `components`, `apps`, `modules`, `data`, `calls`, `events`, `contracts`, `pages`, `security`, `visibility`, `health`, `processes`, `people`, `requirements`, and the lenses of plugins, such as `sync` (the recordings of Business Central). A lens with nothing in it does not exist for a project; `bca view` without options lists the lenses a project has. |
+| `--lens` | id | What the graph shows: `system` (default), `components`, `apps`, `modules`, `data`, `calls`, `events`, `contracts`, `pages`, `security`, `visibility`, `health`, `processes`, `people`, `requirements`, `simulation`, `run`, and the lenses of plugins, such as `sync` (the recordings of Business Central). A lens with nothing in it does not exist for a project; `bca view` without options lists the lenses a project has. |
 | `--inside` | node | Go into one node. An object opens to its procedures, triggers, and events, and what each does with other objects; an app, a component, or a namespace opens to its objects and what they do with each other. A name, an ID, or a selector such as `codeunit:50100` or `component:Core`. |
 | `--focus` | node | Only this node and what is near it. A name, an ID, or a selector such as `table:Customer`, `component:Core`, or `person:Anna`. |
 | `--depth` | n | How many steps from the `--focus` node. Default: `1`. |
@@ -665,8 +668,8 @@ bca view ./app --format json > atlas.json                 # the whole graph
 | `--hide` | kinds | Kinds of node to leave out, as the legend names them (`codeunit`, `table`, `other apps`), comma-separated or repeated. |
 | `--off` | kinds | Kinds of relation to leave out (`uses`, `reads`, `permits`), comma-separated or repeated. |
 | `--check` | flag | In a picture, a ring on every node with a finding; in text, the findings with their fixes below each node. |
-| `--story` | id | A story instead of a lens: its steps with their texts. The overview lists the stories of the project. |
-| `--step` | n | One step of the `--story`, from 1: its nodes, in its lens. |
+| `--story` | id | A story instead of a lens: its steps with their texts. The overview lists the stories of the project. `run:<agent>` is the [run](./battle-test.md#a-run-step-by-step) of the simulation of one person. |
+| `--step` | n | One step of the `--story`, from 1: its nodes, in its lens. For a run, the picture holds what the run reached at that step. |
 | `--stories` | flag | Every story of the system as one document (`text`, `md`, or `json`). |
 | `--form` | form | The form of a picture: `2d` (default), `diagram`, or `3d`. |
 | `--color` | by | Color the nodes by `type`, `component`, `namespace`, `app`, `level`, or `findings` instead of what the lens does. |
@@ -725,6 +728,38 @@ The same source gives the same files, byte for byte: a run changes only what
 changed and removes what it wrote before and no longer writes. A state of
 the past is read from a temporary checkout (`git worktree`); the working
 tree is not touched. `layers` is also a task of [`run`](#run).
+
+### `bundle`
+
+```text
+bca bundle [app-root] [-o <folder>] [--test-results <path>]... [--include <path>]... [options]
+```
+
+Everything BC Atlas makes of a project, end to end, as one artifact: one
+folder and one ZIP file with a manifest. See
+[The bundle](./bundle.md).
+
+```sh
+bca bundle ./app                                  # bc-atlas-bundle/ and bc-atlas-bundle.zip
+bca bundle ./app -o out/atlas --test-results TestResults.xml --include output/MyApp.app
+bca bundle ./app --no-zip --format json
+```
+
+| Option | Value | Meaning |
+| --- | --- | --- |
+| `-o`, `--output` | path | The folder of the bundle; the ZIP file gets the same name with `.zip`. The folder is replaced. Default: `bc-atlas-bundle`. |
+| `--test-results` | path | Results of tests that really ran (JUnit or xUnit XML): a file or a folder. They are counted, and a failed test fails the bundle. Repeatable. |
+| `--include` | path | Files or folders that belong to the bundle: the `.app` file, compiler output, logs. Repeatable. |
+| `--no-zip` | | Write the folder only. |
+| `--no-narrative` | | Do not ask the model of the ai plugin for narrative pages, even when one is set up. |
+| `--pictures` | `auto`, `all`, `none` | Pictures of single objects in the documentation. |
+| `--title` | text | Title of the bundle. Default: the name of the app. |
+| `-f`, `--format` | `text`, `json` | What the command reports; `json` is the manifest. |
+
+Steps: validation, simulation, snapshots from the source, documentation,
+narrative, tests that ran, build outputs. A step that does not apply is
+skipped and says why. Exit code 1 means a step failed; the bundle is written
+all the same.
 
 ### `docs` commands
 

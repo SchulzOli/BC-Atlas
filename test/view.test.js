@@ -229,6 +229,28 @@ test("a link opens the same view in the app", async () => {
   assert.match(S.stateHash(state), /^#form=3d&inside=.+codeunit%3A%3A50220$/u);
 });
 
+test("a run builds its picture step by step: a step shows what the run reached so far", async () => {
+  const atlas = await purchasing.atlas();
+  const ben = atlas.stories.find(({ id }) => id === "run:Ben");
+  const state = { ...S.DEFAULTS, lens: "run", form: "diagram", story: "run:Ben", step: "1" };
+  const scene = S.scene(atlas, S.index(atlas), state);
+  const seen = (step, story = "run:Ben") => scene.entries.filter((entry, at) => S.shown(scene, { ...state, story, step: String(step) }, atlas).nodes[at]).map(({ node }) => node.label).sort();
+  assert.deepEqual(seen(0), ["Ben (Team lead)"]);
+  assert.deepEqual(seen(1), ["Ben (Team lead)", "Create a new Purchase Request", "Purchase Request", "Purchase Requests"]);
+  assert.ok(seen(ben.steps.length - 1).length > seen(1).length);
+  assert.ok(!seen(ben.steps.length - 1).includes("Anna (Employee)"), "a run shows its own person");
+  // A story that does not build shows its lens as it is.
+  assert.equal(seen(0, "people").length, scene.entries.length);
+
+  // The command and the tool draw the same: step 2 holds four nodes, the end holds the whole run.
+  const early = await renderView(purchasing, { story: "run:Ben", step: 2, form: "diagram", format: "svg" });
+  assert.match(early.content, /Create a new Purchase Request/u);
+  assert.doesNotMatch(early.content, /Approve a released|Request Notifications|Anna/u);
+  const end = await renderView(purchasing, { story: "run:Ben", step: ben.steps.length, form: "diagram", format: "svg" });
+  assert.match(end.content, /Request Notifications/u);
+  assert.doesNotMatch(end.content, /Anna|Carla/u);
+});
+
 test("bca view prints to the terminal and writes files by their extension", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-view-"));
   const run = (...args) => spawnSync(process.execPath, [cli, "view", path.join(root, "examples", "purchasing-app"), ...args], { encoding: "utf8", timeout: 180_000 });
@@ -259,7 +281,7 @@ test("bca view prints to the terminal and writes files by their extension", () =
     assert.equal(JSON.parse(json.stdout).id, "people");
     const wrong = run("--lens", "nope");
     assert.equal(wrong.status, 2);
-    assert.match(wrong.stderr, /unknown lens "nope"; this project has: system, components, .+, requirements, simulation, sync\n/u);
+    assert.match(wrong.stderr, /unknown lens "nope"; this project has: system, components, .+, requirements, simulation, run, sync\n/u);
     const noFile = run("--format", "png");
     assert.equal(noFile.status, 2);
     assert.match(noFile.stderr, /a PNG needs --output/u);

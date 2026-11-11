@@ -21,6 +21,7 @@ export const SECTIONS = [
     ["Code Graph as Markdown", "code-graph-markdown-design.md"],
     ["System handbook", "handbook.md"],
     ["Layered documentation, in sync with the source", "layers.md"],
+    ["The bundle: everything as one artifact", "bundle.md"],
     ["Documentation from AL UI tests", "al-ui-test-documentation.md"],
     ["Knowledge graph (RDF and OWL)", "knowledge-graph.md"]
   ]],
@@ -43,6 +44,7 @@ export const SECTIONS = [
     ["Layered documentation (three-app example)", "../examples/layers/README.md"],
     ["User guides from AL UI tests (warehouse example)", "../examples/docs/index.md"],
     ["Battle test (purchasing example)", "../examples/simulation/README.md"],
+    ["A run of the simulation, step by step (purchasing example)", "../examples/simulation/run-ben.md"],
     ["Dependency explorer (multi-app example)", "../examples/explorer/README.md"],
     ["Knowledge graph (warehouse example)", "../examples/knowledge-graph/warehouse-app.ttl"]
   ]]

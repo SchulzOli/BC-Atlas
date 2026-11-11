@@ -29,11 +29,11 @@ export async function writeView(input, values = {}) {
 }
 
 export async function viewCommand(input, values) {
-  const { content, output, scene, atlas } = await writeView(input, values);
+  const { content, output, scene, atlas, counts } = await writeView(input, values);
   if (!output) {
     process.stdout.write(content);
     return;
   }
-  const what = scene ? `${scene.title}: ${scene.entries.length.toLocaleString("en-US")} node(s), ${scene.edges.length.toLocaleString("en-US")} relation(s)` : atlas.title;
+  const what = scene ? `${scene.title}: ${(counts?.nodes ?? scene.entries.length).toLocaleString("en-US")} node(s), ${(counts?.relations ?? scene.edges.length).toLocaleString("en-US")} relation(s)` : atlas.title;
   console.error(`${what}\nWrote ${displayPath(output)}`);
 }

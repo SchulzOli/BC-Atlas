@@ -342,7 +342,7 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
   }));
 
   server.registerTool("bc_atlas_view", {
-    description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, components, namespaces, objects, health rules, process tests, people, requirements, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (system, components, data, calls, events, health, processes, people, ..., and the lenses of plugins, such as sync for what was recorded in Business Central) returns that part of the graph: nodes with their facts and findings, and relations. inside goes into one node: an object opens to its procedures and what each does, an app, a component, or a namespace to its objects; focus returns a node and what is near it; story returns a generated walk through the graph (what the system is, a process step by step, what to fix). format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",
+    description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, components, namespaces, objects, health rules, process tests, people, requirements, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (system, components, data, calls, events, health, processes, people, ..., and the lenses of plugins, such as sync for what was recorded in Business Central) returns that part of the graph: nodes with their facts and findings, and relations. inside goes into one node: an object opens to its procedures and what each does, an app, a component, or a namespace to its objects; focus returns a node and what is near it; story returns a generated walk through the graph (what the system is, a process step by step, what to fix, or run:<agent>: one person of the simulation performing the assigned process tests, each step [done], [blocked] with what is missing, or [waiting]; with step, the picture as that step built it). format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",
     inputSchema: z.object({
       path: architectureFields.path,
       projectRoot: architectureFields.projectRoot,
@@ -357,7 +357,7 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
       hide: z.array(z.string()).optional().describe("Kinds of node to leave out: codeunit, table, other apps, ..."),
       off: z.array(z.string()).optional().describe("Kinds of relation to leave out: uses, reads, permits, ..."),
       check: z.boolean().optional().describe("Text: the findings with their fixes below each node. Picture: a ring on every node with a finding"),
-      story: z.string().optional().describe("A story by id (system, fix, architecture, people, process:<use case>)"),
+      story: z.string().optional().describe("A story by id (system, fix, architecture, people, process:<use case>, run:<agent>: the run of the simulation of one person, step by step)"),
       step: z.number().int().positive().optional().describe("One step of the story, from 1: the nodes it is about"),
       stories: z.boolean().optional().describe("Every story as one document"),
       form: z.enum(VIEW_FORMS).optional().describe("Form of a picture (default 2d)"),
@@ -377,8 +377,8 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
     const asked = ["lens", "inside", "focus", "story", "stories", "find", "select", "hide", "off"].some((name) => values[name] !== undefined && values[name] !== false);
     const format = values.format ?? (values.output ? undefined : "json");
     if ((format === "svg" || format === "png") && !values.output) throw new Error(`a ${format} picture needs output, the file to write`);
-    const { content, output, scene, atlas, format: written } = await writeView(input, { ...values, format });
-    if (output) return { output, format: written, project: atlas.title, ...(scene ? { title: scene.title, nodes: scene.entries.length, relations: scene.edges.length } : {}) };
+    const { content, output, scene, atlas, counts, format: written } = await writeView(input, { ...values, format });
+    if (output) return { output, format: written, project: atlas.title, ...(scene ? { title: scene.title, nodes: counts?.nodes ?? scene.entries.length, relations: counts?.relations ?? scene.edges.length } : {}) };
     // What there is to see, and not every node of the project at once.
     if (!asked && written === "json") return viewOverview(atlas);
     return written === "json" ? JSON.parse(content) : content;
@@ -393,6 +393,7 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
       compiler: projectFields.compiler,
       tests: z.string().optional().describe("Folder with the process tests (default: simulation.tests, docs.tests, or the app)"),
       company: z.string().optional().describe("JSON file with roles, agents, taskGroups, and requirements instead of .bca.json"),
+      recordings: z.string().optional().describe("Folder with recordings of Business Central (fact snapshots as JSON) the agents perform as well"),
       failOn: z.enum(FAIL_LEVELS).optional(),
       language: z.string().optional().describe("en (default) or de"),
       agent: z.string().optional().describe("Return this agent's attempts, missing permissions, and unused permissions"),
@@ -415,6 +416,26 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
       agents: agent ? named(agents, agent, "name") : agents.map(({ name, roles, permissionSets, taskGroups }) => ({ name, roles, permissionSets: permissionSets.map((set) => set.name), taskGroups })),
       tasks: task ? named(tasks, task, "id") : tasks.map(({ id, title, features, permissions, source }) => ({ id, title, features, permissions, source }))
     };
+  }));
+
+  server.registerTool("bc_atlas_bundle", {
+    description: "Build the bundle of a project: everything BC Atlas makes of it, end to end, as one artifact. Steps: validation (health check), simulation (battle test on process tests and recordings), a fact snapshot of every process test from the source, the run of every person step by step with the picture it built, the layered documentation with the view, narrative pages when a model is set up, and the test results and build outputs given. Writes one folder and one ZIP file with a manifest (bundle.json: commit, every step with its result, every file with its hash) and returns the manifest. passed is false when a step failed; the bundle is written all the same.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      compiler: projectFields.compiler,
+      output: z.string().min(1).describe("Folder of the bundle; the ZIP file gets the same name with .zip. The folder is replaced"),
+      testResults: z.array(z.string()).optional().describe("JUnit or xUnit XML files or folders with the results of tests that really ran"),
+      include: z.array(z.string()).optional().describe("Files or folders that belong to the bundle: the .app file, logs"),
+      noNarrative: z.boolean().optional().describe("Do not ask the model of the ai plugin for narrative pages"),
+      noZip: z.boolean().optional().describe("Write the folder only")
+    }),
+    annotations: { readOnlyHint: false, idempotentHint: true }
+  }, tool(async ({ path: input, ...values }) => {
+    const { createBundle } = await import("./commands/bundle.js");
+    const { output, zip, manifest } = await createBundle(input, values);
+    return { ...manifest, files: manifest.files.length, output, zip };
   }));
 
   server.registerTool("bc_atlas_simulation_define", {

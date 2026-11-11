@@ -83,6 +83,10 @@ const purchasing = path.join(root, "examples", "purchasing-app");
 await run(["layers", path.join("examples", "multi-app"), "-o", path.join("examples", "layers")]);
 await run(["simulate", purchasing, "-o", path.join("examples", "simulation", "README.md")], { exitCodes: [1] });
 await run(["simulate", purchasing, "-o", path.join("examples", "simulation", "README.de.md"), "--language", "de"], { exitCodes: [1] });
+// A run of the simulation: Ben at work, step by step, and the picture where he is stopped and at the end.
+await run(["view", purchasing, "--story", "run:Ben", "-o", path.join("examples", "simulation", "run-ben.md")]);
+await run(["view", purchasing, "--story", "run:Ben", "--step", "13", "--form", "diagram", "-o", path.join("examples", "simulation", "run-ben-stopped.svg")]);
+await run(["view", purchasing, "--story", "run:Ben", "--step", "15", "--form", "diagram", "-o", path.join("examples", "simulation", "run-ben.svg")]);
 
 // The knowledge graph of the warehouse example, with a fixed date so it only changes with the source.
 process.env.SOURCE_DATE_EPOCH = "1735689600";

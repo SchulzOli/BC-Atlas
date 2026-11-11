@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **Simulate › Run, step by step** plays the simulation of one person on
+  the graph: each step shows where the person is, what the step needs, and
+  where it stops, and the picture is built step by step. The new lens
+  **Run** shows all runs together.
+- **Simulate › Build the bundle** writes validation, the simulation with
+  its runs and snapshots, the documentation, and the view as one folder
+  and one ZIP file next to the project.
+- **Simulate** lists what stops the simulation at the top of its menu, each
+  finding one click from the person it is about, and **Start from the
+  process tests** writes the company the tests describe as the start of
+  your own.
+
 ## 0.20.0
 
 - The engine is BC Atlas 0.20.0.

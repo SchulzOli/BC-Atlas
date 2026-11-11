@@ -64,6 +64,8 @@ export function createService(workspace) {
     updateBaseline: () => workspace.updateBaseline(),
     // The Simulate menu of the view: operations on the simulation section, applied and run at once.
     defineSimulation: (params = {}) => workspace.defineSimulation(params),
+    // Build from the Simulate menu: everything the simulation shows, as one artifact.
+    bundle: (params = {}) => workspace.bundle(params),
     updateProposal: (params = {}) => workspace.updateProposal({
       keep: params.keep,
       release: params.release || undefined,

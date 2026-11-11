@@ -234,13 +234,15 @@ export async function renderView(workspace, options = {}) {
   const inner = state.inside ? atlas.nodes[found.position.get(state.inside)] : undefined;
   const within = inner?.kind === "object" ? await workspace.inside(state.inside) : undefined;
   const scene = S.scene(atlas, found, state, within);
-  const flags = S.shown(scene, state);
+  const flags = S.shown(scene, state, atlas);
   // In a list, what a search or a step lights up is what is listed.
   const lit = S.highlight(atlas, scene, state);
   if (lit && !pictures) flags.nodes.forEach((visible, at) => { if (visible && !lit.has(at)) flags.nodes[at] = 0; });
-  const result = (content) => ({ content, format, state, scene, atlas });
+  // What a file holds: the nodes and relations that show (a run shows what it reached so far).
+  const counts = { nodes: flags.nodes.reduce((sum, visible) => sum + (visible ? 1 : 0), 0), relations: scene.edges.filter(([from, to, kind]) => flags.nodes[from] && flags.nodes[to] && (!flags.kinds.length || flags.kinds[kind])).length };
+  const result = (content) => ({ content, format, state, scene, atlas, counts });
 
-  if (format === "text") return result(sceneText(atlas, found, scene, S.shown(scene, state), state));
+  if (format === "text") return result(sceneText(atlas, found, scene, S.shown(scene, state, atlas), state));
   if (format === "json") return result(`${JSON.stringify(S.sceneData(atlas, found, scene, flags), null, 2)}\n`);
   if (format === "md") return result(`${S.lensMarkdown(atlas, found, scene, flags)}\n`);
   if (format === "csv") {

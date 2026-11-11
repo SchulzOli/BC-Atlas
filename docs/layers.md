@@ -35,7 +35,7 @@ Across the layers:
 | Page | Holds |
 | --- | --- |
 | `lenses/<lens>.md` | Each lens of the view as a page with its picture: data, calls, events, contracts, pages, permissions, visibility, findings, processes, people, requirements, and the lenses of plugins |
-| `stories/<story>.md` | The generated walks through the system: what it is, each process step by step, who can do what, what to fix |
+| `stories/<story>.md` | The generated walks through the system: what it is, each process step by step, who can do what, what to fix, and the [run](./battle-test.md#a-run-step-by-step) of each person of the simulation with the picture it built |
 | `findings.md` | Everything the checks found, the most severe first, each linked to the objects it is about |
 | `atlas.json` | The graph itself: every node, relation, lens, finding, and story |
 | `layers.json` | What the folder holds, the numbers of the system, and for a state of the past its commit |

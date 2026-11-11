@@ -155,6 +155,8 @@ To simulate your own company, describe it under `simulation` in `.bca.json`
 | `roles` | Who does it: `name`, `description`, `permissionSets`, and the work as `taskGroups`, `tasks`, or `features`. `mustNot` lists what the role must not be able to do (process tests, features, or task groups): segregation of duties, tested. |
 | `agents` | The people: `name` and `roles`, plus their own `permissionSets`, `taskGroups`, `tasks`, and `mustNot`. Without agents, there is one per role. |
 | `requirements` | What the company needs, for the fit-gap analysis: `id`, `title`, `description`, the process tests that cover it (`tasks`, `features`), and `objects` of the app that should cover it (`page:Name`, `codeunit:Name`). Without requirements, every `[FEATURE]` is one. |
+| `recordings` | Folder with recordings of Business Central (fact snapshots as JSON) the agents perform as well. See [Recordings and snapshots](#recordings-and-snapshots). |
+| `snapshotDir` | Folder the `simulate` task of `bca run` writes one fact snapshot per process test into, from the source. |
 | `grounding` | Process tests grounded on recordings of Business Central: document ID of the test to the key or name of the recording. See [Grounding](#grounding-process-tests-on-recordings). |
 | `fullAccess` | Permission sets that grant everything although they are not in the source. Default: `["SUPER"]`. |
 | `otherApps` | Rights on objects of other apps that the analyzed permission sets do not grant: `assume` (default) takes them as given by that app's permission sets, `check` requires them. |
@@ -206,6 +208,42 @@ not, the requirements the tests prove, and the recordings they stand on.
 `bca view --lens simulation --form diagram -o simulation.svg` draws it
 without a window.
 
+### A run, step by step
+
+The result of a simulation is a list. A **run** shows how it came about: one
+person performs the assigned process tests, step after step, and the
+picture is built by it. It starts with the person alone. Every step adds
+the process test it belongs to and the objects it needs, and says whether
+the person can do it. Where the person is stopped, the step says which
+permission is missing and what to add; the steps after it are marked as not
+reached. The last step is the whole picture of the run.
+
+- **In the view**: **Simulate › Run, step by step** lists one run per
+  person. It plays in the diagram form; Space pauses, the arrow keys step
+  by hand, and the address of the page holds the step, so a step can be
+  shared.
+- **In the terminal and for agents**: a run is a story of the view.
+
+  ```sh
+  bca view                                   # lists the runs: run:Anna, run:Ben, ...
+  bca view --story run:Ben                   # every step as text: [done], [blocked], [waiting]
+  bca view --story run:Ben --step 13 --form diagram -o stopped.svg
+  ```
+
+  The MCP tool `bc_atlas_view` takes the same `story` and `step`.
+- **As documentation**: [`bca layers`](./layers.md) and
+  [`bca bundle`](./bundle.md) write one page per run, with every step and
+  the picture the run built.
+
+![Ben is stopped at the third step of the approval: the red line leads to the process test, the blue lines to the objects the step needs](../examples/simulation/run-ben-stopped.svg)
+
+Ben in the purchasing example, at step 13 of 15: he created and released a
+request, and is stopped when he approves one.
+[The whole run as text](../examples/simulation/run-ben.md).
+
+The lens **Run** is the canvas of all runs together: every person, the
+process tests they perform, and the objects each test touches.
+
 ### Grounding: process tests on recordings
 
 A process test says what should happen. A **recording** of the same process
@@ -223,6 +261,36 @@ the test says what it stands on. Where the two differ, the finding
 test never touches, and what the test touches but the recording did not run
 through. Documentation written from a grounded test stands on what really
 ran.
+
+## Recordings and snapshots
+
+The simulation and the recordings of Business Central work together, both
+ways.
+
+**Perform what was recorded.** With `simulation.recordings` (or
+`--recordings`) pointing at a folder of fact snapshots, the agents perform
+the recordings as well:
+
+- A recording with the title of a process test (or named by
+  `simulation.grounding`) adds **what really ran** to that test, as steps
+  after its own. A role must hold what the test says and what the recording
+  shows.
+- Any other recording is a **process of its own**, in the use case of its
+  feature. Nobody is assigned to it until a role or an agent lists it:
+  `bca simulate define --role "Team lead" --tasks recorded-<name>`.
+
+What a recording takes is read from its call stacks: Execute on every page,
+codeunit, and report, and the table right of every read and write. An
+object that ran but is not in the analyzed source is named under the step.
+So a process can be simulated before anyone wrote a UI test for it.
+
+**Write what the source says.** `bca simulate --snapshots <folder>` (or
+`simulation.snapshotDir` for the `simulate` task of `bca run`) writes one
+fact snapshot per process test, in the schema of the recordings: the steps
+of the test as phases, what each step needs as technical steps, and who
+performs it and how far they get. It is marked as read from the source,
+not recorded. Whatever reads recordings reads these, and
+[`bca bundle`](./bundle.md) packs them with everything else.
 
 ## The report
 

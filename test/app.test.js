@@ -171,7 +171,7 @@ test("process tests are nodes, lenses, findings, and stories of the same graph",
   const count = (kind) => atlas.nodes.filter((node) => node.kind === kind).length;
   assert.deepEqual({ process: count("process"), task: count("task"), person: count("person"), requirement: count("requirement") }, { process: 2, task: 5, person: 4, requirement: 6 });
   // After the lenses of BC Atlas come those of plugins: here the recordings of the sync plugin.
-  assert.deepEqual(atlas.lenses.map(({ id }) => id).slice(-5), ["processes", "people", "requirements", "simulation", "sync"]);
+  assert.deepEqual(atlas.lenses.map(({ id }) => id).slice(-6), ["processes", "people", "requirements", "simulation", "run", "sync"]);
   assert.equal(atlas.summary.battle.company, "Contoso GmbH");
 
   const index = (label) => atlas.nodes.findIndex((node) => node.label === label);
@@ -206,7 +206,51 @@ test("process tests are nodes, lenses, findings, and stories of the same graph",
   // Without process tests there are no such nodes, lenses, or stories.
   const plain = await createService(new Workspace(workspace)).call("atlas");
   assert.ok(!plain.nodes.some(({ kind }) => ["process", "task", "person", "requirement"].includes(kind)));
-  assert.ok(!plain.lenses.some(({ id }) => ["processes", "people", "requirements"].includes(id)));
+  assert.ok(!plain.lenses.some(({ id }) => ["processes", "people", "requirements", "run"].includes(id)));
+  assert.ok(!plain.stories.some(({ kind }) => kind === "run"));
+});
+
+test("a run of the simulation goes step by step and builds its picture as it goes", async () => {
+  const service = createService(new Workspace(path.join(root, "examples", "purchasing-app"), {}, { live: false }));
+  const atlas = await service.call("atlas");
+  const labels = (nodes) => nodes.map((node) => atlas.nodes[node].label);
+  // One run per person with process tests to do.
+  const runs = atlas.stories.filter(({ kind }) => kind === "run");
+  assert.deepEqual(runs.map(({ id, title, build }) => [id, title, build]), [["run:Anna", "Anna at work", true], ["run:Ben", "Ben at work", true], ["run:Carla", "Carla at work", true], ["run:Dana", "Dana at work", true]]);
+  const ben = runs[1];
+  assert.ok(ben.steps.every(({ lens }) => lens === "run"));
+  // It starts at the person, then every step of every assigned test in order, on the objects that step needs.
+  assert.deepEqual(labels(ben.steps[0].nodes), ["Ben (Team lead)"]);
+  assert.match(ben.steps[0].text, /^Ben has the role Team lead, with the permission sets PR - REQUEST, PR - APPROVE, and is assigned 3 process tests: /u);
+  assert.equal(ben.steps[1].title, "Create a new Purchase Request · step 1");
+  assert.deepEqual(labels(ben.steps[1].nodes), ["Ben (Team lead)", "Create a new Purchase Request", "Purchase Requests", "Purchase Request"]);
+  assert.match(ben.steps[1].text, /Ben can do this\.$/u);
+  // Where the person is stopped, the step says what is missing and what to add; what follows is not reached.
+  const stopped = ben.steps.findIndex(({ status }) => status === "blocked");
+  assert.equal(ben.steps[stopped].title, "Approve a released purchase request · step 3");
+  assert.match(ben.steps[stopped].text, /Ben is stopped here: execute on codeunit 50222 Request Notifications is missing .+ Add to a permission set: `codeunit "Request Notifications" = X`\.$/u);
+  assert.deepEqual(ben.steps.slice(1, -1).map(({ status }) => status).slice(stopped - 1), ["blocked", "waiting"]);
+  assert.match(ben.steps[stopped + 1].text, /Not reached: Ben was stopped at step 3\.$/u);
+  // The end is the whole picture the run built.
+  const end = ben.steps.at(-1);
+  assert.deepEqual([end.title, end.status], ["Ben: 2 of 3 done", "blocked"]);
+  assert.deepEqual([...end.nodes].sort((a, b) => a - b), [...new Set(ben.steps.slice(0, -1).flatMap(({ nodes }) => nodes))].sort((a, b) => a - b));
+  assert.equal(runs[0].steps.at(-1).status, "done");
+});
+
+test("the view builds the bundle next to the project", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-app-bundle-"));
+  try {
+    cpSync(path.join(root, "examples", "purchasing-app"), directory, { recursive: true });
+    const service = createService(new Workspace(directory, { compiler: "off" }, { live: false }));
+    const result = await service.call("bundle");
+    assert.equal(result.folder, "bc-atlas-bundle");
+    assert.equal(result.passed, false, "someone is stopped in the example");
+    assert.deepEqual(result.steps.map(({ id }) => id), ["check", "simulate", "snapshots", "runs", "docs", "narrative", "tests", "build"]);
+    for (const file of ["bc-atlas-bundle/README.md", "bc-atlas-bundle/docs/stories/run-ben.md", "bc-atlas-bundle.zip"]) assert.ok(existsSync(path.join(directory, file)), file);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("adopting an architecture writes .bca.json and the baseline", async () => {
@@ -362,6 +406,8 @@ test("the app is one view: a toolbar and the graph", () => {
   // Simulate stands next to Story, and is there when the project has process tests.
   assert.match(body, /id="story-button"[^\n]+\n\s*<button class="tool menu" id="simulate-button" data-menu="simulate"[^>]* hidden>Simulate<\/button>/u);
   assert.match(html, /call\("defineSimulation", \{ operations: \[operation\] \}\)/u, "a change is an operation, applied and run again");
+  assert.match(html, /data-sim-run=/u, "a run of the simulation starts from the Simulate menu");
+  assert.match(html, /call\("bundle"\)/u, "and so does the build of the bundle");
   // What floats on the graph starts hidden: the legend, the selected node, the story.
   for (const id of ["legend", "inspector", "story"]) assert.match(body, new RegExp(`id="${id}" class="float"[^>]* hidden>`, "u"));
   assert.match(html, /root\.BCA_GRAPH = \{ create, drawing, seed, step, random, layered \}/u, "the graph is part of the file");

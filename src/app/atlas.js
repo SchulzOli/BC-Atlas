@@ -89,7 +89,8 @@ export const LENSES = [
   { id: "processes", title: "Processes", summary: "The process tests step by step, and the objects each one touches.", kinds: ["process", "task", "object"], relations: ["step", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the AL UI tests with `[SCENARIO]`, and the code behind every step" },
   { id: "people", title: "People", summary: "Who performs which process test with which permission sets, and what blocks them.", kinds: ["person", "task", "object"], relations: ["performs", "blocked", "must not", "can, but must not", "holds"], connected: true, group: "kind", color: "kind", reads: "the roles and agents of `simulation` in .bca.json, their permission sets, and the process tests" },
   { id: "requirements", title: "Requirements", summary: "What the company needs, and the process tests that prove it.", kinds: ["requirement", "task"], relations: ["proven by"], group: "kind", color: "status", reads: "the `requirements` of `simulation` in .bca.json and the process tests" },
-  { id: "simulation", title: "Simulation", summary: "The company that uses the app: its people and roles, the process tests each role does or must not do, the recordings they stand on, and the requirements they prove.", kinds: ["person", "role", "task", "requirement", "recording"], needs: ["person", "role"], relations: ["has role", "does", "forbids", "blocked", "can, but must not", "proven by", "grounds"], group: "kind", color: "status", reads: "the `simulation` section of .bca.json (or the [PERMISSIONS] of the process tests), the process tests, and the recordings of the sync plugin" }
+  { id: "simulation", title: "Simulation", summary: "The company that uses the app: its people and roles, the process tests each role does or must not do, the recordings they stand on, and the requirements they prove.", kinds: ["person", "role", "task", "requirement", "recording"], needs: ["person", "role"], relations: ["has role", "does", "forbids", "blocked", "can, but must not", "proven by", "grounds"], group: "kind", color: "status", reads: "the `simulation` section of .bca.json (or the [PERMISSIONS] of the process tests), the process tests, and the recordings of the sync plugin" },
+  { id: "run", title: "Run", summary: "The canvas the simulation runs on: who performs which process test, and the objects each step touches.", kinds: ["person", "task", "object"], needs: ["person"], relations: ["performs", "blocked", "can, but must not", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the agents of `simulation` in .bca.json, the process tests, and what each step of a test needs" }
 ];
 
 const plural = (count, word, many = `${word}s`) => `${Number(count).toLocaleString("en-US")} ${count === 1 ? word : many}`;
@@ -512,6 +513,62 @@ async function contributions(workspace, graph, findings, assessment) {
   return { lenses, stories };
 }
 
+/**
+ * The runs of the simulation: one per person, step by step through the process tests the person
+ * is assigned. Every step says where it is (the test, the objects the step needs) and how it
+ * ends for this person: done, stopped here with what is missing, or not reached. A run builds
+ * its picture: what a step has not reached yet does not show.
+ */
+function runs(graph, battle) {
+  if (!battle) return [];
+  const byNumber = new Map();
+  for (const node of graph.nodes) if (node.kind === "object" && node.objectId) byNumber.set(`${node.type}:${node.objectId}`, node.id);
+  const order = new Map((battle.tasks ?? []).map((task, index) => [task.id, index]));
+  const tasks = new Map((battle.tasks ?? []).map((task) => [task.id, task]));
+  const indexes = (ids) => [...new Set(ids.map((id) => graph.at(id)).filter((index) => index !== undefined))];
+  return (battle.agents ?? []).map((agent) => {
+    const person = `person::${agent.name}`;
+    const assigned = (agent.attempts ?? []).filter(({ expected }) => expected === "complete").sort((a, b) => order.get(a.task) - order.get(b.task));
+    if (!assigned.length || graph.at(person) === undefined) return undefined;
+    const who = agent.roles?.length ? `${agent.name} (${agent.roles.join(", ")})` : agent.name;
+    const sets = (agent.permissionSets ?? []).map(({ name }) => name);
+    const steps = [{
+      title: who,
+      text: `${agent.name} ${agent.roles?.length ? `has the role ${agent.roles.join(" and ")}` : "has no role"}${sets.length ? `, with the permission sets ${sets.join(", ")}` : ""}, and is assigned ${assigned.length} process test${assigned.length === 1 ? "" : "s"}: ${assigned.map(({ title }) => title).join("; ")}.`,
+      lens: "run",
+      nodes: indexes([person])
+    }];
+    for (const attempt of assigned) {
+      const task = tasks.get(attempt.task);
+      for (const step of task?.steps ?? []) {
+        const stopped = attempt.blockedAt === step.index;
+        const reached = !attempt.blockedAt || step.index <= attempt.blockedAt;
+        const missing = (attempt.missing ?? []).filter((item) => item.step === step.index);
+        const end = stopped
+          ? `${agent.name} is stopped here: ${missing.map((item) => `${item.right} on ${item.object} is missing (${item.because})`).join("; ") || "a permission is missing"}.${attempt.missingPermissions?.length ? ` Add to a permission set: ${attempt.missingPermissions.map((line) => `\`${line}\``).join(", ")}.` : ""}`
+          : reached ? `${agent.name} can do this.` : `Not reached: ${agent.name} was stopped at step ${attempt.blockedAt}.`;
+        steps.push({
+          title: `${attempt.title} · step ${step.index}`,
+          text: `${step.text} ${end}`,
+          lens: "run",
+          nodes: indexes([person, `task::${attempt.task}`, ...(step.needs ?? []).map((need) => byNumber.get(`${need.type}:${need.id}`)).filter(Boolean)]),
+          status: stopped ? "blocked" : reached ? "done" : "waiting"
+        });
+      }
+    }
+    const completed = assigned.filter(({ outcome }) => outcome === "completed").length;
+    steps.push({
+      title: `${agent.name}: ${completed} of ${assigned.length} done`,
+      text: `${agent.name} completes ${completed} of ${assigned.length} assigned process test${assigned.length === 1 ? "" : "s"}.${assigned.filter(({ outcome }) => outcome === "blocked").map(({ title, blockedAt }) => ` "${title}" stops at step ${blockedAt}.`).join("")}`,
+      lens: "run",
+      // The end of the run is the whole picture it built.
+      nodes: [...new Set(steps.flatMap(({ nodes }) => nodes))],
+      ...(completed < assigned.length ? { status: "blocked" } : { status: "done" })
+    });
+    return { id: `run:${agent.name}`, kind: "run", build: true, title: `${agent.name} at work`, summary: `${who} performs ${assigned.length} assigned process test${assigned.length === 1 ? "" : "s"}, step by step: where each step goes, and where it stops.`, steps };
+  }).filter(Boolean);
+}
+
 /** The stories: walks through the graph that explain, document, test, and demonstrate the system. */
 function stories({ graph, findings, report, assessment, battle, title }) {
   const result = [];
@@ -758,6 +815,8 @@ export async function createAtlas(workspace) {
     findings,
     stories: [
       ...stories({ graph, findings, report, assessment, battle, title: overview.title }),
+      // The runs of the simulation, when its canvas is among the lenses.
+      ...(lenses.some(({ id }) => id === "run") ? runs(graph, battle) : []),
       // A step of a plugin's story names a lens of the atlas, its own or one of BC Atlas.
       ...added.stories.filter((story) => story.steps.every(({ lens }) => lenses.some(({ id }) => id === lens)))
     ]
