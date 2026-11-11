@@ -562,6 +562,12 @@
     return far;
   }
 
+  /**
+   * How far the eye is from the middle of the layout. In space it stands close, so what is in front
+   * is clearly larger than what is behind.
+   */
+  const distanceOf = (v) => (v.form === "3d" ? Math.max(extentOf(v) * 2.2, 320) : Math.max(extentOf(v) * 3, 400));
+
   /** A point of the layout on the screen: { x, y, scale, depth }. */
   function projectOn(v, point, distance, view = v.camera) {
     const cosYaw = Math.cos(view.yaw);
@@ -612,6 +618,13 @@
       v.camera.y = free.y - ((top + bottom) / 2) * v.camera.zoom;
       return;
     }
+    if (v.form === "3d") {
+      // In space the floor under the graph belongs to the picture.
+      v.camera.zoom = Math.min(3, Math.min(free.width, free.height) / 2 / (extentOf(v) * 1.32 + 46));
+      v.camera.x = free.x;
+      v.camera.y = free.y - extentOf(v) * 0.1 * v.camera.zoom;
+      return;
+    }
     v.camera.zoom = Math.min(3, Math.min(free.width, free.height) / 2 / (extentOf(v) * 1.08 + 46));
     v.camera.x = free.x;
     v.camera.y = free.y;
@@ -630,12 +643,41 @@
     const { look } = v;
     const flat = v.form !== "3d";
     pen.clear(v.width, v.height, look.background);
-    const distance = Math.max(extentOf(v) * 3, 400);
+    const distance = distanceOf(v);
     const boxed = v.form === "diagram";
     const placed = v.nodes.map((_, index) => (v.visible[index] && (!boxed || v.boxes[index]) ? projectOn(v, v.place ? v.place(index) : boxed ? { x: v.boxes[index].x, y: v.boxes[index].y, z: 0 } : v.points[index], distance) : undefined));
     const focus = emphasisOf(v);
     const lit = (index) => !focus || focus.has(index);
-    const depthFade = (item) => (flat ? 1 : Math.max(0.35, Math.min(1, item.scale / v.camera.zoom)));
+    // In space: how much larger (in front) or smaller (behind) something is than in the middle.
+    const near = (item) => (flat ? 1 : item.scale / v.camera.zoom);
+    // What is behind fades into the background.
+    const depthFade = (item) => (flat ? 1 : Math.max(0.3, Math.min(1, (near(item) - 0.5) / 0.55)));
+    // The size of a node on the screen: the zoom within limits, and in space its depth.
+    const grown = (item) => Math.min(1.6, Math.max(0.5, flat ? item.scale : v.camera.zoom)) * (flat ? 1 : Math.min(2.4, Math.max(0.45, near(item))));
+
+    // In space the graph stands over a floor: rings and spokes that show where is front, back, and below.
+    if (!flat) {
+      const extent = Math.max(extentOf(v), 120);
+      const floor = extent * 0.8;
+      const ground = [];
+      const on = (x, z) => projectOn(v, { x, y: floor, z }, distance);
+      for (const radius of [0.35, 0.65, 0.95]) {
+        let before = on(radius * extent, 0);
+        for (let part = 1; part <= 48; part++) {
+          const angle = (part / 48) * Math.PI * 2;
+          const next = on(Math.cos(angle) * radius * extent, Math.sin(angle) * radius * extent);
+          ground.push(before.x, before.y, next.x, next.y);
+          before = next;
+        }
+      }
+      for (let spoke = 0; spoke < 12; spoke++) {
+        const angle = (spoke / 12) * Math.PI * 2;
+        const from = on(Math.cos(angle) * 0.35 * extent, Math.sin(angle) * 0.35 * extent);
+        const to = on(Math.cos(angle) * 0.95 * extent, Math.sin(angle) * 0.95 * extent);
+        ground.push(from.x, from.y, to.x, to.y);
+      }
+      pen.lines(ground, look.muted ?? "#64748B", 0.26, 1);
+    }
 
     // Where a relation meets its nodes: a line, or in the diagram curves from side to side
     // through the points it passes.
@@ -669,17 +711,28 @@
     for (let kind = 0; kind < v.kinds.length; kind++) {
       if (!v.shown[kind]) continue;
       const path = [];
+      // In space: relations behind, in the middle, and in front, each fainter or stronger.
+      const behind = [];
+      const front = [];
       for (const edge of v.edges) {
         if (edge[2] !== kind || !placed[edge[0]] || !placed[edge[1]]) continue;
         if (focus && lit(edge[0]) && lit(edge[1]) && (focus.center === undefined || edge[0] === focus.center || edge[1] === focus.center)) {
           strong.push(edge);
           continue;
         }
-        for (const value of anchors(edge)) path.push(value);
+        // A very large graph keeps one stroke per kind.
+        const depth = flat || many ? 1 : (near(placed[edge[0]]) + near(placed[edge[1]])) / 2;
+        const into = depth < 0.88 ? behind : depth > 1.2 ? front : path;
+        for (const value of anchors(edge)) into.push(value);
       }
       const opacity = focus ? 0.1 : many ? 0.16 : boxed ? 0.55 : 0.42;
-      if (boxed) pen.curves(path, v.kinds[kind].color ?? "#64748B", opacity, 1, v.kinds[kind].dash);
-      else pen.lines(path, v.kinds[kind].color ?? "#64748B", opacity, 1, v.kinds[kind].dash);
+      const color = v.kinds[kind].color ?? "#64748B";
+      if (boxed) pen.curves(path, color, opacity, 1, v.kinds[kind].dash);
+      else {
+        if (behind.length) pen.lines(behind, color, opacity * 0.45, 0.8, v.kinds[kind].dash);
+        pen.lines(path, color, opacity, 1, v.kinds[kind].dash);
+        if (front.length) pen.lines(front, color, Math.min(1, opacity * 1.5), 1.6, v.kinds[kind].dash);
+      }
     }
     const arrow = (edge, opacity, weight) => {
       const color = v.kinds[edge[2]].color ?? "#64748B";
@@ -699,7 +752,7 @@
         if (length < 6) return;
         ux = (line[2] - line[0]) / length;
         uy = (line[3] - line[1]) / length;
-        const end = radiusOf(v, edge[1]) * Math.min(1.6, Math.max(0.5, placed[edge[1]].scale)) + 2;
+        const end = radiusOf(v, edge[1]) * grown(placed[edge[1]]) + 2;
         tipX = line[2] - ux * end;
         tipY = line[3] - uy * end;
         pen.lines([line[0], line[1], tipX, tipY], color, opacity, weight, v.kinds[edge[2]].dash);
@@ -731,11 +784,13 @@
         if (12 * v.camera.zoom >= 5) pen.text(v.labels[index], item.x + 3 * v.camera.zoom, item.y, 12 * v.camera.zoom, look.text, opacity, undefined, look.font, "middle");
         continue;
       }
-      const size = Math.max(1.6, radiusOf(v, index) * Math.min(1.6, Math.max(0.5, item.scale)));
+      const size = Math.max(1.6, radiusOf(v, index) * grown(item));
       reaches[index] = size;
       if (v.rings?.[index]) pen.ring(item.x, item.y, size + 3.5, v.rings[index].color, opacity, v.rings[index].width);
       // A ring of the surface keeps overlapping v.nodes apart.
       pen.circle(item.x, item.y, size, color, opacity, marked ? look.text : look.background, index === v.selected ? 2.5 : 1);
+      // In space a node is a ball: light falls on it from the upper left.
+      if (!flat && size > 3 && order.length <= 1500) pen.circle(item.x - size * 0.3, item.y - size * 0.32, size * 0.36, "#FFFFFF", 0.34 * opacity);
       if (v.pinned.has(index) && size > 4) pen.circle(item.x, item.y, Math.max(1.2, size * 0.3), look.background, 1);
     }
 
@@ -750,7 +805,9 @@
         const item = placed[index];
         if (item.x < -40 || item.x > v.width + 40 || item.y < 0 || item.y > v.height) continue;
         const reach = reaches[index] + 4;
-        const textWidth = v.measure(v.labels[index]);
+        // In space a name in front is larger than one behind.
+        const letters = flat ? 12 : Math.round(12 * Math.min(1.35, Math.max(0.82, near(item))) * 2) / 2;
+        const textWidth = v.measure(v.labels[index]) * (letters / 12);
         const overlaps = (box) => taken.some((other) => box.x < other.x + other.w + 4 && box.x + box.w + 4 > other.x && box.y < other.y + other.h && box.y + box.h > other.y);
         // To the right of the node, or to its left when that is taken.
         let box = { x: item.x + reach, y: item.y - 8, w: textWidth, h: 16 };
@@ -762,7 +819,7 @@
         const forced = order.length <= 30 || (focus && taken.length < 24);
         if (!forced && overlaps(box)) continue;
         taken.push(box);
-        pen.text(v.labels[index], box.x, item.y, 12, look.text, focus ? 1 : Math.max(0.6, depthFade(item)), look.background, look.font);
+        pen.text(v.labels[index], box.x, item.y, letters, look.text, focus ? 1 : Math.max(0.55, depthFade(item)), look.background, look.font);
       }
     }
     return placed;
@@ -872,6 +929,9 @@
     // What floats on the window at each side, and whether the camera is on its way to fit the picture in the rest.
     let room = taken ?? {};
     let following = true;
+    // In space the graph turns slowly by itself, until someone turns it or the pointer is on it.
+    let orbit = true;
+    let over = false;
     // The camera on its way from one angle to another (2D to 3D and back).
     let turn;
     let hover = -1;
@@ -968,6 +1028,7 @@
       touched = false;
       glide = undefined;
       following = true;
+      orbit = true;
       redraw();
     }
     const fit = settle;
@@ -1010,6 +1071,10 @@
           step(points, nodes, edges, visible, shown, alpha, flat, pinned, next);
           alpha *= 0.985;
         }
+        redraw();
+      }
+      if (!flat && orbit && !over && !turn && !drag && selected < 0 && nodes.length <= 2500 && !still()) {
+        camera.yaw += 0.0026;
         redraw();
       }
       // Until someone moves the picture, the camera follows it to where it fits, without a jump.
@@ -1134,9 +1199,12 @@
       } else {
         camera.yaw += dx * 0.008;
         camera.pitch = Math.max(-1.5, Math.min(1.5, camera.pitch + dy * 0.008));
+        // Whoever turns the graph keeps the angle they chose.
+        orbit = false;
       }
       redraw();
     });
+    canvas.addEventListener("pointerenter", () => { over = true; });
     canvas.addEventListener("pointerup", (event) => {
       const done = drag;
       drag = undefined;
@@ -1154,10 +1222,11 @@
     });
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
     canvas.addEventListener("pointerleave", () => {
+      over = false;
+      redraw();
       if (hover < 0) return;
       hover = -1;
       inform();
-      redraw();
     });
     function zoom(factor, x = width / 2, y = height / 2) {
       touched = true;
@@ -1199,7 +1268,7 @@
       const wanted = indexes.filter((index) => visible[index] && (!diagram() || boxes[index]));
       if (!wanted.length) return;
       const unit = { ...camera, zoom: 1, x: 0, y: 0 };
-      const distance = Math.max(extent() * 3, 400);
+      const distance = distanceOf(state());
       const free = freeOf(state());
       let left = Infinity;
       let right = -Infinity;

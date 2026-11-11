@@ -18,7 +18,7 @@ import { createPluginContext } from "./context.js";
 import { parseManifest, readManifest } from "./manifest.js";
 
 /** The built-in tasks of bca run, in run order. Plugin tasks are placed by their before/after. */
-export const CORE_TASK_ORDER = Object.freeze(["check", "simulate", "report", "diagrams", "docs", "codegraph", "handbook"]);
+export const CORE_TASK_ORDER = Object.freeze(["check", "simulate", "report", "diagrams", "docs", "codegraph", "handbook", "layers"]);
 
 const NPM_PLUGIN = /^(@[^/]+\/)?bc-atlas-plugin-[a-z0-9-]+$/u;
 

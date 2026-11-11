@@ -20,6 +20,7 @@ export const TASKS = Object.freeze({
   docs: "User guides or test cases from AL UI tests",
   codegraph: "One Markdown page per AL object",
   handbook: "System handbook: events, data, permissions, interfaces, UI, code health (docs/handbook)",
+  layers: "Layered documentation, in sync with the source: system, apps, components, namespaces, objects, procedures (docs/layers)",
   diagrams: "Extra diagrams listed under \"diagrams\" in .bca.json"
 });
 // Plugins add tasks of their own (plugin.json contributes.tasks); see src/plugins.
@@ -52,6 +53,7 @@ export const DEFAULTS = Object.freeze({
   docs: { outputDir: "docs/guides", export: ["markdown", "html"], as: "guide" },
   codegraph: { outputDir: "docs/codegraph" },
   handbook: { outputDir: "docs/handbook" },
+  layers: { outputDir: "docs/layers" },
   simulation: { outputDir: "docs/simulation" }
 });
 
@@ -117,6 +119,7 @@ export function taskOutputs(task, config = {}, pluginOutputs = {}) {
   if (task === "docs") return [config.docs?.outputDir ?? DEFAULTS.docs.outputDir];
   if (task === "codegraph") return [config.codegraph?.outputDir ?? DEFAULTS.codegraph.outputDir];
   if (task === "handbook") return [config.handbook?.outputDir ?? DEFAULTS.handbook.outputDir];
+  if (task === "layers") return [config.layers?.outputDir ?? DEFAULTS.layers.outputDir];
   if (task === "simulate") return [config.simulation?.outputDir ?? DEFAULTS.simulation.outputDir];
   if (task === "diagrams") {
     return (config.diagrams ?? []).flatMap(({ output }) => {

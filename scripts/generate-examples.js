@@ -79,6 +79,8 @@ await run([
 // The battle test of the purchasing example. Its findings are the point of
 // the example, so the failed result (exit code 1) is expected.
 const purchasing = path.join(root, "examples", "purchasing-app");
+// The layered documentation of the example with three apps: the system down to each procedure.
+await run(["layers", path.join("examples", "multi-app"), "-o", path.join("examples", "layers")]);
 await run(["simulate", purchasing, "-o", path.join("examples", "simulation", "README.md")], { exitCodes: [1] });
 await run(["simulate", purchasing, "-o", path.join("examples", "simulation", "README.de.md"), "--language", "de"], { exitCodes: [1] });
 

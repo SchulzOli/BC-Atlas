@@ -85,6 +85,15 @@ async function runTask(task, root, config, log, appPath, values = {}, tasks = []
     log(`handbook: ${result.pages.length} page(s) in ${outputDir}`);
     return { ok: true, summary: `${result.pages.length} page(s)` };
   }
+  if (task === "layers") {
+    // The pages of the working tree, and with layers.history "releases" every release not recorded yet.
+    const { syncLayers } = await import("../commands/layers.js");
+    const result = await syncLayers(root, { ...values, output: at(config.layers?.outputDir ?? DEFAULTS.layers.outputDir) });
+    const added = result.states.filter(({ status }) => status === "added").length;
+    const summary = `${result.current.written.length} written, ${result.current.removed.length} removed, ${result.current.unchanged.length} unchanged${added ? `, ${added} release(s) recorded` : ""}`;
+    log(`layers: ${summary} in ${config.layers?.outputDir ?? DEFAULTS.layers.outputDir}`);
+    return { ok: true, summary };
+  }
   if (task === "diagrams") {
     const diagrams = config.diagrams ?? [];
     if (!diagrams.length) throw new Error("diagrams task needs a \"diagrams\" list in .bca.json");

@@ -628,6 +628,44 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         ]
       }),
       command({
+        id: "layers",
+        area: "export",
+        argv: ["bca", "layers", "[app-root]"],
+        purpose: "The layered documentation, in sync with the source: the system explained from the whole down to each procedure, one page per app, component, namespace, and object, each with a picture. For the source as it is now, and for any commit, tag, or release.",
+        options: {
+          output: string("The folder of the pages (default: layers.outputDir in .bca.json, else docs/layers). States of the past go below history/ in it.", { group: OUTPUT, short: "o", value: "path" }),
+          at: string("Record the source as it was at a commit, a tag, or a release, below history/<name>. Repeatable, or comma-separated. Only these states are written, not the working tree.", { group: SELECTION, repeatable: true, value: "ref" }),
+          releases: flag("Also record every release (Git tag) the current commit descends from that is not recorded yet.", { group: SELECTION }),
+          last: string("With --releases: only the newest n releases.", { group: SELECTION, value: "n" }),
+          refresh: flag("Write a state that is already recorded again, for example after an update of BC Atlas.", { group: SELECTION }),
+          check: flag("Write nothing; fail (exit code 1) when the pages are not in sync with the source, or an asked state is not recorded.", { group: OUTPUT }),
+          pictures: string("Pictures of single objects: auto (up to 400 objects), all, or none (no pictures at all). The system, apps, components, namespaces, and lenses always get one unless none.", { group: OUTPUT, enum: ["auto", "all", "none"], default: "auto" }),
+          view: flag("Also write view.html: the BC Atlas view of the working tree as one offline file, next to the pages. A state of the past always has it.", { group: OUTPUT }),
+          format: string("What the command reports: text (default) or json.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config,
+          compiler: projectOptions.compiler,
+          compilerLog: projectOptions.compilerLog,
+          paths: string("Only analyze AL files below these project-relative folders or globs.", { group: FILTERS, repeatable: true, value: "glob" })
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.layers-sync" },
+        rules: [
+          "Layers: 0 the system, 1 apps, 2 components, 3 namespaces, 4 objects, 5 the procedures, triggers, and events inside each object. Lenses, stories, and findings cut across them.",
+          "The same source gives the same files, byte for byte: a run changes only what changed, and removes what it wrote before and no longer writes.",
+          "A recorded state never changes; its pages are written once. history/README.md lists every state and what changed from each to the next.",
+          "A state of the past is read with the BC Atlas of today from a temporary checkout (git worktree); the working tree is not touched.",
+          "As a task of bca run (layers), the pages follow the sync mode of the trigger: verify, stage, commit, or pull request."
+        ],
+        examples: [
+          "bca layers ./app",
+          "bca layers ./app -o docs/system",
+          "bca layers ./app --check",
+          "bca layers ./app --at v1.4.0",
+          "bca layers ./app --at 3f2c1ab,v1.3.0",
+          "bca layers ./app --releases --last 5"
+        ]
+      }),
+      command({
         id: "docs.list",
         area: "export",
         argv: ["bca", "docs", "list", "<test-root>"],

@@ -1,0 +1,1371 @@
+{
+ "schema": 1,
+ "title": "multi-app",
+ "summary": {
+  "apps": 3,
+  "files": 5,
+  "objects": 12,
+  "relations": 26,
+  "health": {
+   "passed": false,
+   "failOn": "error",
+   "error": 1,
+   "warning": 0,
+   "info": 11
+  },
+  "architecture": {
+   "mode": "configured",
+   "components": 3,
+   "layers": 3,
+   "violations": 1,
+   "workItems": 1,
+   "extractable": 2,
+   "cycles": 0,
+   "baseline": {
+    "new": 1,
+    "known": 0,
+    "fixed": 0
+   }
+  }
+ },
+ "sources": [
+  [
+   "AL source",
+   "5 files with 12 objects"
+  ],
+  [
+   "app.json",
+   "Contoso Core 1.0.0.0, Contoso Integration 1.0.0.0, Contoso Sales 1.0.0.0"
+  ],
+  [
+   "Symbol packages",
+   "none"
+  ],
+  [
+   "AL compiler",
+   "not used; calls are resolved from the source"
+  ],
+  [
+   "Settings",
+   ".bca.json"
+  ]
+ ],
+ "config": ".bca.json",
+ "levels": {
+  "public": "#D55E00",
+  "internal": "#0072B2",
+  "local": "#009E73"
+ },
+ "nodes": [
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
+   "kind": "object",
+   "label": "CON Item",
+   "type": "table",
+   "color": "#2362A2",
+   "objectId": "50000",
+   "namespace": "Contoso.Core.Items",
+   "app": "Contoso Core",
+   "component": "Core",
+   "file": "core/Items.al",
+   "line": 3,
+   "level": "public",
+   "access": "public",
+   "lines": 17,
+   "uses": 1,
+   "usedBy": 4
+  },
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50001",
+   "kind": "object",
+   "label": "CON Price Group",
+   "type": "table",
+   "color": "#2362A2",
+   "objectId": "50001",
+   "namespace": "Contoso.Core.Items",
+   "app": "Contoso Core",
+   "component": "Core",
+   "file": "core/Items.al",
+   "line": 21,
+   "level": "public",
+   "access": "public",
+   "lines": 15,
+   "uses": 0,
+   "usedBy": 2
+  },
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::page::50000",
+   "kind": "object",
+   "label": "CON Item Card",
+   "type": "page",
+   "color": "#31783B",
+   "objectId": "50000",
+   "namespace": "Contoso.Core.Items",
+   "app": "Contoso Core",
+   "component": "Core",
+   "file": "core/Items.al",
+   "line": 37,
+   "level": "public",
+   "access": "public",
+   "lines": 14,
+   "uses": 1,
+   "usedBy": 0
+  },
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::interface::con price calculation",
+   "kind": "object",
+   "label": "CON Price Calculation",
+   "type": "interface",
+   "color": "#8B7400",
+   "namespace": "Contoso.Core.Pricing",
+   "app": "Contoso Core",
+   "component": "Core",
+   "file": "core/Pricing.al",
+   "line": 5,
+   "level": "public",
+   "access": "public",
+   "lines": 4,
+   "procedures": 1,
+   "uses": 0,
+   "usedBy": 1
+  },
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50010",
+   "kind": "object",
+   "label": "CON Standard Pricing",
+   "type": "codeunit",
+   "color": "#A96300",
+   "objectId": "50010",
+   "namespace": "Contoso.Core.Pricing",
+   "app": "Contoso Core",
+   "component": "Core",
+   "file": "core/Pricing.al",
+   "line": 10,
+   "level": "public",
+   "canBe": "internal",
+   "why": "no use from another app found",
+   "access": "public",
+   "lines": 13,
+   "procedures": 1,
+   "complexity": 2,
+   "uses": 3,
+   "usedBy": 1
+  },
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing::codeunit::50011",
+   "kind": "object",
+   "label": "CON Pricing Mgt.",
+   "type": "codeunit",
+   "color": "#A96300",
+   "objectId": "50011",
+   "namespace": "Contoso.Core.Pricing",
+   "app": "Contoso Core",
+   "component": "Core",
+   "file": "core/Pricing.al",
+   "line": 24,
+   "level": "public",
+   "why": "publishes events",
+   "access": "public",
+   "lines": 17,
+   "procedures": 1,
+   "complexity": 2,
+   "uses": 1,
+   "usedBy": 1
+  },
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50200",
+   "kind": "object",
+   "label": "CON Quote Export",
+   "type": "codeunit",
+   "color": "#A96300",
+   "objectId": "50200",
+   "namespace": "Contoso.Integration",
+   "app": "Contoso Integration",
+   "component": "Integration",
+   "file": "integration/Export.al",
+   "line": 5,
+   "level": "public",
+   "canBe": "internal",
+   "why": "no use from another app found",
+   "access": "public",
+   "lines": 15,
+   "procedures": 1,
+   "complexity": 2,
+   "uses": 3,
+   "usedBy": 0
+  },
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50201",
+   "kind": "object",
+   "label": "CON Item Sync",
+   "type": "codeunit",
+   "color": "#A96300",
+   "objectId": "50201",
+   "namespace": "Contoso.Integration",
+   "app": "Contoso Integration",
+   "component": "Integration",
+   "file": "integration/ItemSync.al",
+   "line": 6,
+   "level": "public",
+   "canBe": "internal",
+   "why": "no use from another app found",
+   "access": "public",
+   "lines": 10,
+   "procedures": 1,
+   "complexity": 2,
+   "uses": 1,
+   "usedBy": 0,
+   "wrongWay": 1
+  },
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
+   "kind": "object",
+   "label": "CON Sales Quote",
+   "type": "table",
+   "color": "#2362A2",
+   "objectId": "50100",
+   "namespace": "Contoso.Sales.Quotes",
+   "app": "Contoso Sales",
+   "component": "Sales",
+   "file": "sales/Quotes.al",
+   "line": 6,
+   "level": "public",
+   "access": "public",
+   "lines": 17,
+   "uses": 1,
+   "usedBy": 4
+  },
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::codeunit::50100",
+   "kind": "object",
+   "label": "CON Quote Mgt.",
+   "type": "codeunit",
+   "color": "#A96300",
+   "objectId": "50100",
+   "namespace": "Contoso.Sales.Quotes",
+   "app": "Contoso Sales",
+   "component": "Sales",
+   "file": "sales/Quotes.al",
+   "line": 24,
+   "level": "public",
+   "access": "public",
+   "lines": 16,
+   "procedures": 2,
+   "complexity": 2,
+   "uses": 2,
+   "usedBy": 3
+  },
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::page::50100",
+   "kind": "object",
+   "label": "CON Sales Quote",
+   "type": "page",
+   "color": "#31783B",
+   "objectId": "50100",
+   "namespace": "Contoso.Sales.Quotes",
+   "app": "Contoso Sales",
+   "component": "Sales",
+   "file": "sales/Quotes.al",
+   "line": 41,
+   "level": "public",
+   "access": "public",
+   "lines": 32,
+   "complexity": 1,
+   "uses": 2,
+   "usedBy": 1
+  },
+  {
+   "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::permissionset::50100",
+   "kind": "object",
+   "label": "CON Sales",
+   "type": "permissionset",
+   "color": "#64748B",
+   "objectId": "50100",
+   "namespace": "Contoso.Sales.Quotes",
+   "app": "Contoso Sales",
+   "component": "Sales",
+   "file": "sales/Quotes.al",
+   "line": 74,
+   "level": "public",
+   "access": "public",
+   "lines": 7,
+   "uses": 3,
+   "usedBy": 0
+  },
+  {
+   "id": "unresolved::table::customer",
+   "kind": "object",
+   "label": "Customer",
+   "type": "table",
+   "color": "#94A3B8",
+   "namespace": "(unknown)",
+   "app": "(unresolved)",
+   "external": true
+  },
+  {
+   "id": "module::5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items",
+   "kind": "module",
+   "label": "Contoso.Core.Items",
+   "color": "#4E5D78",
+   "app": "Contoso Core",
+   "objects": 3
+  },
+  {
+   "id": "module::5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Pricing",
+   "kind": "module",
+   "label": "Contoso.Core.Pricing",
+   "color": "#4E5D78",
+   "app": "Contoso Core",
+   "objects": 3
+  },
+  {
+   "id": "module::5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration",
+   "kind": "module",
+   "label": "Contoso.Integration",
+   "color": "#4E5D78",
+   "app": "Contoso Integration",
+   "objects": 2
+  },
+  {
+   "id": "module::5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes",
+   "kind": "module",
+   "label": "Contoso.Sales.Quotes",
+   "color": "#4E5D78",
+   "app": "Contoso Sales",
+   "objects": 4
+  },
+  {
+   "id": "app::5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01",
+   "kind": "app",
+   "label": "Contoso Core",
+   "color": "#0072B2",
+   "origin": "This workspace",
+   "publisher": "BC Atlas contributors",
+   "version": "1.0.0.0",
+   "objects": 6
+  },
+  {
+   "id": "app::5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03",
+   "kind": "app",
+   "label": "Contoso Integration",
+   "color": "#0072B2",
+   "origin": "This workspace",
+   "publisher": "BC Atlas contributors",
+   "version": "1.0.0.0",
+   "objects": 2
+  },
+  {
+   "id": "app::5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02",
+   "kind": "app",
+   "label": "Contoso Sales",
+   "color": "#0072B2",
+   "origin": "This workspace",
+   "publisher": "BC Atlas contributors",
+   "version": "1.0.0.0",
+   "objects": 4
+  },
+  {
+   "id": "app::(unresolved)",
+   "kind": "app",
+   "label": "(unresolved)",
+   "color": "#94A3B8",
+   "origin": "Dependencies",
+   "external": true,
+   "objects": 1
+  },
+  {
+   "id": "component::Core",
+   "kind": "component",
+   "label": "Core",
+   "color": "#4E5D78",
+   "layer": "Layer 0",
+   "objects": 6,
+   "instability": 0,
+   "canBeApp": "yes"
+  },
+  {
+   "id": "component::Sales",
+   "kind": "component",
+   "label": "Sales",
+   "color": "#4E5D78",
+   "layer": "Layer 1",
+   "objects": 4,
+   "instability": 0.667,
+   "canBeApp": "yes"
+  },
+  {
+   "id": "component::Integration",
+   "kind": "component",
+   "label": "Integration",
+   "color": "#C0392B",
+   "layer": "Layer 2",
+   "objects": 2,
+   "wrongWay": 1,
+   "instability": 1,
+   "canBeApp": "no"
+  },
+  {
+   "id": "rule::architecture-violation",
+   "kind": "rule",
+   "label": "architecture-violation",
+   "color": "#C0392B",
+   "severity": "error"
+  },
+  {
+   "id": "rule::could-be-internal",
+   "kind": "rule",
+   "label": "could-be-internal",
+   "color": "#2A78D6",
+   "severity": "info"
+  },
+  {
+   "id": "rule::foreign-table-write",
+   "kind": "rule",
+   "label": "foreign-table-write",
+   "color": "#2A78D6",
+   "severity": "info"
+  },
+  {
+   "id": "rule::undocumented-public-api",
+   "kind": "rule",
+   "label": "undocumented-public-api",
+   "color": "#2A78D6",
+   "severity": "info"
+  },
+  {
+   "id": "rule::unresolved-references",
+   "kind": "rule",
+   "label": "unresolved-references",
+   "color": "#2A78D6",
+   "severity": "info"
+  }
+ ],
+ "relations": [
+  {
+   "kind": "relates",
+   "color": "#009E73"
+  },
+  {
+   "kind": "source",
+   "color": "#31783B"
+  },
+  {
+   "kind": "implements",
+   "color": "#E69F00"
+  },
+  {
+   "kind": "uses",
+   "color": "#6B7280",
+   "dash": true
+  },
+  {
+   "kind": "reads",
+   "color": "#0072B2"
+  },
+  {
+   "kind": "depends on",
+   "color": "#0072B2"
+  },
+  {
+   "kind": "calls",
+   "color": "#4C78A8"
+  },
+  {
+   "kind": "writes",
+   "color": "#D55E00"
+  },
+  {
+   "kind": "subscribes",
+   "color": "#A21CAF",
+   "dash": true
+  },
+  {
+   "kind": "permits",
+   "color": "#7C3AED"
+  },
+  {
+   "kind": "declared",
+   "color": "#0072B2"
+  },
+  {
+   "kind": "unresolved",
+   "color": "#B7791F",
+   "dash": true
+  },
+  {
+   "kind": "undeclared",
+   "color": "#C0392B"
+  },
+  {
+   "kind": "wrong way",
+   "color": "#C0392B"
+  },
+  {
+   "kind": "error",
+   "color": "#C0392B"
+  },
+  {
+   "kind": "info",
+   "color": "#2A78D6"
+  }
+ ],
+ "edges": [
+  [
+   0,
+   1,
+   0,
+   1
+  ],
+  [
+   2,
+   0,
+   1,
+   1
+  ],
+  [
+   4,
+   3,
+   2,
+   1
+  ],
+  [
+   4,
+   0,
+   3,
+   1
+  ],
+  [
+   4,
+   0,
+   4,
+   1
+  ],
+  [
+   14,
+   13,
+   5,
+   4
+  ],
+  [
+   4,
+   1,
+   3,
+   1
+  ],
+  [
+   4,
+   1,
+   4,
+   1
+  ],
+  [
+   5,
+   4,
+   3,
+   1
+  ],
+  [
+   5,
+   4,
+   6,
+   1
+  ],
+  [
+   6,
+   8,
+   3,
+   1
+  ],
+  [
+   6,
+   8,
+   7,
+   1
+  ],
+  [
+   15,
+   16,
+   5,
+   4
+  ],
+  [
+   6,
+   9,
+   3,
+   1
+  ],
+  [
+   6,
+   9,
+   6,
+   1
+  ],
+  [
+   6,
+   12,
+   3,
+   1
+  ],
+  [
+   6,
+   12,
+   4,
+   1
+  ],
+  [
+   7,
+   0,
+   3,
+   1
+  ],
+  [
+   7,
+   0,
+   4,
+   1
+  ],
+  [
+   7,
+   0,
+   7,
+   1
+  ],
+  [
+   15,
+   13,
+   5,
+   3
+  ],
+  [
+   8,
+   0,
+   0,
+   1
+  ],
+  [
+   16,
+   13,
+   5,
+   1
+  ],
+  [
+   9,
+   8,
+   3,
+   1
+  ],
+  [
+   9,
+   8,
+   7,
+   1
+  ],
+  [
+   9,
+   5,
+   3,
+   1
+  ],
+  [
+   9,
+   5,
+   8,
+   2
+  ],
+  [
+   9,
+   5,
+   6,
+   1
+  ],
+  [
+   16,
+   14,
+   5,
+   4
+  ],
+  [
+   10,
+   8,
+   1,
+   1
+  ],
+  [
+   10,
+   9,
+   3,
+   1
+  ],
+  [
+   10,
+   9,
+   6,
+   1
+  ],
+  [
+   11,
+   8,
+   9,
+   1
+  ],
+  [
+   11,
+   9,
+   9,
+   1
+  ],
+  [
+   11,
+   10,
+   9,
+   1
+  ],
+  [
+   18,
+   19,
+   10,
+   4
+  ],
+  [
+   19,
+   17,
+   10,
+   5
+  ],
+  [
+   18,
+   20,
+   11,
+   2
+  ],
+  [
+   18,
+   17,
+   12,
+   3
+  ],
+  [
+   23,
+   22,
+   5,
+   2
+  ],
+  [
+   23,
+   21,
+   13,
+   1
+  ],
+  [
+   22,
+   21,
+   5,
+   2
+  ],
+  [
+   24,
+   7,
+   14,
+   1
+  ],
+  [
+   26,
+   0,
+   15,
+   1
+  ],
+  [
+   26,
+   8,
+   15,
+   1
+  ],
+  [
+   27,
+   4,
+   15,
+   1
+  ],
+  [
+   27,
+   5,
+   15,
+   1
+  ],
+  [
+   27,
+   9,
+   15,
+   1
+  ],
+  [
+   27,
+   6,
+   15,
+   1
+  ],
+  [
+   27,
+   7,
+   15,
+   1
+  ],
+  [
+   27,
+   3,
+   15,
+   1
+  ]
+ ],
+ "lenses": [
+  {
+   "id": "system",
+   "title": "System",
+   "summary": "Every object and every relation between them.",
+   "kinds": [
+    "object"
+   ],
+   "relations": [
+    "relates",
+    "source",
+    "implements",
+    "uses",
+    "reads",
+    "calls",
+    "writes",
+    "subscribes",
+    "permits"
+   ],
+   "group": "component",
+   "color": "type",
+   "reads": "the objects of the AL source and all their relations: calls, data access, events, extensions, permissions"
+  },
+  {
+   "id": "components",
+   "title": "Components",
+   "summary": "The components in their layers and the dependencies between them, allowed or the wrong way.",
+   "kinds": [
+    "component"
+   ],
+   "relations": [
+    "depends on",
+    "wrong way"
+   ],
+   "group": "layer",
+   "color": "kind",
+   "reads": "the components of `architecture` in .bca.json (or the proposal), and the relations between the objects assigned to them"
+  },
+  {
+   "id": "apps",
+   "title": "Apps",
+   "summary": "The apps of the workspace, the apps they depend on, and what they use of each other.",
+   "kinds": [
+    "app"
+   ],
+   "relations": [
+    "declared",
+    "undeclared",
+    "unresolved"
+   ],
+   "group": "origin",
+   "color": "kind",
+   "reads": "`app.json` of every app, its `dependencies`, and the relations between objects of different apps"
+  },
+  {
+   "id": "modules",
+   "title": "Modules",
+   "summary": "Namespaces and what they use of each other.",
+   "kinds": [
+    "module"
+   ],
+   "relations": [
+    "depends on"
+   ],
+   "group": "app",
+   "color": "kind",
+   "reads": "the namespaces of the objects and the relations that cross them"
+  },
+  {
+   "id": "data",
+   "title": "Data",
+   "summary": "Tables and the code that reads, writes, relates, and extends them.",
+   "kinds": [
+    "object"
+   ],
+   "relations": [
+    "reads",
+    "writes",
+    "relates"
+   ],
+   "connected": true,
+   "types": [
+    "table",
+    "tableextension"
+   ],
+   "group": "component",
+   "color": "type",
+   "reads": "tables and the `reads`, `writes`, `relates`, and `extends` relations"
+  },
+  {
+   "id": "calls",
+   "title": "Calls",
+   "summary": "Which objects call and run which.",
+   "kinds": [
+    "object"
+   ],
+   "relations": [
+    "calls"
+   ],
+   "connected": true,
+   "group": "component",
+   "color": "type",
+   "reads": "the procedure calls and `Run` statements in the code"
+  },
+  {
+   "id": "events",
+   "title": "Events",
+   "summary": "Event publishers and their subscribers.",
+   "kinds": [
+    "object"
+   ],
+   "relations": [
+    "subscribes"
+   ],
+   "connected": true,
+   "group": "component",
+   "color": "type",
+   "reads": "`[IntegrationEvent]`, `[BusinessEvent]`, and `[EventSubscriber]` procedures"
+  },
+  {
+   "id": "contracts",
+   "title": "Contracts",
+   "summary": "Interfaces and what implements them.",
+   "kinds": [
+    "object"
+   ],
+   "relations": [
+    "implements"
+   ],
+   "connected": true,
+   "types": [
+    "interface"
+   ],
+   "group": "component",
+   "color": "type",
+   "reads": "`interface` objects, `implements`, and the `Implementation` of enum values"
+  },
+  {
+   "id": "pages",
+   "title": "Pages",
+   "summary": "Pages and reports, and what they show, run, and contain.",
+   "kinds": [
+    "object"
+   ],
+   "relations": [
+    "relates",
+    "source",
+    "implements",
+    "uses",
+    "reads",
+    "calls",
+    "writes",
+    "subscribes",
+    "permits"
+   ],
+   "connected": true,
+   "from": [
+    "page",
+    "pageextension",
+    "pagecustomization",
+    "report",
+    "reportextension"
+   ],
+   "types": [
+    "page",
+    "report"
+   ],
+   "group": "component",
+   "color": "type",
+   "reads": "pages, page extensions, reports, their source tables, parts, and actions"
+  },
+  {
+   "id": "security",
+   "title": "Permissions",
+   "summary": "Permission sets and what they permit and include.",
+   "kinds": [
+    "object"
+   ],
+   "relations": [
+    "permits"
+   ],
+   "connected": true,
+   "types": [
+    "permissionset"
+   ],
+   "group": "component",
+   "color": "type",
+   "reads": "`permissionset` objects, their `Permissions`, and `IncludedPermissionSets`"
+  },
+  {
+   "id": "visibility",
+   "title": "Visibility",
+   "summary": "What is public, internal, or local, and what could be narrower.",
+   "kinds": [
+    "object"
+   ],
+   "relations": [
+    "relates",
+    "source",
+    "implements",
+    "uses",
+    "reads",
+    "calls",
+    "writes",
+    "subscribes",
+    "permits"
+   ],
+   "group": "component",
+   "color": "level",
+   "reads": "the `Access` property and the uses found from other apps and objects"
+  },
+  {
+   "id": "health",
+   "title": "Findings",
+   "summary": "The rules of the health check and the objects they found.",
+   "kinds": [
+    "rule",
+    "object"
+   ],
+   "relations": [
+    "error",
+    "info"
+   ],
+   "connected": true,
+   "group": "kind",
+   "color": "severity",
+   "reads": "the findings of `bca check` (rules, AL compiler, analyzers) and the objects they are on"
+  }
+ ],
+ "findings": [
+  {
+   "severity": "error",
+   "rule": "architecture-violation",
+   "message": "codeunit CON Item Sync (Integration) depends on 1 object(s) in Core; declare the dependency; it points inward (declare-dependency)",
+   "nodes": [
+    24,
+    7
+   ],
+   "file": "integration/ItemSync.al",
+   "line": 10,
+   "origin": "health"
+  },
+  {
+   "severity": "info",
+   "rule": "could-be-internal",
+   "message": "1 object(s) of Core are used by no other component and could be Access = Internal: codeunit 50010 CON Standard Pricing (bca refactor surface --component \"Core\")",
+   "nodes": [
+    25
+   ],
+   "file": ".bca.json",
+   "line": 4,
+   "origin": "health"
+  },
+  {
+   "severity": "info",
+   "rule": "could-be-internal",
+   "message": "2 object(s) of Integration are used by no other component and could be Access = Internal: codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync (bca refactor surface --component \"Integration\")",
+   "nodes": [
+    25
+   ],
+   "file": ".bca.json",
+   "line": 6,
+   "origin": "health"
+  },
+  {
+   "severity": "info",
+   "rule": "foreign-table-write",
+   "message": "table 50000 CON Item of Core is written by Integration (1 object); let Core own the writes behind a codeunit, or move the table",
+   "nodes": [
+    26,
+    0
+   ],
+   "file": "core/Items.al",
+   "line": 3,
+   "origin": "health"
+  },
+  {
+   "severity": "info",
+   "rule": "foreign-table-write",
+   "message": "table 50100 CON Sales Quote of Sales is written by Integration (1 object); let Sales own the writes behind a codeunit, or move the table",
+   "nodes": [
+    26,
+    8
+   ],
+   "file": "sales/Quotes.al",
+   "line": 6,
+   "origin": "health"
+  },
+  {
+   "severity": "info",
+   "rule": "undocumented-public-api",
+   "message": "codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice",
+   "nodes": [
+    27,
+    4
+   ],
+   "file": "core/Pricing.al",
+   "line": 12,
+   "origin": "health"
+  },
+  {
+   "severity": "info",
+   "rule": "undocumented-public-api",
+   "message": "codeunit 50011 CON Pricing Mgt.: 1 public procedure(s) without a /// summary: Calculate",
+   "nodes": [
+    27,
+    5
+   ],
+   "file": "core/Pricing.al",
+   "line": 26,
+   "origin": "health"
+  },
+  {
+   "severity": "info",
+   "rule": "undocumented-public-api",
+   "message": "codeunit 50100 CON Quote Mgt.: 1 public procedure(s) without a /// summary: Recalculate",
+   "nodes": [
+    27,
+    9
+   ],
+   "file": "sales/Quotes.al",
+   "line": 26,
+   "origin": "health"
+  },
+  {
+   "severity": "info",
+   "rule": "undocumented-public-api",
+   "message": "codeunit 50200 CON Quote Export: 1 public procedure(s) without a /// summary: Export",
+   "nodes": [
+    27,
+    6
+   ],
+   "file": "integration/Export.al",
+   "line": 7,
+   "origin": "health"
+  },
+  {
+   "severity": "info",
+   "rule": "undocumented-public-api",
+   "message": "codeunit 50201 CON Item Sync: 1 public procedure(s) without a /// summary: Sync",
+   "nodes": [
+    27,
+    7
+   ],
+   "file": "integration/ItemSync.al",
+   "line": 8,
+   "origin": "health"
+  },
+  {
+   "severity": "info",
+   "rule": "undocumented-public-api",
+   "message": "interface CON Price Calculation: 1 public procedure(s) without a /// summary: UnitPrice",
+   "nodes": [
+    27,
+    3
+   ],
+   "file": "core/Pricing.al",
+   "line": 7,
+   "origin": "health"
+  },
+  {
+   "severity": "info",
+   "rule": "unresolved-references",
+   "message": "2 reference(s) to 1 external or unresolved target(s); add .alpackages symbols to resolve them",
+   "nodes": [
+    28
+   ],
+   "origin": "health"
+  }
+ ],
+ "stories": [
+  {
+   "id": "system",
+   "kind": "tour",
+   "title": "What multi-app is",
+   "summary": "The system from the outside in: apps, components, hubs, data, events, the user interface, and its health.",
+   "steps": [
+    {
+     "title": "multi-app",
+     "text": "12 objects in 3 apps: 5 codeunits, 3 tables, 2 pages, 1 interface, 1 permissionset. Every dot is one of them, every line something one does with another. All of it is read from the AL source.",
+     "lens": "system",
+     "nodes": []
+    },
+    {
+     "title": "The apps",
+     "text": "Contoso Core, Contoso Integration, Contoso Sales. A line is what one app uses of another.",
+     "lens": "apps",
+     "nodes": [
+      17,
+      18,
+      19
+     ]
+    },
+    {
+     "title": "3 components",
+     "text": "Core, Sales, Integration. Lower layers know nothing of higher ones.",
+     "lens": "components",
+     "nodes": [
+      21,
+      22,
+      23
+     ]
+    },
+    {
+     "title": "Core",
+     "text": "6 objects: CON Item, CON Price Group, CON Item Card, CON Price Calculation, CON Standard Pricing, and 1 more.",
+     "lens": "system",
+     "nodes": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "title": "Sales",
+     "text": "4 objects: CON Sales Quote, CON Quote Mgt., CON Sales Quote, CON Sales.",
+     "lens": "system",
+     "nodes": [
+      8,
+      9,
+      10,
+      11
+     ]
+    },
+    {
+     "title": "Integration",
+     "text": "2 objects: CON Quote Export, CON Item Sync. 1 dependency point the wrong way.",
+     "lens": "system",
+     "nodes": [
+      6,
+      7
+     ]
+    },
+    {
+     "title": "What everything depends on",
+     "text": "CON Item (used by 4, uses 1); CON Sales Quote (used by 4, uses 1); CON Quote Mgt. (used by 3, uses 2); CON Standard Pricing (used by 1, uses 3); CON Quote Export (used by 0, uses 3). A change here reaches furthest.",
+     "lens": "system",
+     "nodes": [
+      0,
+      8,
+      9,
+      4,
+      6
+     ]
+    },
+    {
+     "title": "The data",
+     "text": "3 tables: CON Item, CON Price Group, CON Sales Quote. Orange lines write, blue lines read.",
+     "lens": "data",
+     "nodes": [
+      0,
+      1,
+      8
+     ]
+    },
+    {
+     "title": "Events",
+     "text": "CON Quote Mgt., CON Pricing Mgt. publish events or subscribe to them. This is where other code can step in without changing these objects.",
+     "lens": "events",
+     "nodes": [
+      9,
+      5
+     ]
+    },
+    {
+     "title": "Contracts",
+     "text": "1 interface: CON Price Calculation. What implements an interface can be exchanged.",
+     "lens": "contracts",
+     "nodes": [
+      3
+     ]
+    },
+    {
+     "title": "The user interface",
+     "text": "2 pages and reports: CON Item Card, CON Sales Quote.",
+     "lens": "pages",
+     "nodes": [
+      2,
+      10
+     ]
+    },
+    {
+     "title": "Permissions",
+     "text": "1 permission set: CON Sales.",
+     "lens": "security",
+     "nodes": [
+      11
+     ]
+    },
+    {
+     "title": "Health: failed",
+     "text": "1 error, 0 warnings, 11 info. Turn on Check to see them on the graph.",
+     "lens": "health",
+     "nodes": [
+      24,
+      7,
+      25,
+      26,
+      0,
+      8,
+      27,
+      4,
+      5,
+      9,
+      6,
+      3,
+      28
+     ]
+    }
+   ]
+  },
+  {
+   "id": "fix",
+   "kind": "check",
+   "title": "What to fix",
+   "summary": "1 finding, the most severe first, each on the nodes it is about.",
+   "steps": [
+    {
+     "title": "error: architecture-violation",
+     "text": "codeunit CON Item Sync (Integration) depends on 1 object(s) in Core; declare the dependency; it points inward (declare-dependency)",
+     "lens": "health",
+     "nodes": [
+      24,
+      7
+     ],
+     "status": "error"
+    }
+   ]
+  },
+  {
+   "id": "architecture",
+   "kind": "check",
+   "title": "Dependencies the wrong way",
+   "summary": "1 work item to reach the configured architecture.",
+   "steps": [
+    {
+     "title": "CON Item Sync: Declare the dependency; it points inward",
+     "text": "CON Item Sync (Integration) depends on CON Item in Core. Add Core to dependsOn of Integration in .bca.json (and to app.json when they are separate apps). Effort: S.",
+     "lens": "system",
+     "nodes": [
+      7,
+      0
+     ],
+     "status": "error"
+    }
+   ]
+  }
+ ]
+}

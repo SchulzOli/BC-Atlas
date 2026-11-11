@@ -198,7 +198,7 @@ test("overview help groups every command by feature area", () => {
     for (const heading of ["Get started", "Analyze", "Export", "Integrate"]) {
       assert.match(result.stdout, new RegExp(`^${heading}$`, "mu"));
     }
-    for (const command of ["setup", "check", "simulate", "architecture", "refactor", "graph", "export", "view", "docs", "run", "update", "mcp"]) {
+    for (const command of ["setup", "check", "simulate", "architecture", "refactor", "graph", "export", "view", "layers", "docs", "run", "update", "mcp"]) {
       assert.match(result.stdout, new RegExp(`^  ${command} `, "mu"));
     }
     for (const removed of ["init", "watch", "explore", "inspect", "codegraph", "capabilities"]) {
@@ -625,7 +625,7 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
   assert.deepEqual(contract.areas.map(({ id }) => id), ["start", "analyze", "export", "integrate"]);
   assert.ok(contract.commands.every(({ area }) => contract.areas.some(({ id }) => id === area)));
   assert.deepEqual([...new Set(contract.commands.map(({ id }) => id.split(".")[0]))],
-    ["setup", "check", "simulate", "graph", "architecture", "refactor", "export", "view", "docs", "run", "plugins", "sync", "update", "mcp"]);
+    ["setup", "check", "simulate", "graph", "architecture", "refactor", "export", "view", "layers", "docs", "run", "plugins", "sync", "update", "mcp"]);
   assert.deepEqual(contract.commands.filter(({ id }) => id.startsWith("sync.")).map(({ argv, plugin }) => `${argv.join(" ")} (${plugin})`),
     ["bca sync plan [app-root] (sync)", "bca sync run [app-root] (sync)", "bca sync status [app-root] (sync)", "bca sync describe (sync)"],
     "commands of the built-in sync plugin, from its plugin.json");
