@@ -87,7 +87,7 @@ function renderReadme({ title, health, diagrams, codegraph, handbook, model, jso
     if (diagram.overview) {
       lines.push(
         `_Overview: ${diagram.nodes} objects are too many to draw one by one (at most ${MAX_DIAGRAM_NODES}), so each group is one box. ` +
-          "Open the groups on the Diagrams page of the BC Atlas panel, or filter with --namespace or --paths._",
+          "Look at every object in the BC Atlas view, or filter with --namespace or --paths._",
         ""
       );
     }

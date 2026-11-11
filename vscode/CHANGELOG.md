@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+- **One view: a toolbar and the graph.** The pages, the list of contents,
+  and the tabs are gone. Everything BC Atlas reads from the AL source is one
+  graph; a lens shows a part of it (system, components, apps, data, calls,
+  events, contracts, pages, permissions, visibility, findings, processes,
+  people, requirements) as a 2D graph, a diagram, or a 3D graph.
+- Double-click an object to open it: its procedures and events as nodes,
+  and what each does with other objects.
+- **Navigation without a jump.** A double click goes into an app, a
+  component, or a namespace too; a trail next to the lens says where the
+  view is, and every part of it is one click back; **See in** on the card of
+  a node changes the lens around it. Nodes that stay in the picture stay
+  where they are, and between 2D, Diagram, and 3D they glide. Keys: `[` `]`
+  the lens before and after, `Backspace` one step up.
+- **Recordings**, a lens of the built-in sync plugin: what was recorded in
+  Business Central, whether it is synced, and the objects it runs through.
+  Plugins can add lenses, findings, and stories of their own.
+- **Check** puts the findings on the nodes they are about; the card of a
+  node lists them with the fix.
+- **Stories** walk through the graph step by step: what the system is, each
+  process test by test, who can do what, what to fix. Play one, or save it
+  as Markdown.
+- **Export** saves what you see: PNG, SVG, JSON, CSV, Markdown, and a link
+  to the view as it is.
+- The graph follows the editor: the object of the active file is the
+  selected node (`bcAtlas.followEditor`). **Go to source** opens a node at
+  its line.
+- Commands: **Open a Lens…** (was Open Page…), **Show This Object from the
+  Inside** (was Diagram of This Object), **Show the Components** (was
+  Propose an Architecture). The side bar opens the view and has no list.
+- Removed from the panel: the 3D explorer with its timeline, the handbook
+  pages, and the user guides. **Export…** still writes them as files.
+
 ## 0.18.0
 
 - The engine is BC Atlas 0.18.0.

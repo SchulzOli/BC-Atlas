@@ -1,0 +1,121 @@
+{
+  "schema": "bc-atlas-sync.fact-snapshot/1",
+  "_note": "Example recording, written by hand from the code of this app.",
+  "snapshot": {
+    "no": 2,
+    "processName": "Create a new Purchase Request",
+    "feature": "Purchase requests",
+    "fingerprint": "pr-create-91d07be2"
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "title": "Open the Purchase Requests page and choose New"
+    },
+    {
+      "phase": 2,
+      "title": "Enter the number, the description, and the amount"
+    }
+  ],
+  "technicalSteps": [
+    {
+      "step": 1,
+      "phase": 1,
+      "kind": "Page Open",
+      "description": "Page 50210 \"Purchase Requests\" read Purchase Request",
+      "callStack": [
+        {
+          "objectType": "Page",
+          "objectId": 50210,
+          "objectName": "Purchase Requests",
+          "method": "OnOpenPage",
+          "app": "BC Atlas Purchasing Example"
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "phase": 2,
+      "kind": "Database Write",
+      "description": "OnInsert of Purchase Request set the requester and the status Open",
+      "callStack": [
+        {
+          "objectType": "Page",
+          "objectId": 50210,
+          "objectName": "Purchase Requests",
+          "method": "New",
+          "app": "BC Atlas Purchasing Example"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 50200,
+          "objectName": "Purchase Request",
+          "method": "OnInsert",
+          "app": "BC Atlas Purchasing Example"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 50200,
+          "objectName": "Purchase Request",
+          "method": "Insert",
+          "app": "BC Atlas Purchasing Example"
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "phase": 2,
+      "kind": "Field Validation",
+      "description": "Validate field \"Amount\" on Page 50210 \"Purchase Requests\"",
+      "callStack": [
+        {
+          "objectType": "Page",
+          "objectId": 50210,
+          "objectName": "Purchase Requests",
+          "method": "Amount - OnValidate",
+          "app": "BC Atlas Purchasing Example"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 50200,
+          "objectName": "Purchase Request",
+          "method": "Amount - OnValidate",
+          "app": "BC Atlas Purchasing Example"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 50200,
+          "objectName": "Purchase Request",
+          "method": "Modify",
+          "app": "BC Atlas Purchasing Example"
+        }
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "objectType": "Page",
+      "objectId": 50210,
+      "objectName": "Purchase Requests",
+      "app": "BC Atlas Purchasing Example",
+      "hits": 3
+    },
+    {
+      "objectType": "Table",
+      "objectId": 50200,
+      "objectName": "Purchase Request",
+      "app": "BC Atlas Purchasing Example",
+      "hits": 4
+    }
+  ],
+  "tables": [
+    {
+      "tableId": 50200,
+      "tableName": "Purchase Request",
+      "inserts": 1,
+      "modifies": 1,
+      "deletes": 0,
+      "renames": 0
+    }
+  ]
+}

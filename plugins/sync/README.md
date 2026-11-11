@@ -24,6 +24,7 @@ is the reference implementation of the [plugin system](../../docs/plugins.md).
 | Task | `sync` for `bca run`, runs before `docs`; outputs: every channel folder and the state file |
 | Health rule | `sync-outdated` (warning): a process changed in Business Central but is not synced yet |
 | MCP tool | `bc_atlas_sync_status` |
+| Atlas | The lens **Recordings** and the story "What runs in Business Central" in the BC Atlas view and in `bca view`; `sync-outdated` on the node of the recording |
 | Extension points | `sync.sources` (source types: what), `sync.formats` (formats: how) for other plugins |
 
 ## Folder
@@ -88,6 +89,24 @@ bca run --trigger schedule # with "sync" in the trigger's tasks
 ```
 
 Switch it off for a project with `"plugins": { "sync": false }`.
+
+### In the view
+
+What was recorded is part of the one graph of BC Atlas. The lens **Recordings** shows every channel, every
+recorded process, and the AL objects it runs through (`runs through`) and changes (`changes`): the same nodes
+every other lens shows, so a table leads from its recordings to its code and back. A recording is colored by
+its state, in sync or waiting; one that waits has the finding `sync-outdated` with the command that syncs it.
+The story **What runs in Business Central** walks through every recording phase by phase, each phase on the
+objects of its call stacks.
+
+```bash
+bca view --lens sync                         # as text; --format json, md, csv, svg, png
+bca view --lens sync --form diagram -o recordings.svg
+bca view --story sync --format md            # the story as a document
+```
+
+Nothing is written for this: the state is read from the sources and the state file, as `bca sync status` does.
+[examples/purchasing-app](../../examples/purchasing-app) has two recordings to look at.
 
 In Business Central: build and publish `al/` (`pwsh ./scripts/Build-AL.ps1`), assign **BAS RECORDER**, record a
 process (**Atlas Sync Recordings → Start Recording**, perform it, **Stop**, optionally **Import Clicks**), **Create

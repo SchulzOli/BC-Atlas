@@ -124,7 +124,7 @@ step with the code.
 
 - Downloaded symbols, built apps (`*.app`), and changed `al.*` settings trigger
   a new analysis.
-- Compiler and analyzer findings are shown on the Health page; in the Problems
+- Compiler and analyzer findings are shown in the Findings lens and by **Check**; in the Problems
   panel they are left to the AL Language extension, which reports them itself.
 - `bcAtlas.alCompiler` (`auto`, `off`, or a path) and `bcAtlas.alAnalyzers`
   configure it.

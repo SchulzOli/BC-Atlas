@@ -13,6 +13,9 @@ commands        bca <plugin> <command>         commands.<name>({ root, input, va
 tasks           bca run --tasks <task>         tasks.<id>.run({ trigger }), tasks.<id>.outputs(config)
 healthRules     findings in bca check          healthRules.<id>({ model, report }) -> [{ message, object, file, line }]
 mcpTools        tools of bca mcp               mcpTools.<name>(args)
+atlas           nodes, relations, lenses,      atlas({ atlas, object }) -> { nodes, relations, styles,
+                findings, and stories of         lenses, findings, stories }
+                the view and of bca view
 hooks           run:before, task:after,        hooks.<event>(payload)
                 run:after, check:after
 extensionPoints points other plugins fill      (declared only)
@@ -80,13 +83,43 @@ and a `package.json` that publishes it as `bc-atlas-plugin-<id>`. The template p
 `"plugins": [{ "path": "plugins/<id>" }]` while developing, and publish it to npm when it is ready:
 projects that install it get it without configuration.
 
+## What a plugin adds to the graph
+
+Everything BC Atlas shows is one graph ([The BC Atlas view](./vscode.md#the-bc-atlas-view)). A
+plugin that knows something the AL source cannot show puts it into that graph instead of next to
+it: it declares `"atlas": { "summary": "..." }` under `contributes` and implements `atlas`.
+
+```js
+atlas: async ({ atlas, object }) => ({
+  // Nodes of its own kinds. Besides id, kind, and label, every fact shows on the card of the node.
+  nodes: [{ id: "owners::team::stock", kind: "team", label: "Team Stock", color: "#7C3AED", members: 3 }],
+  // Relations by node id, also to nodes of BC Atlas: object(type, idOrName) is the id of an AL object.
+  relations: [{ from: "owners::team::stock", to: object("table", 50100), kind: "owns" }],
+  styles: { owns: { color: "#7C3AED", dash: true } },
+  // A lens is a part of the graph: kinds of node and kinds of relation.
+  lenses: [{ id: "owners", title: "Owners", summary: "Who owns what.", kinds: ["team", "object"], relations: ["owns"], connected: true }],
+  // A finding is on its nodes: Check rings them, and the card says how to fix it.
+  findings: [{ severity: "warning", rule: "owner-missing", message: "...", fix: "...", nodes: ["owners::team::stock"] }],
+  // A story walks through the graph: each step a text, a lens, and the nodes it is about.
+  stories: [{ id: "owners", title: "Who owns what", summary: "...", steps: [{ title: "Team Stock", text: "...", lens: "owners", nodes: ["owners::team::stock"] }] }]
+})
+```
+
+`atlas` is the graph so far (`nodes`, `relations`, `edges`). The lenses of plugins come after those
+of BC Atlas and cannot replace one; a relation to a node that is not there is left out; a finding
+with the rule and message of one of the plugin's health rules is that finding, now on its nodes. A
+plugin that throws becomes the finding `plugin-atlas-failed`, and the view still shows. Nothing
+else is needed: the lens is in the menu of the view, in `bca view --lens`, in the MCP tool
+`bc_atlas_view`, and in every export.
+
 ## Built-in: sync
 
 [BC Atlas Sync](../plugins/sync/README.md) records how a process runs in Business Central (clicks,
 writes, AL call stacks) and syncs the fact snapshots into the project. It is the reference plugin:
 commands (`bca sync plan|run|status|describe`), the `sync` task, the `sync-outdated` health rule, the
-`bc_atlas_sync_status` MCP tool, and two extension points of its own, `sync.sources` (what) and
-`sync.formats` (how), so other plugins can feed it.
+`bc_atlas_sync_status` MCP tool, the lens **Recordings** with the story "What runs in Business
+Central" in the view, and two extension points of its own, `sync.sources` (what) and `sync.formats`
+(how), so other plugins can feed it.
 
 ## Plugins we expect to need
 

@@ -1,0 +1,30 @@
+{
+  "channels": {
+    "processes": {
+      "config": "9d479f571829782663fe7809d8016e41c6cbb94af5a9e0586d19771251c10e66",
+      "files": [
+        "docs/recorded/index.json",
+        "docs/recorded/index.md"
+      ],
+      "processes": {
+        "approve-a-released-purchase-request": {
+          "content": "eee358df42ee0a073ee8b743367311fa97045e80e0e86be0f8889cb3a2f39fde",
+          "files": [
+            "docs/recorded/approve-a-released-purchase-request/facts.json"
+          ],
+          "fingerprint": "pr-approve-3f2a9c41",
+          "snapshot": 3
+        },
+        "create-a-new-purchase-request": {
+          "content": "a13dcabe63be12d7861f87e4b447b233643599c6e7ab579a1b6df60db4d87161",
+          "files": [
+            "docs/recorded/create-a-new-purchase-request/facts.json"
+          ],
+          "fingerprint": "pr-create-91d07be2",
+          "snapshot": 2
+        }
+      }
+    }
+  },
+  "schema": "bc-atlas-sync.state/1"
+}

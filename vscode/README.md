@@ -2,11 +2,10 @@
 
 ![BC Atlas: see your architecture, find what stands in its way, and keep it clean, right in VS Code](marketing/social-preview.jpg)
 
-**See the architecture of your Business Central AL apps, find every dependency
-that stands in its way, and keep it clean as the code changes.** Dependencies
-in 3D, clean-architecture checks with concrete fixes, health findings in the
-Problems panel, diagrams, and documentation: one panel, right next to your
-code.
+**See your Business Central AL apps as one graph, read from the source:
+every object, what it does with the others, what is wrong with it, and the
+story of how it works.** One view, a toolbar and the graph, right next to
+your code.
 
 [![CI](https://github.com/SchulzOli/BC-Atlas/actions/workflows/ci.yml/badge.svg)](https://github.com/SchulzOli/BC-Atlas/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2f6fe0.svg)](https://github.com/SchulzOli/BC-Atlas/blob/main/LICENSE)
@@ -16,80 +15,118 @@ Open a folder with an `app.json`, and BC Atlas analyzes it. There is nothing
 else to install: the extension brings its engine along and runs it on the
 editor's own Node.js runtime. Everything stays on your machine.
 
+## One view: a toolbar and the graph
+
+![The System lens of the purchasing example: every object as a node, a codeunit selected with its facts and relations, findings as rings](marketing/screenshots/view.png)
+
+The source code is the only fact. Everything BC Atlas reads from it is one
+graph, and the toolbar decides what you see of it:
+
+- a **lens** shows a part: the system, the components, the apps, the data,
+  the calls, the events, the contracts, the pages, the permissions, what is
+  public or internal, the findings, the processes, the people;
+- **2D**, **Diagram**, or **3D** is the form, for any lens;
+- **Find** lights up what you look for, **Check** puts the findings on the
+  nodes they are about;
+- click a node for what it is, its findings with the fix, and its
+  relations; **Go to source** opens its line;
+- double-click to go into it: an app, a component, or a namespace opens to
+  its objects, an object to its procedures. A trail next to the lens says
+  where you are, and every part of it is one click back. Nothing jumps:
+  what stays in the picture stays where it is.
+
+There are no pages, no tabs, and no lists to learn.
+
+## The same graph as a diagram, and in space
+
+![The Data lens as a diagram: tables on the right, the code that reads and writes them on the left](marketing/screenshots/diagram.png)
+
+A diagram puts the same nodes in layers, in the direction of their
+relations: who uses whom reads from left to right. In 3D, drag to turn the
+graph. The selection, the search, and what you hid in the legend stay when
+you switch.
+
+![The System lens in 3D with the findings as rings](marketing/screenshots/space.png)
+
+## Open an object
+
+![A codeunit from the inside: its procedures and events as nodes, and what each of them reads, writes, and calls](marketing/screenshots/inside.png)
+
+Double-click an object and it opens: its procedures, triggers, and events
+become nodes, with what each of them does to other objects. Double-click a
+procedure and the editor is at its line.
+
+## Stories: documentation, test, and demonstration
+
+![A story walks through a process test by test: the step that is blocked is red](marketing/screenshots/story.png)
+
+A story is generated from the source, like everything else. It walks through
+the graph step by step, with a text for each step and the nodes it is about:
+
+- **what the system is**, from the outside in, to explain it to someone new;
+- **one story per process** from your AL UI tests: the tests in order, every
+  step on the objects it touches and with the permissions it needs;
+- **what to fix**, one finding at a time, with the fix;
+- **the dependencies that point the wrong way**, with the steps to resolve
+  each.
+
+Press **Play** to demonstrate, **Markdown** to keep the story as a document.
+
 ## Find an architecture, then keep it
 
-![The Architecture page: 28 components in 12 layers, 658 wrong-way dependencies, and 232 work items for the Shopify Connector](marketing/screenshots/architecture.png)
+![The Components lens: three components in layers, one dependency the wrong way, and what the selected component is](marketing/screenshots/components.png)
 
 BC Atlas proposes a layered architecture from today's dependencies, or checks
 the one you define in `.bca.json`. Every dependency that points the wrong way
-becomes a **work item that says what to do in AL terms**: move a subscriber,
-move a field into a table extension, extract an interface. One click on
-**Adopt this architecture** writes it down; **Accept current violations**
-records a baseline, so from then on only new violations fail, and the baseline
-can only shrink.
+is red, and a **work item that says what to do in AL terms**: move a
+subscriber, move a field into a table extension, extract an interface.
+**Keep these components** writes the proposal down; **Accept the wrong-way
+dependencies** records a baseline, so from then on only new violations fail,
+and the baseline can only shrink.
 
 It answers the question behind splitting a large app: *which parts could
 become apps of their own today, and what is in the way for the rest?*
 
-## Dependencies in 3D, and in 4D
+## Who can do what
 
-![Components of the Shopify Connector in 3D: allowed dependencies in green, wrong-way dependencies in red](marketing/screenshots/components-3d.png)
+![The People lens: four agents of a company, the process tests they perform, and the permission sets they hold; one is blocked](marketing/screenshots/people.png)
 
-Fly through objects, modules, apps, and architecture components. Green links
-follow the architecture, red ones break it. Filter, search, and click any node
-for its links. Replay how the dependencies grew **commit by commit, per pull
-request, or per release** on the timeline.
+With process tests in the project, BC Atlas lets agents with the roles and
+permission sets of your company perform them, step by step, from the source.
+The graph shows who performs what, who is blocked and by which missing
+permission, and who can do what they must not.
 
-![Every object of the Shopify Connector in 3D, with the largest architecture work items next to the graph](marketing/screenshots/dependencies-3d.png)
+## What really runs in Business Central
+
+![The Recordings lens: a channel, two recorded processes, and the pages, codeunits, and tables each one runs through and changes](marketing/screenshots/recordings.png)
+
+The source says what can happen; a recording says what does. With
+[BC Atlas Sync](https://github.com/SchulzOli/BC-Atlas/blob/main/plugins/sync/README.md)
+set up, every process recorded in Business Central is a node of the same
+graph: the objects it runs through, the tables it changes, and whether it is
+synced into the project or waits for it. Plugins add lenses, findings, and
+stories of their own in the same way.
 
 ## Right where you code
 
-![An AL table in the editor with the BC Atlas CodeLens above it and architecture violations in the Problems panel](marketing/screenshots/editor.png)
-
+- **The graph follows the source**: save a file and it is read again.
+- **The graph follows the editor**: the object of the file in front is the
+  selected node.
 - **CodeLens** above every object: how often it is used, what it uses, its
   component, and its dependencies against the architecture.
 - **Problems panel**: health and architecture findings at their file and line,
   with the fix in the message.
 - **Right-click in an AL file**: Show This Object, Show This Object in 3D,
-  Diagram of This Object.
-- **Status bar**: health at a glance; click it for the overview.
+  Show This Object from the Inside.
+- **Status bar**: health at a glance.
 
-## Every object, one click away
+## Everything you see, you can keep
 
-![The page of the Shpfy Shop table: what it uses, what uses it, its component, and how to resolve its 14 wrong-way dependencies](marketing/screenshots/object.png)
-
-Search all objects. Each one gets a page with what it uses and what uses it,
-across apps, its fields, procedures, and actions, and every one of its
-architecture violations with the steps to resolve it. **Open source** jumps to
-the line.
-
-## Health at a glance
-
-![The Overview page of the Shopify Connector: 514 objects, health, components, wrong-way dependencies, and cycles](marketing/screenshots/overview.png)
-
-The same rules as `bca check` in your pipeline: dependency cycles, forbidden
-dependencies, architecture violations, hot spots with too many incoming or
-outgoing dependencies, and parser diagnostics.
-
-## All pages
-
-| Page | What it shows |
-| --- | --- |
-| Overview | Objects, apps, health, the architecture at a glance, the most connected objects, and next steps. |
-| Health | Every finding of `bca check`: cycles, forbidden dependencies, architecture violations, hot spots, diagnostics. |
-| Architecture | The configured architecture or a proposal: components in layers, wrong-way dependencies as work items, metrics per component. |
-| Dependencies | The 3D explorer: objects, modules, apps, and components; inside one app vs. across apps; replayed by commit, pull request, or release. |
-| Dashboard | Everything in one place: pick a content (a diagram view, the components, the objects, the apps, the findings) and a form (2D graph, 3D graph, table, diagram). The same filter, the same tools (hide, focus on a node and its neighbors, size by a number, put nodes where you want them), and the sources of what you see. **New view from this** keeps what you see under a name. |
-| Diagrams | Eleven diagram views (project, module, object, data, call, boundary, contracts, events, ui, workflow, visibility) with zoom and pan; hover an object for its relations, click it to open it, find objects by name; save as SVG, PNG, or D2. The visibility view is a canvas of every object, procedure, event, and field in the color of its level (public, internal, local): zoom into graphs inside graphs. |
-| Objects | Every AL object, searchable, with a page per object. |
-| Docs | User guides from your AL UI tests, when the project has them. |
-
-The panel has one list on its left instead of tabs: every content and page,
-by topic, with a filter and the sources of what is shown. The BC Atlas side
-bar lists the same pages as shortcuts and marks the one the panel shows. It
-takes its colors, accents, and fonts from your color theme, including high
-contrast and custom themes, and updates when AL files, `app.json`,
-`.bca.json`, or the baseline change.
+**Export** saves the picture (PNG, SVG), the graph (JSON), the nodes and
+relations (CSV), the lens and every story (Markdown), and a link to the view
+as it is. **BC Atlas: Export…** writes the whole view as one offline HTML
+file for people without VS Code: a few hundred kilobytes for thousands of
+objects.
 
 ## For AI agents
 
@@ -103,8 +140,10 @@ strategy IDs, made for exactly that loop.
 1. Install BC Atlas and open a folder with an `app.json` (or a folder above
    several apps).
 2. Click the BC Atlas icon in the activity bar, or run **BC Atlas: Open**.
-3. On the Architecture page, review the proposal and choose **Adopt this
-   architecture**. From now on, the Problems panel and `bca check` keep it.
+3. Choose **Story › What … is** for a first walk through the system.
+4. Choose the **Components** lens, review the proposal, and under **Live**
+   choose **Keep these components**. From now on, the Problems panel and
+   `bca check` keep the architecture.
 
 ## Commands
 
@@ -112,10 +151,10 @@ All commands are in the Command Palette under `BC Atlas: ...`.
 
 | Command | Does |
 | --- | --- |
-| Open, Open Page… | Shows the panel. |
+| Open, Open a Lens… | Shows the view, or the view with one lens. |
 | Run Health Check | Analyzes again and fills the Problems panel; the same rules as `bca check` in CI. |
-| Propose an Architecture, Accept Current Violations in the Baseline | Find and enforce a target architecture. |
-| Export… | Writes the BC Atlas pages as one offline HTML file to share, the Markdown report, the 3D explorer, the object catalog, or a diagram. |
+| Show the Components, Accept Current Violations in the Baseline | Find and enforce a target architecture. |
+| Export… | Writes the view as one offline HTML file to share, the Markdown report, the 3D explorer, the object catalog, the system handbook, or a diagram. |
 | Generate Documentation from UI Tests… | Markdown, HTML, DITA, Azure DevOps CSV, or BPMN from AL UI tests. |
 | Set Up Automation | `.bca.json`, Git hooks, a GitHub or Azure DevOps pipeline, and a schedule, in a guided terminal session. |
 | Run Tasks of a Trigger… | Runs what a hook, the pipeline, or the schedule runs. |
@@ -130,12 +169,13 @@ All commands are in the Command Palette under `BC Atlas: ...`.
 | `bcAtlas.paths` | `[]` | Only analyze these folders or globs (like `--paths`); speeds up large repositories such as BCApps. |
 | `bcAtlas.problems` | `true` | Findings in the Problems panel. |
 | `bcAtlas.codeLens` | `true` | CodeLens above AL objects. |
+| `bcAtlas.followEditor` | `true` | Select the object of the active editor in the graph. |
 | `bcAtlas.nodePath` | empty | Node.js 22 or later for the engine; empty uses the runtime built into VS Code. |
 
 ## CI, pipelines, and the command line
 
 The same engine is the `bc-atlas` npm package: `bca check` gates pull
-requests, `bca export` writes reports and the offline pages, and `bca run`
+requests, `bca export` writes reports and the view as one file, and `bca run`
 runs from Git hooks and pipelines. **Set Up Automation** configures all of it.
 See the [documentation](https://schulzoli.github.io/BC-Atlas/).
 
@@ -149,14 +189,15 @@ makes no network requests.
 VS Code 1.101 or later. No AL symbols needed; with `.alpackages`, references
 into Microsoft's apps resolve too. Large projects take a while on the first
 analysis (the Base Application with the System Application and Business
-Foundation: about two minutes); afterwards every page opens in under a second.
+Foundation: about two minutes); afterwards the view opens in about a second.
 
-The screenshots show Microsoft's open-source
-[Shopify Connector](https://github.com/microsoft/BCApps/tree/main/src/Apps/W1/Shopify)
-from BCApps, with an architecture proposed by folder.
+The screenshots show the example apps of the
+[BC Atlas repository](https://github.com/SchulzOli/BC-Atlas/tree/main/examples)
+(`purchasing-app` and `multi-app`); `vscode/marketing/screenshots.mjs` takes
+them.
 
 ## License
 
 MIT. BC Atlas bundles `tree-sitter-al` and `web-tree-sitter` (MIT), elkjs
-(EPL-2.0), resvg (MPL-2.0), Liberation Sans (OFL-1.1), and 3d-force-graph with
-three.js (MIT).
+(EPL-2.0), resvg (MPL-2.0), Liberation Sans (OFL-1.1), and, for the exported
+3D explorer, 3d-force-graph with three.js (MIT).

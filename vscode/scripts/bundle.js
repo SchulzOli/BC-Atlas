@@ -5,7 +5,7 @@
 //   dist/extension.js           the extension (CommonJS, `vscode` external)
 //   bc-atlas/src/<entry>.js     each engine entry the extension starts, in place
 //
-// Engine modules read assets next to themselves (`new URL("./ui/app.css",
+// Engine modules read assets next to themselves (`new URL("./ui/atlas.css",
 // import.meta.url)`). In a bundle, import.meta.url is the bundle's URL, so the
 // plugin below points each of those URLs back at the module's original
 // location; the assets stay where they are.

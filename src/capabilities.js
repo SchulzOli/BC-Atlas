@@ -24,7 +24,7 @@ export const VIEWS = Object.freeze([
 export const FORMATS = Object.freeze(["d2", "json", "svg", "png", "pdf"]);
 // What `bca export` can write besides the diagram views.
 export const EXPORTS = Object.freeze([
-  ["app", "The BC Atlas pages as one offline HTML file to share: every page, the diagrams, the 3D explorer, and the docs"],
+  ["app", "The BC Atlas view as one offline HTML file to share: a toolbar and the graph, with every lens, finding, and story"],
   ["report", "Markdown report (README.md) with health, diagrams, and an optional object catalog"],
   ["explorer", "Interactive 3D dependency explorer (HTML), replayable over Git history, or its graph as JSON"],
   ["catalog", "One linked Markdown page per AL object"],
@@ -36,6 +36,10 @@ export const KNOWLEDGE_FORMATS = Object.freeze(["ttl", "rdf", "owl", "nt", "json
 export const SEVERITIES = Object.freeze(["error", "warning", "info"]);
 export const FAIL_LEVELS = Object.freeze(["error", "warning", "info", "never"]);
 export const REPORT_VIEWS = Object.freeze(["project", "module", "data", "contracts", "events", "ui"]);
+// What the view shows (the lenses of src/app/atlas.js), its forms, and what `bca view` writes.
+export const VIEW_LENSES = Object.freeze(["system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements"]);
+export const VIEW_FORMS = Object.freeze(["2d", "diagram", "3d"]);
+export const VIEW_FORMATS = Object.freeze(["text", "json", "md", "csv", "svg", "png", "link"]);
 
 export const FEATURE_AREAS = Object.freeze([
   {
@@ -51,7 +55,7 @@ export const FEATURE_AREAS = Object.freeze([
   {
     id: "export",
     title: "Export",
-    summary: "Write what the app shows as files, and user guides from AL UI tests."
+    summary: "Write what the app shows as files, look at any part of it from the terminal, and write user guides from AL UI tests."
   },
   {
     id: "integrate",
@@ -184,7 +188,7 @@ const exportOptions = {
   codegraph: flag("Report: also write the object catalog.", { group: "Report" }),
   handbook: flag("Report: also write the system handbook to <output>/handbook, linked to the catalog with --codegraph.", { group: "Report" }),
   json: flag("Report: also write the resolved model as model.json.", { group: "Report" }),
-  history: flag("Explorer and app: replay Git history, one frame per step (see --history-by) that changed AL files or app.json.", { group: "Timeline" }),
+  history: flag("Explorer: replay Git history, one frame per step (see --history-by) that changed AL files or app.json.", { group: "Timeline" }),
   historyBy: string("One frame per commit, per merged pull request, or per release tag; implies --history.", { group: "Timeline", enum: ["commits", "prs", "releases"], default: "commits" }),
   last: string("Only the last n steps (commits, pull requests, or releases).", { group: "Timeline", value: "n" }),
   maxCommits: string("Most frames to replay; older steps are sampled evenly.", { group: "Timeline", value: "n", default: "60" }),
@@ -546,7 +550,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         id: "export",
         area: "export",
         argv: ["bca", "export", "[app-root]"],
-        purpose: "Write files: the BC Atlas pages as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view.",
+        purpose: "Write files: the BC Atlas view as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view.",
         options: exportOptions,
         output: { type: "file", pathOption: "output", default: "bc-atlas.html" },
         rules: [
@@ -566,6 +570,61 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           "bca export ./app --view workflow --entry ProcessDocument -o workflow.svg --watch",
           "bca export ./app --view project --format json > model.json",
           "bca export ./app --view catalog -o docs/codegraph"
+        ]
+      }),
+      command({
+        id: "view",
+        area: "export",
+        argv: ["bca", "view", "[app-root]"],
+        purpose: "The BC Atlas view without a window: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. What the toolbar of the app does, from the terminal.",
+        options: {
+          lens: string(`What the graph shows: a part of the one graph (${VIEW_LENSES.join(", ")}, and the lenses of plugins, such as sync). Without it (and without --story), the overview lists the lenses and stories of the project.`, { group: SELECTION, value: "id", default: "system" }),
+          inside: string("Go into a node: an object opens to its procedures, triggers, and events and what each does with other objects; an app, a component, or a namespace to its objects. A name, an ID, or a selector such as codeunit:50100 or component:Core.", { group: SELECTION, value: "node" }),
+          focus: string("Only this node and what is near it (see --depth). A name, an ID, or a selector such as table:Customer or person:Anna.", { group: SELECTION, value: "node" }),
+          depth: string("How many steps from the --focus node.", { group: SELECTION, value: "n", default: "1" }),
+          find: string("What Find does: in a picture, the nodes whose name, type, component, namespace, or ID match stand out; a list holds only them.", { group: SELECTION, value: "text" }),
+          hide: string("Kinds of node to leave out, as the legend names them (codeunit, table, other apps, ...), comma-separated.", { group: SELECTION, repeatable: true, value: "kinds" }),
+          off: string("Kinds of relation to leave out (uses, reads, permits, ...), comma-separated.", { group: SELECTION, repeatable: true, value: "kinds" }),
+          check: flag("What Check does: a ring on every node with a finding in a picture; the findings with their fixes below each node in text.", { group: SELECTION }),
+          story: string("A story instead of a lens: its steps with their texts. With --step, the nodes of that step in its lens.", { group: "Stories", value: "id" }),
+          step: string("One step of the --story, from 1: what stands out in it.", { group: "Stories", value: "n" }),
+          stories: flag("Every story of the system as one document (text, md, or json).", { group: "Stories" }),
+          form: string("The form of a picture: a graph in a plane, boxes in layers in the direction of the relations, or a graph in space.", { group: RENDERING, enum: VIEW_FORMS, default: "2d" }),
+          color: string("Color the nodes by this instead of what the lens does.", { group: RENDERING, enum: ["type", "component", "namespace", "app", "level", "findings"] }),
+          size: string("Size the nodes by this.", { group: RENDERING, enum: ["relations", "usedBy", "uses", "lines", "complexity", "objects", "findings"] }),
+          group: string("Hold the nodes together by this instead of what the lens does.", { group: RENDERING, enum: ["component", "namespace", "app", "kind", "none"] }),
+          select: string("The selected node of a picture: it and its relations stand out.", { group: RENDERING, value: "node" }),
+          theme: string("Colors of a picture.", { group: RENDERING, enum: ["light", "dark"], default: "light" }),
+          width: string("Width of a picture in pixels.", { group: RENDERING, value: "px", default: "1440" }),
+          height: string("Height of a picture in pixels.", { group: RENDERING, value: "px", default: "900" }),
+          format: string("text (default), json, md, csv, svg, png, or link (the address of this view in the app). Inferred from the extension of --output.", { group: OUTPUT, short: "f", enum: VIEW_FORMATS }),
+          rows: string("csv: one row per node or per relation.", { group: OUTPUT, enum: ["nodes", "relations"], default: "nodes" }),
+          output: string("Write to this file instead of stdout (a PNG always needs it).", { group: OUTPUT, short: "o", value: "path" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config,
+          compiler: projectOptions.compiler,
+          compilerLog: projectOptions.compilerLog,
+          paths: string("Only analyze AL files below these project-relative folders or globs.", { group: FILTERS, repeatable: true, value: "glob" })
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.view" },
+        rules: [
+          "The same graph, lenses, stories, and exports as the app: one implementation draws the page and writes these files.",
+          "--format json without a lens, story, or object prints the whole atlas: every node, relation, lens, finding, and story.",
+          "A lens with nothing in it does not exist for a project: processes, people, and requirements need documented UI tests, health needs a finding.",
+          "The same options give the same picture every time; SVG and PNG are drawn by BC Atlas itself, without a browser."
+        ],
+        examples: [
+          "bca view ./app",
+          "bca view ./app --lens data",
+          "bca view ./app --lens data --form diagram -o data.svg",
+          "bca view ./app --lens components --form diagram --check -o components.png",
+          "bca view ./app --inside codeunit:50100 --form diagram -o posting.svg",
+          "bca view ./app --focus \"table:Sales Header\" --depth 2 --format json",
+          "bca view ./app --lens health --check",
+          "bca view ./app --story fix",
+          "bca view ./app --stories --format md -o docs/system.md",
+          "bca view ./app --lens system --format csv --rows relations -o relations.csv",
+          "bca view ./app --format json > atlas.json"
         ]
       }),
       command({

@@ -36,7 +36,7 @@ function contributionCounts(manifest) {
   const contributes = manifest.contributes;
   return Object.fromEntries(["commands", "tasks", "healthRules", "mcpTools", "hooks", "extensionPoints"]
     .map((key) => [key, contributes[key].length])
-    .concat([["extends", Object.keys(contributes.extends).length]]));
+    .concat([["atlas", contributes.atlas ? 1 : 0], ["extends", Object.keys(contributes.extends).length]]));
 }
 
 export async function pluginsListCommand(input, values) {
@@ -75,6 +75,7 @@ export async function pluginsShowCommand(input, values) {
   section("Tasks (bca run)", manifest.contributes.tasks.map(({ id, summary, before, after }) => `${id} - ${summary}${before.length ? ` (before ${before.join(", ")})` : ""}${after.length ? ` (after ${after.join(", ")})` : ""}`));
   section("Health rules (bca check)", manifest.contributes.healthRules.map(({ id, severity, summary }) => `${id} [${severity}] - ${summary}`));
   section("MCP tools", manifest.contributes.mcpTools.map(({ name, description }) => `${name} - ${description}`));
+  section("Atlas (the graph of the view and of bca view)", manifest.contributes.atlas ? [manifest.contributes.atlas.summary] : []);
   section("Hooks", manifest.contributes.hooks.map((event) => `${event} - ${PLUGIN_EVENTS[event]}`));
   section("Extension points", manifest.contributes.extensionPoints.map(({ id, summary }) => `${id} - ${summary}`));
   section("Extends", Object.entries(manifest.contributes.extends).map(([point, items]) => `${point}: ${items.join(", ")}`));
@@ -121,6 +122,7 @@ export async function pluginsDoctorCommand(input, values) {
         missing("health rule", manifest.contributes.healthRules.map(({ id }) => id), implementation.healthRules);
         missing("MCP tool", manifest.contributes.mcpTools.map(({ name }) => name), implementation.mcpTools);
         missing("hook", manifest.contributes.hooks, implementation.hooks);
+        if (manifest.contributes.atlas && typeof implementation.atlas !== "function") problems.push("atlas is declared but not implemented");
         missing("extension", Object.keys(manifest.contributes.extends), implementation.extensions);
         if (config[manifest.configKey] !== undefined && typeof implementation.validateConfig === "function") {
           try {

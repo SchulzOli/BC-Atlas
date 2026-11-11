@@ -7,7 +7,7 @@ import { renderD2 } from "../src/d2.js";
 import { prepareScene, sceneToSvg } from "../src/diagram/index.js";
 import { resolveModel } from "../src/resolver.js";
 import { createView } from "../src/views.js";
-import { analyzeVisibility, compactVisibility, LEVEL_COLORS, reachKind } from "../src/visibility.js";
+import { analyzeVisibility, LEVEL_COLORS, reachKind } from "../src/visibility.js";
 
 const multiApp = fileURLToPath(new URL("../examples/multi-app", import.meta.url));
 
@@ -160,33 +160,4 @@ test("a path filter keeps the uses from outside it", async () => {
   assert.ok(pricing, "the objects of the selected folder are the data points");
   assert.equal(model.visibility.points.some(({ name }) => name === "CON Quote Mgt."), false);
   assert.equal(model.visibility.points.find(({ name }) => name === "Calculate").canBe, undefined, "the sales app outside the filter calls it");
-});
-
-test("the canvas gets the data points as arrays and packs circles without overlap", async () => {
-  const { result } = await analysis();
-  const compact = compactVisibility(result);
-  assert.equal(compact.points.length, result.points.length);
-  const [kind, parent, , , level] = compact.points[0];
-  assert.deepEqual([kind, parent, level], ["app", -1, 0]);
-  assert.ok(compact.points.every(([, owner], index) => owner < index), "a point comes after what it is in");
-  assert.ok(compact.uses.every(([from, to, reach]) => compact.points[from] && compact.points[to] && reach >= 0 && reach <= 2));
-  const calculator = compact.points.find(([, , name]) => name === "codeunit 50101 Calculator");
-  assert.equal(typeof calculator[7], "string", "an object links to its page");
-
-  await import("../src/app/ui/visibility-canvas.js");
-  const { pack, index } = globalThis.BCA_VISIBILITY;
-  const indexed = index(compact);
-  assert.equal(indexed.roots.length, 1);
-  const total = indexed.points.find(({ name }) => name === "Total");
-  assert.ok(total.out.length >= 2 && total.in.length >= 1, "a procedure opens to what it uses and what uses it");
-  for (const radii of [[1], [2, 1], Array.from({ length: 300 }, (_, position) => 1 + (position % 5))]) {
-    const circles = pack(radii);
-    assert.equal(circles.length, radii.length);
-    assert.ok(circles.every(({ x, y, r }) => Math.hypot(x, y) + r <= 0.931), "inside the unit circle");
-    for (let a = 0; a < circles.length; a++) {
-      for (let b = a + 1; b < circles.length; b++) {
-        assert.ok(Math.hypot(circles[a].x - circles[b].x, circles[a].y - circles[b].y) >= circles[a].r + circles[b].r, "no two circles overlap");
-      }
-    }
-  }
 });

@@ -27,6 +27,7 @@ cd path/to/al-project
 bca setup                   # .bca.json, Husky hooks, VS Code tasks, pipeline, schedule (or: bca setup agent)
 bca check                   # architecture gate for CI
 bca simulate                # battle test: your roles and permission sets against the process tests
+bca view                    # what there is to see: the lenses and stories of the app, in the terminal
 bca export --view report    # docs/atlas/README.md: overview, diagrams, health
 bca export --view handbook  # docs/handbook: events, data, permissions, UI, code health
 bca update                  # new version? see what changed and update everything in one step
@@ -34,19 +35,26 @@ bca update                  # new version? see what changed and update everythin
 
 In VS Code, install the **BC Atlas** extension and open an AL project:
 
-![BC Atlas in VS Code: an object page in the BC Atlas panel next to its AL source with CodeLens and a Problems entry](./docs/generated/images/vscode.png)
+![The BC Atlas view: a toolbar and the graph. Every object of an app as a node, a codeunit selected with its facts, findings, and relations](./docs/generated/images/view.png)
+
+One view: a toolbar and the graph. A **lens** shows a part of the one graph
+BC Atlas reads from the source (system, components, data, events, findings,
+processes, people), in **2D**, as a **diagram**, or in **3D**; **Check** puts
+the findings on the nodes; a **story** walks through it step by step, as
+documentation, test, and demonstration. [Guide](./docs/vscode.md)
 
 ## Features at a glance
 
 | Area | Command | What you get |
 | --- | --- | --- |
-| **In VS Code** | BC Atlas extension | Everything below in the editor: a panel with a dashboard (every content as a 2D graph, a 3D graph, a table, or a diagram), overview, health, architecture, 3D dependencies, diagrams, objects, the handbook, and docs; findings in the Problems panel; CodeLens above AL objects; the MCP server for agents. [Guide](./docs/vscode.md) |
+| **In VS Code** | BC Atlas extension | Everything below in the editor, as one view: a toolbar and the graph. Every object, app, component, finding, process test, and person is a node of one graph; a lens shows a part of it as a 2D graph, a diagram, or a 3D graph; stories walk through it; everything exports. The graph follows the source and the editor; findings in the Problems panel; CodeLens above AL objects; the MCP server for agents. [Guide](./docs/vscode.md) |
 | **Get started** | `bca setup` | Guided setup in the terminal or through your AI agent (Claude Code, Copilot, Cursor): a starter `.bca.json`, features, Husky or Git hooks, GitHub Actions or Azure Pipelines, cron schedule, and sync. |
 | **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, architecture violations, hot spots, undocumented public API, diagnostics, and AL compiler and CodeCop/UICop/AppSourceCop findings - with a CI exit code, also as SARIF for code scanning. [Rules](./docs/health-checks.md) |
 | | `bca simulate` | The battle test: simulate the use in your company. Agents with your roles, permission sets, and task groups perform the process tests (AL UI tests) step by step. It fails CI when a role is blocked or can do what it must not, explains every permission a step needs, and writes the fit-gap analysis against your requirements. [Guide](./docs/battle-test.md), [example](./examples/simulation/README.md) |
 | | `bca architecture` | Find a target architecture (components, layers), list every dependency that blocks it with how to resolve it, and enforce it with a shrinking baseline. You decide what the proposal considers (`architecture.proposal`: relation kinds, starting structures, granularity, components you keep, objects you exclude), it says how it was made, and `--explain` says why an object is where it is. [Guide](./docs/clean-architecture.md) |
 | | `bca graph query` | Reuse a saved graph for impact analysis or message migrations without re-analyzing AL; keep IDs, directions, evidence, and metadata. [Guide](./docs/dependency-explorer.md#query-and-render-saved-graphs) |
-| **Export** | `bca export` | Everything the extension shows, as files: the BC Atlas pages as one offline HTML file to share (default), the Markdown report ([example](./examples/report/README.md)), the 3D explorer, one Markdown page per object, any of eleven diagram views as D2, SVG, PNG, PDF, or JSON, with `--watch`, and the project as a knowledge graph in RDF with an OWL ontology ([Turtle, RDF/XML, OWL, N-Triples, JSON-LD](./docs/knowledge-graph.md)). |
+| **Export** | `bca export` | Everything the extension shows, as files: the BC Atlas view (a toolbar and the graph, with every lens, finding, and story) as one offline HTML file to share (default), the Markdown report ([example](./examples/report/README.md)), the 3D explorer, one Markdown page per object, any of eleven diagram views as D2, SVG, PNG, PDF, or JSON, with `--watch`, and the project as a knowledge graph in RDF with an OWL ontology ([Turtle, RDF/XML, OWL, N-Triples, JSON-LD](./docs/knowledge-graph.md)). |
+| | `bca view` | The view of the app without a window, for the terminal, pipelines, and agents: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. `bca view --lens data --form diagram -o data.svg`, `bca view --story fix`, `bca view --inside codeunit:50100`. The same code draws the app and writes these files. [Reference](./docs/cli-reference.md#view) |
 | | `bca export --view handbook` | The system handbook: what the app consists of, its events, data (who inserts, modifies, deletes, reads each table), permissions, interfaces, user interface, and code health, across all objects, in English or German, linked to the object catalog. [Guide](./docs/handbook.md), [example](./examples/handbook/README.md) |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations, a flow diagram per scenario, and BPMN 2.0 processes per use case. [Example](./examples/docs/index.md) |
 | | `bca graph render` | Render saved graph selections as SVG, static HTML, DOT, or JSON through the CLI or MCP, locally and without Graphviz. |
@@ -73,7 +81,7 @@ options and examples.
 | `workflow` | What happens after an action or entry point? | `bca export --view workflow --entry action:Release -o flow.svg` |
 | `visibility` | What is public, internal, or local, and what can it be? | `bca export --view visibility -o visibility.svg` |
 
-In VS Code, the Diagrams page of the BC Atlas panel renders every view with zoom and pan; click an object to open it.
+In VS Code, the BC Atlas view shows the same as lenses of one graph, as a 2D graph, a diagram, or a 3D graph; click an object to select it, double-click it to open it.
 
 ### Clean architecture
 
@@ -84,8 +92,9 @@ move an extension or subscriber, move a field into a table extension, invert
 it with an interface), and shows which components can become apps of their
 own. Save it to `.bca.json`, accept today's violations in a baseline, and
 `bca check` keeps the architecture from eroding: new violations fail CI,
-fixed ones shrink the baseline. In VS Code, the Architecture page shows the
-layers and work items and adopts a proposal with one click.
+fixed ones shrink the baseline. In VS Code, the Components lens shows the
+components in their layers, the story "Dependencies the wrong way" walks
+through the work items, and the view saves a proposal.
 
 ```sh
 bca architecture ./app --propose --format markdown -o architecture.md
@@ -95,8 +104,8 @@ bca check ./app
 
 ### Interactive dependency explorer
 
-The Dependencies page in VS Code, also written by `bca export --view explorer` as
-one offline HTML file, shows a 3D graph of every AL object and app. Dependencies inside one app stay gray; dependencies across apps are
+`bca export --view explorer` writes one offline HTML file with a 3D graph of
+every AL object and app and a timeline. Dependencies inside one app stay gray; dependencies across apps are
 checked against `app.json` and colored as declared, implicit (Microsoft),
 undeclared, or unresolved. Filter by app, class, type, or relation kind,
 switch to the app level, and press play: with `--history` the timeline replays
@@ -250,13 +259,14 @@ documentation, setup, run, and update-check tools. `bca setup agent --agent clau
   -> resolved model with evidence         (resolver, call analysis, semantics)
   -> view projection and insights         (views, workflow, health)
   -> SVG / PNG / PDF / D2 / JSON / Markdown / HTML    (renderers)
-  -> the pages: one workspace, in VS Code (vscode/) or exported as one file
+  -> the atlas: everything as one graph with lenses, findings, and stories (src/app/atlas.js)
+  -> the view: a toolbar and the graph, in VS Code (vscode/) or exported as one file (src/app/ui)
 ```
 
 Parsing, resolution, projection, and rendering are separate stages, so new
 views and outputs do not touch the parser. The VS Code extension, `bca check`,
 `bca architecture`, and `bca export` read the same analysis, so they always
-agree; `src/ui/theme.css` gives the pages, the explorer, and the HTML
+agree; `src/ui/theme.css` gives the view, the explorer, and the HTML
 documentation one look. Every command is defined once in
 `src/capabilities.js`; help, argument validation, the JSON contract, and the
 generated reference derive from it.

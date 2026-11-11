@@ -58,9 +58,9 @@ Use the BC Atlas panel in VS Code or `bca export --view report` for an overview,
 focused view. Add filters. Files of views with more than 1,500 objects (the
 project view of the Base Application has about 8,000) show every group as one
 box with the relations between groups bundled; the `.d2` file keeps every
-object. On the Diagrams page, views with more than 120 objects start that way,
-and a click on a group opens it; the page also has a namespace filter, and
-hovering an object highlights its relations.
+object. The BC Atlas view draws every object of a large app; use a lens,
+**Find**, the legend, or **Neighbors** on a node to get to a part you can
+read.
 Reduce `--max-edges` only after you select the required scope.
 
 ## Many unresolved references

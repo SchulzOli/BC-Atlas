@@ -53,7 +53,7 @@ test("finds the object at the cursor and puts a CodeLens above each object", () 
   ]);
 });
 
-test("summarizes health in the status bar and the side bar", () => {
+test("summarizes health in the status bar", () => {
   const overview = {
     title: "Contoso",
     summary: { objects: 1200, apps: [{}, {}] },
@@ -67,15 +67,12 @@ test("summarizes health in the status bar and the side bar", () => {
   assert.match(status.tooltip, /Contoso: 1,200 objects in 2 apps/u);
   assert.equal(logic.statusFor(undefined).tone, "busy");
   assert.equal(logic.statusFor({ ...overview, health: { passed: true, counts: { error: 0, warning: 0, info: 0 } } }).text, "$(pass) BC Atlas");
-  assert.deepEqual(logic.pages(overview).map(({ id }) => id), ["dashboard", "overview", "health", "architecture", "dependencies", "diagrams", "objects", "docs"]);
-  assert.equal(logic.pages(overview).find(({ id }) => id === "docs").description, "handbook, 4 user guides");
-  assert.equal(logic.pages({ ...overview, docs: { scenarios: 0 } }).find(({ id }) => id === "docs").description, "system handbook",
-    "Docs holds the handbook, so it is there without UI tests too");
 });
 
-test("builds page addresses and export arguments", () => {
-  assert.equal(logic.pageHash("architecture", { propose: 1 }), "#/architecture?propose=1");
-  assert.equal(logic.pageHash("overview"), "#/overview");
+test("builds view addresses and export arguments", () => {
+  assert.equal(logic.viewHash({ lens: "components", form: "diagram" }), "#lens=components&form=diagram");
+  assert.equal(logic.viewHash({ sel: "app::Contoso.Core::table::50000", form: undefined }), "#sel=app%3A%3AContoso.Core%3A%3Atable%3A%3A50000");
+  assert.equal(logic.viewHash(), "#");
   const app = logic.EXPORTS.find(({ view }) => view === "app");
   assert.deepEqual(logic.exportArgs(app, "/p", "/p/atlas.html"), ["export", "/p", "--view", "app", "-o", "/p/atlas.html"]);
   assert.ok(logic.EXPORTS.some(({ view, folder }) => view === "report" && folder));

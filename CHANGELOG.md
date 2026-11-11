@@ -4,6 +4,110 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- **The app is one view: a toolbar and the graph.** The pages, the list of
+  contents, and the tabs are gone, in VS Code and in the file `bca export`
+  writes. The AL source is the only fact; everything BC Atlas reads from it
+  is one graph, and the toolbar decides which part of it shows, in which
+  form, and what stands out. See [The BC Atlas view](./docs/vscode.md#the-bc-atlas-view).
+  - **One graph.** Apps, components, namespaces, objects, the rules of the
+    health check, process tests, the people who perform them, and
+    requirements are nodes; what they do with each other are relations, one
+    per kind (reads, writes, calls, permits, depends on, the wrong way,
+    touches, performs, blocked, ...). A node keeps its identity everywhere:
+    select an object, switch the lens, and it is still selected.
+  - **Lenses** show a part of it: System, Components, Apps, Modules, Data,
+    Calls, Events, Contracts, Pages, Permissions, Visibility, Findings,
+    Processes, People, Requirements. A lens with nothing in it is left out.
+  - **Three forms on one canvas, for every lens:** a 2D graph, a diagram
+    (the same nodes as boxes in layers, in the direction of their relations,
+    with relations routed between the boxes), and a 3D graph. Selection,
+    search, and what is hidden stay when the form changes.
+  - **Open an object:** a double click shows it from the inside, its
+    procedures, triggers, and events as nodes and what each of them does
+    with other objects; a double click on a procedure goes to its line.
+  - **Check** puts every finding on the nodes it is about: health rules, AL
+    compiler and analyzer findings, architecture violations, and what blocks
+    a person in the battle test. The card of a node lists its findings with
+    the fix.
+  - **Stories**, generated from the source, walk through the graph step by
+    step, each step with a text and the nodes it is about: what the system
+    is, one story per process (its tests in order, every step on the objects
+    it touches), who can do what, what to fix, and the dependencies that
+    point the wrong way. Play a story to demonstrate, save it as Markdown to
+    document.
+  - **Everything exports:** the picture as PNG or SVG, the graph as JSON,
+    nodes and relations as CSV, a lens and all stories as Markdown, and a
+    link: the whole state of the view is in its address.
+  - **In step with the source:** in VS Code the graph is read again when a
+    file is saved and keeps its lens, form, and selection; the object of the
+    active editor is the selected node (`bcAtlas.followEditor`); **Go to
+    source** opens a node at its line; **Live** says what the graph is read
+    from and saves a proposed architecture or the baseline.
+- **`bca view`: the view without a window.** Everything the toolbar does is
+  an option, and every export a format, so the terminal, a pipeline, and an
+  agent get what the app shows: `--lens`, `--inside`, `--focus` with
+  `--depth`, `--find`, `--hide`, `--off`, `--check`, `--story` with
+  `--step`, `--stories`, `--color`, `--size`, `--group`, and `--format`
+  `text`, `json`, `md`, `csv`, `svg`, `png`, or `link`. Pictures come in
+  every form (`--form 2d`, `diagram`, `3d`), light or dark, drawn without a
+  browser, the same every time. Without options it lists the lenses and
+  stories of the project; `--format json` prints the whole graph. One
+  implementation draws the page and writes these files
+  (`src/app/ui/scene.js`, `graph.js`). The MCP tool `bc_atlas_view` gives
+  agents the same.
+- **Navigation without a jump.** Every node leads on: a double click goes
+  into an app, a component, or a namespace (its objects), into an object
+  (its procedures), or to the lens a person, a process test, a requirement,
+  or a recording lives in. A trail next to the lens says where the view is
+  (`Components › Core › CON Item`), and every part of it is one click back.
+  **See in** on the card of a node lists the other lenses it is in and
+  changes the lens around it. A node that is in the picture before and
+  after a step stays where it is; between 2D, Diagram, and 3D the nodes
+  glide and the camera turns; the picture fits next to the card of the
+  selected node, not under it; the Back and Forward keys of a browser
+  follow every step. Keys: `[` `]` the lens before and after, `Backspace` one step
+  up. `bca view --inside` takes an app, a component, or a namespace too.
+- **Plugins add to the graph.** The new contribution `atlas` lets a plugin
+  put nodes, relations, lenses, findings, and stories into the one graph;
+  they show in the view, in `bca view`, in the MCP tool `bc_atlas_view`,
+  and in every export, like those of BC Atlas. See
+  [What a plugin adds to the graph](./docs/plugins.md#what-a-plugin-adds-to-the-graph).
+  `bca view --lens` accepts the lenses of plugins.
+- **Recordings of Business Central are in the view.** The built-in plugin
+  `sync` adds the lens **Recordings**: the channels, every recorded process
+  with its state (in sync, or why it waits), and the AL objects it runs
+  through and changes. A recording that waits for a sync is the finding
+  `sync-outdated` on its node, and the story "What runs in Business
+  Central" walks through every recording phase by phase. The purchasing
+  example has two recordings.
+- An export of a lens (JSON, CSV, Markdown) holds what shows: what the
+  legend hides is left out, and findings come the most severe first.
+- The exported file is much smaller (the example with three apps: 120 KB
+  instead of 940 KB; 3,150 objects with 11,000 relations: 300 KB) and opens
+  in half a second.
+- VS Code: **Open a Lens…** replaces Open Page…, **Show This Object from the
+  Inside** replaces Diagram of This Object, **Show the Components** replaces
+  Propose an Architecture. The side bar opens the view and has no list.
+
+### Removed
+
+- The pages of the app: Overview, Health, Architecture, component pages,
+  Dependencies, Diagrams with settings, Objects, object pages, and Docs, and
+  with them the table form, saved views, and the visibility canvas of
+  circles. What they showed is in the graph: as lenses, as facts and
+  findings on the card of a node, and as stories.
+- In the app: the 3D explorer with its timeline, the handbook pages, and the
+  user guides. They are still written as files: `bca export --view explorer
+  --history`, `bca export --view handbook`, and `bca docs generate`.
+  `--history` no longer applies to `bca export --view app`.
+- Choosing a grouping for a proposed architecture in the app, and keeping a
+  component or excluding an object from shaping. Set `architecture.proposal`
+  in `.bca.json` or use `bca architecture --propose`.
+
 ## 0.18.0 - 2026-11-10
 
 ### Added

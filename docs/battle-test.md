@@ -226,9 +226,11 @@ permission sets it names, and for every step what it needs and why.
   { "automation": { "triggers": { "ci": { "tasks": ["check", "simulate"], "sync": "verify" } } } }
   ```
 
-- **VS Code and the offline app:** with process tests in the project, the
-  **Docs** page lists **Battle test** after the handbook pages. Its process
-  tests link to their user guides.
+- **VS Code and the exported view:** with process tests in the project, the
+  BC Atlas view has the lenses **Processes**, **People**, and
+  **Requirements**, and a story per process: its tests in order, step by
+  step, on the objects each touches. Whoever is blocked is red, and the
+  finding on them says which permission is missing.
 - **German:** `--language de` writes the report and the steps in German.
 - **AI agents:** the MCP tool `bc_atlas_simulate` returns the report. An agent
   that sets up permission sets asks it which permission is missing, adds the

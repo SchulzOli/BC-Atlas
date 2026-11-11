@@ -1,0 +1,224 @@
+{
+  "schema": "bc-atlas-sync.fact-snapshot/1",
+  "_note": "Example recording, written by hand from the code of this app: what the BC Atlas Sync extension records when a team lead approves a purchase request.",
+  "snapshot": {
+    "no": 3,
+    "processName": "Approve a released purchase request",
+    "feature": "Purchase requests",
+    "fingerprint": "pr-approve-3f2a9c41"
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "title": "Open the released request on the Purchase Requests page"
+    },
+    {
+      "phase": 2,
+      "title": "Choose Approve"
+    }
+  ],
+  "technicalSteps": [
+    {
+      "step": 1,
+      "phase": 1,
+      "kind": "Page Open",
+      "description": "Page 50210 \"Purchase Requests\" read Purchase Request",
+      "callStack": [
+        {
+          "objectType": "Page",
+          "objectId": 50210,
+          "objectName": "Purchase Requests",
+          "method": "OnOpenPage",
+          "app": "BC Atlas Purchasing Example"
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "phase": 2,
+      "kind": "Action",
+      "description": "Action Approve on Page 50210 \"Purchase Requests\" called Approve",
+      "callStack": [
+        {
+          "objectType": "Page",
+          "objectId": 50210,
+          "objectName": "Purchase Requests",
+          "method": "Approve - OnAction",
+          "app": "BC Atlas Purchasing Example"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 50220,
+          "objectName": "Purchase Request Mgt.",
+          "method": "Approve",
+          "app": "BC Atlas Purchasing Example"
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "phase": 2,
+      "kind": "Database Read",
+      "description": "Approve read the approval limit from Purchase Request Setup",
+      "callStack": [
+        {
+          "objectType": "Codeunit",
+          "objectId": 50220,
+          "objectName": "Purchase Request Mgt.",
+          "method": "Approve",
+          "app": "BC Atlas Purchasing Example"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 50201,
+          "objectName": "Purchase Request Setup",
+          "method": "Get",
+          "app": "BC Atlas Purchasing Example"
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "phase": 2,
+      "kind": "Database Write",
+      "description": "Approve set the status of Purchase Request to Approved",
+      "callStack": [
+        {
+          "objectType": "Codeunit",
+          "objectId": 50220,
+          "objectName": "Purchase Request Mgt.",
+          "method": "Approve",
+          "app": "BC Atlas Purchasing Example"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 50200,
+          "objectName": "Purchase Request",
+          "method": "Modify",
+          "app": "BC Atlas Purchasing Example"
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "phase": 2,
+      "kind": "Database Write",
+      "description": "LogApproval inserted a Request Approval Entry",
+      "callStack": [
+        {
+          "objectType": "Codeunit",
+          "objectId": 50220,
+          "objectName": "Purchase Request Mgt.",
+          "method": "LogApproval",
+          "app": "BC Atlas Purchasing Example"
+        },
+        {
+          "objectType": "Table",
+          "objectId": 50202,
+          "objectName": "Request Approval Entry",
+          "method": "Insert",
+          "app": "BC Atlas Purchasing Example"
+        }
+      ]
+    },
+    {
+      "step": 6,
+      "phase": 2,
+      "kind": "Event",
+      "description": "OnAfterApproveRequest ran the subscriber NotifyRequester",
+      "callStack": [
+        {
+          "objectType": "Codeunit",
+          "objectId": 50220,
+          "objectName": "Purchase Request Mgt.",
+          "method": "OnAfterApproveRequest",
+          "app": "BC Atlas Purchasing Example"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 50222,
+          "objectName": "Request Notifications",
+          "method": "NotifyRequester",
+          "app": "BC Atlas Purchasing Example"
+        },
+        {
+          "objectType": "Codeunit",
+          "objectId": 50222,
+          "objectName": "Request Notifications",
+          "method": "SendApprovalNotification",
+          "app": "BC Atlas Purchasing Example"
+        }
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "objectType": "Page",
+      "objectId": 50210,
+      "objectName": "Purchase Requests",
+      "app": "BC Atlas Purchasing Example",
+      "hits": 2
+    },
+    {
+      "objectType": "Codeunit",
+      "objectId": 50220,
+      "objectName": "Purchase Request Mgt.",
+      "app": "BC Atlas Purchasing Example",
+      "hits": 5
+    },
+    {
+      "objectType": "Codeunit",
+      "objectId": 50222,
+      "objectName": "Request Notifications",
+      "app": "BC Atlas Purchasing Example",
+      "hits": 2
+    },
+    {
+      "objectType": "Table",
+      "objectId": 50200,
+      "objectName": "Purchase Request",
+      "app": "BC Atlas Purchasing Example",
+      "hits": 2
+    },
+    {
+      "objectType": "Table",
+      "objectId": 50201,
+      "objectName": "Purchase Request Setup",
+      "app": "BC Atlas Purchasing Example",
+      "hits": 1
+    },
+    {
+      "objectType": "Table",
+      "objectId": 50202,
+      "objectName": "Request Approval Entry",
+      "app": "BC Atlas Purchasing Example",
+      "hits": 1
+    }
+  ],
+  "tables": [
+    {
+      "tableId": 50200,
+      "tableName": "Purchase Request",
+      "inserts": 0,
+      "modifies": 1,
+      "deletes": 0,
+      "renames": 0
+    },
+    {
+      "tableId": 50201,
+      "tableName": "Purchase Request Setup",
+      "inserts": 0,
+      "modifies": 0,
+      "deletes": 0,
+      "renames": 0
+    },
+    {
+      "tableId": 50202,
+      "tableName": "Request Approval Entry",
+      "inserts": 1,
+      "modifies": 0,
+      "deletes": 0,
+      "renames": 0
+    }
+  ]
+}

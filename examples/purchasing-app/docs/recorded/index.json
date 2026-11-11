@@ -1,0 +1,72 @@
+{
+  "channel": "processes",
+  "processes": [
+    {
+      "clicks": 0,
+      "documents": [
+        "facts.json"
+      ],
+      "drift": false,
+      "feature": "Purchase requests",
+      "fingerprint": "pr-approve-3f2a9c41",
+      "key": "approve-a-released-purchase-request",
+      "phases": [
+        {
+          "phase": 1,
+          "title": "Open the released request on the Purchase Requests page"
+        },
+        {
+          "phase": 2,
+          "title": "Choose Approve"
+        }
+      ],
+      "process": "Approve a released purchase request",
+      "snapshot": 3,
+      "tables": [
+        {
+          "tableId": 50200,
+          "tableName": "Purchase Request"
+        },
+        {
+          "tableId": 50201,
+          "tableName": "Purchase Request Setup"
+        },
+        {
+          "tableId": 50202,
+          "tableName": "Request Approval Entry"
+        }
+      ],
+      "technicalSteps": 6
+    },
+    {
+      "clicks": 0,
+      "documents": [
+        "facts.json"
+      ],
+      "drift": false,
+      "feature": "Purchase requests",
+      "fingerprint": "pr-create-91d07be2",
+      "key": "create-a-new-purchase-request",
+      "phases": [
+        {
+          "phase": 1,
+          "title": "Open the Purchase Requests page and choose New"
+        },
+        {
+          "phase": 2,
+          "title": "Enter the number, the description, and the amount"
+        }
+      ],
+      "process": "Create a new Purchase Request",
+      "snapshot": 2,
+      "tables": [
+        {
+          "tableId": 50200,
+          "tableName": "Purchase Request"
+        }
+      ],
+      "technicalSteps": 3
+    }
+  ],
+  "schema": "bc-atlas-sync.index/1"
+}

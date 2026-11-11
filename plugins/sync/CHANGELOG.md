@@ -7,6 +7,10 @@
 - `activate(context)` replaces the module object; services come from the plugin context.
 - New: health rule `sync-outdated` (bca check), MCP tool `bc_atlas_sync_status`, command `bca sync describe`.
 - New extension points `sync.sources` and `sync.formats`: other plugins add source types (what) and formats (how).
+- New: recordings are part of the graph of BC Atlas (contribution `atlas`). The lens **Recordings** (`sync`) of
+  the view and of `bca view` shows every channel, every recorded process with its state (in sync, or why it
+  waits), and the AL objects it runs through and changes; a recording that waits is the finding `sync-outdated`
+  on its node; the story "What runs in Business Central" walks through every recording phase by phase.
 - Removed: the standalone CLI `bca-sync`; use `bca sync`.
 
 ## 0.1.0

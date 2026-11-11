@@ -1,5 +1,5 @@
 // `bca export`: writes what the app shows as files. One command for the
-// offline app, the Markdown report, single diagrams, the 3D explorer, the
+// view as one offline file, the Markdown report, single diagrams, the 3D explorer, the
 // object catalog, and the resolved model as JSON.
 import { watch as fsWatch } from "node:fs";
 import fs from "node:fs/promises";
@@ -43,16 +43,11 @@ function checkFormat(view, format) {
 async function exportApp(input, values, log) {
   const output = path.resolve(values.output ?? "bc-atlas.html");
   const workspace = new Workspace(input, values, { live: false });
-  const { html, snapshot } = await renderSnapshotHtml(workspace, {
-    log,
-    history: values.history || values.historyBy ? values.historyBy ?? "commits" : false,
-    last: values.last === undefined ? undefined : positiveInteger(values.last, "last"),
-    title: values.title
-  });
+  const { html, snapshot } = await renderSnapshotHtml(workspace, { log, title: values.title });
   await fs.mkdir(path.dirname(output), { recursive: true });
   await fs.writeFile(output, html);
-  const { summary, health, architecture } = snapshot.overview;
-  log(`${snapshot.overview.title}: ${summary.objects} object(s), health ${health.passed ? "passed" : "failed"}, ${architecture.violations} wrong-way dependency(ies).`);
+  const { title, summary } = snapshot.atlas;
+  log(`${title}: ${summary.objects} object(s), health ${summary.health.passed ? "passed" : "failed"}, ${summary.architecture.violations} wrong-way dependency(ies).`);
   return [output];
 }
 

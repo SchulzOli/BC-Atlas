@@ -1,11 +1,10 @@
-// What the BC Atlas pages can ask for, independent of the transport: the VS
-// Code extension calls it through a worker process (worker.js), and tests
-// call it directly. Every method takes one plain object and returns JSON or,
-// for the explorer and the docs, an HTML page as a string.
+// What the BC Atlas view and the editor can ask for, independent of the
+// transport: the VS Code extension calls it through a worker process
+// (worker.js), and tests call it directly. Every method takes one plain
+// object and returns JSON.
 
-import { DOCUMENT_MODES } from "../docs/export.js";
+import { LENSES } from "./atlas.js";
 
-const HISTORY = ["commits", "prs", "releases"];
 const GROUPINGS = ["auto", "coupling", "namespace", "folder", "module", "app"];
 
 function positive(value, name) {
@@ -33,59 +32,33 @@ function architectureSettings(params = {}) {
   };
 }
 
-// A guide or a test case, in a language; empty means the .bca.json setting.
-function docsSettings({ mode, language } = {}) {
-  if (mode && !DOCUMENT_MODES.includes(mode)) throw new Error(`mode must be one of: ${DOCUMENT_MODES.join(", ")}`);
-  if (language && !/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u.test(language)) throw new Error("language must be a language tag such as de-DE");
-  return { mode: mode || undefined, language: language || undefined };
-}
-
 export function createService(workspace) {
   const methods = {
     overview: () => workspace.overview(),
     health: () => workspace.healthReport(),
     architecture: (params) => workspace.architecture(architectureSettings(params)),
-    component: async ({ name, ...params } = {}) => {
-      const component = await workspace.component(String(name ?? ""), architectureSettings(params));
-      if (!component) throw new Error("component not found");
-      return component;
-    },
     objects: () => workspace.objects(),
     object: async ({ id } = {}) => {
       const object = await workspace.object(String(id ?? ""));
       if (!object) throw new Error("object not found");
       return object;
     },
-    views: () => workspace.views(),
-    handbook: ({ language } = {}) => {
-      if (language && !/^(en|de)\b/iu.test(String(language))) throw new Error("language must be en or de");
-      return workspace.handbook({ language: language || undefined });
-    },
     battleTest: async ({ language } = {}) => {
       const report = await workspace.battleTest({ language: language || undefined });
       if (!report) throw new Error("no process tests found");
       return report;
     },
-    diagram: (params = {}) => workspace.diagram(params),
-    boards: () => workspace.boards(),
-    board: ({ id } = {}) => workspace.board(String(id ?? "")),
+    atlas: () => workspace.atlas(),
+    // What the graph can show, without analyzing anything.
+    lenses: () => LENSES.map(({ id, title, summary }) => ({ id, title, summary })),
+    inside: async ({ id } = {}) => {
+      const inside = await workspace.inside(String(id ?? ""));
+      if (!inside) throw new Error("object not found");
+      return inside;
+    },
     docs: async () => {
       const docs = await workspace.docs();
       return docs ? { path: docs.path, scenarios: docs.scenarios } : { scenarios: 0 };
-    },
-    explorer: ({ propose, history, last } = {}) => {
-      if (history && !HISTORY.includes(history)) throw new Error(`history must be one of: ${HISTORY.join(", ")}`);
-      return workspace.explorer({ propose: truthy(propose), history: history || false, last: positive(last, "last") });
-    },
-    docsBrowser: async (params = {}) => {
-      const browser = await workspace.docsBrowser(docsSettings(params));
-      if (!browser) throw new Error("no UI-test documentation found");
-      return browser;
-    },
-    docsHtml: async (params = {}) => {
-      const html = await workspace.docsHtml(docsSettings(params));
-      if (!html) throw new Error("no UI-test documentation found");
-      return html;
     },
     adoptArchitecture: (params = {}) => workspace.adoptArchitecture(architectureSettings(params), { updateBaseline: params.updateBaseline !== false }),
     updateBaseline: () => workspace.updateBaseline(),

@@ -78,6 +78,9 @@
         }
       }
     ],
+    "atlas": {
+      "summary": "Sync channels and the processes recorded in Business Central as nodes of the graph, with the objects each recording runs through: the lens Recordings, findings for what is not synced, and the story \"What runs in Business Central\"."
+    },
     "extensionPoints": [
       { "id": "sync.sources", "summary": "Source types for sync channels (what): { type, summary, load(root, source, context) -> { items, warnings } }" },
       { "id": "sync.formats", "summary": "Output formats for sync channels (how): { id, summary, scope: process|channel, render(input) -> { files, warnings } }" }
