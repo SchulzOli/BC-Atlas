@@ -70,6 +70,8 @@ test("the layers are pages from the system down to each procedure, and every lin
     if (!file.endsWith(".md")) continue;
     for (const target of links(text)) assert.ok(files.has(path.posix.normalize(path.posix.join(path.posix.dirname(file), target))), `${file} links to ${target}`);
   }
+  // No page names the BC Atlas that wrote it, so an update of BC Atlas alone changes nothing.
+  for (const [file, text] of files) if (file.endsWith(".md")) assert.doesNotMatch(text, /BC Atlas \d+\.\d+/u, file);
   // The same source gives the same files, byte for byte.
   const again = await buildLayers(new Workspace(multi, {}, { live: false }));
   assert.deepEqual([...again.files], [...files]);
