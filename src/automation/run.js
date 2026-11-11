@@ -39,7 +39,8 @@ async function runTask(task, root, config, log, appPath, values = {}, tasks = []
   if (task === "simulate") {
     // The battle test is a gate like check, and its report is documentation.
     const outputDir = config.simulation?.outputDir ?? DEFAULTS.simulation.outputDir;
-    const { report } = await writeSimulation(root, { ...values, format: "markdown", output: at(path.join(outputDir, "README.md")) });
+    const { report } = await writeSimulation(root, { ...values, format: "markdown", output: at(path.join(outputDir, "README.md")) },
+      { snapshotDir: config.simulation?.snapshotDir ? at(config.simulation.snapshotDir) : undefined });
     log(`simulate: ${simulationResultLine(report)}`);
     return { ok: report.passed, summary: simulationResultLine(report) };
   }

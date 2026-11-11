@@ -10,6 +10,7 @@
 //   a metadata object   the report (JSON) from which the documentation, the
 //                       explanation of every permission, and the fit-gap
 //                       analysis against the company's requirements are written
+import { findRecording, readRecordings, recordedSteps } from "./snapshots.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createArchitectureModel } from "../architecture.js";
@@ -127,11 +128,42 @@ export async function simulate(input, values = {}, context = {}) {
   if (corpus.diagnostics.some(({ severity }) => severity === "error")) {
     throw new Error(`the process tests in ${testsRoot} have errors; run "bca docs validate" for details`);
   }
-  if (!corpus.scenarios.length) {
+  // Recordings of Business Central that the agents perform as well (simulation.recordings, --recordings).
+  const recordingsDir = values.recordings ? path.resolve(values.recordings) : settings.recordings ? path.resolve(root, settings.recordings) : undefined;
+  const recordings = recordingsDir ? await readRecordings(recordingsDir) : [];
+  if (!corpus.scenarios.length && !recordings.length) {
     throw new Error(`no process tests found in ${testsRoot}: the battle test performs AL UI tests with a // [SCENARIO] comment (see "bca docs --help"); pass --tests or set simulation.tests in .bca.json`);
   }
   const captions = await loadCaptionIndex(root, { language: docsLanguage, parseCache: context.parseCache }).catch(() => undefined);
   const catalog = buildCatalog(corpus, { language: docsLanguage, captions });
+  // A recording with the title of a process test (or named by simulation.grounding) is what that test
+  // really ran; any other recording is a process of its own, in the use case of its feature.
+  const plainTitle = (text) => String(text ?? "").toLowerCase().replace(/[^a-z0-9]+/gu, " ").trim();
+  const grounded = new Map();
+  for (const [id, name] of Object.entries(settings.grounding ?? {})) {
+    const task = catalog.tasks.find((candidate) => normalizeIdentifier(candidate.id) === normalizeIdentifier(id));
+    const recording = findRecording(recordings, name);
+    if (task && recording) grounded.set(task.id, recording);
+  }
+  for (const recording of recordings) {
+    if ([...grounded.values()].includes(recording)) continue;
+    const task = catalog.tasks.find((candidate) => !grounded.has(candidate.id) && plainTitle(candidate.title) === plainTitle(recording.name));
+    if (task) {
+      grounded.set(task.id, recording);
+      continue;
+    }
+    const feature = recording.feature ? recording.feature.toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "") : "";
+    const own = { id: `recorded-${recording.key}`, title: recording.name, goal: t.recordedGoal(recording), features: feature ? [feature] : [], permissions: [], requires: [], links: { alternative: [] }, source: {}, recorded: recording,
+      // The pages the recording went through: what the fit-gap analysis counts as opened.
+      pages: [...new Set(recording.steps.flatMap((step) => step.callStack ?? []).filter((frame) => String(frame.objectType).toLowerCase() === "page" && frame.objectName).map((frame) => String(frame.objectName)))] };
+    catalog.tasks.push(own);
+    let useCase = catalog.useCases.find((candidate) => candidate.feature === feature);
+    if (!useCase) {
+      useCase = { id: feature ? `use-case-${feature}` : "use-case-recorded", feature, title: recording.feature ?? t.recordedUseCase, main: [], alternatives: [] };
+      catalog.useCases.push(useCase);
+    }
+    useCase.main.push(own);
+  }
 
   // Objects by the name of their type in the report's language: page 50210, Seite 50210.
   const label = (object) => object ? `${t.types[object.type] ?? object.type} ${object.id ? `${object.id} ` : ""}${object.name}` : "";
@@ -158,7 +190,7 @@ export async function simulate(input, values = {}, context = {}) {
   const tasks = catalog.tasks.map((task) => {
     const scenario = corpus.byId.get(task.id);
     const state = tracer.newState();
-    const steps = operationsOf(scenario.value).map((op, index) => {
+    const steps = !scenario ? [] : operationsOf(scenario.value).map((op, index) => {
       const { needs, notes } = tracer.operation(op, state);
       return {
         index: index + 1,
@@ -172,7 +204,14 @@ export async function simulate(input, values = {}, context = {}) {
         undecided: notes.some(({ code }) => UNDECIDED.has(code) && !(code === "symbols-only" && otherApps === "assume"))
       };
     });
-    return { ...task, steps };
+    // What a recording of this process shows really ran comes after the steps of the test.
+    const recording = task.recorded ?? grounded.get(task.id);
+    if (recording) {
+      for (const step of recordedSteps(recording, model)) {
+        steps.push({ ...step, index: steps.length + 1, text: task.recorded ? step.text : t.recordedStep(step.text) });
+      }
+    }
+    return { ...task, steps, ...(recording ? { recording: recording.name } : {}) };
   });
   const taskById = new Map(tasks.map((task) => [task.id, task]));
 
@@ -499,7 +538,9 @@ export async function simulate(input, values = {}, context = {}) {
       features: task.features,
       permissions: task.permissions,
       requires: task.requires.map(({ id }) => id),
-      source: { file: path.relative(root, corpus.byId.get(task.id).path).replaceAll("\\", "/"), procedure: task.source.procedure },
+      source: { file: path.relative(root, task.recorded?.file ?? corpus.byId.get(task.id).path).replaceAll("\\", "/"), procedure: task.source.procedure },
+      ...(task.recorded ? { recorded: true } : {}),
+      ...(task.recording ? { recording: task.recording } : {}),
       steps: task.steps.map(({ index, kind, text, page, member, needs, notes }) => ({
         index,
         kind,

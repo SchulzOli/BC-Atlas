@@ -120,7 +120,7 @@ export function taskOutputs(task, config = {}, pluginOutputs = {}) {
   if (task === "codegraph") return [config.codegraph?.outputDir ?? DEFAULTS.codegraph.outputDir];
   if (task === "handbook") return [config.handbook?.outputDir ?? DEFAULTS.handbook.outputDir];
   if (task === "layers") return [config.layers?.outputDir ?? DEFAULTS.layers.outputDir];
-  if (task === "simulate") return [config.simulation?.outputDir ?? DEFAULTS.simulation.outputDir];
+  if (task === "simulate") return [config.simulation?.outputDir ?? DEFAULTS.simulation.outputDir, ...(config.simulation?.snapshotDir ? [config.simulation.snapshotDir] : [])];
   if (task === "diagrams") {
     return (config.diagrams ?? []).flatMap(({ output }) => {
       if (!output) return [];

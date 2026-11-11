@@ -413,6 +413,8 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         options: {
           tests: string("Folder with the process tests: AL UI tests with [SCENARIO] (default: simulation.tests, then docs.tests in .bca.json, then the app itself).", { group: GENERAL, value: "path" }),
           company: string("JSON file with the company (roles, agents, task groups, requirements) instead of the simulation section of .bca.json.", { group: GENERAL, value: "path" }),
+          recordings: string("Folder with recordings of Business Central (fact snapshots as JSON) the agents perform as well: a recording with the title of a process test adds what really ran to that test, any other is a process of its own (default: simulation.recordings).", { group: GENERAL, value: "path" }),
+          snapshots: string("Also write one fact snapshot per process test into this folder, from the source: its steps as phases, what each step needs as technical steps (default: simulation.snapshotDir, when set).", { group: OUTPUT, value: "path" }),
           failOn: string("Lowest severity that fails the battle test.", { group: GENERAL, enum: FAIL_LEVELS, default: "error" }),
           format: string("Report format (default: text, or the extension of --output).", { group: OUTPUT, short: "f", enum: ["text", "markdown", "json"] }),
           output: string("Write the report to a file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
@@ -715,6 +717,39 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           "bca layers ./app --at v1.4.0",
           "bca layers ./app --at 3f2c1ab,v1.3.0",
           "bca layers ./app --releases --last 5"
+        ]
+      }),
+      command({
+        id: "bundle",
+        area: "export",
+        argv: ["bca", "bundle", "[app-root]"],
+        purpose: "Everything BC Atlas makes of a project, end to end, as one artifact: validation (the health check), the simulation with a snapshot of every process test, the layered documentation with the view, the narrative pages when a model is set up, and the test results and build outputs it is given. One folder, one ZIP file, one manifest.",
+        options: {
+          output: string("The folder of the bundle; the ZIP file gets the same name with .zip. The folder is replaced.", { group: OUTPUT, short: "o", value: "path", default: "bc-atlas-bundle" }),
+          testResults: string("Results of tests that really ran (JUnit or xUnit XML, as AL-Go and the AL test runner write them): a file or a folder. They are counted, and a failed test fails the bundle. Repeatable.", { group: GENERAL, repeatable: true, value: "path" }),
+          include: string("Files or folders that belong to the bundle: the .app file, compiler output, logs. Repeatable.", { group: GENERAL, repeatable: true, value: "path" }),
+          noZip: flag("Write the folder only.", { group: OUTPUT }),
+          noNarrative: flag("Do not ask the model of the ai plugin for narrative pages, even when one is set up.", { group: GENERAL }),
+          pictures: string("Pictures of single objects in the documentation: auto (up to 400 objects), all, or none.", { group: OUTPUT, enum: ["auto", "all", "none"], default: "auto" }),
+          title: string("Title of the bundle (default: the name of the app).", { group: OUTPUT, value: "text" }),
+          format: string("What the command reports: text (default) or json (the manifest).", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config,
+          compiler: projectOptions.compiler,
+          compilerLog: projectOptions.compilerLog,
+          paths: string("Only analyze AL files below these project-relative folders or globs.", { group: FILTERS, repeatable: true, value: "glob" })
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.bundle" },
+        rules: [
+          "Steps: validation, simulation, snapshots from the source, documentation, narrative, tests that ran, build outputs. A step that does not apply is skipped and says why.",
+          "Exit code 1 means a step failed: the health check, the simulation, or a test that ran. The bundle is written all the same, so a pipeline keeps the evidence.",
+          "BC Atlas reads the source and runs no test itself: what ran in Business Central or in a pipeline comes in with --test-results, and as recordings with simulation.recordings.",
+          "bundle.json names the commit, every step with its result, and every file with its SHA-256."
+        ],
+        examples: [
+          "bca bundle ./app",
+          "bca bundle ./app -o out/atlas --test-results TestResults.xml --include output/MyApp.app",
+          "bca bundle ./app --no-zip --format json"
         ]
       }),
       command({

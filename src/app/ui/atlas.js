@@ -616,6 +616,9 @@
     const battle = atlas.summary.battle ?? {};
     const people = atlas.nodes.filter((node) => node.kind === "person");
     const stopped = people.filter((node) => (findingsOf.get(position.get(node.id)) ?? []).some(({ severity }) => severity === "error")).length;
+    // What the simulation found, the most severe first: each leads to the person or the process test it is about.
+    const problems = atlas.findings.filter(({ origin, severity, nodes }) => origin === "battle test" && severity !== "info" && nodes.length)
+      .sort((a, b) => (a.severity === "error" ? 0 : 1) - (b.severity === "error" ? 0 : 1));
     const items = (kind) => (definition[SIM_KINDS[kind].list] ?? []).map((entry) => {
       const name = entry[SIM_KINDS[kind].key];
       const detail = kind === "agent" ? (entry.roles ?? []).join(", ") : kind === "role" ? (entry.permissionSets ?? []).join(", ") : kind === "requirement" ? entry.title : plural((entry.tasks ?? entry.features ?? []).length, kind === "taskGroup" && !entry.tasks ? "feature" : "process test");
@@ -623,6 +626,8 @@
     }).join("");
     return `<p class="text"><b>${esc(definition.company ?? battle.company ?? "The company")}</b>${derived ? ", as the process tests describe it. Nothing is defined yet: the first change starts from this." : ", as <code>.bca.json</code> defines it."}
         ${plural(people.length, "agent")}, ${stopped ? `${stopped} stopped or able to do what they must not` : "all get through"}.</p>
+      ${problems.length ? `<h3>${battle.passed ? "To look at" : "What stops it"}</h3>${problems.slice(0, 6).map((finding) => `<button class="item" role="menuitem" data-sim-go="${esc(atlas.nodes[finding.nodes[0]]?.id ?? "")}"><b>${esc(finding.severity)} · ${esc(finding.rule)}</b><small>${esc(finding.message)}${finding.fix ? ` ${esc(finding.fix)}` : ""}</small></button>`).join("")}${problems.length > 6 ? `<p class="text" style="color:var(--muted);font-size:12.5px">and ${problems.length - 6} more: turn on Check.</p>` : ""}` : ""}
+      ${derived && LIVE ? '<div class="actions"><button class="btn primary" data-sim="init" title="Writes the roles the process tests name into .bca.json, as the start of your own company">Start from the process tests</button></div>' : ""}
       <button class="item" role="menuitem" data-sim="show" ${state.lens === "simulation" && !state.inside ? 'aria-current="true"' : ""}><b>Show the simulation</b><small>People and roles, the process tests each does or must not do, the recordings they stand on, the requirements they prove</small></button>
       <h3>Agents</h3>${items("agent")}
       <h3>Roles</h3>${items("role")}
@@ -668,6 +673,22 @@
       if (simForm.kind === "ground") simForm.name = atlas.simulation.tasks[0]?.id;
       $("#popover").innerHTML = MENUS.simulate();
       return $("#popover").querySelector("input:not([readonly]), select")?.focus({ preventScroll: true });
+    }
+    if (item.dataset.simGo) {
+      // To what a finding is about, on the canvas of the simulation.
+      const id = item.dataset.simGo;
+      closeMenu();
+      return set({ lens: "simulation", form: "diagram", inside: "", focus: "", story: "", hide: "", off: "", sel: id, check: "1" }).then(() => {
+        if (scene.place.has(id)) graph.center([scene.place.get(id)]);
+      });
+    }
+    if (item.dataset.sim === "init") {
+      simForm = undefined;
+      closeMenu();
+      return call("defineSimulation", { init: true }).then((result) => {
+        toast(result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}: the company of the process tests is yours to change.` : "Nothing changed.");
+        return reload("Running the simulation");
+      }, (error) => toast(error.message));
     }
     if (item.dataset.sim === "back") {
       simForm = undefined;
@@ -737,7 +758,7 @@
   $("#popover").addEventListener("click", async (event) => {
     const item = event.target.closest("button");
     if (!item) return;
-    if (item.dataset.sim || item.dataset.simEdit || item.dataset.simNew) simulateClick(item);
+    if (item.dataset.sim || item.dataset.simEdit || item.dataset.simNew || item.dataset.simGo !== undefined) simulateClick(item);
     else if (item.dataset.setLens) {
       closeMenu();
       set({ lens: item.dataset.setLens, inside: "", focus: "", story: "", hide: "", off: "", size: "", color: "", group: "" });

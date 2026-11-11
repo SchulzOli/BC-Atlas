@@ -14,7 +14,11 @@ const EN = {
   outcomes: { completed: "completed", blocked: "blocked", unverified: "not verifiable", denied: "denied" },
   severities: { error: "Error", warning: "Warning", info: "Info" },
   need: (right, object) => `${right} on ${object}`,
+  recordedGoal: ({ feature }) => `Recorded in Business Central${feature ? ` (${feature})` : ""}: what really ran, click by click, with the code behind it.`,
+  recordedUseCase: "Recorded processes",
+  recordedStep: (title) => `In Business Central this ran: ${title}.`,
   reasons: {
+    recorded: ({ recording, step }) => `it ran in Business Central (recording "${recording}": ${step})`,
     "open-page": () => "the user opens the page",
     "opened-page": () => "the page opens during the step",
     "read-source": ({ page }) => `${page} shows its records`,
@@ -36,6 +40,7 @@ const EN = {
     assumed: () => "assumed to come with the permission sets of the app that owns the object"
   },
   notes: {
+    "recorded-unknown": ({ object }) => `${object} ran in Business Central but is not part of the analyzed source.`,
     "page-not-found": ({ page }) => `Page ${quote(page)} is not part of the analyzed app.`,
     "part-not-found": ({ part, page }) => `Part ${quote(part)} was not found on ${page}.`,
     "action-not-found": ({ action, page }) => `Action ${quote(action)} was not found on ${page}.`,
@@ -193,7 +198,11 @@ const DE = {
   outcomes: { completed: "erledigt", blocked: "blockiert", unverified: "nicht prüfbar", denied: "verweigert" },
   severities: { error: "Fehler", warning: "Warnung", info: "Hinweis" },
   need: (right, object) => `${right} auf ${object}`,
+  recordedGoal: ({ feature }) => `In Business Central aufgezeichnet${feature ? ` (${feature})` : ""}: was wirklich lief, Klick für Klick, mit dem Code dahinter.`,
+  recordedUseCase: "Aufgezeichnete Prozesse",
+  recordedStep: (title) => `In Business Central lief: ${title}.`,
   reasons: {
+    recorded: ({ recording, step }) => `lief in Business Central (Aufzeichnung "${recording}": ${step})`,
     "open-page": () => "der Benutzer öffnet die Seite",
     "opened-page": () => "die Seite öffnet sich im Schritt",
     "read-source": ({ page }) => `${page} zeigt ihre Datensätze`,
@@ -215,6 +224,7 @@ const DE = {
     assumed: () => "angenommen: kommt mit den Berechtigungssätzen der App, der das Objekt gehört"
   },
   notes: {
+    "recorded-unknown": ({ object }) => `${object} lief in Business Central, gehört aber nicht zum analysierten Quellcode.`,
     "page-not-found": ({ page }) => `Die Seite ${quote(page)} gehört nicht zur analysierten App.`,
     "part-not-found": ({ part, page }) => `Der Teil ${quote(part)} wurde auf ${page} nicht gefunden.`,
     "action-not-found": ({ action, page }) => `Die Aktion ${quote(action)} wurde auf ${page} nicht gefunden.`,

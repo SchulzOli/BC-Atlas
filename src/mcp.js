@@ -393,6 +393,7 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
       compiler: projectFields.compiler,
       tests: z.string().optional().describe("Folder with the process tests (default: simulation.tests, docs.tests, or the app)"),
       company: z.string().optional().describe("JSON file with roles, agents, taskGroups, and requirements instead of .bca.json"),
+      recordings: z.string().optional().describe("Folder with recordings of Business Central (fact snapshots as JSON) the agents perform as well"),
       failOn: z.enum(FAIL_LEVELS).optional(),
       language: z.string().optional().describe("en (default) or de"),
       agent: z.string().optional().describe("Return this agent's attempts, missing permissions, and unused permissions"),
@@ -415,6 +416,26 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
       agents: agent ? named(agents, agent, "name") : agents.map(({ name, roles, permissionSets, taskGroups }) => ({ name, roles, permissionSets: permissionSets.map((set) => set.name), taskGroups })),
       tasks: task ? named(tasks, task, "id") : tasks.map(({ id, title, features, permissions, source }) => ({ id, title, features, permissions, source }))
     };
+  }));
+
+  server.registerTool("bc_atlas_bundle", {
+    description: "Build the bundle of a project: everything BC Atlas makes of it, end to end, as one artifact. Steps: validation (health check), simulation (battle test on process tests and recordings), a fact snapshot of every process test from the source, the layered documentation with the view, narrative pages when a model is set up, and the test results and build outputs given. Writes one folder and one ZIP file with a manifest (bundle.json: commit, every step with its result, every file with its hash) and returns the manifest. passed is false when a step failed; the bundle is written all the same.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      compiler: projectFields.compiler,
+      output: z.string().min(1).describe("Folder of the bundle; the ZIP file gets the same name with .zip. The folder is replaced"),
+      testResults: z.array(z.string()).optional().describe("JUnit or xUnit XML files or folders with the results of tests that really ran"),
+      include: z.array(z.string()).optional().describe("Files or folders that belong to the bundle: the .app file, logs"),
+      noNarrative: z.boolean().optional().describe("Do not ask the model of the ai plugin for narrative pages"),
+      noZip: z.boolean().optional().describe("Write the folder only")
+    }),
+    annotations: { readOnlyHint: false, idempotentHint: true }
+  }, tool(async ({ path: input, ...values }) => {
+    const { createBundle } = await import("./commands/bundle.js");
+    const { output, zip, manifest } = await createBundle(input, values);
+    return { ...manifest, files: manifest.files.length, output, zip };
   }));
 
   server.registerTool("bc_atlas_simulation_define", {

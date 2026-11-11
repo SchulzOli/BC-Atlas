@@ -18,17 +18,25 @@ export async function writeSimulation(input, values = {}, context = {}) {
     await fs.mkdir(path.dirname(output), { recursive: true });
     await fs.writeFile(output, content);
   }
-  return { report, content, output, format };
+  // The simulation of each process test as a fact snapshot: --snapshots, or simulation.snapshotDir.
+  let snapshots;
+  const snapshotDir = values.snapshots ? path.resolve(values.snapshots) : context.snapshotDir;
+  if (snapshotDir) {
+    const { writeSnapshots } = await import("../simulation/snapshots.js");
+    snapshots = { directory: snapshotDir, files: await writeSnapshots(report, snapshotDir) };
+  }
+  return { report, content, output, format, snapshots };
 }
 
 export async function simulateCommand(input, values) {
-  const { report, content, output } = await writeSimulation(input, values, { onProgress: terminalProgress() });
+  const { report, content, output, snapshots } = await writeSimulation(input, values, { onProgress: terminalProgress() });
   if (output) {
     console.error(simulationResultLine(report));
     console.error(`Wrote ${displayPath(output)}`);
   } else {
     process.stdout.write(content);
   }
+  if (snapshots) console.error(`Wrote ${snapshots.files.length} snapshot(s) to ${displayPath(snapshots.directory)}`);
   if (!report.passed) throw new CheckFailedError("battle test failed");
 }
 
