@@ -28,7 +28,7 @@ it you see, in which form, and what stands out.
 | **Find** | Lights up the nodes whose name, type, component, namespace, or ID matches. **Enter** goes to the next match, **Shift+Enter** to the one before. |
 | **Check** | Puts a ring on every node with a finding, in the color of the worst one. The number is the errors and warnings. |
 | **Story** | Walks through the graph step by step. See [Stories](#stories). |
-| **Simulate** | Who uses the app: the company of the [battle test](./battle-test.md#define-the-simulation), its agents and roles, and a form to define each. A change runs the simulation again. There when the project has process tests. |
+| **Simulate** | Who uses the app: the company of the [battle test](./battle-test.md#define-the-simulation), its agents and roles, and a form to define each. A change runs the simulation again. What stops the simulation is listed at the top, one click from the person it is about. There when the project has process tests. |
 | **View** | Color, size, and grouping of the nodes; arrange again; reset. |
 | **Export** | Saves what you see. See [Export](#export). |
 | **Live** | What the graph is read from, and reading it again. See [In step with the source](#in-step-with-the-source). |

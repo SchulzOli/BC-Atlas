@@ -4,6 +4,34 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- **`bca bundle`: everything as one artifact.** One folder and one ZIP file
+  with a manifest: validation (the health check), the simulation, a snapshot
+  of every process test, the layered documentation with the view, narrative
+  pages when a model is set up, and the test results (`--test-results`,
+  JUnit or xUnit XML) and build outputs (`--include`) it is given.
+  `bundle.json` names the commit, every step with its result, and every file
+  with its hash. Exit code 1 when a step failed; the bundle is written all
+  the same. MCP tool `bc_atlas_bundle`. See [The bundle](./docs/bundle.md).
+- **Simulate on recordings.** With `simulation.recordings` (or
+  `--recordings`) the agents perform the recordings of Business Central as
+  well. What really ran says what it takes: Execute on the pages,
+  codeunits, and reports on the call stacks, and the table right of every
+  read and write. A recording with the title of a process test adds what
+  really ran to that test; any other recording is a process of its own, so
+  a process can be simulated before anyone wrote a UI test for it.
+- **Snapshots from the source.** `bca simulate --snapshots <folder>` (or
+  `simulation.snapshotDir`) writes one fact snapshot per process test in the
+  schema of the recordings: its steps as phases, what each step needs as
+  technical steps, and who performs it.
+- **Simulate in the view says what stops it.** The menu lists the findings
+  of the simulation at the top, each one click from the person or the
+  process test it is about, and **Start from the process tests** writes the
+  company the tests describe as the start of your own.
+
 ## 0.20.0 - 2026-11-11
 
 ### Added

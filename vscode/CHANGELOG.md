@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Simulate** lists what stops the simulation at the top of its menu, each
+  finding one click from the person it is about, and **Start from the
+  process tests** writes the company the tests describe as the start of
+  your own.
+
 ## 0.20.0
 
 - The engine is BC Atlas 0.20.0.

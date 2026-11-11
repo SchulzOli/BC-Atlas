@@ -60,6 +60,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_ai_context",
         "bc_atlas_ai_write",
         "bc_atlas_architecture",
+        "bc_atlas_bundle",
         "bc_atlas_capabilities",
         "bc_atlas_check",
         "bc_atlas_docs_edit",

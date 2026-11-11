@@ -377,6 +377,8 @@ bca simulate ./app --format json
 | --- | --- | --- |
 | `--tests` | path | Folder with the process tests. Default: `simulation.tests`, then `docs.tests` in `.bca.json`, then the app itself. |
 | `--company` | path | JSON file with the company (`roles`, `agents`, `taskGroups`, `requirements`) instead of the `simulation` section of `.bca.json`. |
+| `--recordings` | path | Folder with recordings of Business Central (fact snapshots as JSON) the agents perform as well. A recording with the title of a process test adds what really ran to that test; any other is a process of its own. Default: `simulation.recordings`. |
+| `--snapshots` | path | Also write one fact snapshot per process test into this folder, from the source. Default: `simulation.snapshotDir`, when set. |
 | `--fail-on` | level | `error`, `warning`, `info`, or `never`. Default: `error`. |
 | `-f`, `--format` | format | `text`, `markdown`, or `json`. Default: `text`, or the extension of `--output` (`.md`, `.json`). |
 | `-o`, `--output` | path | Write the report to a file; the result line goes to stderr. |
@@ -725,6 +727,38 @@ The same source gives the same files, byte for byte: a run changes only what
 changed and removes what it wrote before and no longer writes. A state of
 the past is read from a temporary checkout (`git worktree`); the working
 tree is not touched. `layers` is also a task of [`run`](#run).
+
+### `bundle`
+
+```text
+bca bundle [app-root] [-o <folder>] [--test-results <path>]... [--include <path>]... [options]
+```
+
+Everything BC Atlas makes of a project, end to end, as one artifact: one
+folder and one ZIP file with a manifest. See
+[The bundle](./bundle.md).
+
+```sh
+bca bundle ./app                                  # bc-atlas-bundle/ and bc-atlas-bundle.zip
+bca bundle ./app -o out/atlas --test-results TestResults.xml --include output/MyApp.app
+bca bundle ./app --no-zip --format json
+```
+
+| Option | Value | Meaning |
+| --- | --- | --- |
+| `-o`, `--output` | path | The folder of the bundle; the ZIP file gets the same name with `.zip`. The folder is replaced. Default: `bc-atlas-bundle`. |
+| `--test-results` | path | Results of tests that really ran (JUnit or xUnit XML): a file or a folder. They are counted, and a failed test fails the bundle. Repeatable. |
+| `--include` | path | Files or folders that belong to the bundle: the `.app` file, compiler output, logs. Repeatable. |
+| `--no-zip` | | Write the folder only. |
+| `--no-narrative` | | Do not ask the model of the ai plugin for narrative pages, even when one is set up. |
+| `--pictures` | `auto`, `all`, `none` | Pictures of single objects in the documentation. |
+| `--title` | text | Title of the bundle. Default: the name of the app. |
+| `-f`, `--format` | `text`, `json` | What the command reports; `json` is the manifest. |
+
+Steps: validation, simulation, snapshots from the source, documentation,
+narrative, tests that ran, build outputs. A step that does not apply is
+skipped and says why. Exit code 1 means a step failed; the bundle is written
+all the same.
 
 ### `docs` commands
 

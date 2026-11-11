@@ -29,6 +29,7 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 - [Code Graph as Markdown](./code-graph-markdown-design.md)
 - [System handbook](./handbook.md)
 - [Layered documentation, in sync with the source](./layers.md)
+- [The bundle: everything as one artifact](./bundle.md)
 - [Documentation from AL UI tests](./al-ui-test-documentation.md)
 - [Knowledge graph (RDF and OWL)](./knowledge-graph.md)
 
