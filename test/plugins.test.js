@@ -179,6 +179,66 @@ test("health rules: findings join the report, severities can be changed, failure
   }
 });
 
+test("atlas: a plugin adds nodes, relations, a lens, findings, and a story to the one graph", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "bca-plugins-"));
+  try {
+    cpSync(example, root, { recursive: true });
+    writePlugin(path.join(root, "plugins", "owners"), manifest("owners", { atlas: { summary: "Who owns which object." } }), `{
+      atlas: async ({ atlas, object }) => {
+        const table = atlas.nodes.find((node) => node.kind === "object" && node.type === "table");
+        return {
+          nodes: [{ id: "owners::team::stock", kind: "team", label: "Team Stock", color: "#7C3AED", members: 3 }, { kind: "team", label: "no id: left out" }],
+          relations: [{ from: "owners::team::stock", to: object("table", table.objectId), kind: "owns" }, { from: "owners::team::stock", to: "nobody", kind: "owns" }],
+          styles: { owns: { color: "#7C3AED", dash: true } },
+          lenses: [
+            { id: "owners", title: "Owners", summary: "Who owns what.", kinds: ["team", "object"], relations: ["owns"], connected: true },
+            { id: "system", title: "Taken", summary: "A lens of BC Atlas keeps its place.", kinds: ["team"], relations: ["owns"] }
+          ],
+          findings: [{ severity: "warning", rule: "owner-missing", message: "Someone has no owner.", nodes: ["owners::team::stock", "nobody"] }],
+          stories: [{ id: "owners", title: "Who owns what", summary: "One team.", steps: [{ title: "Team Stock", text: "Owns a table.", lens: "owners", nodes: ["owners::team::stock", object("table", table.label)] }] }]
+        };
+      }
+    }`);
+    writePlugin(path.join(root, "plugins", "broken"), manifest("broken", { atlas: { summary: "Throws." } }), `{ atlas: async () => { throw new Error("boom"); } }`);
+    writeFileSync(path.join(root, ".bca.json"), JSON.stringify({ plugins: [{ path: "plugins/owners" }, { path: "plugins/broken" }] }));
+    const { Workspace } = await import("../src/app/workspace.js");
+    const atlas = await new Workspace(root, {}, { live: false }).atlas();
+
+    const team = atlas.nodes.findIndex(({ id }) => id === "owners::team::stock");
+    assert.deepEqual({ ...atlas.nodes[team] }, { color: "#7C3AED", id: "owners::team::stock", kind: "team", label: "Team Stock", members: 3, plugin: "owners" });
+    assert.ok(!atlas.nodes.some(({ label }) => label === "no id: left out"));
+    const owns = atlas.relations.findIndex(({ kind }) => kind === "owns");
+    assert.deepEqual(atlas.relations[owns], { kind: "owns", color: "#7C3AED", dash: true });
+    const owned = atlas.edges.filter(([, , relation]) => relation === owns);
+    assert.equal(owned.length, 1, "a relation to a node that is not there is left out");
+    assert.deepEqual([owned[0][0], atlas.nodes[owned[0][1]].type], [team, "table"]);
+
+    // The lens of the plugin comes after those of BC Atlas, and cannot take the place of one.
+    const lens = atlas.lenses.at(-1);
+    assert.deepEqual([lens.id, lens.title, lens.plugin, lens.group, lens.color], ["owners", "Owners", "owners", "kind", "kind"]);
+    assert.equal(atlas.lenses.find(({ id }) => id === "system").title, "System");
+    const finding = atlas.findings.find(({ rule }) => rule === "owner-missing");
+    assert.deepEqual([finding.severity, finding.origin, finding.nodes], ["warning", "owners", [team]]);
+    const story = atlas.stories.find(({ id }) => id === "owners");
+    assert.deepEqual(story.steps[0].nodes, [team, owned[0][1]], "a step is on nodes of the plugin and of the source");
+    // A plugin that fails is a finding, and the view still shows.
+    assert.match(atlas.findings.find(({ rule }) => rule === "plugin-atlas-failed").message, /Plugin broken could not add to the atlas: boom/u);
+
+    // The same from the terminal, and the plugins commands know the contribution.
+    const view = bca(["view", ".", "--lens", "owners"], { cwd: root });
+    assert.equal(view.status, 0, view.stderr);
+    assert.match(view.stdout, /: Owners\n2 nodes, 1 relation\. Who owns what\.\n[\s\S]*team Team Stock \(1 finding, worst warning\)\n {4}-> owns Warehouse Request\n/u);
+    assert.match(bca(["plugins", "show", "owners"], { cwd: root }).stdout, /Atlas \(the graph of the view and of bca view\):\n {2}Who owns which object\./u);
+    const list = JSON.parse(bca(["plugins", "list", ".", "--format", "json"], { cwd: root }).stdout);
+    assert.deepEqual(list.plugins.map(({ id, contributes }) => `${id}:${contributes.atlas}`), ["sync:1", "owners:1", "broken:1"]);
+    writePlugin(path.join(root, "plugins", "broken"), manifest("broken", { atlas: { summary: "Nothing." } }), "{}");
+    const doctor = JSON.parse(bca(["plugins", "doctor", ".", "--format", "json"], { cwd: root }).stdout);
+    assert.deepEqual(doctor.plugins.find(({ id }) => id === "broken").problems, ["atlas is declared but not implemented"]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("CLI: plugin commands, help, and the plugins commands", () => {
   const root = project();
   try {

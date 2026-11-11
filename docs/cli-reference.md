@@ -557,7 +557,7 @@ dispatch and collapsed paths are labelled `inferred`.
 ### `view`
 
 ```text
-bca view [app-root] [--lens <id> | --story <id> | --inside <object>] [--form <form>] [-f <format>] [-o <path>] [options]
+bca view [app-root] [--lens <id> | --story <id> | --inside <node>] [--form <form>] [-f <format>] [-o <path>] [options]
 ```
 
 The BC Atlas view without a window. Everything BC Atlas reads from the AL
@@ -572,6 +572,8 @@ bca view ./app --lens data                                # the Data lens as tex
 bca view ./app --lens health --check                      # the findings with their fixes, on the objects they are about
 bca view ./app --lens data --form diagram -o data.svg     # the same lens as a picture
 bca view ./app --inside codeunit:50100 --form diagram -o posting.png
+bca view ./app --inside component:Core                    # a component, an app, or a namespace: its objects
+bca view ./app --lens sync                                # a lens of a plugin: the recordings of Business Central
 bca view ./app --focus "table:Sales Header" --depth 2 --format json
 bca view ./app --story fix                                # a story, step by step
 bca view ./app --stories -o docs/system.md                # every story as one document
@@ -586,7 +588,7 @@ bca view ./app --format json > atlas.json                 # the whole graph
 | Find | `--find` |
 | Check | `--check` |
 | Story, and a step of it | `--story`, `--step`; `--stories` for all |
-| Double-click an object | `--inside` |
+| Double-click an object, an app, a component, or a namespace | `--inside` |
 | Neighbors on a node | `--focus`, `--depth` |
 | The legend: hide a kind of node or relation | `--hide`, `--off` |
 | View: color, size, group | `--color`, `--size`, `--group` |
@@ -599,8 +601,8 @@ bca view ./app --format json > atlas.json                 # the whole graph
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--lens` | id | What the graph shows: `system` (default), `components`, `apps`, `modules`, `data`, `calls`, `events`, `contracts`, `pages`, `security`, `visibility`, `health`, `processes`, `people`, `requirements`. A lens with nothing in it does not exist for a project. |
-| `--inside` | object | Open one object: its procedures, triggers, and events as nodes, and what each does with other objects. A name, an ID, or a selector such as `codeunit:50100`. |
+| `--lens` | id | What the graph shows: `system` (default), `components`, `apps`, `modules`, `data`, `calls`, `events`, `contracts`, `pages`, `security`, `visibility`, `health`, `processes`, `people`, `requirements`, and the lenses of plugins, such as `sync` (the recordings of Business Central). A lens with nothing in it does not exist for a project; `bca view` without options lists the lenses a project has. |
+| `--inside` | node | Go into one node. An object opens to its procedures, triggers, and events, and what each does with other objects; an app, a component, or a namespace opens to its objects and what they do with each other. A name, an ID, or a selector such as `codeunit:50100` or `component:Core`. |
 | `--focus` | node | Only this node and what is near it. A name, an ID, or a selector such as `table:Customer`, `component:Core`, or `person:Anna`. |
 | `--depth` | n | How many steps from the `--focus` node. Default: `1`. |
 | `--find` | text | In a picture, the nodes whose name, type, component, namespace, or ID match stand out; a list holds only them. |

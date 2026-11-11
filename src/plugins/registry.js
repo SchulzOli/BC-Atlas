@@ -142,6 +142,11 @@ export class PluginRegistry {
     return this.enabled().flatMap((plugin) => plugin.manifest.contributes.healthRules.map((rule) => ({ plugin, rule })));
   }
 
+  /** The plugins that add nodes, relations, lenses, findings, or stories to the atlas. */
+  atlasContributors() {
+    return this.enabled().filter(({ manifest }) => manifest.contributes.atlas);
+  }
+
   mcpTools() {
     return this.enabled().flatMap((plugin) => plugin.manifest.contributes.mcpTools.map((tool) => ({ plugin, tool })));
   }

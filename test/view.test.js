@@ -24,7 +24,8 @@ test("the command offers every lens, form, and format of the view", () => {
   assert.deepEqual(VIEW_LENSES, LENSES.map(({ id }) => id), "the lenses the command accepts are the lenses of the atlas");
   assert.deepEqual(VIEW_FORMS, S.FORMS);
   const command = findCommand(createCapabilities("0.0.0"), "view");
-  assert.deepEqual(command.options.lens.enum, VIEW_LENSES);
+  assert.equal(command.options.lens.enum, undefined, "plugins add lenses, so a lens is checked against the project");
+  for (const lens of VIEW_LENSES) assert.ok(command.options.lens.description.includes(lens), lens);
   assert.deepEqual(command.options.format.enum, VIEW_FORMATS);
   assert.deepEqual(command.options.color.enum, S.COLORS);
   assert.deepEqual(command.options.size.enum, S.SIZES);
@@ -117,9 +118,54 @@ test("an object opens from the terminal too", async () => {
   const text = (await renderView(multi, { inside: "codeunit:50201" })).content;
   assert.match(text, /^multi-app: Inside CON Item Sync\n3 nodes, 4 relations\. Its procedures, triggers, and events/u);
   assert.match(text, / {2}procedure Sync\(Code\[20\]\)\n {4}-> reads CON Item\n {4}-> writes CON Item/u);
-  await assert.rejects(renderView(multi, { inside: "Core" }), /--inside needs an object of the workspace; "Core" is a component/u);
+  await assert.rejects(renderView(purchasing, { inside: "person:Ben" }), /--inside needs an object, an app, a component, or a namespace of the workspace; "person:Ben" is a person\. Use --focus/u);
   await assert.rejects(renderView(multi, { inside: "CON Sales Quote" }), /--inside "CON Sales Quote" names 2 nodes: (?:page|table):50100, (?:page|table):50100; add the type, as in (?:page|table):50100/u);
   await assert.rejects(renderView(multi, { focus: "Nope" }), /--focus "Nope" names no node/u);
+});
+
+test("an app, a component, and a namespace open to their objects", async () => {
+  assert.match((await renderView(multi, { inside: "component:Core" })).content, /^multi-app: Core\n6 nodes, 9 relations\. The objects of the component Core, and what they do with each other\./u);
+  assert.match((await renderView(multi, { inside: "Contoso Core" })).content, /^multi-app: Contoso Core\n6 nodes, 9 relations\. The objects of the app Contoso Core/u);
+  const namespace = JSON.parse((await renderView(multi, { inside: "Contoso.Core.Items", format: "json" })).content);
+  assert.deepEqual(namespace.nodes.map(({ label }) => label).sort(), ["CON Item", "CON Item Card", "CON Price Group"]);
+  assert.equal(namespace.relations.length, 2);
+});
+
+test("every node leads on, and the way back is a trail", async () => {
+  const atlas = await multi.atlas();
+  const found = S.index(atlas);
+  const node = (label, kind) => atlas.nodes.find((candidate) => candidate.label === label && (!kind || candidate.kind === kind));
+  const state = { ...S.DEFAULTS, lens: "components" };
+  const core = node("Core", "component");
+  const item = node("CON Item", "object");
+  // A double click goes into what a node is made of: a component into its objects, an object into its procedures.
+  assert.deepEqual(S.into(atlas, core, state), { inside: core.id, focus: "", sel: core.id, story: "" });
+  assert.deepEqual(S.into(atlas, item, { ...state, inside: core.id }), { inside: item.id, focus: "", sel: item.id, story: "" });
+  assert.equal(S.into(atlas, item, { ...state, inside: item.id }), undefined, "it is open already");
+  assert.equal(S.into(atlas, { kind: "member", id: "x" }, state), undefined, "a procedure opens in the source");
+  // What is in another app has no inside here: the view shows what is next to it.
+  const customer = atlas.nodes.find(({ external }) => external);
+  assert.deepEqual(S.into(atlas, customer, state), { lens: "system", inside: "", focus: customer.id, depth: "1", sel: customer.id, story: "" });
+
+  // Where the view is: the lens, the component of an opened object, the object, and what it is near.
+  const trail = S.trail(atlas, found, { ...state, inside: item.id, focus: node("CON Item Sync").id });
+  assert.deepEqual(trail.map(({ label }) => label), ["Components", "Core", "CON Item", "near CON Item Sync"]);
+  assert.deepEqual(trail[0].change, { inside: "", focus: "", story: "" });
+  assert.deepEqual(trail[1].change, { inside: core.id, focus: "", sel: core.id, story: "" });
+  assert.deepEqual(trail[2].change, { inside: item.id, focus: "", story: "" });
+  assert.deepEqual(S.trail(atlas, found, state).map(({ label }) => label), ["Components"], "a lens alone has no way back");
+
+  // The same node from another side: the lenses it is in.
+  assert.deepEqual(S.lensesOf(atlas, found, item.id).map(({ id }) => id), ["system", "data", "pages", "visibility", "health"]);
+  assert.deepEqual(S.lensesOf(atlas, found, core.id).map(({ id }) => id), ["components"]);
+
+  // A person, a process, a recording: each leads to the lens it lives in, with what is near it.
+  const people = await purchasing.atlas();
+  const kind = (name) => people.nodes.find((candidate) => candidate.kind === name);
+  assert.deepEqual(S.into(people, kind("person"), { ...S.DEFAULTS }), { lens: "people", inside: "", focus: kind("person").id, depth: "1", sel: kind("person").id, story: "" });
+  assert.equal(S.into(people, kind("process"), { ...S.DEFAULTS }).lens, "processes");
+  assert.equal(S.into(people, kind("process"), { ...S.DEFAULTS }).depth, "2");
+  assert.equal(S.into(people, kind("recording"), { ...S.DEFAULTS }).lens, "sync");
 });
 
 test("a story reads as text and as a document, and each step is a view", async () => {
@@ -213,7 +259,7 @@ test("bca view prints to the terminal and writes files by their extension", () =
     assert.equal(JSON.parse(json.stdout).id, "people");
     const wrong = run("--lens", "nope");
     assert.equal(wrong.status, 2);
-    assert.match(wrong.stderr, /--lens must be one of: system, components, /u);
+    assert.match(wrong.stderr, /unknown lens "nope"; this project has: system, components, .+, requirements, sync\n/u);
     const noFile = run("--format", "png");
     assert.equal(noFile.status, 2);
     assert.match(noFile.stderr, /a PNG needs --output/u);

@@ -227,6 +227,50 @@ export async function runSync({ root, projectConfig = {}, trigger = "manual", ch
   };
 }
 
+/**
+ * What every channel syncs, and how it stands: the recorded processes of its source, and for each
+ * whether it is synced or why it would be written. Reads the sources and the state; renders and
+ * writes nothing. For the atlas of BC Atlas (index.js) and for anything that shows the state.
+ * @returns [{ channel, items: [{ item, reason?, synced? }], removed: [key], warnings }]
+ */
+export async function syncState({ root, projectConfig = {}, host, extensions = {} }) {
+  root = path.resolve(root);
+  const contributedSources = new Map((extensions.sources ?? []).map((source) => [source.type, source]));
+  const extras = {
+    sourceTypes: Object.fromEntries([...contributedSources].map(([type, source]) => [type, source.summary ?? `from plugin ${source.plugin}`])),
+    formats: Object.fromEntries((extensions.formats ?? []).map((format) => [format.id, format.summary ?? `from plugin ${format.plugin}`]))
+  };
+  const config = normalizeSyncConfig(projectConfig, extras);
+  const state = await readState(path.resolve(root, config.state));
+  const sources = new Map();
+  const result = [];
+  for (const channel of config.channels) {
+    if (!sources.has(channel.what.from)) {
+      const source = config.sources[channel.what.from];
+      const contributed = contributedSources.get(source.type);
+      sources.set(channel.what.from, contributed ? await contributed.load(root, source, host) : await loadFactSnapshots(root, source));
+    }
+    const loaded = sources.get(channel.what.from);
+    const items = selectVersions(
+      loaded.items.filter((item) => matchesAny(channel.what.processes, [item.process, item.feature, item.key])),
+      channel.what.versions
+    );
+    const previous = state.channels[channel.id] ?? { config: undefined, processes: {}, files: [] };
+    const configChanged = previous.config !== undefined && previous.config !== sha256(stableStringify(channel));
+    const current = new Set(items.map(({ key }) => key));
+    result.push({
+      channel,
+      items: items.map((item) => {
+        const reason = reasonFor(item, previous.processes[item.key], channel.when.condition, configChanged, false);
+        return { item, reason, files: previous.processes[item.key]?.files ?? [] };
+      }),
+      removed: Object.keys(previous.processes).filter((key) => !current.has(key)),
+      warnings: loaded.warnings
+    });
+  }
+  return result;
+}
+
 /** One line per channel, for logs. */
 export function summarize(result) {
   return result.channels.map((channel) => {

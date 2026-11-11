@@ -3,6 +3,21 @@
   "docs": {
     "tests": "processes"
   },
+  "sync": {
+    "state": "docs/recorded/sync-state.json",
+    "sources": {
+      "bc": { "type": "fact-snapshots", "path": "recordings" }
+    },
+    "channels": [
+      {
+        "id": "processes",
+        "description": "Every process recorded in Business Central: what really runs, from the clicks down to the code.",
+        "what": { "from": "bc", "processes": ["*"], "versions": "latest" },
+        "when": { "triggers": ["ci", "manual"], "condition": "drift" },
+        "how": { "formats": ["documents", "index"], "outputDir": "docs/recorded" }
+      }
+    ]
+  },
   "simulation": {
     "company": "Contoso GmbH",
     "tests": "processes",

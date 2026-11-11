@@ -23,6 +23,7 @@ it you see, in which form, and what stands out.
 | In the toolbar | Does |
 | --- | --- |
 | **Lens** (the name next to the project) | What the graph shows: a part of the one graph. See [Lenses](#lenses). |
+| The **trail** next to it | Where you are once you went into something: `Components › Core › CON Item`. Every part of the way is one click back, and **‹** goes one step up. |
 | **2D**, **Diagram**, **3D** | The form. The same nodes as a graph in a plane, as boxes in layers in the direction of their relations, or as a graph in space. Any lens in any form. |
 | **Find** | Lights up the nodes whose name, type, component, namespace, or ID matches. **Enter** goes to the next match, **Shift+Enter** to the one before. |
 | **Check** | Puts a ring on every node with a finding, in the color of the worst one. The number is the errors and warnings. |
@@ -36,17 +37,32 @@ On the graph:
 - **Click** a node to select it. A card says what it is, its facts, its
   findings with how to fix them, and its relations in this lens; click a
   relation to go to the node at its other end.
-- **Double-click** an object to open it: its procedures, triggers, and
-  events as nodes, and what each of them does with other objects. Double-click
-  a procedure to go to its line in the source. Double-click anything else to
-  see only it and its neighbors.
+- **Double-click** a node to go into it. An app, a component, or a namespace
+  opens to its objects and what they do with each other. An object opens to
+  its procedures, triggers, and events, and what each of them does with
+  other objects. A procedure goes to its line in the source. Anything else
+  (a person, a process test, a requirement, a recording, an object of
+  another app) goes to the lens it lives in and shows it with what is next
+  to it.
+- **See in** on the card lists the other lenses a node is in. Choose one and
+  the lens changes around the node: it stays selected and in the middle.
 - **Drag** a node to put it where you want it, the background to move the
   picture (in 3D: to turn it, Shift-drag to move), and **scroll** to zoom.
 - The **legend** at the bottom left names what shows and counts it. Click a
   kind of node or of relation to hide it.
 
-Keys: `/` find, `1` `2` `3` the form, `C` check, `+` `-` `0` zoom and fit,
-`Esc` back (closes the card, ends a story, leaves an object).
+Keys: `/` find, `1` `2` `3` the form, `[` `]` the lens before and after,
+`C` check, `+` `-` `0` zoom and fit, `Backspace` one step up the trail,
+`Esc` back (closes the card, ends a story, then goes one step up).
+
+Nothing jumps. A node that is in the picture before and after a step stays
+where it is, and the rest comes and goes around it: when the lens changes,
+when you go into a component or come back, when the source changes. Between
+2D, Diagram, and 3D the nodes glide to their new places and the camera
+turns. Every step to another place (a lens, something you went into, a
+story) is one the **Back** and **Forward** keys of a browser take back and
+forth; in an exported file the address changes with it. With "reduce
+motion" set in the operating system, the next picture stands at once.
 
 ### Lenses
 
@@ -71,9 +87,17 @@ select an object in one, switch, and it is still selected.
 | People | who performs which process test with which permission sets | performs, blocked, must not, holds | `bca simulate` |
 | Requirements | what the company needs and the process tests that prove it | proven by | `bca simulate` |
 
+| Recordings | what was recorded in Business Central, the channels that sync it, and the objects each recording runs through | syncs, not synced, runs through, changes | `bca sync status` |
+
 A lens with nothing in it is left out: Processes, People, and Requirements
 need documented UI tests ([Battle test](./battle-test.md)), Findings needs a
-finding.
+finding, Recordings needs a `sync` section in `.bca.json`
+([BC Atlas Sync](../plugins/sync/README.md)).
+
+Recordings is the lens of the built-in plugin `sync`. Lenses, nodes,
+findings, and stories of plugins come after those of BC Atlas and behave
+the same, in the view and in `bca view`; see
+[Plugins](./plugins.md#what-a-plugin-adds-to-the-graph).
 
 ### Stories
 

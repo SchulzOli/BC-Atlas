@@ -342,15 +342,15 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
   }));
 
   server.registerTool("bc_atlas_view", {
-    description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, components, namespaces, objects, health rules, process tests, people, requirements, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (system, components, data, calls, events, health, processes, people, ...) returns that part of the graph: nodes with their facts and findings, and relations. inside opens one object into its procedures and what each does; focus returns a node and what is near it; story returns a generated walk through the graph (what the system is, a process step by step, what to fix). format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",
+    description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, components, namespaces, objects, health rules, process tests, people, requirements, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (system, components, data, calls, events, health, processes, people, ..., and the lenses of plugins, such as sync for what was recorded in Business Central) returns that part of the graph: nodes with their facts and findings, and relations. inside goes into one node: an object opens to its procedures and what each does, an app, a component, or a namespace to its objects; focus returns a node and what is near it; story returns a generated walk through the graph (what the system is, a process step by step, what to fix). format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",
     inputSchema: z.object({
       path: architectureFields.path,
       projectRoot: architectureFields.projectRoot,
       config: architectureFields.config,
       compiler: projectFields.compiler,
       paths: z.array(z.string()).optional().describe("Only analyze AL files below these project-relative folders or globs"),
-      lens: z.enum(VIEW_LENSES).optional().describe("The part of the graph to return; processes, people, requirements need documented UI tests, health a finding"),
-      inside: z.string().optional().describe("Open this object: codeunit:50100, table:Sales Header, or a name"),
+      lens: z.string().optional().describe(`The part of the graph to return: ${VIEW_LENSES.join(", ")}, or a lens of a plugin (sync). processes, people, requirements need documented UI tests, health a finding`),
+      inside: z.string().optional().describe("Go into this node: an object (codeunit:50100, table:Sales Header, or a name), or an app, a component (component:Core), or a namespace"),
       focus: z.string().optional().describe("Only this node and what is near it: a name, an ID, or a selector such as table:Customer or person:Anna"),
       depth: z.number().int().positive().optional().describe("Steps from the focus node (default 1)"),
       find: z.string().optional().describe("Only nodes whose name, type, component, namespace, or ID match (in a picture they stand out)"),

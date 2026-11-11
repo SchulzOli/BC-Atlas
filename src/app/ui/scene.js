@@ -20,6 +20,13 @@
   const SIZES = Object.freeze(["relations", "usedBy", "uses", "lines", "complexity", "objects", "findings"]);
   const GROUPS = Object.freeze(["component", "namespace", "app", "kind", "none"]);
 
+  // What an app, a component, and a namespace hold: the objects that name them.
+  const HOLDERS = {
+    app: (node, holder) => node.app === holder.label,
+    component: (node, holder) => node.component === holder.label,
+    module: (node, holder) => node.namespace === holder.label && (!holder.app || node.app === holder.app)
+  };
+
   const list = (value) => new Set(value ? String(value).split("|") : []);
   const kindOf = (node) => (node.kind === "object" || node.kind === "member" ? node.type : node.kind);
 
@@ -86,7 +93,25 @@
     let title = lens.title;
     let summary = lens.summary;
     const opened = within && state.inside && position.has(state.inside);
-    if (opened) {
+    // An app, a component, or a namespace that is gone into: its objects.
+    const holder = !opened && state.inside && position.has(state.inside) ? atlas.nodes[position.get(state.inside)] : undefined;
+    const holds = holder && HOLDERS[holder.kind];
+    if (holds) {
+      title = holder.label;
+      summary = `The objects of the ${(KIND_NAMES[holder.kind] ?? holder.kind).toLowerCase()} ${holder.label}, and what they do with each other.`;
+      const system = atlas.lenses.find(({ id }) => id === "system") ?? lens;
+      const relations = new Set(system.relations);
+      const member = atlas.nodes.map((node) => node.kind === "object" && !node.external && holds(node, holder));
+      atlas.nodes.forEach((node, at) => { if (member[at]) enter(node, at); });
+      for (const kind of system.relations) {
+        const relation = atlas.relations.find((candidate) => candidate.kind === kind);
+        if (relation && atlas.edges.some((edge) => atlas.relations[edge[2]] === relation && member[edge[0]] && member[edge[1]])) kindAt(relation);
+      }
+      for (const edge of atlas.edges) {
+        if (!member[edge[0]] || !member[edge[1]] || !relations.has(atlas.relations[edge[2]].kind)) continue;
+        links.push([place.get(atlas.nodes[edge[0]].id), place.get(atlas.nodes[edge[1]].id), kindAt(atlas.relations[edge[2]]), edge[3]]);
+      }
+    } else if (opened) {
       const center = atlas.nodes[position.get(state.inside)];
       title = `Inside ${center.label}`;
       summary = "Its procedures, triggers, and events, and what each of them does with other objects.";
@@ -154,11 +179,11 @@
     const edges = links.filter(([from, to]) => renumber.has(from) && renumber.has(to)).map(([from, to, kind, weight]) => [renumber.get(from), renumber.get(to), kind, weight]);
 
     // Groups hold together; classes give the colors and the legend.
-    const groupBy = state.group || (opened ? "kind" : lens.group);
+    const groupBy = state.group || (opened ? "kind" : holds ? (holder.kind === "module" ? "kind" : "namespace") : lens.group);
     const groupOf = (node) => (groupBy === "none" ? "" : groupBy === "kind" ? kindOf(node) : node[groupBy] ?? (node.external ? "Other apps" : node.kind === "object" ? "" : node.kind));
     const groups = [...new Set(shownEntries.map(({ node }) => String(groupOf(node))))].sort((a, b) => a.localeCompare(b));
     const groupPosition = new Map(groups.map((group, at) => [group, at]));
-    const mode = state.color || (opened ? "type" : lens.color);
+    const mode = state.color || (opened || holds ? "type" : lens.color);
     const classes = new Map();
     const own = [];
     const classed = shownEntries.map(({ node, at }) => {
@@ -173,14 +198,15 @@
     [...classes.values()].filter(({ color }) => !color).sort((a, b) => String(a.key).localeCompare(String(b.key)))
       .forEach((entry, at) => { entry.color = entry.key === "none" ? NEUTRAL : PALETTE[at % PALETTE.length]; });
     return {
-      key: [opened ? `inside:${state.inside}` : lens.id, state.focus, state.depth, groupBy].join("\n"),
+      key: [opened || holds ? `inside:${state.inside}` : lens.id, state.focus, state.depth, groupBy].join("\n"),
       lens,
       title,
       summary,
-      within: Boolean(opened),
+      within: Boolean(opened || holds),
       entries: shownEntries,
       place: new Map(shownEntries.map(({ node }, at) => [node.id, at])),
-      nodes: shownEntries.map(({ node }, at) => ({ label: node.label, group: groupPosition.get(String(groupOf(node))), color: own[at] ?? classed[at].color })),
+      // Each with its id, so a node keeps its place when what shows changes.
+      nodes: shownEntries.map(({ node }, at) => ({ id: node.id, label: node.label, group: groupPosition.get(String(groupOf(node))), color: own[at] ?? classed[at].color })),
       classOf: classed,
       classes: [...classes.values()].sort((a, b) => b.count - a.count),
       edges,
@@ -320,6 +346,53 @@
     };
   }
 
+  /**
+   * Where going into a node leads: an object opens to its procedures; an app, a component, or a
+   * namespace to its objects; anything else to itself and what is near it, in the lens it lives in.
+   * @returns the change of state, or nothing for a node that has no inside (a procedure: its source)
+   */
+  function into(atlas, node, state) {
+    if (node.kind === "member") return undefined;
+    if ((node.kind === "object" && !node.external) || HOLDERS[node.kind]) {
+      return node.id === state.inside ? undefined : { inside: node.id, focus: "", sel: node.id, story: "" };
+    }
+    const home = atlas.lenses.find(({ id, kinds }) => id === state.lens && kinds.includes(node.kind))
+      ?? atlas.lenses.find(({ kinds }) => kinds[0] === node.kind)
+      ?? atlas.lenses.find(({ kinds }) => kinds.includes(node.kind));
+    return { lens: home?.id ?? state.lens, inside: "", focus: node.id, depth: node.kind === "process" ? "2" : "1", sel: node.id, story: "" };
+  }
+
+  /**
+   * The way to where the view is: the lens, then what was gone into, from the outside in.
+   * @returns [{ label, change }] where change is the state that leads there; the last is where the view is
+   */
+  /**
+   * The lenses a node is in, so the same node can be looked at from another side.
+   * @returns the lenses of the atlas that show the node, in their order
+   */
+  function lensesOf(atlas, found, id) {
+    found.inLens ??= new Map();
+    return atlas.lenses.filter((lens) => {
+      if (!found.inLens.has(lens.id)) found.inLens.set(lens.id, new Set(scene(atlas, found, { ...DEFAULTS, lens: lens.id }).place.keys()));
+      return found.inLens.get(lens.id).has(id);
+    });
+  }
+  function trail(atlas, found, state) {
+    const lens = atlas.lenses.find(({ id }) => id === state.lens) ?? atlas.lenses[0];
+    const crumbs = [{ label: lens.title, change: { inside: "", focus: "", story: "" } }];
+    const node = (id) => (found.position.has(id) ? atlas.nodes[found.position.get(id)] : undefined);
+    const inner = node(state.inside);
+    if (inner) {
+      // An object is in its component, when the project has components.
+      const component = inner.kind === "object" && inner.component ? atlas.nodes.find(({ kind, label }) => kind === "component" && label === inner.component) : undefined;
+      if (component) crumbs.push({ label: component.label, change: { inside: component.id, focus: "", sel: component.id, story: "" } });
+      crumbs.push({ label: inner.label, change: { inside: inner.id, focus: "", story: "" } });
+    }
+    const near = node(state.focus);
+    if (near) crumbs.push({ label: `near ${near.label}`, change: {} });
+    return crumbs;
+  }
+
   /** The address of a state: only what differs from the start. */
   function stateHash(state) {
     const params = new URLSearchParams();
@@ -329,7 +402,7 @@
 
   root.BCA_SCENE = {
     DEFAULTS, FORMS, COLORS, SIZES, GROUPS, SEVERITY, KIND_NAMES,
-    index, scene, shown, matches, sizeValues, rings, highlight, kindOf,
+    index, scene, shown, matches, sizeValues, rings, highlight, kindOf, into, trail, lensesOf,
     storyMarkdown, documentation, lensMarkdown, nodesCsv, relationsCsv, sceneData, stateHash
   };
 })(globalThis);

@@ -16,7 +16,7 @@ export async function createSnapshot(workspace, { log = () => {}, title } = {}) 
   if (objects.length <= MAX_INSIDES) {
     for (const { id } of objects) {
       const found = await workspace.inside(id);
-      if (found?.nodes.length) inside[id] = found;
+      if (found?.nodes.length || found?.edges.length) inside[id] = found;
     }
   } else {
     log(`${objects.length.toLocaleString("en-US")} objects: the export leaves out what is inside each object (at most ${MAX_INSIDES.toLocaleString("en-US")}).`);

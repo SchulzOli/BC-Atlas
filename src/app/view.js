@@ -75,7 +75,9 @@ export function viewState(atlas, options = {}) {
     state.lens = options.lens ?? atlas.lenses[0].id;
     if (options.inside) {
       const node = findNode(atlas, options.inside, "--inside");
-      if (node.kind !== "object" || node.external) throw new UsageError(`--inside needs an object of the workspace; "${options.inside}" is ${node.external ? "in another app" : `a ${node.kind}`}`);
+      if (!["object", "app", "component", "module"].includes(node.kind) || node.external) {
+        throw new UsageError(`--inside needs an object, an app, a component, or a namespace of the workspace; "${options.inside}" is ${node.external ? "in another app" : `a ${node.kind}`}. Use --focus for it and what is near it`);
+      }
       state.inside = node.id;
     }
     if (options.focus) state.focus = findNode(atlas, options.focus, "--focus").id;
@@ -229,7 +231,8 @@ export async function renderView(workspace, options = {}) {
     throw new UsageError("a story writes text, md, or json; add --step for the nodes of one step");
   }
 
-  const within = state.inside ? await workspace.inside(state.inside) : undefined;
+  const inner = state.inside ? atlas.nodes[found.position.get(state.inside)] : undefined;
+  const within = inner?.kind === "object" ? await workspace.inside(state.inside) : undefined;
   const scene = S.scene(atlas, found, state, within);
   const flags = S.shown(scene, state);
   // In a list, what a search or a step lights up is what is listed.

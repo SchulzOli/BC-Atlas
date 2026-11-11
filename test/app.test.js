@@ -170,7 +170,8 @@ test("process tests are nodes, lenses, findings, and stories of the same graph",
   const atlas = await service.call("atlas");
   const count = (kind) => atlas.nodes.filter((node) => node.kind === kind).length;
   assert.deepEqual({ process: count("process"), task: count("task"), person: count("person"), requirement: count("requirement") }, { process: 2, task: 5, person: 4, requirement: 6 });
-  assert.deepEqual(atlas.lenses.map(({ id }) => id).slice(-3), ["processes", "people", "requirements"]);
+  // After the lenses of BC Atlas come those of plugins: here the recordings of the sync plugin.
+  assert.deepEqual(atlas.lenses.map(({ id }) => id).slice(-4), ["processes", "people", "requirements", "sync"]);
   assert.equal(atlas.summary.battle.company, "Contoso GmbH");
 
   const index = (label) => atlas.nodes.findIndex((node) => node.label === label);
@@ -304,13 +305,58 @@ test("in VS Code the view inherits the editor's color theme", () => {
   assert.match(exported, /<html lang="en">/u, "an exported file keeps the BC Atlas design");
 });
 
+test("recordings of Business Central are nodes, a lens, findings, and a story of the same graph", async () => {
+  const example = path.join(root, "examples", "purchasing-app");
+  const atlas = await createService(new Workspace(example, {}, { live: false })).call("atlas");
+  const labels = (kind) => atlas.nodes.filter((node) => node.kind === kind).map(({ label, status }) => `${label} (${status})`);
+  assert.deepEqual(labels("channel"), ["processes (in sync)"]);
+  assert.deepEqual(labels("recording"), ["Approve a released purchase request (in sync)", "Create a new Purchase Request (in sync)"]);
+  const lens = atlas.lenses.find(({ id }) => id === "sync");
+  assert.deepEqual([lens.title, lens.plugin, lens.color], ["Recordings", "sync", "status"]);
+  const index = (label, kind) => atlas.nodes.findIndex((node) => node.label === label && node.kind === kind);
+  const related = (from, to) => atlas.edges.filter(([a, b]) => a === from && b === to).map(([, , relation]) => atlas.relations[relation].kind);
+  const approve = index("Approve a released purchase request", "recording");
+  // What was recorded runs through objects of the source: the same nodes every other lens shows.
+  assert.deepEqual(related(index("processes", "channel"), approve), ["syncs"]);
+  assert.deepEqual(related(approve, atlas.nodes.findIndex((node) => node.label === "Purchase Request Mgt.")), ["runs through"]);
+  assert.deepEqual(related(approve, atlas.nodes.findIndex((node) => node.label === "Request Approval Entry" && node.type === "table")), ["runs through", "changes"]);
+  const story = atlas.stories.find(({ id }) => id === "sync");
+  assert.deepEqual([story.title, story.plugin, story.steps.length], ["What runs in Business Central", "sync", 7]);
+  assert.ok(story.steps.every((step) => step.lens === "sync" && step.nodes.every((node) => atlas.nodes[node])));
+  assert.ok(!atlas.findings.some(({ rule }) => rule === "sync-outdated"), "everything is in sync");
+
+  // A recording that changed since the last sync waits for it: a status, a relation, and one finding on its node.
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-sync-view-"));
+  try {
+    cpSync(example, directory, { recursive: true });
+    const file = path.join(directory, "recordings", "approve-a-released-purchase-request.json");
+    writeFileSync(file, readFileSync(file, "utf8").replace("pr-approve-3", "pr-approve-4"));
+    const changed = await createService(new Workspace(directory, {}, { live: false })).call("atlas");
+    const recording = changed.nodes.findIndex((node) => node.kind === "recording" && node.label === "Approve a released purchase request");
+    assert.notEqual(changed.nodes[recording].status, "in sync");
+    assert.equal(changed.nodes.find((node) => node.kind === "channel").status, "1 to sync");
+    assert.ok(changed.edges.some(([, to, relation]) => to === recording && changed.relations[relation].kind === "not synced"));
+    const outdated = changed.findings.filter(({ rule }) => rule === "sync-outdated");
+    assert.equal(outdated.length, 1, "the health rule and the atlas of the plugin report it once");
+    assert.ok(outdated[0].nodes.includes(recording));
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("the app is one view: a toolbar and the graph", () => {
   const html = renderAppHtml({ mode: "vscode", csp: "default-src 'none'" });
   const body = html.slice(html.indexOf("<body>"), html.indexOf("<script>"));
   assert.match(body, /<header id="bar" role="toolbar"/u);
   assert.match(body, /<div id="graph"><\/div>/u);
   // No list of pages, no tabs, no side bar: what shows is chosen in the toolbar.
-  assert.doesNotMatch(body, /<nav\b|role="tablist"|id="sidebar"|id="page"/u);
+  assert.doesNotMatch(body, /<nav\b(?! id="trail")|role="tablist"|id="sidebar"|id="page"/u);
+  // Where the view is stands next to the lens, and every part of the way is one click back.
+  assert.match(body, /id="lens-button"[^\n]+\n\s*<nav id="trail" aria-label="Where the view is" hidden><\/nav>/u);
+  assert.match(html, /history\[moved \? "pushState" : "replaceState"\]/u, "a step to another place is one Back takes back");
+  assert.match(html, /addEventListener\("popstate", followAddress\)/u);
+  // The picture after a step starts from the picture before it.
+  assert.match(html, /const before = graph\?\.snapshot\(\);[\s\S]{0,260}from: before,/u);
   assert.deepEqual([...body.matchAll(/data-form="(\w+)"/gu)].map(([, form]) => form), ["2d", "diagram", "3d"], "any part of the graph in three forms");
   assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "view", "export", "sync"]);
   // What floats on the graph starts hidden: the legend, the selected node, the story.
@@ -348,7 +394,7 @@ test("bca export writes the app as one offline file with the whole atlas", () =>
     const objects = snapshot.atlas.nodes.filter(({ kind, external }) => kind === "object" && !external);
     const withMembers = objects.filter(({ id }) => snapshot.inside[id]);
     assert.ok(withMembers.length >= 5 && withMembers.length <= objects.length);
-    assert.ok(Object.values(snapshot.inside).every(({ nodes, edges, relations }) => nodes.length && edges.every(([, , relation]) => relations[relation])));
+    assert.ok(Object.values(snapshot.inside).every(({ nodes, edges, relations }) => (nodes.length || edges.length) && edges.every(([, , relation]) => relations[relation])));
     assert.ok(html.length < 400_000, `one small file (${html.length} bytes)`);
   } finally {
     rmSync(directory, { recursive: true, force: true });

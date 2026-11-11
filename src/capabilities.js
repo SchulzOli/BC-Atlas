@@ -578,8 +578,8 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         argv: ["bca", "view", "[app-root]"],
         purpose: "The BC Atlas view without a window: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. What the toolbar of the app does, from the terminal.",
         options: {
-          lens: string("What the graph shows: a part of the one graph. Without it (and without --story), the overview lists the lenses and stories of the project.", { group: SELECTION, enum: VIEW_LENSES, default: "system" }),
-          inside: string("Open one object: its procedures, triggers, and events as nodes, and what each does with other objects. A name, an ID, or a selector such as codeunit:50100.", { group: SELECTION, value: "object" }),
+          lens: string(`What the graph shows: a part of the one graph (${VIEW_LENSES.join(", ")}, and the lenses of plugins, such as sync). Without it (and without --story), the overview lists the lenses and stories of the project.`, { group: SELECTION, value: "id", default: "system" }),
+          inside: string("Go into a node: an object opens to its procedures, triggers, and events and what each does with other objects; an app, a component, or a namespace to its objects. A name, an ID, or a selector such as codeunit:50100 or component:Core.", { group: SELECTION, value: "node" }),
           focus: string("Only this node and what is near it (see --depth). A name, an ID, or a selector such as table:Customer or person:Anna.", { group: SELECTION, value: "node" }),
           depth: string("How many steps from the --focus node.", { group: SELECTION, value: "n", default: "1" }),
           find: string("What Find does: in a picture, the nodes whose name, type, component, namespace, or ID match stand out; a list holds only them.", { group: SELECTION, value: "text" }),

@@ -59,6 +59,30 @@ follows [Semantic Versioning](https://semver.org/).
   implementation draws the page and writes these files
   (`src/app/ui/scene.js`, `graph.js`). The MCP tool `bc_atlas_view` gives
   agents the same.
+- **Navigation without a jump.** Every node leads on: a double click goes
+  into an app, a component, or a namespace (its objects), into an object
+  (its procedures), or to the lens a person, a process test, a requirement,
+  or a recording lives in. A trail next to the lens says where the view is
+  (`Components › Core › CON Item`), and every part of it is one click back.
+  **See in** on the card of a node lists the other lenses it is in and
+  changes the lens around it. A node that is in the picture before and
+  after a step stays where it is; between 2D, Diagram, and 3D the nodes
+  glide and the camera turns; the Back and Forward keys of a browser follow
+  every step. Keys: `[` `]` the lens before and after, `Backspace` one step
+  up. `bca view --inside` takes an app, a component, or a namespace too.
+- **Plugins add to the graph.** The new contribution `atlas` lets a plugin
+  put nodes, relations, lenses, findings, and stories into the one graph;
+  they show in the view, in `bca view`, in the MCP tool `bc_atlas_view`,
+  and in every export, like those of BC Atlas. See
+  [What a plugin adds to the graph](./docs/plugins.md#what-a-plugin-adds-to-the-graph).
+  `bca view --lens` accepts the lenses of plugins.
+- **Recordings of Business Central are in the view.** The built-in plugin
+  `sync` adds the lens **Recordings**: the channels, every recorded process
+  with its state (in sync, or why it waits), and the AL objects it runs
+  through and changes. A recording that waits for a sync is the finding
+  `sync-outdated` on its node, and the story "What runs in Business
+  Central" walks through every recording phase by phase. The purchasing
+  example has two recordings.
 - An export of a lens (JSON, CSV, Markdown) holds what shows: what the
   legend hides is left out, and findings come the most severe first.
 - The exported file is much smaller (the example with three apps: 120 KB

@@ -19,6 +19,7 @@
 import path from "node:path";
 import { dependencyMatrix } from "../blueprint/drilldown.js";
 import { RELATION_STYLES, TYPE_STYLES } from "../d2.js";
+import { pluginAtlas } from "../plugins/atlas.js";
 import { analyzeVisibility, LEVEL_COLORS } from "../visibility.js";
 
 const NEUTRAL = "#64748B";
@@ -121,10 +122,13 @@ function builder() {
   const relationIndex = new Map();
   const edges = [];
   const seen = new Map();
+  // Colors of relations a plugin brings along.
+  const styles = new Map();
   return {
     nodes,
     relations,
     edges,
+    style: (kind, style) => styles.set(kind, style),
     has: (id) => index.has(id),
     at: (id) => index.get(id),
     node(node) {
@@ -140,7 +144,7 @@ function builder() {
       if (a === undefined || b === undefined || a === b) return;
       if (!relationIndex.has(kind)) {
         relationIndex.set(kind, relations.length);
-        const style = ATLAS_RELATIONS[kind] ?? RELATION_STYLES[kind] ?? { color: NEUTRAL };
+        const style = ATLAS_RELATIONS[kind] ?? RELATION_STYLES[kind] ?? styles.get(kind) ?? { color: NEUTRAL };
         relations.push({ kind, color: style.color, ...(style.dash ? { dash: true } : {}) });
       }
       const relation = relationIndex.get(kind);
@@ -394,6 +398,54 @@ async function processes(workspace, graph, findings) {
   return battle;
 }
 
+/**
+ * What the plugins of the project add (src/plugins/atlas.js): nodes, relations, lenses,
+ * findings, and stories of what the AL source cannot show.
+ * @returns { lenses, stories } to append to those of BC Atlas
+ */
+async function contributions(workspace, graph, findings, assessment) {
+  const lenses = [];
+  const stories = [];
+  const numbered = new Map();
+  for (const node of graph.nodes) if (node.kind === "object" && node.objectId) numbered.set(`${node.type}:${node.objectId}`, node.id);
+  const named = (type, name) => graph.nodes.find((node) => node.kind === "object" && node.type === type && String(node.label).toLowerCase() === String(name).toLowerCase())?.id;
+  const context = {
+    atlas: { nodes: graph.nodes, relations: graph.relations, edges: graph.edges },
+    /** The node id of an AL object by type and ID or name, or nothing. */
+    object: (type, idOrName) => numbered.get(`${String(type).toLowerCase()}:${idOrName}`) ?? named(String(type).toLowerCase(), idOrName)
+  };
+  const root = assessment.context.projectRoot ?? assessment.context.options.projectRoot;
+  for (const { plugin, contribution, error } of await pluginAtlas({ root, configPath: assessment.context.config?.path }, context)) {
+    if (error) {
+      findings.push({ severity: "warning", rule: "plugin-atlas-failed", message: `Plugin ${plugin} could not add to the atlas: ${error}`, nodes: [], origin: plugin });
+      continue;
+    }
+    for (const [kind, style] of Object.entries(contribution.styles ?? {})) graph.style(kind, style);
+    for (const node of contribution.nodes ?? []) {
+      if (!node?.id || !node.kind || !node.label) continue;
+      graph.node(compact({ color: NEUTRAL, ...node, plugin }));
+    }
+    for (const { from, to, kind, weight } of contribution.relations ?? []) graph.edge(from, to, kind, weight ?? 1);
+    const at = (ids) => [...new Set((ids ?? []).map((id) => graph.at(id)).filter((index) => index !== undefined))];
+    for (const finding of contribution.findings ?? []) {
+      const nodes = at(finding.nodes);
+      // The same finding as a health rule of the plugin: one finding, now on its nodes.
+      const known = findings.find(({ rule, message }) => rule === finding.rule && message === finding.message);
+      if (known) known.nodes = [...new Set([...known.nodes, ...nodes])];
+      else findings.push(compact({ severity: finding.severity ?? "info", rule: finding.rule, message: finding.message, fix: finding.fix, nodes, origin: plugin }));
+    }
+    for (const lens of contribution.lenses ?? []) {
+      if (!lens?.id || LENSES.some(({ id }) => id === lens.id) || lenses.some(({ id }) => id === lens.id)) continue;
+      lenses.push({ group: "kind", color: "kind", reads: `the plugin ${plugin}`, ...lens, plugin });
+    }
+    for (const story of contribution.stories ?? []) {
+      if (!story?.id || !story.steps?.length) continue;
+      stories.push({ kind: "process", ...story, plugin, steps: story.steps.map((step) => ({ ...step, nodes: at(step.nodes) })) });
+    }
+  }
+  return { lenses, stories };
+}
+
 /** The stories: walks through the graph that explain, document, test, and demonstrate the system. */
 function stories({ graph, findings, report, assessment, battle, title }) {
   const result = [];
@@ -585,6 +637,7 @@ export async function createAtlas(workspace) {
   const { model, assessment } = await structure(workspace, graph);
   const report = await health(workspace, graph, findings);
   const battle = await processes(workspace, graph, findings);
+  const added = await contributions(workspace, graph, findings, assessment);
   const overview = await workspace.overview();
 
   // A lens with nothing in it is left out.
@@ -598,7 +651,11 @@ export async function createAtlas(workspace) {
     if (special.length ? !special.every((kind) => kinds.has(kind)) : !kinds.has(lens.kinds[0])) return false;
     return lens.relations === "*" || !lens.connected || lens.relations.some((kind) => present.has(kind));
   })
-    .map((lens) => ({ ...lens, relations: lens.relations === "*" ? betweenObjects : lens.relations.filter((kind) => present.has(kind)) }));
+    .map((lens) => ({ ...lens, relations: lens.relations === "*" ? betweenObjects : lens.relations.filter((kind) => present.has(kind)) }))
+    // The lenses of plugins, when they have something to show.
+    .concat(added.lenses
+      .map((lens) => ({ ...lens, relations: lens.relations.filter((kind) => present.has(kind)) }))
+      .filter((lens) => lens.kinds.some((kind) => kinds.has(kind)) && lens.relations.length));
 
   return {
     schema: 1,
@@ -623,7 +680,11 @@ export async function createAtlas(workspace) {
     edges: graph.edges,
     lenses,
     findings,
-    stories: stories({ graph, findings, report, assessment, battle, title: overview.title })
+    stories: [
+      ...stories({ graph, findings, report, assessment, battle, title: overview.title }),
+      // A step of a plugin's story names a lens of the atlas, its own or one of BC Atlas.
+      ...added.stories.filter((story) => story.steps.every(({ lens }) => lenses.some(({ id }) => id === lens)))
+    ]
   };
 }
 

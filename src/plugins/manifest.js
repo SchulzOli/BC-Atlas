@@ -62,6 +62,11 @@ const mcpTool = z.object({
   readOnly: z.boolean().default(true)
 });
 
+// What a plugin adds to the atlas, the one graph of the view and of bca view.
+const atlasContribution = z.object({
+  summary: z.string().min(1)
+});
+
 const extensionPoint = z.object({
   id: z.string().regex(/^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$/u, "<plugin>.<point>"),
   summary: z.string().min(1)
@@ -83,6 +88,7 @@ export const manifestSchema = z.object({
     healthRules: z.array(healthRule).default([]),
     mcpTools: z.array(mcpTool).default([]),
     hooks: z.array(z.enum(Object.keys(PLUGIN_EVENTS))).default([]),
+    atlas: atlasContribution.optional(),
     extensionPoints: z.array(extensionPoint).default([]),
     // Contributions to extension points of other plugins: { "<plugin>.<point>": ["<item id>", ...] }
     extends: z.record(z.string(), z.array(z.string())).default({})

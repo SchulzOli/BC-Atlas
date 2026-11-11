@@ -9,6 +9,15 @@
   people, requirements) as a 2D graph, a diagram, or a 3D graph.
 - Double-click an object to open it: its procedures and events as nodes,
   and what each does with other objects.
+- **Navigation without a jump.** A double click goes into an app, a
+  component, or a namespace too; a trail next to the lens says where the
+  view is, and every part of it is one click back; **See in** on the card of
+  a node changes the lens around it. Nodes that stay in the picture stay
+  where they are, and between 2D, Diagram, and 3D they glide. Keys: `[` `]`
+  the lens before and after, `Backspace` one step up.
+- **Recordings**, a lens of the built-in sync plugin: what was recorded in
+  Business Central, whether it is synced, and the objects it runs through.
+  Plugins can add lenses, findings, and stories of their own.
 - **Check** puts the findings on the nodes they are about; the card of a
   node lists them with the fix.
 - **Stories** walk through the graph step by step: what the system is, each

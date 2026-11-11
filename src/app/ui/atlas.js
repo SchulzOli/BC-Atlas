@@ -90,11 +90,16 @@
   }
   let state = readState();
   const stateHash = (from = state) => S.stateHash(from);
+  // Where the view is: a step to another place is one the Back key takes back; anything else changes the place it is at.
+  const placeOf = (from) => (from.story ? `story\n${from.story}` : [from.lens, from.inside, from.focus].join("\n"));
+  let place;
   function remember() {
     const hash = stateHash();
     if (hash === (location.hash || "#")) return;
+    const moved = place !== undefined && placeOf(state) !== place;
+    place = placeOf(state);
     // An embedded page may not be allowed to change its address; the view works without.
-    try { history.replaceState(null, "", hash); } catch { /* optional */ }
+    try { history[moved ? "pushState" : "replaceState"](null, "", hash); } catch { /* optional */ }
     if (LIVE) vscode.postMessage({ type: "state", lens: state.lens, story: state.story });
   }
   /** Changes the view and draws it. */
@@ -165,7 +170,10 @@
 
   /** The part of the atlas the state asks for (scene.js); an object that is opened is read first. */
   async function sceneFor() {
-    const within = state.inside && position.has(state.inside) ? await inside(state.inside) : undefined;
+    const inner = state.inside && position.has(state.inside) ? atlas.nodes[position.get(state.inside)] : undefined;
+    const within = inner?.kind === "object" ? await inside(state.inside) : undefined;
+    // A large export leaves out what is inside each object: then the view shows what is next to it.
+    if (inner?.kind === "object" && !within) Object.assign(state, { inside: "", focus: inner.id });
     return S.scene(atlas, found, state, within);
   }
 
@@ -196,10 +204,13 @@
 
     const next = await sceneFor();
     if (!graph || next.key !== applied.key) {
+      // What stays in the picture stays where it is; the rest comes and goes around it.
+      const before = graph?.snapshot();
       graph?.destroy();
       scene = next;
       graph = BCA_GRAPH.create($("#graph"), scene, {
         mode: state.form,
+        from: before,
         onInfo: ({ selected }) => {
           const id = selected >= 0 ? scene.entries[selected].node.id : "";
           if (id === state.sel) return;
@@ -255,13 +266,27 @@
     inspector();
     storyBar(story, step);
     remember();
+    place = placeOf(state);
   }
 
-  /** A double click: an object opens to its inside, a member to its source, anything else to its neighbors. */
+  /** A double click goes into a node: a member to its source, anything else to what it is made of or stands next to. */
   function open({ node }) {
     if (node.kind === "member") return source(node);
-    if (node.kind === "object" && !node.external && node.id !== state.inside) return set({ inside: node.id, focus: "", sel: node.id, story: "" });
-    return set({ focus: node.id, sel: node.id, story: "" });
+    const change = S.into(atlas, node, state);
+    return change ? set(change) : undefined;
+  }
+  /** One step up the trail: out of what was gone into, back to the lens. */
+  function up() {
+    const crumbs = S.trail(atlas, found, state);
+    if (crumbs.length < 2) return false;
+    set(crumbs[crumbs.length - 2].change);
+    return true;
+  }
+  /** The lens before or after this one. */
+  function turn(by) {
+    const at = atlas.lenses.findIndex(({ id }) => id === state.lens);
+    const lens = atlas.lenses[(at + by + atlas.lenses.length) % atlas.lenses.length];
+    return set({ lens: lens.id, inside: "", focus: "", story: "" });
   }
 
   function source(node) {
@@ -275,7 +300,15 @@
   function toolbar() {
     $("#project-name").textContent = atlas.title;
     document.title = `${atlas.title} · BC Atlas`;
-    $("#lens-name").textContent = scene.title;
+    $("#lens-name").textContent = scene.lens.title;
+    // Where the view is, after the lens: every part of the way is one click back.
+    const crumbs = S.trail(atlas, found, state);
+    const trail = $("#trail");
+    trail.hidden = crumbs.length < 2;
+    trail.innerHTML = crumbs.length < 2 ? "" : `<button class="up" data-crumb="${crumbs.length - 2}" title="Back to ${esc(crumbs[crumbs.length - 2].label)} (Backspace)" aria-label="Back">‹</button>`
+      + crumbs.slice(1).map((crumb, index) => (index + 1 === crumbs.length - 1
+        ? `<b aria-current="location" title="${esc(crumb.label)}">${esc(crumb.label)}</b>`
+        : `<button data-crumb="${index + 1}" title="${esc(crumb.label)}">${esc(crumb.label)}</button>`)).join("");
     for (const button of $$("#forms button")) button.setAttribute("aria-checked", String(button.dataset.form === state.form));
     const search = $("#search");
     if (document.activeElement !== search) search.value = state.q;
@@ -295,6 +328,11 @@
     $("#sync-text").textContent = LIVE ? "Live" : new Date(SNAPSHOT.generatedAt).toLocaleDateString();
   }
 
+  $("#trail").addEventListener("click", (event) => {
+    const at = event.target.closest("[data-crumb]")?.dataset.crumb;
+    if (at !== undefined) set(S.trail(atlas, found, state)[Number(at)].change);
+  });
+
   let folded;
   function legend() {
     const element = $("#legend");
@@ -303,12 +341,9 @@
     const off = list(state.off);
     const counts = new Map();
     for (const edge of scene.edges) counts.set(edge[2], (counts.get(edge[2]) ?? 0) + 1);
-    const back = scene.within || state.focus
-      ? `<button class="chip back" data-back>← ${esc(scene.lens.title)}</button>`
-      : "";
     folded ??= innerWidth < 720;
     element.innerHTML = `
-      <div class="where">${back}<b>${esc(scene.title)}</b><span>${plural(scene.entries.length, "node")}, ${plural(scene.edges.length, "relation")}</span><button class="fold" data-fold aria-expanded="${!folded}" title="${folded ? "Show the legend" : "Hide the legend"}" aria-label="Legend"></button>${folded ? "" : `<p>${esc(scene.summary)}</p>`}</div>
+      <div class="where"><b>${esc(scene.title)}</b><span>${plural(scene.entries.length, "node")}, ${plural(scene.edges.length, "relation")}</span><button class="fold" data-fold aria-expanded="${!folded}" title="${folded ? "Show the legend" : "Hide the legend"}" aria-label="Legend"></button>${folded ? "" : `<p>${esc(scene.summary)}</p>`}</div>
       ${folded ? "" : `<div class="chips">${scene.classes.map((entry) => `<button class="chip ${hidden.has(String(entry.key)) ? "off" : ""}" data-class="${esc(entry.key)}" title="Show or hide"><i style="color:${esc(entry.color)}"></i>${esc(entry.label)} <small>${fmt(entry.count)}</small></button>`).join("")}</div>
       ${scene.kinds.length ? `<div class="chips">${scene.kinds.map((kind, index) => `<button class="chip ${off.has(kind.kind) ? "off" : ""}" data-kind="${esc(kind.kind)}" title="Show or hide"><i class="line ${kind.dash ? "dash" : ""}" style="color:${esc(kind.color)}"></i>${esc(kind.kind)} <small>${fmt(counts.get(index) ?? 0)}</small></button>`).join("")}</div>` : ""}`}`;
   }
@@ -319,8 +354,7 @@
     }
     const chip = event.target.closest(".chip");
     if (!chip) return undefined;
-    if (chip.dataset.back !== undefined) set({ inside: "", focus: "" });
-    else if (chip.dataset.class !== undefined) set({ hide: toggled(state.hide, chip.dataset.class) });
+    if (chip.dataset.class !== undefined) set({ hide: toggled(state.hide, chip.dataset.class) });
     else set({ off: toggled(state.off, chip.dataset.kind) });
     return undefined;
   });
@@ -348,7 +382,10 @@
       `<li><small>${arrow} ${esc(scene.kinds[kind].kind)}</small><button data-go="${esc(scene.entries[other].node.id)}">${esc(scene.entries[other].node.label)}</button></li>`).join("")
       + (others.length > 12 ? `<li><small>and ${fmt(others.length - 12)} more</small></li>` : "")).join("");
     const kind = node.kind === "object" || node.kind === "member" ? node.type : KIND_NAMES[node.kind] ?? node.kind;
-    const canOpen = node.kind === "object" && !node.external && node.id !== state.inside;
+    // A large export leaves out what is inside each object: there is nothing to open then.
+    const canOpen = Boolean(S.into(atlas, node, state)?.inside) && (node.kind !== "object" || LIVE || Boolean(SNAPSHOT.inside?.[node.id]));
+    // The same node from another side: the lenses it is in.
+    const sides = at >= 0 ? S.lensesOf(atlas, found, node.id).filter(({ id }) => id !== state.lens || state.inside || state.focus) : [];
     element.innerHTML = `
       <header>
         <div style="flex:1;min-width:0"><div class="kind"><i style="background:${esc(scene.nodes[index].color)}"></i>${esc(kind)}${node.external ? " · other app" : ""}</div><h2>${esc(node.label)}</h2></div>
@@ -357,11 +394,12 @@
       ${node.about || node.caption ? `<p class="about">${rich(node.about ?? node.caption)}</p>` : ""}
       ${facts.length ? `<dl class="facts">${facts.map(([label, value]) => `<dt>${esc(label)}</dt><dd>${esc(value)}</dd>`).join("")}</dl>` : ""}
       <div class="actions">
-        ${canOpen ? '<button class="btn primary" data-act="inside" title="Its procedures and what each does (double click)">Open</button>' : ""}
+        ${canOpen ? `<button class="btn primary" data-act="inside" title="${node.kind === "object" ? "Its procedures and what each does" : "Its objects and what they do with each other"} (double click)">Open</button>` : ""}
         <button class="btn" data-act="focus">${state.focus === node.id ? "Show all" : "Neighbors"}</button>
         ${node.file ? `<button class="btn" data-act="source">${LIVE ? "Go to source" : "Source"}</button>` : ""}
         <button class="btn" data-act="link">Link</button>
       </div>
+      ${sides.length ? `<h3>See in</h3><div class="chips sides">${sides.map((lens) => `<button class="chip" data-side="${esc(lens.id)}" title="${esc(lens.summary)}">${esc(lens.title)}</button>`).join("")}</div>` : ""}
       ${findings.length ? `<h3>${plural(findings.length, "finding")}</h3>${findings.slice(0, 20).map((finding) => `<div class="finding ${esc(finding.severity)}"><b>${esc(finding.severity)} · ${esc(finding.rule)}</b><p>${rich(finding.message)}</p>${finding.fix ? `<p class="fix">${rich(finding.fix)}</p>` : ""}</div>`).join("")}` : ""}
       ${out.size ? `<h3>From here</h3><ul class="rows">${rows(out, "→")}</ul>` : ""}
       ${into.size ? `<h3>To here</h3><ul class="rows">${rows(into, "←")}</ul>` : ""}`;
@@ -375,8 +413,17 @@
       set({ sel: go }).then(() => graph.center([scene.place.get(go)]));
       return undefined;
     }
+    const side = event.target.closest("[data-side]")?.dataset.side;
+    if (side) {
+      // Another lens, the same node: it stays selected and in the middle.
+      const id = entry.node.id;
+      set({ lens: side, inside: "", focus: "", story: "", sel: id }).then(() => {
+        if (scene.place.has(id)) graph.center([scene.place.get(id)]);
+      });
+      return undefined;
+    }
     const act = event.target.closest("[data-act]")?.dataset.act;
-    if (act === "inside") return set({ inside: entry.node.id, focus: "", story: "" });
+    if (act === "inside") return open(entry);
     if (act === "focus") return set({ focus: state.focus === entry.node.id ? "" : entry.node.id, story: "" });
     if (act === "source") return source(entry.node);
     if (act === "link") return copyLink();
@@ -612,11 +659,14 @@
       else if (typing) return;
       else if (state.story) storyAct("end");
       else if (state.sel) set({ sel: "" });
-      else if (state.inside || state.focus) set({ inside: "", focus: "" });
+      else if (atlas) up();
       return;
     }
     if (typing || !atlas) return;
-    if (event.key === "/") {
+    if (event.key === "Backspace") {
+      if (up()) event.preventDefault();
+    } else if (event.key === "[" || event.key === "]") turn(event.key === "[" ? -1 : 1);
+    else if (event.key === "/") {
       event.preventDefault();
       $("#search").focus();
     } else if (event.key === "1" || event.key === "2" || event.key === "3") set({ form: ["2d", "diagram", "3d"][Number(event.key) - 1] });
@@ -657,6 +707,7 @@
       if (data?.type === "navigate" && typeof data.hash === "string") {
         location.hash = data.hash;
         state = readState();
+        place = placeOf(state);
         render();
       }
       if (data?.type === "reveal" && typeof data.id === "string" && atlas && position.has(data.id)) {
@@ -667,11 +718,15 @@
       }
     });
   }
-  addEventListener("hashchange", () => {
+  // Back and Forward of the browser, and an address that is typed or followed.
+  const followAddress = () => {
     if (stateHash() === (location.hash || "#")) return;
     state = readState();
+    place = placeOf(state);
     render();
-  });
+  };
+  addEventListener("popstate", followAddress);
+  addEventListener("hashchange", followAddress);
 
   message("<b>Reading the AL source</b><span>Every object and what it does with the others.</span>");
   await reload("Reading");

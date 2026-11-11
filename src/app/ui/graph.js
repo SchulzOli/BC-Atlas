@@ -546,7 +546,8 @@
   // and a drawing made without a browser are the same picture:
   // { nodes, edges, kinds, labels, visible, shown, form, points, boxes, routes,
   //   camera, width, height, hover, selected, highlight, rings, sizes, pinned,
-  //   degree, neighbors, look, measure }
+  //   degree, neighbors, look, measure, place? }
+  // place(index) says where a node is drawn while it glides from one layout to another.
   const shorten = (label) => (String(label).length > 34 ? `${String(label).slice(0, 33)}…` : String(label));
 
   /** How far the visible nodes reach from the middle of the layout. */
@@ -622,7 +623,7 @@
     pen.clear(v.width, v.height, look.background);
     const distance = Math.max(extentOf(v) * 3, 400);
     const boxed = v.form === "diagram";
-    const placed = v.nodes.map((_, index) => (v.visible[index] && (!boxed || v.boxes[index]) ? projectOn(v, boxed ? { x: v.boxes[index].x, y: v.boxes[index].y, z: 0 } : v.points[index], distance) : undefined));
+    const placed = v.nodes.map((_, index) => (v.visible[index] && (!boxed || v.boxes[index]) ? projectOn(v, v.place ? v.place(index) : boxed ? { x: v.boxes[index].x, y: v.boxes[index].y, z: 0 } : v.points[index], distance) : undefined));
     const focus = emphasisOf(v);
     const lit = (index) => !focus || focus.has(index);
     const depthFade = (item) => (flat ? 1 : Math.max(0.35, Math.min(1, item.scale / v.camera.zoom)));
@@ -758,6 +759,7 @@
     return placed;
   }
 
+  const NO_ROUTES = new Map();
   const boxWidthOf = (textWidth) => Math.min(260, Math.max(64, textWidth + 30));
 
   /**
@@ -825,10 +827,12 @@
   /**
    * @param container the element that gets the canvas
    * @param scene { title, nodes: [{ label, group, color }], edges: [[from, to, kind, weight]], kinds: [{ kind, color, dash }], groups }
+   * @param from the picture before this one (snapshot() of its graph): nodes that were in it start
+   *   where they were and glide to their new places, and the camera moves on from where it stood
    * @param onInfo called with { hover, selected } (node indexes) when one changes
    * @param onOpen called with a node index on a double click
    */
-  function create(container, scene, { mode = "2d", onInfo = () => {}, onOpen = () => {} } = {}) {
+  function create(container, scene, { mode = "2d", from, onInfo = () => {}, onOpen = () => {} } = {}) {
     const { nodes, edges, kinds } = scene;
     const canvas = document.createElement("canvas");
     canvas.className = "graph-canvas";
@@ -853,6 +857,10 @@
     // The camera: turned by yaw and pitch (3D), scaled, and moved in the window.
     const camera = { yaw: flat ? 0 : 0.6, pitch: flat ? 0 : 0.35, zoom: 1, x: 0, y: 0 };
     let glide;
+    // Nodes on their way from one layout to another: { from: [{ x, y, z }], start, duration }.
+    let morph;
+    // The camera on its way from one angle to another (2D to 3D and back).
+    let turn;
     let hover = -1;
     let selected = -1;
     let highlight;
@@ -866,7 +874,7 @@
     const labels = nodes.map(({ label }) => shorten(label));
     const diagram = () => form === "diagram";
     /** The picture as it is now (see picture). */
-    const state = () => ({ nodes, edges, kinds, labels, visible, shown, form, points, boxes, routes, camera, width, height, hover, selected, highlight, rings, sizes, pinned, degree, neighbors });
+    const state = () => ({ nodes, edges, kinds, labels, visible, shown, form, points, boxes, routes: morph ? NO_ROUTES : routes, camera, width, height, hover, selected, highlight, rings, sizes, pinned, degree, neighbors, place: morph ? current : undefined });
 
     function connect() {
       for (const set of neighbors) set.clear();
@@ -901,13 +909,50 @@
       ({ boxes, routes } = layered(nodes, edges, visible, shown, boxWidth));
     }
     const place = (index) => (diagram() ? { x: boxes[index].x, y: boxes[index].y, z: 0 } : points[index]);
+    /** Someone who asked for less motion gets the next picture at once. */
+    const still = () => Boolean(root.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+    /** Where a node is drawn now: on its way, or in its place. */
+    const current = (index) => {
+      const to = place(index);
+      const start = morph?.from[index];
+      if (!start) return to;
+      const progress = Math.min(1, (performance.now() - morph.start) / morph.duration);
+      const ease = 1 - (1 - progress) ** 3;
+      return { x: start.x + (to.x - start.x) * ease, y: start.y + (to.y - start.y) * ease, z: start.z + (to.z - start.z) * ease };
+    };
+    /** Lets the nodes glide from where they are drawn now to where they belong next. */
+    const depart = () => nodes.map((_, index) => (visible[index] && (!diagram() || boxes[index]) ? current(index) : undefined));
+    const arrive = (before) => {
+      morph = still() ? undefined : { from: before, start: performance.now(), duration: 460 };
+      redraw();
+    };
 
     const extent = () => extentOf(state());
     const frameAll = () => frameOn(state());
+    /** Where the camera stands when everything is in the window. */
+    const framed = () => {
+      const copy = { ...state(), camera: { ...camera }, place: undefined };
+      frameOn(copy);
+      return copy.camera;
+    };
+    /** Moves the camera a part of the way to where everything is in the window; true when it is there. */
+    function follow() {
+      const target = framed();
+      const zoom = target.zoom - camera.zoom;
+      const x = target.x - camera.x;
+      const y = target.y - camera.y;
+      if (still() || (Math.abs(zoom) < camera.zoom * 0.002 && Math.abs(x) < 0.5 && Math.abs(y) < 0.5)) {
+        Object.assign(camera, { zoom: target.zoom, x: target.x, y: target.y });
+        return true;
+      }
+      camera.zoom += zoom * 0.18;
+      camera.x += x * 0.18;
+      camera.y += y * 0.18;
+      return false;
+    }
     function fit() {
       touched = false;
       glide = undefined;
-      frameAll();
       redraw();
     }
 
@@ -930,16 +975,29 @@
         if (progress >= 1) glide = undefined;
         redraw();
       }
+      if (turn) {
+        const progress = still() ? 1 : Math.min(1, (time - turn.start) / turn.duration);
+        const ease = 1 - (1 - progress) ** 3;
+        camera.yaw = turn.from.yaw + (turn.to.yaw - turn.from.yaw) * ease;
+        camera.pitch = turn.from.pitch + (turn.to.pitch - turn.from.pitch) * ease;
+        if (progress >= 1) turn = undefined;
+        redraw();
+      }
+      if (morph) {
+        if (time - morph.start >= morph.duration) morph = undefined;
+        redraw();
+      }
       if (!diagram() && alpha > 0.012) {
         // A few steps a frame while the layout settles.
         const steps = nodes.length > 1500 ? 1 : 2;
-        for (let turn = 0; turn < steps; turn++) {
+        for (let count = 0; count < steps; count++) {
           step(points, nodes, edges, visible, shown, alpha, flat, pinned, next);
           alpha *= 0.985;
         }
-        if (!touched) frameAll();
         redraw();
       }
+      // Until someone moves the picture, the camera follows it, without a jump.
+      if (!touched && !glide && !follow()) redraw();
       const ratio = root.devicePixelRatio || 1;
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       draw.placed = paint(canvasPen(context));
@@ -952,6 +1010,7 @@
 
     let observer;
     let themes;
+    let started = false;
     function destroy() {
       destroyed = true;
       cancelAnimationFrame(frame);
@@ -969,7 +1028,9 @@
       canvas.height = Math.round(height * ratio);
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
-      if (!touched) frameAll();
+      // The first picture stands at once; later the camera follows.
+      if (!touched && !started) frameAll();
+      started = true;
       redraw();
     }
 
@@ -1152,11 +1213,41 @@
     themes.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "style", "class"] });
     connect();
     arrange();
-    // The first picture is a settled one, within a short budget.
-    const started = Date.now();
-    for (let turn = 0; turn < 160 && Date.now() - started < 140; turn++) {
-      step(points, nodes, edges, visible, shown, alpha, flat, pinned, next);
-      alpha *= 0.985;
+    // What was in the picture before stays where it was; what is new starts next to what it is related to.
+    const known = new Set();
+    if (from?.positions) {
+      nodes.forEach((node, index) => {
+        const before = node.id === undefined ? undefined : from.positions.get(node.id);
+        if (!before) return;
+        points[index] = { x: before.x, y: before.y, z: flat ? 0 : Math.abs(before.z) < 1 ? (next() - 0.5) * LINK * 2 : before.z, vx: 0, vy: 0, vz: 0 };
+        known.add(index);
+      });
+    }
+    if (known.size) {
+      const placed = new Set(known);
+      for (let pass = 0; pass < 3; pass++) {
+        for (const [a, b] of edges) {
+          for (const [here, there] of [[a, b], [b, a]]) {
+            if (placed.has(here) || !placed.has(there)) continue;
+            const near = points[there];
+            points[here] = { x: near.x + (next() - 0.5) * LINK, y: near.y + (next() - 0.5) * LINK, z: flat ? 0 : near.z + (next() - 0.5) * LINK, vx: 0, vy: 0, vz: 0 };
+            placed.add(here);
+          }
+        }
+      }
+      // The camera goes on from where it stood, and the layout only has to settle.
+      Object.assign(camera, { zoom: from.camera.zoom, x: from.camera.x, y: from.camera.y });
+      if (!flat && from.form === "3d") Object.assign(camera, { yaw: from.camera.yaw, pitch: from.camera.pitch });
+      alpha = known.size * 2 >= nodes.length ? 0.5 : 0.9;
+      started = true;
+      if (diagram()) arrive(nodes.map((_, index) => (known.has(index) ? { ...points[index], z: 0 } : undefined)));
+    } else {
+      // The first picture is a settled one, within a short budget.
+      const begun = Date.now();
+      for (let count = 0; count < 160 && Date.now() - begun < 140; count++) {
+        step(points, nodes, edges, visible, shown, alpha, flat, pinned, next);
+        alpha *= 0.985;
+      }
     }
     resize();
 
@@ -1166,18 +1257,17 @@
       center,
       /** "2d", "diagram", or "3d": the same nodes in a plane, in layers, or in space. */
       mode(value) {
+        const before = depart();
         form = value;
         flat = value !== "3d";
-        camera.yaw = flat ? 0 : 0.6;
-        camera.pitch = flat ? 0 : 0.35;
+        // The camera turns to its new angle, and the nodes glide to their new places.
+        turn = { from: { yaw: camera.yaw, pitch: camera.pitch }, to: { yaw: flat ? 0 : 0.6, pitch: flat ? 0 : 0.35 }, start: performance.now(), duration: 520 };
         if (!flat) for (const point of points) if (Math.abs(point.z) < 1) point.z = (next() - 0.5) * LINK * 2;
         touched = false;
         glide = undefined;
-        if (diagram()) {
-          arrange();
-          frameAll();
-          redraw();
-        } else reheat(0.7);
+        if (diagram()) arrange();
+        else reheat(0.7);
+        arrive(before);
       },
       /** Which nodes (by index) and which kinds of relation show. */
       show(nodeFlags, kindFlags) {
@@ -1185,14 +1275,13 @@
         shown = kindFlags;
         if (hover >= 0 && !visible[hover]) hover = -1;
         if (selected >= 0 && !visible[selected]) selected = -1;
+        const before = depart();
         connect();
         arrange();
         touched = false;
         glide = undefined;
-        if (diagram()) {
-          frameAll();
-          redraw();
-        } else reheat(0.45);
+        if (diagram()) arrive(before.map((start, index) => (start && boxes[index] ? start : undefined)));
+        else reheat(0.45);
       },
       /** Sizes the nodes by a number each, or all the same without. */
       size(values) {
@@ -1222,14 +1311,22 @@
       },
       /** Starts the layout again and lets go of every node that was put somewhere. */
       relayout() {
+        const before = depart();
         pinned.clear();
         points = seed(nodes, scene.groups?.length ?? 1);
         arrange();
         touched = false;
         glide = undefined;
         alpha = 1;
-        if (diagram()) frameAll();
-        redraw();
+        arrive(before);
+      },
+      /** Where every node is drawn and where the camera stands, for the picture that follows this one (see `from`). */
+      snapshot() {
+        const positions = new Map();
+        nodes.forEach((node, index) => {
+          if (node.id !== undefined && visible[index] && (!diagram() || boxes[index])) positions.set(node.id, { ...current(index) });
+        });
+        return { positions, camera: { ...camera }, form };
       },
       /** How many relations each node has among what shows. */
       degree: () => degree,
