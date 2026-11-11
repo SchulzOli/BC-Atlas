@@ -39,6 +39,7 @@ configure it is [`bca setup`](./setup.md).
 | `codegraph` | `codegraph.outputDir` (default `docs/codegraph`) | `codegraph` section |
 | `handbook` | `handbook.outputDir` (default `docs/handbook`) | `handbook`: `outputDir`, `title`, `catalog` (links object names to the catalog; automatic when the run has the `codegraph` task); see [System handbook](./handbook.md) |
 | `layers` | `layers.outputDir` (default `docs/layers`) | `layers`: `outputDir`, `pictures`, `history` (`releases` records every release not recorded yet), `view`; see [Layered documentation](./layers.md) |
+| `ai` | `ai.outputDir` (default `docs/narrative`) | `ai`: `endpoint`, `model`, `outputDir`, `language`; the key in `BCA_AI_API_KEY`. Calls a model only for pages whose facts changed; see [BC Atlas AI](../plugins/ai/README.md) |
 | `diagrams` | each `diagrams[].output` | `diagrams`: list of `graph` options, e.g. `{ "view": "data", "output": "docs/data.svg" }` |
 
 ## Sync modes
