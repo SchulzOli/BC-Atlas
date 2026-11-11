@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.20.0
 
+- The engine is BC Atlas 0.20.0.
 - **Simulate**, next to Story: define who uses the app (agents, roles, task
   groups, requirements) in a form; a change is written to `.bca.json` and
   the simulation runs again. The new lens **Simulation** shows the company
