@@ -10,6 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { createService } from "../src/app/service.js";
 import { Workspace } from "../src/app/workspace.js";
 import { createCapabilities, findCommand } from "../src/capabilities.js";
 import { applyOperations, DEFINE_FIELDS, DEFINE_KINDS, defineSimulation, definitionOf } from "../src/simulation/define.js";
@@ -188,6 +189,24 @@ test("the graph shows the simulation: roles, a lens, and process tests grounded 
     assert.ok(differs.nodes.includes(order));
     assert.equal(changed.nodes[order].grounded, "Approve a released purchase request");
     assert.deepEqual(changed.simulation.definition.grounding, { "purchase-request-release": "release-a-request", "purchase-request-order": "approve-a-released-purchase-request" });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("the view defines the simulation through the service: written, run, and shown by the next graph", async () => {
+  const directory = copyOf(purchasing);
+  try {
+    const service = createService(new Workspace(directory, {}, { live: true }));
+    const people = async () => (await service.call("atlas")).nodes.filter((node) => node.kind === "person").map(({ label }) => label);
+    assert.deepEqual(await people(), ["Anna (Employee)", "Ben (Team lead)", "Carla (Purchaser)", "Dana (Administrator)"]);
+    const result = await service.call("defineSimulation", { operations: [{ op: "set", kind: "agent", name: "Eve", roles: ["Purchaser"], mustNot: ["Approval"] }] });
+    assert.deepEqual([result.written, path.basename(result.file), result.passed], [true, ".bca.json", false]);
+    assert.match(result.line, /^FAILED - 7 completed, 1 blocked; 5 denied as expected, 1 possible/u);
+    assert.ok((await people()).includes("Eve (Purchaser)"), "the graph is read again");
+    const tried = await service.call("defineSimulation", { dryRun: true, operations: [{ op: "remove", kind: "agent", name: "Eve" }] });
+    assert.equal(tried.written, false);
+    assert.ok((await people()).includes("Eve (Purchaser)"));
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

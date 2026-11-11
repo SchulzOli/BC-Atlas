@@ -28,6 +28,7 @@ it you see, in which form, and what stands out.
 | **Find** | Lights up the nodes whose name, type, component, namespace, or ID matches. **Enter** goes to the next match, **Shift+Enter** to the one before. |
 | **Check** | Puts a ring on every node with a finding, in the color of the worst one. The number is the errors and warnings. |
 | **Story** | Walks through the graph step by step. See [Stories](#stories). |
+| **Simulate** | Who uses the app: the company of the [battle test](./battle-test.md#define-the-simulation), its agents and roles, and a form to define each. A change runs the simulation again. There when the project has process tests. |
 | **View** | Color, size, and grouping of the nodes; arrange again; reset. |
 | **Export** | Saves what you see. See [Export](#export). |
 | **Live** | What the graph is read from, and reading it again. See [In step with the source](#in-step-with-the-source). |
@@ -87,6 +88,7 @@ select an object in one, switch, and it is still selected.
 | Processes | the process tests, in order, and the objects each touches | step, next, touches | `bca docs generate` |
 | People | who performs which process test with which permission sets | performs, blocked, must not, holds | `bca simulate` |
 | Requirements | what the company needs and the process tests that prove it | proven by | `bca simulate` |
+| Simulation | the company as one picture: people, their roles, the process tests, requirements, and the recordings the tests stand on | has role, does, forbids, blocked, proven by, grounds | `bca simulate define` |
 
 | Recordings | what was recorded in Business Central, the channels that sync it, and the objects each recording runs through | syncs, not synced, runs through, changes | `bca sync status` |
 

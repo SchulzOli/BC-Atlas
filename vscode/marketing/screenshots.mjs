@@ -54,6 +54,13 @@ try {
   await shot(path.join(screenshots, "people.png"), purchasing.file, { lens: "people", form: "diagram", sel: purchasing.id("Ben (Team lead)", "person") });
   await shot(path.join(screenshots, "components.png"), multi.file, { lens: "components", form: "diagram", sel: multi.id("Integration", "component") });
   await shot(path.join(screenshots, "inside.png"), purchasing.file, { inside: purchasing.id("Purchase Request Mgt."), form: "diagram" });
+  await shot(path.join(screenshots, "simulation.png"), purchasing.file, { lens: "simulation", form: "diagram", sel: purchasing.id("Team lead", "role") }, {
+    // The legend of this lens is long; folded, the whole company shows.
+    after: async (page) => {
+      await page.click("#legend [data-fold]");
+      await page.waitForTimeout(300);
+    }
+  });
   await shot(path.join(screenshots, "recordings.png"), purchasing.file, { lens: "sync", form: "diagram", sel: purchasing.id("Approve a released purchase request", "recording") });
 } finally {
   await browser.close();

@@ -155,11 +155,74 @@ To simulate your own company, describe it under `simulation` in `.bca.json`
 | `roles` | Who does it: `name`, `description`, `permissionSets`, and the work as `taskGroups`, `tasks`, or `features`. `mustNot` lists what the role must not be able to do (process tests, features, or task groups): segregation of duties, tested. |
 | `agents` | The people: `name` and `roles`, plus their own `permissionSets`, `taskGroups`, `tasks`, and `mustNot`. Without agents, there is one per role. |
 | `requirements` | What the company needs, for the fit-gap analysis: `id`, `title`, `description`, the process tests that cover it (`tasks`, `features`), and `objects` of the app that should cover it (`page:Name`, `codeunit:Name`). Without requirements, every `[FEATURE]` is one. |
+| `grounding` | Process tests grounded on recordings of Business Central: document ID of the test to the key or name of the recording. See [Grounding](#grounding-process-tests-on-recordings). |
 | `fullAccess` | Permission sets that grant everything although they are not in the source. Default: `["SUPER"]`. |
 | `otherApps` | Rights on objects of other apps that the analyzed permission sets do not grant: `assume` (default) takes them as given by that app's permission sets, `check` requires them. |
 | `failOn` | Lowest severity that fails the battle test: `error` (default), `warning`, `info`, or `never`. |
 | `language` | Language of the report: `en` (default) or `de`. |
 | `outputDir` | Folder of the report that `bca run` writes. Default: `docs/simulation`. |
+
+## Define the simulation
+
+You do not have to write the `simulation` section by hand. The company is
+changed by **operations**: add or change an agent, a role, a task group, or
+a requirement, remove one, ground a process test on a recording. The same
+operations come from three places, and each runs the changed simulation at
+once:
+
+| From | How |
+| --- | --- |
+| The view | **Simulate**, next to Story in the toolbar: the company, its agents and roles, and a form for each. The card of a person, a role, or a requirement on the graph has **Define…**, a process test **Ground…**. In VS Code a change is written to `.bca.json` and the graph shows the new result. An exported file is a snapshot: it collects the changes, saves them as `simulation-changes.json`, and `bca simulate define --from` applies them. |
+| The terminal | [`bca simulate define`](./cli-reference.md#simulate-define): `--agent Ben --roles "Team lead"`, `--role ... --permission-sets ...`, `--remove agent:Dana`, `--dry-run`. Without options it shows the simulation as it is. |
+| An agent | The MCP tool `bc_atlas_simulation_define` takes the operations as data and returns the definition and the result of the run. |
+
+```json
+[
+  { "op": "set", "kind": "role", "name": "Team lead", "permissionSets": ["PR - REQUEST", "PR - APPROVE"], "taskGroups": ["Requesting", "Approval"], "mustNot": ["Ordering"] },
+  { "op": "set", "kind": "agent", "name": "Ben", "roles": ["Team lead"] },
+  { "op": "set", "kind": "requirement", "name": "REQ-2", "title": "A team lead approves every request", "tasks": ["purchase-request-approve"] },
+  { "op": "ground", "task": "purchase-request-approve", "snapshot": "approve-a-released-purchase-request" },
+  { "op": "remove", "kind": "agent", "name": "Dana" }
+]
+```
+
+- `set` changes the fields it names and keeps the others; an empty list or
+  text takes a field away.
+- The first change of a project that defines nothing yet starts from the
+  company the process tests describe, so no role is lost.
+- The changed simulation runs before anything is written. A definition that
+  is not valid never reaches `.bca.json`; `--dry-run` (`dryRun`) writes
+  nothing at all.
+
+That makes the loop short, for a person and for an agent: look at a finding,
+change the company or a permission set, run again.
+
+### The Simulation canvas
+
+The lens **Simulation** of the view shows the definition and its result as
+one picture: the people, the roles they have, the process tests each role
+does (green) or must not do (red), who is blocked or can do what they must
+not, the requirements the tests prove, and the recordings they stand on.
+`bca view --lens simulation --form diagram -o simulation.svg` draws it
+without a window.
+
+### Grounding: process tests on recordings
+
+A process test says what should happen. A **recording** of the same process
+in Business Central (a fact snapshot of the [sync plugin](../plugins/sync/README.md))
+says what did. A test is grounded on the recording that has its title, or on
+the one `simulation.grounding` names:
+
+```json
+{ "simulation": { "grounding": { "purchase-request-approve": "approve-a-released-purchase-request" } } }
+```
+
+On the graph the recording points at the test (`grounds`), and the card of
+the test says what it stands on. Where the two differ, the finding
+`grounding-differs` names the objects: what ran in Business Central but the
+test never touches, and what the test touches but the recording did not run
+through. Documentation written from a grounded test stands on what really
+ran.
 
 ## The report
 
@@ -213,6 +276,8 @@ permission sets it names, and for every step what it needs and why.
 | warning | `unknown-permission-set` | A permission set is neither in the source nor in a symbol package. |
 | warning | `assigned-and-forbidden` | An agent is assigned what a role forbids; the assignment wins. |
 | info | `task-unverified` | Whether an agent can complete a task cannot be decided from the source. |
+| warning | `grounding-missing` | `simulation.grounding` names a recording that is not among the recordings of the project. In the view and in `bca view`. |
+| info | `grounding-differs` | A process test and the recording it stands on do not go through the same objects. In the view and in `bca view`. |
 
 `--fail-on` (or `simulation.failOn`) sets the severity that fails the run.
 
@@ -232,7 +297,9 @@ permission sets it names, and for every step what it needs and why.
   step, on the objects each touches. Whoever is blocked is red, and the
   finding on them says which permission is missing.
 - **German:** `--language de` writes the report and the steps in German.
-- **AI agents:** the MCP tool `bc_atlas_simulate` returns the report. An agent
+- **AI agents:** `bc_atlas_simulation_define` changes the company and runs
+  it (see [Define the simulation](#define-the-simulation)); the MCP tool
+  `bc_atlas_simulate` returns the report. An agent
   that sets up permission sets asks it which permission is missing, adds the
   line, and asks again; `agent` and `task` return the details of one agent or
   one process test. See [Agent integration](./agent-integration.md).

@@ -28,6 +28,32 @@ follows [Semantic Versioning](https://semver.org/).
     and fixed. A recorded state also holds `view.html`, the BC Atlas view
     of it to open in a browser.
 
+- **Define the simulation, from the view, the terminal, and an agent.** The
+  company of the battle test is changed by operations instead of by hand:
+  add or change an agent, a role, a task group, or a requirement, remove
+  one, ground a process test on a recording. Each change runs the simulation
+  at once, and what is not valid never reaches `.bca.json`. See
+  [Define the simulation](./docs/battle-test.md#define-the-simulation).
+  - **Simulate**, a menu next to Story in the toolbar of the view: the
+    company, its agents and roles, and a form for each; **Define…** on the
+    card of a person, a role, or a requirement. In VS Code a change is
+    written and the graph shows the new result; an exported file saves the
+    changes as `simulation-changes.json`.
+  - **`bca simulate define`**: `--agent`, `--role`, `--task-group`,
+    `--requirement` with their fields, `--remove`, `--ground`, `--init`,
+    `--from`, `--dry-run`. Without options it shows the simulation.
+  - **`bc_atlas_simulation_define`**, an MCP tool that takes the operations
+    and returns the definition and the result of the run.
+- **The Simulation canvas.** A new lens shows the company as one picture:
+  people, their roles, the process tests each role does or must not do, who
+  is blocked, the requirements the tests prove, and the recordings they
+  stand on. Roles are nodes of the graph.
+- **Grounding.** A process test stands on the recording of the same process
+  in Business Central (by title, or `simulation.grounding`). Where the test
+  and the recording go through different objects is the finding
+  `grounding-differs`; a named recording that is not there is
+  `grounding-missing`.
+
 ### Fixed
 
 - **The 3D form is in space.** It looked like the 2D graph seen from the

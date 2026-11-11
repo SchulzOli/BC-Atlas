@@ -96,6 +96,12 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_inspect` returns an architecture model.
 - `bc_atlas_check` returns the architecture health report used by `bca check`.
 - `bc_atlas_simulate` runs the [battle test](./battle-test.md): agents with the company's roles, permission sets, and task groups perform the process tests. It returns who is blocked at which step and by which missing permission, who can do what they must not, the processes, the fit-gap analysis, and findings with what to do; `agent` or `task` returns the details of one agent or one process test, `markdown: true` the report as documentation.
+- `bc_atlas_simulation_define` defines the simulation: operations add or
+  change an agent, a role, a task group, or a requirement, remove one, or
+  ground a process test on a recording of Business Central. The changed
+  simulation runs at once and its result comes back; `dryRun` writes
+  nothing. An agent that fixes a finding changes the company, reads the
+  result, and goes on.
 - `bc_atlas_view` is the [BC Atlas view](./vscode.md#the-bc-atlas-view) without a window: without arguments it returns the lenses and stories of the project; `lens` returns that part of the one graph (nodes with their facts and findings, and relations), `inside` an object's procedures and what each does, `focus` a node and what is near it, `story` a generated walk through the graph (what the system is, a process step by step, what to fix). `format` `text`, `md`, or `csv` returns that text; `output` writes a file, also a picture (`svg`, `png`) in a `form`. The same as `bca view`.
 - `bc_atlas_architecture` returns the target architecture with work items (with the `bca refactor` command for moves), data ownership, and checks.
 - `bc_atlas_extraction_plan` plans extracting one component as an app: blockers, `app.json`, data moves, and steps.

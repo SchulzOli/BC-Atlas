@@ -200,6 +200,7 @@
             }
           }
         },
+        "grounding": { "description": "Process tests grounded on recordings of Business Central (fact snapshots of the sync plugin): document ID of the test to the key or name of the recording. Without an entry a test stands on the recording that has its title.", "type": "object", "additionalProperties": { "type": "string" } },
         "fullAccess": { "description": "Permission sets that grant everything although they are not in the analyzed source.", "$ref": "#/$defs/names", "default": ["SUPER"] },
         "otherApps": { "description": "Rights on objects of other apps that the analyzed permission sets do not grant: assume them (they come with that app's permission sets) or check them.", "enum": ["assume", "check"], "default": "assume" },
         "failOn": { "enum": ["error", "warning", "info", "never"], "default": "error" },
