@@ -42,6 +42,7 @@ Thumbs.db
 !examples/docs/*.svg
 !examples/docs/diagrams/
 !examples/docs/diagrams/*.svg
+!examples/simulation/*.svg
 !examples/layers/
 !examples/layers/*.svg
 !examples/layers/*/

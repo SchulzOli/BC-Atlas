@@ -208,6 +208,42 @@ not, the requirements the tests prove, and the recordings they stand on.
 `bca view --lens simulation --form diagram -o simulation.svg` draws it
 without a window.
 
+### A run, step by step
+
+The result of a simulation is a list. A **run** shows how it came about: one
+person performs the assigned process tests, step after step, and the
+picture is built by it. It starts with the person alone. Every step adds
+the process test it belongs to and the objects it needs, and says whether
+the person can do it. Where the person is stopped, the step says which
+permission is missing and what to add; the steps after it are marked as not
+reached. The last step is the whole picture of the run.
+
+- **In the view**: **Simulate › Run, step by step** lists one run per
+  person. It plays in the diagram form; Space pauses, the arrow keys step
+  by hand, and the address of the page holds the step, so a step can be
+  shared.
+- **In the terminal and for agents**: a run is a story of the view.
+
+  ```sh
+  bca view                                   # lists the runs: run:Anna, run:Ben, ...
+  bca view --story run:Ben                   # every step as text: [done], [blocked], [waiting]
+  bca view --story run:Ben --step 13 --form diagram -o stopped.svg
+  ```
+
+  The MCP tool `bc_atlas_view` takes the same `story` and `step`.
+- **As documentation**: [`bca layers`](./layers.md) and
+  [`bca bundle`](./bundle.md) write one page per run, with every step and
+  the picture the run built.
+
+![Ben is stopped at the third step of the approval: the red line leads to the process test, the blue lines to the objects the step needs](../examples/simulation/run-ben-stopped.svg)
+
+Ben in the purchasing example, at step 13 of 15: he created and released a
+request, and is stopped when he approves one.
+[The whole run as text](../examples/simulation/run-ben.md).
+
+The lens **Run** is the canvas of all runs together: every person, the
+process tests they perform, and the objects each test touches.
+
 ### Grounding: process tests on recordings
 
 A process test says what should happen. A **recording** of the same process

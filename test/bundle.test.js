@@ -162,7 +162,13 @@ test("bca bundle makes one artifact of the whole: validation, simulation, snapsh
     writeFileSync(path.join(directory, "TestResults.xml"), '<testsuites><testsuite name="UI" tests="5" failures="0" errors="0" skipped="0"/></testsuites>');
     const { output, zip, passed, manifest } = await createBundle(directory, { compiler: "off", output: path.join(directory, "out", "bundle"), testResults: [path.join(directory, "TestResults.xml")], include: [path.join(directory, "output")], noNarrative: true }, { now: new Date("2026-11-11T12:00:00Z") });
     assert.equal(manifest.schema, BUNDLE_SCHEMA);
-    assert.deepEqual(manifest.steps.map(({ id, status }) => `${id}:${status}`), ["check:passed", "simulate:failed", "snapshots:passed", "docs:passed", "narrative:skipped", "tests:passed", "build:passed"]);
+    assert.deepEqual(manifest.steps.map(({ id, status }) => `${id}:${status}`), ["check:passed", "simulate:failed", "snapshots:passed", "runs:passed", "docs:passed", "narrative:skipped", "tests:passed", "build:passed"]);
+    // The runs of the simulation are in the bundle: one page per person, step by step, with the picture the run built.
+    assert.equal(manifest.steps.find(({ id }) => id === "runs").summary, "4 run(s), one per person: Anna at work, Ben at work, Carla at work, Dana at work");
+    const page = readFileSync(path.join(output, "docs", "stories", "run-ben.md"), "utf8");
+    assert.match(page, /^# Ben at work\n\n\[System\]\(\.\.\/README\.md\) › Stories\n\n!\[Run\]\(run-ben\.svg\)\n/u);
+    assert.match(page, /## 13\. Approve a released purchase request · step 3\n\n.+Ben is stopped here: /u);
+    assert.match(readFileSync(path.join(output, "docs", "stories", "run-ben.svg"), "utf8"), /Request Notifications/u);
     assert.equal(passed, false, "the simulation of the example fails, so the bundle says so");
     assert.equal(manifest.steps.find(({ id }) => id === "tests").summary, "5 test(s), 0 failed, 0 skipped, from 1 result file(s)");
     assert.deepEqual([manifest.title, manifest.createdAt, manifest.counts.objects], ["BC Atlas Purchasing Example", "2026-11-11T12:00:00.000Z", 16]);

@@ -27,6 +27,18 @@ follows [Semantic Versioning](https://semver.org/).
   `simulation.snapshotDir`) writes one fact snapshot per process test in the
   schema of the recordings: its steps as phases, what each step needs as
   technical steps, and who performs it.
+- **A run of the simulation, step by step.** A run shows how the result
+  came about: one person performs the assigned process tests, and each step
+  shows where the person is. The picture is built by it: it starts with the
+  person, every step adds the process test and the objects it needs, and
+  where the person is stopped the step says which permission is missing and
+  what to add. In the view under **Simulate › Run, step by step**; in the
+  terminal and for agents as the stories `run:<person>` of `bca view` and
+  `bc_atlas_view`; in `bca layers` and `bca bundle` as one page per run
+  with its picture. The new lens **Run** is the canvas of all runs.
+- **Simulate and build in one place.** The Simulate menu of the view builds
+  the bundle (in VS Code), and the bundle has the step **Runs, step by
+  step**.
 - **Simulate in the view says what stops it.** The menu lists the findings
   of the simulation at the top, each one click from the person or the
   process test it is about, and **Start from the process tests** writes the

@@ -634,6 +634,7 @@ bca view ./app --inside component:Core                    # a component, an app,
 bca view ./app --lens sync                                # a lens of a plugin: the recordings of Business Central
 bca view ./app --focus "table:Sales Header" --depth 2 --format json
 bca view ./app --story fix                                # a story, step by step
+bca view ./app --story run:Ben --step 13 --form diagram -o stopped.svg   # a run of the simulation, as that step built it
 bca view ./app --stories -o docs/system.md                # every story as one document
 bca view ./app --lens system --rows relations -o relations.csv
 bca view ./app --format json > atlas.json                 # the whole graph
@@ -659,7 +660,7 @@ bca view ./app --format json > atlas.json                 # the whole graph
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--lens` | id | What the graph shows: `system` (default), `components`, `apps`, `modules`, `data`, `calls`, `events`, `contracts`, `pages`, `security`, `visibility`, `health`, `processes`, `people`, `requirements`, and the lenses of plugins, such as `sync` (the recordings of Business Central). A lens with nothing in it does not exist for a project; `bca view` without options lists the lenses a project has. |
+| `--lens` | id | What the graph shows: `system` (default), `components`, `apps`, `modules`, `data`, `calls`, `events`, `contracts`, `pages`, `security`, `visibility`, `health`, `processes`, `people`, `requirements`, `simulation`, `run`, and the lenses of plugins, such as `sync` (the recordings of Business Central). A lens with nothing in it does not exist for a project; `bca view` without options lists the lenses a project has. |
 | `--inside` | node | Go into one node. An object opens to its procedures, triggers, and events, and what each does with other objects; an app, a component, or a namespace opens to its objects and what they do with each other. A name, an ID, or a selector such as `codeunit:50100` or `component:Core`. |
 | `--focus` | node | Only this node and what is near it. A name, an ID, or a selector such as `table:Customer`, `component:Core`, or `person:Anna`. |
 | `--depth` | n | How many steps from the `--focus` node. Default: `1`. |
@@ -667,8 +668,8 @@ bca view ./app --format json > atlas.json                 # the whole graph
 | `--hide` | kinds | Kinds of node to leave out, as the legend names them (`codeunit`, `table`, `other apps`), comma-separated or repeated. |
 | `--off` | kinds | Kinds of relation to leave out (`uses`, `reads`, `permits`), comma-separated or repeated. |
 | `--check` | flag | In a picture, a ring on every node with a finding; in text, the findings with their fixes below each node. |
-| `--story` | id | A story instead of a lens: its steps with their texts. The overview lists the stories of the project. |
-| `--step` | n | One step of the `--story`, from 1: its nodes, in its lens. |
+| `--story` | id | A story instead of a lens: its steps with their texts. The overview lists the stories of the project. `run:<agent>` is the [run](./battle-test.md#a-run-step-by-step) of the simulation of one person. |
+| `--step` | n | One step of the `--story`, from 1: its nodes, in its lens. For a run, the picture holds what the run reached at that step. |
 | `--stories` | flag | Every story of the system as one document (`text`, `md`, or `json`). |
 | `--form` | form | The form of a picture: `2d` (default), `diagram`, or `3d`. |
 | `--color` | by | Color the nodes by `type`, `component`, `namespace`, `app`, `level`, or `findings` instead of what the lens does. |

@@ -61,6 +61,8 @@ try {
       await page.waitForTimeout(300);
     }
   });
+  // A run of the simulation at the step where Ben is stopped: the picture as the run built it so far.
+  await shot(path.join(screenshots, "run.png"), purchasing.file, { lens: "run", story: "run:Ben", step: "12", form: "diagram" });
   await shot(path.join(screenshots, "recordings.png"), purchasing.file, { lens: "sync", form: "diagram", sel: purchasing.id("Approve a released purchase request", "recording") });
 } finally {
   await browser.close();

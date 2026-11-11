@@ -219,11 +219,19 @@
    * What of a scene shows: the classes and kinds of relation a state hides are out.
    * @returns { nodes: Uint8Array, kinds: Uint8Array, degree: Uint32Array } flags by index, and how many relations each node has among what shows
    */
-  function shown(view, state) {
+  function shown(view, state, atlas) {
     const hidden = list(state.hide);
     const off = list(state.off);
     // A class by its key, or by its name in the legend ("other apps").
     const nodes = Uint8Array.from(view.classOf, (entry) => (hidden.has(String(entry.key)) || hidden.has(String(entry.label)) ? 0 : 1));
+    // A story that builds its picture (a run of the simulation): what no step has reached yet does not show.
+    const story = atlas?.stories.find(({ id }) => id === state.story);
+    if (story?.build) {
+      const reached = new Set();
+      const upTo = Math.min(Number(state.step) || 0, story.steps.length - 1);
+      for (const step of story.steps.slice(0, upTo + 1)) for (const at of step.nodes) reached.add(atlas.nodes[at]?.id);
+      view.entries.forEach(({ node }, at) => { if (!reached.has(node.id)) nodes[at] = 0; });
+    }
     const kinds = Uint8Array.from(view.kinds, ({ kind }) => (off.has(kind) ? 0 : 1));
     const degree = new Uint32Array(view.entries.length);
     for (const [from, to, kind] of view.edges) {

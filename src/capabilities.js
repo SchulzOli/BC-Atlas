@@ -37,7 +37,7 @@ export const SEVERITIES = Object.freeze(["error", "warning", "info"]);
 export const FAIL_LEVELS = Object.freeze(["error", "warning", "info", "never"]);
 export const REPORT_VIEWS = Object.freeze(["project", "module", "data", "contracts", "events", "ui"]);
 // What the view shows (the lenses of src/app/atlas.js), its forms, and what `bca view` writes.
-export const VIEW_LENSES = Object.freeze(["system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements", "simulation"]);
+export const VIEW_LENSES = Object.freeze(["system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements", "simulation", "run"]);
 export const VIEW_FORMS = Object.freeze(["2d", "diagram", "3d"]);
 export const VIEW_FORMATS = Object.freeze(["text", "json", "md", "csv", "svg", "png", "link"]);
 
@@ -640,7 +640,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           hide: string("Kinds of node to leave out, as the legend names them (codeunit, table, other apps, ...), comma-separated.", { group: SELECTION, repeatable: true, value: "kinds" }),
           off: string("Kinds of relation to leave out (uses, reads, permits, ...), comma-separated.", { group: SELECTION, repeatable: true, value: "kinds" }),
           check: flag("What Check does: a ring on every node with a finding in a picture; the findings with their fixes below each node in text.", { group: SELECTION }),
-          story: string("A story instead of a lens: its steps with their texts. With --step, the nodes of that step in its lens.", { group: "Stories", value: "id" }),
+          story: string("A story instead of a lens: its steps with their texts. With --step, the nodes of that step in its lens. run:<agent> is the run of the simulation of one person; its picture holds what the run reached at that step.", { group: "Stories", value: "id" }),
           step: string("One step of the --story, from 1: what stands out in it.", { group: "Stories", value: "n" }),
           stories: flag("Every story of the system as one document (text, md, or json).", { group: "Stories" }),
           form: string("The form of a picture: a graph in a plane, boxes in layers in the direction of the relations, or a graph in space.", { group: RENDERING, enum: VIEW_FORMS, default: "2d" }),

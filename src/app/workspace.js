@@ -192,6 +192,17 @@ export class Workspace {
   }
 
   /**
+   * Builds the bundle (src/commands/bundle.js) next to the project.
+   * @returns { folder, passed, steps }
+   */
+  async bundle({ output = "bc-atlas-bundle" } = {}) {
+    const { options } = await this.model();
+    const { createBundle } = await import("../commands/bundle.js");
+    const result = await createBundle(this.input, { ...this.values, output: path.resolve(options.projectRoot, output) });
+    return { folder: path.relative(options.projectRoot, result.output).replaceAll("\\", "/"), passed: result.passed, steps: result.manifest.steps };
+  }
+
+  /**
    * Changes the simulation (src/simulation/define.js) in .bca.json and runs it.
    * @param change { operations, init, dryRun }
    * @returns { file, written, derived, definition, line, passed }

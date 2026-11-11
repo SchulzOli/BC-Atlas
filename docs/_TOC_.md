@@ -55,5 +55,6 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 - [Layered documentation (three-app example)](./../examples/layers/README.md)
 - [User guides from AL UI tests (warehouse example)](./../examples/docs/index.md)
 - [Battle test (purchasing example)](./../examples/simulation/README.md)
+- [A run of the simulation, step by step (purchasing example)](./../examples/simulation/run-ben.md)
 - [Dependency explorer (multi-app example)](./../examples/explorer/README.md)
 - [Knowledge graph (warehouse example)](./../examples/knowledge-graph/warehouse-app.ttl)

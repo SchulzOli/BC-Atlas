@@ -238,10 +238,11 @@
     }
 
     // What shows: classes and kinds of relation switched off in the legend.
-    flags = S.shown(scene, state);
-    const showKey = `${state.hide}\n${state.off}`;
+    flags = S.shown(scene, state, atlas);
+    // A run builds its picture: every step shows more.
+    const showKey = `${state.hide}\n${state.off}${story?.build ? `\n${state.story}\n${state.step}` : ""}`;
     if (applied.show !== showKey) {
-      if (applied.show !== undefined || state.hide || state.off) graph.show(flags.nodes, flags.kinds.length ? flags.kinds : new Uint8Array(1).fill(1));
+      if (applied.show !== undefined || state.hide || state.off || story?.build) graph.show(flags.nodes, flags.kinds.length ? flags.kinds : new Uint8Array(1).fill(1));
       applied.show = showKey;
     }
     graph.room(room, { follow: moved });
@@ -328,10 +329,11 @@
     const check = $("#check-button");
     check.setAttribute("aria-pressed", String(Boolean(state.check)));
     check.title = `${plural(counts.error, "error")}, ${plural(counts.warning, "warning")}, ${counts.info} info. Show them on the graph (C)`;
-    $("#story-button").setAttribute("aria-pressed", String(Boolean(state.story)));
+    const running = storyOf(state.story)?.kind === "run";
+    $("#story-button").setAttribute("aria-pressed", String(Boolean(state.story) && !running));
     // Simulate is there when the project has process tests to perform.
     $("#simulate-button").hidden = !atlas.simulation;
-    $("#simulate-button").setAttribute("aria-pressed", String(state.lens === "simulation" && !state.inside));
+    $("#simulate-button").setAttribute("aria-pressed", String(running || (state.lens === "simulation" && !state.inside)));
     const sync = $("#sync-button");
     sync.className = `tool status menu ${LIVE ? "live" : ""}`;
     $("#sync-text").textContent = LIVE ? "Live" : new Date(SNAPSHOT.generatedAt).toLocaleDateString();
@@ -351,8 +353,11 @@
     const counts = new Map();
     for (const edge of scene.edges) counts.set(edge[2], (counts.get(edge[2]) ?? 0) + 1);
     folded ??= innerWidth < 720;
+    // A run says how far its picture is built.
+    const building = Boolean(storyOf(state.story)?.build) && flags;
+    const reached = building ? flags.nodes.reduce((sum, visible) => sum + (visible ? 1 : 0), 0) : 0;
     element.innerHTML = `
-      <div class="where"><b>${esc(scene.title)}</b><span>${plural(scene.entries.length, "node")}, ${plural(scene.edges.length, "relation")}</span><button class="fold" data-fold aria-expanded="${!folded}" title="${folded ? "Show the legend" : "Hide the legend"}" aria-label="Legend"></button>${folded ? "" : `<p>${esc(scene.summary)}</p>`}</div>
+      <div class="where"><b>${esc(scene.title)}</b><span>${building ? `${fmt(reached)} of ` : ""}${plural(scene.entries.length, "node")}, ${plural(scene.edges.length, "relation")}</span><button class="fold" data-fold aria-expanded="${!folded}" title="${folded ? "Show the legend" : "Hide the legend"}" aria-label="Legend"></button>${folded ? "" : `<p>${esc(scene.summary)}</p>`}</div>
       ${folded ? "" : `<div class="chips">${scene.classes.map((entry) => `<button class="chip ${hidden.has(String(entry.key)) ? "off" : ""}" data-class="${esc(entry.key)}" title="Show or hide"><i style="color:${esc(entry.color)}"></i>${esc(entry.label)} <small>${fmt(entry.count)}</small></button>`).join("")}</div>
       ${scene.kinds.length ? `<div class="chips">${scene.kinds.map((kind, index) => `<button class="chip ${off.has(kind.kind) ? "off" : ""}" data-kind="${esc(kind.kind)}" title="Show or hide"><i class="line ${kind.dash ? "dash" : ""}" style="color:${esc(kind.color)}"></i>${esc(kind.kind)} <small>${fmt(counts.get(index) ?? 0)}</small></button>`).join("")}</div>` : ""}`}`;
   }
@@ -610,6 +615,7 @@
       ${kind.lists.map(checks).join("")}
       <hr><div class="actions"><button class="btn primary" data-sim="apply">Apply</button>${simForm.name && simEntry(simForm.kind, simForm.name) ? '<button class="btn" data-sim="remove">Remove</button>' : ""}<button class="btn" data-sim="back">Back</button></div>`;
   }
+  const runsOf = () => atlas.stories.filter(({ kind }) => kind === "run");
   MENUS.simulate = () => {
     if (simForm) return simulateForm();
     const { definition, derived } = atlas.simulation;
@@ -627,6 +633,7 @@
     return `<p class="text"><b>${esc(definition.company ?? battle.company ?? "The company")}</b>${derived ? ", as the process tests describe it. Nothing is defined yet: the first change starts from this." : ", as <code>.bca.json</code> defines it."}
         ${plural(people.length, "agent")}, ${stopped ? `${stopped} stopped or able to do what they must not` : "all get through"}.</p>
       ${problems.length ? `<h3>${battle.passed ? "To look at" : "What stops it"}</h3>${problems.slice(0, 6).map((finding) => `<button class="item" role="menuitem" data-sim-go="${esc(atlas.nodes[finding.nodes[0]]?.id ?? "")}"><b>${esc(finding.severity)} · ${esc(finding.rule)}</b><small>${esc(finding.message)}${finding.fix ? ` ${esc(finding.fix)}` : ""}</small></button>`).join("")}${problems.length > 6 ? `<p class="text" style="color:var(--muted);font-size:12.5px">and ${problems.length - 6} more: turn on Check.</p>` : ""}` : ""}
+      ${runsOf().length ? `<h3>Run, step by step</h3>${runsOf().map((story) => `<button class="item" role="menuitem" data-sim-run="${esc(story.id)}" ${story.id === state.story ? 'aria-current="true"' : ""}><b>▶ ${esc(story.title)}</b><span>${plural(story.steps.length, "step")}</span><small>${esc(story.summary)}</small></button>`).join("")}` : ""}
       ${derived && LIVE ? '<div class="actions"><button class="btn primary" data-sim="init" title="Writes the roles the process tests name into .bca.json, as the start of your own company">Start from the process tests</button></div>' : ""}
       <button class="item" role="menuitem" data-sim="show" ${state.lens === "simulation" && !state.inside ? 'aria-current="true"' : ""}><b>Show the simulation</b><small>People and roles, the process tests each does or must not do, the recordings they stand on, the requirements they prove</small></button>
       <h3>Agents</h3>${items("agent")}
@@ -638,6 +645,9 @@
       ${simChanges.length ? `<hr><h3>${plural(simChanges.length, "change")} to save</h3><ul class="pending">${simChanges.map((operation) => `<li>${esc(operation.op)} ${esc(operation.kind ?? "")} ${esc(operation.name ?? operation.task ?? "")}</li>`).join("")}</ul>
         <div class="actions"><button class="btn primary" data-sim="save">Save the changes (JSON)</button><button class="btn" data-sim="forget">Forget them</button></div>
         <p class="text" style="color:var(--muted);font-size:12.5px">This file is a snapshot. Apply the changes to the project with <code>bca simulate define --from simulation-changes.json</code>.</p>` : ""}
+      <hr><h3>Build</h3>
+      ${LIVE ? '<div class="actions"><button class="btn" data-sim="bundle" title="Validation, the simulation with its runs and snapshots, the documentation, and the view, as one folder and one ZIP file">Build the bundle</button></div>'
+    : '<p class="text" style="color:var(--muted);font-size:12.5px">Everything the simulation shows as one artifact: <code>bca bundle</code>.</p>'}
       <hr><p class="text" style="color:var(--muted);font-size:12.5px">${LIVE ? "A change is written to <code>.bca.json</code> and the simulation runs again." : "The same from a terminal or an agent: <code>bca simulate define</code>, or the MCP tool <code>bc_atlas_simulation_define</code>."}</p>`;
   };
   /** Opens the Simulate menu on the form of one thing: from the menu, or from the card of a node. */
@@ -673,6 +683,18 @@
       if (simForm.kind === "ground") simForm.name = atlas.simulation.tasks[0]?.id;
       $("#popover").innerHTML = MENUS.simulate();
       return $("#popover").querySelector("input:not([readonly]), select")?.focus({ preventScroll: true });
+    }
+    if (item.dataset.simRun) {
+      // A run plays on the canvas of the simulation and builds its picture step by step.
+      const story = storyOf(item.dataset.simRun);
+      closeMenu();
+      stop();
+      return set({ story: story.id, step: "0", q: "", form: "diagram", sel: "", hide: "", off: "" }).then(() => play(story));
+    }
+    if (item.dataset.sim === "bundle") {
+      closeMenu();
+      toast("Building the bundle…");
+      return call("bundle").then((result) => toast(`${result.passed ? "Everything passed." : "Not everything passed."} Wrote ${result.folder} and ${result.folder}.zip.`), (error) => toast(error.message));
     }
     if (item.dataset.simGo) {
       // To what a finding is about, on the canvas of the simulation.
@@ -758,7 +780,7 @@
   $("#popover").addEventListener("click", async (event) => {
     const item = event.target.closest("button");
     if (!item) return;
-    if (item.dataset.sim || item.dataset.simEdit || item.dataset.simNew || item.dataset.simGo !== undefined) simulateClick(item);
+    if (item.dataset.sim || item.dataset.simEdit || item.dataset.simNew || item.dataset.simGo !== undefined || item.dataset.simRun) simulateClick(item);
     else if (item.dataset.setLens) {
       closeMenu();
       set({ lens: item.dataset.setLens, inside: "", focus: "", story: "", hide: "", off: "", size: "", color: "", group: "" });

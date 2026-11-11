@@ -15,6 +15,7 @@ bca bundle --no-zip --format json                 # the folder only; the manifes
 | **Validation** | The [health check](./health-checks.md) of the source: architecture, rules, AL compiler findings. | `check/` |
 | **Simulation** | The [battle test](./battle-test.md): the people of your company perform the process tests, and the recordings of Business Central. | `simulation/` |
 | **Snapshots from the source** | One fact snapshot per process test: its steps, what each needs, who performs it. | `snapshots/` |
+| **Runs, step by step** | The [run](./battle-test.md#a-run-step-by-step) of every person: each step of the assigned process tests, where it goes and where it stops, with the picture the run built. | `docs/stories/run-<person>.md` |
 | **Documentation** | The [layered documentation](./layers.md), from the system down to each procedure, with the BC Atlas view of it as `view.html`. | `docs/` |
 | **Narrative** | Pages a model writes from the facts, when the [AI plugin](../plugins/ai/README.md) is set up. Skipped otherwise; it never fails the bundle. | `narrative/` |
 | **Tests that ran** | The results of tests that really ran, counted: JUnit or xUnit XML, as AL-Go and the AL test runner write them (`--test-results`). | `tests/` |

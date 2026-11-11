@@ -125,7 +125,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     // The view without a window: what there is to see, a lens, an opened object, a story, a picture.
     const view = async (args) => client.callTool({ name: "bc_atlas_view", arguments: { path: path.join(root, "examples", "purchasing-app"), ...args } });
     const overview = JSON.parse((await view({})).content[0].text);
-    assert.deepEqual(overview.lenses.slice(-5).map(({ id, nodes }) => [id, nodes]), [["processes", 15], ["people", 14], ["requirements", 11], ["simulation", 21], ["sync", 9]]);
+    assert.deepEqual(overview.lenses.slice(-6).map(({ id, nodes }) => [id, nodes]), [["processes", 15], ["people", 14], ["requirements", 11], ["simulation", 21], ["run", 17], ["sync", 9]]);
     assert.equal(overview.nodes, undefined, "not every node of the project at once");
     const people = JSON.parse((await view({ lens: "people", focus: "person:Ben" })).content[0].text);
     assert.ok(people.relations.some(({ kind }) => kind === "blocked"));

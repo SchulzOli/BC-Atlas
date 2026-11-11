@@ -118,6 +118,15 @@ again, so the graph shows at once who gets through and who is stopped. The
 same works from a terminal (`bca simulate define`) and for AI agents (the
 MCP tool `bc_atlas_simulation_define`).
 
+![A run of the simulation: Ben is stopped at the third step of the approval, and the picture shows what the run reached so far](marketing/screenshots/run.png)
+
+**Run, step by step**, in the same menu, plays the simulation of one person
+on the graph. It starts with the person alone; every step adds the process
+test and the objects it needs, and says whether the person can do it. Where
+the person is stopped, the step names the missing permission and what to
+add. **Build the bundle** then writes validation, the simulation with its
+runs, the documentation, and the view as one folder and one ZIP file.
+
 ## Right where you code
 
 - **The graph follows the source**: save a file and it is read again.

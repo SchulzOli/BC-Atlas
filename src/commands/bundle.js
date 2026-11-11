@@ -102,12 +102,16 @@ export async function createBundle(input, values = {}, context = {}) {
     for (const task of tests) put(`snapshots/${slug(task.id)}.json`, `${JSON.stringify(snapshotOf(task, simulation), null, 2)}\n`);
     step("snapshots", "Snapshots from the source", tests.length ? "passed" : "skipped", tests.length ? `${tests.length} process test(s) as fact snapshots` : "no process tests");
   }
+  const runsOf = (atlas) => atlas.stories.filter(({ kind }) => kind === "run");
 
   // 3. Documentation: the layers from the system down to each procedure, and the view of it.
   const layers = await buildLayers(new Workspace(root, analysis, { live: false }), { pictures: values.pictures ?? config.layers?.pictures ?? "auto", view: true });
   for (const [file, content] of layers.files) put(`docs/${file}`, content);
   const counts = layers.manifest.counts;
   step("docs", "Documentation", "passed", `${counts.objects} object(s) in ${counts.apps} app(s), ${layers.files.size} file(s)`);
+  // The runs of the simulation are pages of the documentation: one per person, step by step, with the picture the run built.
+  const runs = runsOf(layers.atlas);
+  if (runs.length) steps.splice(steps.findIndex(({ id }) => id === "snapshots") + 1, 0, { id: "runs", title: "Runs, step by step", status: "passed", summary: `${runs.length} run(s), one per person: ${runs.map(({ title }) => title).join(", ")}` });
 
   // 4. Narrative: what a model writes from the facts, when one is set up. It never fails the bundle.
   if (values.noNarrative) step("narrative", "Narrative", "skipped", "switched off");
@@ -171,7 +175,7 @@ export async function createBundle(input, values = {}, context = {}) {
   const title = values.title ?? layers.atlas.title;
   const createdAt = (context.now ?? new Date()).toISOString();
   const mark = { passed: "✅ passed", failed: "❌ failed", skipped: "– skipped" };
-  const where = { check: "check/README.md", simulate: "simulation/README.md", snapshots: "snapshots/", docs: "docs/README.md", narrative: "narrative/", tests: "tests/", build: "build/" };
+  const where = { check: "check/README.md", simulate: "simulation/README.md", runs: "docs/README.md#stories", snapshots: "snapshots/", docs: "docs/README.md", narrative: "narrative/", tests: "tests/", build: "build/" };
   put("README.md", [
     `# ${title}: bundle`, "",
     `${passed ? "Everything passed." : "Not everything passed."} Made by BC Atlas ${pkg.version} on ${createdAt.slice(0, 10)}${source.commit ? ` from commit \`${source.commit.slice(0, 10)}\`${source.branch && source.branch !== "HEAD" ? ` on \`${source.branch}\`` : ""}${source.dirty ? ", with changes that are not committed" : ""}` : ""}.`, "",

@@ -207,6 +207,11 @@ Without a `simulation` section, the `[PERMISSIONS]` of the tests are the
 roles. See [Battle test](./docs/battle-test.md) and the
 [example report](./examples/simulation/README.md).
 
+A run shows how the result came about: `bca view --story run:Ben` (or
+**Simulate › Run, step by step** in the view) follows one person through
+the assigned process tests, and the picture is built step by step
+([example](./examples/simulation/run-ben.md)).
+
 ## Automate it
 
 `bca setup` asks once and wires everything to `bca run`:
