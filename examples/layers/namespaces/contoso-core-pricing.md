@@ -19,6 +19,12 @@ The namespace Contoso.Core.Pricing holds 3 objects (2 codeunits, 1 interface). I
 
 - depends on [Contoso.Sales.Quotes](contoso-sales-quotes.md)
 
+## What to change here
+
+- 6. Make 1 object of Core internal (small)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Objects
 
 | Object | Type | ID | Component | Lines | Uses | Used by | Findings |

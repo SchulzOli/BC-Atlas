@@ -18,6 +18,15 @@ The component Integration holds 2 objects (2 codeunits) in layer 2. It depends o
 - depends on [Sales](sales.md)
 - wrong way [Core](core.md)
 
+## What to change here
+
+- 3. CON Item Sync: declare the dependency; it points inward (small)
+- 4. Let Core own the writes to table 50000 CON Item (medium)
+- 5. Let Sales own the writes to table 50100 CON Sales Quote (medium)
+- 7. Make 2 objects of Integration internal (small)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Objects
 
 | Object | Type | ID | Namespace | Lines | Uses | Used by | Findings |

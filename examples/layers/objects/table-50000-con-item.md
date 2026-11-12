@@ -31,6 +31,13 @@ The table CON Item of the app Contoso Core, in the component Core, has 17 lines.
 - **uses** [codeunit 50010 CON Standard Pricing](codeunit-50010-con-standard-pricing.md), [codeunit 50201 CON Item Sync](codeunit-50201-con-item-sync.md)
 - **writes** [codeunit 50201 CON Item Sync](codeunit-50201-con-item-sync.md)
 
+## What to change here
+
+- 3. CON Item Sync: declare the dependency; it points inward (small)
+- 4. Let Core own the writes to table 50000 CON Item (medium)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Findings
 
 - **info** `foreign-table-write`: table 50000 CON Item of Core is written by Integration (1 object); let Core own the writes behind a codeunit, or move the table

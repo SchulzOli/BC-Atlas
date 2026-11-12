@@ -156,9 +156,32 @@ test("the atlas is everything read from the source as one graph", async () => {
   assert.deepEqual([how.title, how.lens], ["How it works", "overview"]);
   assert.match(how.text, /^From left to right: 2 screens, 6 logic objects, 3 tables\. The screens run the logic, and the logic reads and writes the data\./u);
   assert.match(first.text, /^12 objects in 3 apps: 5 codeunits, 3 tables, 2 pages, 1 interface, 1 permissionset\./u);
-  const wrongWay = atlas.stories.find(({ id }) => id === "architecture").steps[0];
-  assert.match(wrongWay.text, /CON Item Sync \(Integration\) depends on CON Item in Core\. Add Core to dependsOn of Integration/u);
+  // What to change, and how: one list, and the story that walks through it.
+  assert.deepEqual(atlas.changes.map(({ kind, title, effort, optional }) => [kind, title, effort, Boolean(optional)]), [
+    ["apps", "Declare that Contoso Integration depends on Contoso Core", "S", false],
+    ["apps", "Bring in what Contoso Integration refers to", "S", false],
+    ["dependency", "CON Item Sync: declare the dependency; it points inward", "S", false],
+    ["data", "Let Core own the writes to table 50000 CON Item", "M", false],
+    ["data", "Let Sales own the writes to table 50100 CON Sales Quote", "M", false],
+    ["surface", "Make 1 object of Core internal", "S", true],
+    ["surface", "Make 2 objects of Integration internal", "S", true]
+  ]);
+  assert.ok(atlas.changes.every(({ why, how, nodes, lens }) => why && how.length && nodes.every((index) => atlas.nodes[index]) && lenses.has(lens)), "each says why and how, on nodes and in a lens that exist");
+  const undeclared = atlas.changes[0];
+  assert.match(undeclared.why, /^Contoso Integration uses Contoso Core \(3 relations\), but its app\.json does not name Contoso Core\./u);
+  assert.match(undeclared.how[0], /^Add Contoso Core to `dependencies` in the app\.json of Contoso Integration/u);
+  const wrongWay = atlas.changes[2];
+  assert.equal(wrongWay.why, "The codeunit CON Item Sync of Integration depends on table CON Item of Core, which the configured architecture does not allow.");
+  assert.deepEqual(wrongWay.how, ["Add Core to dependsOn of Integration in .bca.json (and to app.json when they are separate apps).", "Or: go through a component you already depend on (effort M)."]);
   assert.deepEqual(wrongWay.nodes.map((index) => atlas.nodes[index].label), ["CON Item Sync", "CON Item"]);
+  assert.deepEqual([wrongWay.file, wrongWay.line], ["integration/ItemSync.al", 6]);
+  assert.match(atlas.changes[5].how[0], /^`bca refactor surface --component "Core"` shows the change/u);
+  const story = atlas.stories.find(({ id }) => id === "architecture");
+  assert.deepEqual([story.title, story.steps.length, story.steps[0].title, story.steps[0].status, story.steps[6].status], ["What to change, and how", 7, undeclared.title, "error", "info"]);
+  assert.match(story.steps[2].text, /does not allow\. How: Add Core to dependsOn of Integration in \.bca\.json .+ Effort: S\.$/u);
+  // The components say how much of their coupling stays inside, and the summary how much overall.
+  assert.deepEqual(atlas.nodes.filter(({ kind }) => kind === "component").map(({ label, cohesion, canBeApp }) => [label, cohesion, canBeApp]), [["Core", 55, "yes"], ["Sales", 45, "yes"], ["Integration", 0, "no"]]);
+  assert.equal(atlas.summary.architecture.inside, 57);
 
   // One object from the inside: its procedures, and what each does with other objects.
   const inside = await service.call("inside", { id: sync.id });

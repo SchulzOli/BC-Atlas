@@ -418,6 +418,34 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
     };
   }));
 
+  server.registerTool("bc_atlas_layers", {
+    description: "Write the documentation of a repository, in sync with the source, for one app or many: README.md (how it works, where to start), architecture.md (how the apps and components are connected: dependencies, layers, cycles, shared tables), changes.md (what to change in the architecture and how: each change with why, the steps, and the effort, the most important first), and one page per app, component, namespace, and object, each with a picture. Returns where the pages are, whether they were in sync, and the changes. With check it writes nothing and inSync says whether the pages match the source (for a pipeline). For the changes alone, without writing files, use bc_atlas_view with story architecture.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      compiler: projectFields.compiler,
+      output: z.string().min(1).optional().describe("Folder of the pages (default: layers.outputDir in .bca.json, else docs/layers)"),
+      check: z.boolean().optional().describe("Write nothing; report whether the pages are in sync with the source"),
+      pictures: z.enum(["auto", "all", "none"]).optional().describe("Pictures of single objects: auto (up to 400 objects), all, or none")
+    }),
+    annotations: { readOnlyHint: false, idempotentHint: true }
+  }, tool(async ({ path: input, ...values }) => {
+    const { syncLayers } = await import("./commands/layers.js");
+    const { output, check, inSync, current } = await syncLayers(input, values);
+    return {
+      output,
+      start: `${output}/README.md`,
+      check,
+      inSync,
+      counts: current?.manifest.counts,
+      files: current?.files,
+      written: current?.written.length,
+      removed: current?.removed.length,
+      changes: (current?.atlas.changes ?? []).map(({ title, kind, why, how, effort, optional }) => ({ title, kind, why, how, effort, ...(optional ? { optional } : {}) }))
+    };
+  }));
+
   server.registerTool("bc_atlas_bundle", {
     description: "Build the bundle of a project: everything BC Atlas makes of it, end to end, as one artifact. Steps: validation (health check), simulation (battle test on process tests and recordings), a fact snapshot of every process test from the source, the run of every person step by step with the picture it built, the layered documentation with the view, narrative pages when a model is set up, and the test results and build outputs given. Writes one folder and one ZIP file with a manifest (bundle.json: commit, every step with its result, every file with its hash) and returns the manifest. passed is false when a step failed; the bundle is written all the same.",
     inputSchema: z.object({

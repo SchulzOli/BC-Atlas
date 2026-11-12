@@ -76,6 +76,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_graph_render",
         "bc_atlas_handbook",
         "bc_atlas_inspect",
+        "bc_atlas_layers",
         "bc_atlas_refactor_move",
         "bc_atlas_refactor_surface",
         "bc_atlas_report",
@@ -132,6 +133,22 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     assert.equal(people.nodes.find(({ label }) => label === "Ben (Team lead)").findings[0].rule, "task-blocked");
     assert.match((await view({ inside: "codeunit:50220", format: "text" })).content[0].text, /^BC Atlas Purchasing Example: Inside Purchase Request Mgt\./u);
     assert.equal(JSON.parse((await view({ story: "fix" })).content[0].text).steps.length, 4);
+    // The documentation of a repository in sync with the source, with what to change and how.
+    const layerPages = path.join(os.tmpdir(), `bc-atlas-mcp-layers-${process.pid}`);
+    try {
+      const layers = async (args) => JSON.parse((await client.callTool({ name: "bc_atlas_layers", arguments: { path: path.join(root, "examples", "multi-app"), output: layerPages, pictures: "none", ...args } })).content[0].text);
+      const first = await layers({});
+      assert.deepEqual([first.start, first.counts.apps, first.changes.length], [`${layerPages}/README.md`, 3, 7]);
+      assert.deepEqual(Object.keys(first.changes[0]), ["title", "kind", "why", "how", "effort"]);
+      assert.equal(first.changes[0].title, "Declare that Contoso Integration depends on Contoso Core");
+      assert.match(readFileSync(path.join(layerPages, "changes.md"), "utf8"), /^# What to change, and how\n/u);
+      const inSync = await layers({ check: true });
+      assert.deepEqual([inSync.check, inSync.inSync, inSync.written], [true, true, 0]);
+      const toChange = JSON.parse((await client.callTool({ name: "bc_atlas_view", arguments: { path: path.join(root, "examples", "multi-app"), story: "architecture" } })).content[0].text);
+      assert.deepEqual([toChange.title, toChange.steps.length], ["What to change, and how", 7]);
+    } finally {
+      rmSync(layerPages, { recursive: true, force: true });
+    }
     const picture = path.join(os.tmpdir(), `bc-atlas-mcp-view-${process.pid}.svg`);
     try {
       const written = JSON.parse((await view({ lens: "data", form: "diagram", output: picture })).content[0].text);

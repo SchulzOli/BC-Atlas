@@ -20,6 +20,32 @@ follows [Semantic Versioning](https://semver.org/).
   it holds, and a double click goes into it. `bca view --lens overview`
   writes it as text in the order of the columns, or as a picture.
 
+- **How it is connected, what to change, and how.** `bca layers` now
+  answers these on two new pages. `architecture.md` shows the apps of a
+  repository and what each uses of the others (declared, undeclared, not
+  found), the components in their layers with what depends on what, and
+  the tables written from outside their component, each part with a
+  picture. `changes.md` lists every change to the architecture the
+  analysis finds, the most important first: decide on an architecture,
+  declare a dependency between apps, break a cycle, resolve a dependency
+  the wrong way, let a component own its table, narrow the public surface,
+  extract a component as an app. Each change says why, gives the steps and
+  the effort, and names the command when BC Atlas can do it. The first
+  page starts with where to read, and the page of an app, a component, a
+  namespace, and an object names the changes about it. The command says
+  where to start and what there is to change.
+- **The list of changes is part of the atlas** (`changes` in the
+  `atlas.json` of the documentation): the story **What to change, and
+  how** of the view walks through it on the graph, and
+  `bca view --story architecture` prints it. It replaces the story "Dependencies the wrong way" and is
+  there also when nothing is to change.
+- **MCP tool `bc_atlas_layers`**: writes or checks the documentation and
+  returns the changes.
+- `bca` without a command starts with where to begin.
+- Component nodes carry `cohesion` (how much of the coupling stays inside,
+  in percent) and `cycle`; the summary of the architecture carries
+  `inside`.
+
 ### Changed
 
 - **Less noise in the view.** The lens menu lists the lenses under what

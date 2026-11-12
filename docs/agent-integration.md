@@ -96,6 +96,13 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_inspect` returns an architecture model.
 - `bc_atlas_check` returns the architecture health report used by `bca check`.
 - `bc_atlas_simulate` runs the [battle test](./battle-test.md): agents with the company's roles, permission sets, and task groups perform the process tests. It returns who is blocked at which step and by which missing permission, who can do what they must not, the processes, the fit-gap analysis, and findings with what to do; `agent` or `task` returns the details of one agent or one process test, `markdown: true` the report as documentation.
+- `bc_atlas_layers` writes the [documentation of a repository](./layers.md),
+  in sync with the source, for one app or many: how it works, how its apps
+  and components are connected, and what to change in the architecture and
+  how. It returns where the pages are, whether they were in sync, and the
+  changes (title, kind, why, how, effort). With `check` it writes nothing
+  and says whether the pages match the source. For the changes alone,
+  `bc_atlas_view` with `story: "architecture"`.
 - `bc_atlas_bundle` builds the bundle: validation, simulation, snapshots,
   documentation, narrative, test results, and build outputs as one folder
   and one ZIP file, and returns the manifest (see [The bundle](./bundle.md)).

@@ -51,7 +51,7 @@ test("without a lens the view says what there is to see", async () => {
     nodes: 3,
     relations: 3
   });
-  assert.deepEqual(overview.stories.map(({ id, steps }) => [id, steps]), [["system", 14], ["fix", 1], ["architecture", 1]]);
+  assert.deepEqual(overview.stories.map(({ id, steps }) => [id, steps]), [["system", 14], ["fix", 1], ["architecture", 7]]);
 
   // As JSON: the whole atlas, every node, relation, lens, finding, and story.
   const atlas = JSON.parse((await renderView(multi, { format: "json" })).content);
@@ -288,7 +288,7 @@ test("a story reads as text and as a document, and each step is a view", async (
   // Every story as one document: the documentation of the system.
   const documentation = (await renderView(purchasing, { stories: true, format: "md" })).content;
   assert.match(documentation, /^# BC Atlas Purchasing Example\n/u);
-  for (const title of ["What BC Atlas Purchasing Example is", "Purchase requests", "Purchase setup", "What to fix", "Dependencies the wrong way", "Who can do what"]) assert.ok(documentation.includes(`\n## ${title}\n`), title);
+  for (const title of ["What BC Atlas Purchasing Example is", "Purchase requests", "Purchase setup", "What to fix", "What to change, and how", "Who can do what"]) assert.ok(documentation.includes(`\n## ${title}\n`), title);
 
   await assert.rejects(renderView(purchasing, { story: "nope" }), /unknown story "nope"; this project has: system, process:use-case-purchase-requests, /u);
   await assert.rejects(renderView(purchasing, { story: "fix", step: 9 }), /--step must be a number from 1 to 4/u);

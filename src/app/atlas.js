@@ -279,6 +279,9 @@ async function structure(workspace, graph) {
       objects: component.metrics?.objects,
       wrongWay: component.violations || undefined,
       instability: component.metrics?.instability,
+      // How much of its coupling stays inside, in percent.
+      cohesion: component.metrics?.cohesion === undefined ? undefined : Math.round(component.metrics.cohesion * 100),
+      cycle: component.inCycle ? "yes" : undefined,
       canBeApp: component.extractable ? "yes" : "no"
     }));
   }
@@ -572,8 +575,194 @@ function runs(graph, battle) {
   }).filter(Boolean);
 }
 
+/** What the list of changes says when it is empty. */
+export const NOTHING_TO_CHANGE = "No app uses another without declaring it, no components depend on each other in a circle, no dependency points the wrong way, and no table is written from outside its component.";
+
+/**
+ * What to change in the architecture, and how: everything the analysis knows about it as one list,
+ * the most important first. The view (the story "architecture"), `bca view`, the layered
+ * documentation (changes.md), and agents all show this list.
+ *
+ * @returns [{ id, kind, title, why, how: [step], effort: "S" | "M" | "L", optional?, proposed?, brief?, lens, nodes: [index], file?, line? }]
+ *   kind: architecture (decide on one), apps (what an app declares), cycle, dependency (one that points the
+ *   wrong way), data (a table others write), surface (what is public without need), extract (a component
+ *   that can be an app)
+ */
+function changes({ graph, assessment }) {
+  const result = [];
+  const { nodes, edges, relations } = graph;
+  const outcome = assessment.result ?? {};
+  const components = outcome.components ?? [];
+  const index = (id) => graph.at(id);
+  const component = (name) => index(`component::${name}`);
+  const present = (indexes) => [...new Set(indexes.filter((at) => at !== undefined && at >= 0))];
+  // An object as the analysis names it: "codeunit 50201 CON Item Sync".
+  const named = (text) => nodes.findIndex((node) => node.kind === "object" && !node.external && `${node.type} ${node.objectId ? `${node.objectId} ` : ""}${node.label}` === text);
+  const proposed = Boolean(assessment.proposal);
+  const share = outcome.summary?.coupling?.share;
+  const kindOf = (relation) => relations[relation].kind;
+
+  // 1. Without an architecture nothing is checked: decide on one first.
+  if (proposed && components.length > 1) {
+    const layers = new Set(components.map(({ layer }) => layer)).size;
+    result.push({
+      id: "architecture",
+      kind: "architecture",
+      title: "Decide on the architecture",
+      why: `No architecture is configured. From the code, BC Atlas proposes ${plural(components.length, "component")} in ${plural(layers, "layer")}: ${list(components.map(({ name }) => name), 8)}.${share === undefined ? "" : ` ${Math.round(share * 100)}% of the coupling stays inside them.`} Until it is saved nothing checks it, and every change below that names a component rests on this proposal.`,
+      how: [
+        "Look at it: the Components lens of the view, or `bca architecture`.",
+        "Change what does not fit: `bca architecture --group-by namespace` (or `folder`, `app`), or name the components yourself under `architecture` in .bca.json.",
+        "Save it: `bca architecture --write`.",
+        "Accept today's state: `bca architecture --update-baseline`. From then on `bca check` fails only on new dependencies the wrong way."
+      ],
+      effort: "S",
+      lens: "components",
+      nodes: present(components.map(({ name }) => component(name)))
+    });
+  }
+
+  // 2. What an app uses of another app without saying so, and what nobody can find.
+  const between = edges.filter(([from, to]) => nodes[from].kind === "app" && nodes[to].kind === "app")
+    .sort((a, b) => (kindOf(a[2]) === "unresolved") - (kindOf(b[2]) === "unresolved"));
+  for (const [from, to, relation, weight] of between) {
+    const [a, b] = [nodes[from], nodes[to]];
+    const count = plural(weight ?? 1, "relation");
+    if (kindOf(relation) === "undeclared") {
+      result.push({
+        id: `apps:${a.label}>${b.label}`,
+        kind: "apps",
+        title: `Declare that ${a.label} depends on ${b.label}`,
+        why: `${a.label} uses ${b.label} (${count}), but its app.json does not name ${b.label}. It compiles only as long as something else brings ${b.label} along.`,
+        how: [
+          `Add ${b.label} to \`dependencies\` in the app.json of ${a.label}: its id, name, publisher, and version.`,
+          `Or, when ${a.label} should not know ${b.label}: remove the use. The Apps lens shows the ${count} between them.`
+        ],
+        effort: "S",
+        lens: "apps",
+        nodes: [from, to]
+      });
+    } else if (kindOf(relation) === "unresolved") {
+      result.push({
+        id: `apps:${a.label}>unresolved`,
+        kind: "apps",
+        title: `Bring in what ${a.label} refers to`,
+        why: `${a.label} refers to objects (${count}) that are in no app of this repository and in no symbol package. What depends on them, and what a change to them breaks, is not known.`,
+        how: [
+          "Download the symbols of the apps it depends on into `.alpackages` (AL: Download Symbols), or add the app that holds them to the workspace.",
+          "Run BC Atlas again: the relations to these objects then show."
+        ],
+        effort: "S",
+        lens: "apps",
+        nodes: [from, to]
+      });
+    }
+  }
+
+  // 3. Components that depend on each other.
+  for (const members of outcome.cycles ?? []) {
+    const between = (outcome.edges ?? []).filter(({ source, target }) => members.includes(source) && members.includes(target));
+    const thin = between.slice().sort((a, b) => a.objectEdges - b.objectEdges || a.weight - b.weight)[0];
+    result.push({
+      id: `cycle:${members.join(">")}`,
+      kind: "cycle",
+      title: `Break the cycle between ${members.join(" and ")}`,
+      why: `${members.join(" and ")} depend on each other, so none of them can be understood, tested, or released without the others.${thin ? ` The way from ${thin.source} to ${thin.target} is the thinnest: ${plural(thin.objectEdges, "object dependency", "object dependencies")} (${Object.entries(thin.kinds ?? {}).map(([kind, count]) => `${count} ${kind}`).join(", ")}).` : ""}`,
+      how: [
+        ...(thin ? [`Cut the way from ${thin.source} to ${thin.target}: move what causes it into ${thin.target}, or let ${thin.target} raise an event or offer an interface that ${thin.source} answers.`] : ["Decide which of them is below the other, and turn the dependencies that go the other way."]),
+        "The dependencies to turn are the ones the wrong way, below."
+      ],
+      effort: "M",
+      lens: "components",
+      nodes: present(members.map(component))
+    });
+  }
+
+  // 4. Each dependency that points the wrong way, with the way to resolve it.
+  for (const item of (outcome.workItems ?? []).slice(0, 60)) {
+    const targets = (item.targets ?? []).map(({ label, type }) => `${type} ${label}`);
+    result.push({
+      id: `dependency:${item.id}`,
+      kind: "dependency",
+      title: `${item.source.label}: ${item.title[0].toLowerCase()}${item.title.slice(1)}`,
+      why: `The ${item.source.type} ${item.source.label} of ${item.sourceComponent} depends on ${list(targets)} of ${item.targetComponent}${item.violations > 1 ? ` (${item.violations} dependencies)` : ""}, which the ${proposed ? "proposed" : "configured"} architecture does not allow.`,
+      how: [...(item.steps ?? []), ...(item.alternatives ?? []).map((alternative) => `Or: ${alternative.title[0].toLowerCase()}${alternative.title.slice(1)} (effort ${alternative.effort}).`)],
+      effort: item.effort ?? "M",
+      // Against a proposal it is a suggestion; against what is configured, a violation.
+      ...(proposed ? { proposed: true } : {}),
+      lens: "system",
+      nodes: present([index(item.source.id), ...(item.targets ?? []).map(({ label, type }) => nodes.findIndex((node) => node.kind === "object" && node.label === label && node.type === type))]),
+      file: item.source.file,
+      line: item.source.line
+    });
+  }
+
+  // 5. A table of one component that others write.
+  for (const owned of outcome.dataOwnership ?? []) {
+    if (owned.status !== "shared-writes" || !owned.writers?.length) continue;
+    const writers = owned.writers.map(({ component: name, objects }) => `${name} (${list(objects, 3)})`);
+    result.push({
+      id: `data:${owned.id}`,
+      kind: "data",
+      title: `Let ${owned.component} own the writes to ${owned.table}`,
+      why: `The ${owned.table} belongs to ${owned.component}, and ${list(writers, 3)} ${owned.writers.length === 1 ? "writes" : "write"} it as well. Whoever changes the table has to know every one of them.`,
+      brief: `of ${owned.component}, also written by ${list(writers, 3)}`,
+      how: [
+        `Put the writes behind a codeunit of ${owned.component} and call it from ${list(owned.writers.map(({ component: name }) => name), 3)}.`,
+        `Or move the table to the component that writes it most, when it belongs there.`
+      ],
+      effort: "M",
+      lens: "data",
+      nodes: present([index(owned.id), ...owned.writers.flatMap(({ objects }) => objects.map(named))]),
+      file: owned.file,
+      line: owned.line
+    });
+  }
+
+  // 6. What is public and used by nobody outside its component.
+  for (const check of outcome.checks ?? []) {
+    if (check.rule !== "could-be-internal") continue;
+    const [, count, names] = check.message.match(/^(\d+) object\(s\) of .+? could be Access = Internal: (.+?) \(bca /u) ?? [];
+    if (!count) continue;
+    result.push({
+      id: `surface:${check.component}`,
+      kind: "surface",
+      title: `Make ${plural(Number(count), "object")} of ${check.component} internal`,
+      why: `Nothing outside ${check.component} uses ${names}. As long as ${Number(count) === 1 ? "it is" : "they are"} public, other apps can start to depend on ${Number(count) === 1 ? "it" : "them"}, and every change is a breaking one.`,
+      how: [
+        `\`bca refactor surface --component "${check.component}"\` shows the change: Access = Internal on these objects, and what others use listed under \`exposes\` in .bca.json.`,
+        "Add `--apply` to write it."
+      ],
+      effort: "S",
+      optional: true,
+      lens: "visibility",
+      nodes: present([component(check.component), ...names.split(", ").map(named)])
+    });
+  }
+
+  // 7. A component that could be an app of its own.
+  const apps = nodes.filter((node) => node.kind === "app" && !node.external && (!node.origin || node.origin === "This workspace")).length;
+  for (const part of components) {
+    // A component that is one app already is one.
+    if (!part.extractable || (part.match ?? []).every((selector) => String(selector).startsWith("app:")) || components.length <= apps) continue;
+    const cohesion = part.metrics?.cohesion;
+    result.push({
+      id: `extract:${part.name}`,
+      kind: "extract",
+      title: `${part.name} can become an app of its own`,
+      why: `${part.name} (${plural(part.metrics?.objects ?? 0, "object")}) ${part.dependsOnActual?.length ? `depends only on ${list(part.dependsOnActual)}` : "depends on no other component"}, nothing it uses points back at it${cohesion === undefined ? "" : `, and ${Math.round(cohesion * 100)}% of its coupling stays inside`}. An app of its own is built, tested, and released on its own.`,
+      how: [`\`bca architecture --extract "${part.name}"\` writes the plan: what blocks it, its app.json, the tables to move, and the steps in order.`],
+      effort: "L",
+      optional: true,
+      lens: "components",
+      nodes: present([component(part.name)])
+    });
+  }
+  return result;
+}
+
 /** The stories: walks through the graph that explain, document, test, and demonstrate the system. */
-function stories({ graph, findings, report, assessment, battle, title }) {
+function stories({ graph, findings, report, assessment, battle, title, changed = [], lensIds = new Set() }) {
   const result = [];
   const { nodes, edges, relations } = graph;
   const at = (id) => graph.at(id);
@@ -721,20 +910,29 @@ function stories({ graph, findings, report, assessment, battle, title }) {
     });
   }
 
-  // 4. The dependencies that point the wrong way, and how to resolve each.
-  const work = assessment.result.workItems ?? [];
-  if (work.length) {
+  // 4. What to change in the architecture, and how. Also when there is nothing: that is an answer too.
+  if (!changed.length && objects.length) {
     result.push({
       id: "architecture",
       kind: "check",
-      title: "Dependencies the wrong way",
-      summary: `${plural(work.length, "work item")} to reach the ${assessment.proposal ? "proposed" : "configured"} architecture.`,
-      steps: work.slice(0, 40).map((item) => ({
-        title: `${item.source.label}: ${item.title}`,
-        text: `${item.source.label} (${item.sourceComponent}) depends on ${list((item.targets ?? []).map(({ label }) => label))} in ${item.targetComponent}. ${(item.steps ?? []).join(" ")} Effort: ${item.effort}.`,
-        lens: "system",
-        nodes: [at(item.source.id), ...(item.targets ?? []).map(({ label, type }) => nodes.findIndex((node) => node.kind === "object" && node.label === label && node.type === type))].filter((index) => index !== undefined && index >= 0),
-        status: "error"
+      title: "What to change, and how",
+      summary: "Nothing to change in the architecture, as it stands.",
+      steps: [{ title: "Nothing to change", text: NOTHING_TO_CHANGE, lens: lensIds.has("overview") ? "overview" : "system", nodes: [] }]
+    });
+  }
+  if (changed.length) {
+    const must = changed.filter(({ optional }) => !optional).length;
+    result.push({
+      id: "architecture",
+      kind: "check",
+      title: "What to change, and how",
+      summary: `${plural(changed.length, "change")} to the architecture, the most important first${must < changed.length ? `; ${must ? `the last ${changed.length - must} are` : "all of them are"} options` : ""}. Each says why, and how to do it.`,
+      steps: changed.slice(0, 60).map((change) => ({
+        title: change.title,
+        text: `${change.why} How: ${change.how.join(" ")} Effort: ${change.effort}.`,
+        lens: lensIds.has(change.lens) ? change.lens : "system",
+        nodes: change.nodes,
+        status: change.optional ? "info" : (change.kind === "dependency" && !change.proposed) || change.kind === "apps" ? "error" : "warning"
       }))
     });
   }
@@ -801,6 +999,7 @@ export async function createAtlas(workspace) {
       .map((lens) => ({ ...lens, relations: lens.relations.filter((kind) => present.has(kind)) }))
       .filter((lens) => lens.kinds.some((kind) => kinds.has(kind)) && lens.relations.length));
 
+  const changed = changes({ graph, assessment });
   return {
     schema: 1,
     title: overview.title,
@@ -813,7 +1012,8 @@ export async function createAtlas(workspace) {
       objects: report.summary.objects,
       relations: report.summary.relationships,
       health: { passed: report.passed, failOn: report.failOn, ...report.counts },
-      architecture: overview.architecture,
+      // With how much of the coupling stays inside the components, in percent.
+      architecture: { ...overview.architecture, ...(assessment.result?.summary?.coupling?.share === undefined ? {} : { inside: Math.round(assessment.result.summary.coupling.share * 100) }) },
       ...(battle ? { battle: { passed: battle.passed, ...battle.summary, company: battle.company?.name } } : {})
     },
     sources: commonSources({ model, assessment }),
@@ -832,8 +1032,10 @@ export async function createAtlas(workspace) {
     edges: graph.edges,
     lenses,
     findings,
+    // What to change in the architecture, and how: the most important first.
+    changes: changed,
     stories: [
-      ...stories({ graph, findings, report, assessment, battle, title: overview.title }),
+      ...stories({ graph, findings, report, assessment, battle, title: overview.title, changed, lensIds: new Set(lenses.map(({ id }) => id)) }),
       // The runs of the simulation, when its canvas is among the lenses.
       ...(lenses.some(({ id }) => id === "run") ? runs(graph, battle) : []),
       // A step of a plugin's story names a lens of the atlas, its own or one of BC Atlas.

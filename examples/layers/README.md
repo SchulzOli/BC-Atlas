@@ -6,6 +6,16 @@ The source as it is now.
 
 ![Overview](system.svg)
 
+## Start here
+
+1. **How it works**: the picture above, and [what is in it](lenses/overview.md).
+2. **[How it is connected](architecture.md)**: 3 apps, 3 components, and what depends on what.
+3. **[What to change, and how](changes.md)**: 7 changes, the most important first.
+   - Declare that Contoso Integration depends on Contoso Core (small)
+   - Bring in what Contoso Integration refers to (small)
+   - CON Item Sync: declare the dependency; it points inward (small)
+4. **Down the layers**: from the apps to each procedure, below.
+
 ## Layers
 
 The system from the whole down to each procedure. Every page links one layer up and one layer down.
@@ -70,7 +80,7 @@ Walks through the system, step by step.
 
 - [What multi-app is](stories/system.md): The system from the outside in: how it works, then its apps, components, hubs, data, events, the user interface, and its health.
 - [What to fix](stories/fix.md): 1 finding, the most severe first, each on the nodes it is about.
-- [Dependencies the wrong way](stories/architecture.md): 1 work item to reach the configured architecture.
+- [What to change, and how](stories/architecture.md): 7 changes to the architecture, the most important first; the last 2 are options. Each says why, and how to do it.
 
 ## Findings
 

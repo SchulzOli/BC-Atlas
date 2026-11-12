@@ -220,6 +220,17 @@ export async function layersCommand(input, values) {
         : `${current.written.length} written, ${current.removed.length} removed, ${current.unchanged.length} unchanged`);
       for (const file of [...current.written.slice(0, 12).map((name) => `  ${check ? "differs" : "wrote"} ${name}`), ...current.removed.slice(0, 6).map((name) => `  ${check ? "to remove" : "removed"} ${name}`)]) lines.push(file);
       if (current.written.length > 12) lines.push(`  and ${current.written.length - 12} more`);
+      // Where to start, and what there is to change.
+      const changes = current.atlas?.changes ?? [];
+      if (!check) {
+        lines.push("", `Start with ${displayPath(path.join(output, "README.md"))}: how it works, how it is connected, and what to change.`);
+        if (changes.length) {
+          lines.push(`${changes.length} change(s) to the architecture, the most important first (${displayPath(path.join(output, "changes.md"))}):`);
+          for (const [position, change] of changes.slice(0, 5).entries()) lines.push(`  ${position + 1}. ${change.title}`);
+          if (changes.length > 5) lines.push(`  and ${changes.length - 5} more`);
+        }
+        lines.push("Keep it in sync: `bca layers --check` fails when the pages differ from the source (a pipeline step), or let `bca setup` add it to a Git hook.");
+      }
     }
     const said = { recorded: "already recorded", added: "recorded", refreshed: "recorded again", missing: "not recorded yet", "no project": "the project did not exist then" };
     for (const state of states) lines.push(`${state.label} (${state.commit.slice(0, 10)}): ${said[state.status]}${state.written.length ? `, ${state.written.length} file(s) in ${displayPath(path.join(output, state.folder))}` : ""}`);

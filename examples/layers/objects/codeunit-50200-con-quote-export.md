@@ -36,6 +36,13 @@ Layer 5: its procedures, triggers, and events, and what each of them does.
 - **uses** [codeunit 50100 CON Quote Mgt.](codeunit-50100-con-quote-mgt.md), [table 50100 CON Sales Quote](table-50100-con-sales-quote.md), table Customer (other app)
 - **writes** [table 50100 CON Sales Quote](table-50100-con-sales-quote.md)
 
+## What to change here
+
+- 5. Let Sales own the writes to table 50100 CON Sales Quote (medium)
+- 7. Make 2 objects of Integration internal (small)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Findings
 
 - **info** `undocumented-public-api`: codeunit 50200 CON Quote Export: 1 public procedure(s) without a /// summary: Export

@@ -1,0 +1,100 @@
+# What to change, and how
+
+[System](README.md) › What to change
+
+7 changes to the architecture, the most important first; the last 2 are options. Each says why, and how to do it. [How it is connected](architecture.md) shows what the changes are about.
+
+| # | Change | Kind | Effort |
+| ---: | --- | --- | --- |
+| 1 | Declare that Contoso Integration depends on Contoso Core | Apps | small |
+| 2 | Bring in what Contoso Integration refers to | Apps | small |
+| 3 | CON Item Sync: declare the dependency; it points inward | Dependency the wrong way | small |
+| 4 | Let Core own the writes to table 50000 CON Item | Shared data | medium |
+| 5 | Let Sales own the writes to table 50100 CON Sales Quote | Shared data | medium |
+| 6 | Make 1 object of Core internal | Public surface | small |
+| 7 | Make 2 objects of Integration internal | Public surface | small |
+
+## Changes
+
+### 1. Declare that Contoso Integration depends on Contoso Core
+
+**Why.** Contoso Integration uses Contoso Core (3 relations), but its app.json does not name Contoso Core. It compiles only as long as something else brings Contoso Core along.
+
+**How.**
+
+1. Add Contoso Core to `dependencies` in the app.json of Contoso Integration: its id, name, publisher, and version.
+2. Or, when Contoso Integration should not know Contoso Core: remove the use. The Apps lens shows the 3 relations between them.
+
+Effort: small. On: [Contoso Integration](apps/contoso-integration.md), [Contoso Core](apps/contoso-core.md).
+
+### 2. Bring in what Contoso Integration refers to
+
+**Why.** Contoso Integration refers to objects (2 relations) that are in no app of this repository and in no symbol package. What depends on them, and what a change to them breaks, is not known.
+
+**How.**
+
+1. Download the symbols of the apps it depends on into `.alpackages` (AL: Download Symbols), or add the app that holds them to the workspace.
+2. Run BC Atlas again: the relations to these objects then show.
+
+Effort: small. On: [Contoso Integration](apps/contoso-integration.md).
+
+### 3. CON Item Sync: declare the dependency; it points inward
+
+**Why.** The codeunit CON Item Sync of Integration depends on table CON Item of Core, which the configured architecture does not allow.
+
+**How.**
+
+1. Add Core to dependsOn of Integration in .bca.json (and to app.json when they are separate apps).
+2. Or: go through a component you already depend on (effort M).
+
+Effort: small. On: [CON Item Sync](objects/codeunit-50201-con-item-sync.md), [CON Item](objects/table-50000-con-item.md). Source: `integration/ItemSync.al:6`.
+
+### 4. Let Core own the writes to table 50000 CON Item
+
+**Why.** The table 50000 CON Item belongs to Core, and Integration (codeunit 50201 CON Item Sync) writes it as well. Whoever changes the table has to know every one of them.
+
+**How.**
+
+1. Put the writes behind a codeunit of Core and call it from Integration.
+2. Or move the table to the component that writes it most, when it belongs there.
+
+Effort: medium. On: [CON Item](objects/table-50000-con-item.md), [CON Item Sync](objects/codeunit-50201-con-item-sync.md). Source: `core/Items.al:3`.
+
+### 5. Let Sales own the writes to table 50100 CON Sales Quote
+
+**Why.** The table 50100 CON Sales Quote belongs to Sales, and Integration (codeunit 50200 CON Quote Export) writes it as well. Whoever changes the table has to know every one of them.
+
+**How.**
+
+1. Put the writes behind a codeunit of Sales and call it from Integration.
+2. Or move the table to the component that writes it most, when it belongs there.
+
+Effort: medium. On: [CON Sales Quote](objects/table-50100-con-sales-quote.md), [CON Quote Export](objects/codeunit-50200-con-quote-export.md). Source: `sales/Quotes.al:6`.
+
+## Options
+
+Not wrong as it is; worth it when the time is there.
+
+### 6. Make 1 object of Core internal
+
+**Why.** Nothing outside Core uses codeunit 50010 CON Standard Pricing. As long as it is public, other apps can start to depend on it, and every change is a breaking one.
+
+**How.**
+
+1. `bca refactor surface --component "Core"` shows the change: Access = Internal on these objects, and what others use listed under `exposes` in .bca.json.
+2. Add `--apply` to write it.
+
+Effort: small. On: [Core](components/core.md), [CON Standard Pricing](objects/codeunit-50010-con-standard-pricing.md).
+
+### 7. Make 2 objects of Integration internal
+
+**Why.** Nothing outside Integration uses codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync. As long as they are public, other apps can start to depend on them, and every change is a breaking one.
+
+**How.**
+
+1. `bca refactor surface --component "Integration"` shows the change: Access = Internal on these objects, and what others use listed under `exposes` in .bca.json.
+2. Add `--apply` to write it.
+
+Effort: small. On: [Integration](components/integration.md), [CON Quote Export](objects/codeunit-50200-con-quote-export.md), [CON Item Sync](objects/codeunit-50201-con-item-sync.md).
+
+_Generated by BC Atlas from the AL source. Do not edit; run `bca layers` again._
