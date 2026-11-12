@@ -29,7 +29,7 @@ to read on. `bundle.json` is the manifest:
   "schema": "bc-atlas.bundle/1",
   "title": "BC Atlas Purchasing Example",
   "createdAt": "2026-11-11T12:00:00.000Z",
-  "bcAtlas": "0.21.0",
+  "bcAtlas": "0.22.0",
   "source": { "commit": "243e787e7992...", "branch": "main", "dirty": false },
   "passed": false,
   "steps": [
