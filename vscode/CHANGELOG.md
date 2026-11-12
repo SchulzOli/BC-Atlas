@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.22.0
 
+- The engine is BC Atlas 0.22.0.
 - The view opens on the new **Overview**: how the app works in five
   columns (people, processes, screens, logic, data), with quiet lines. A
   click lights the way of what is selected through the columns; a large

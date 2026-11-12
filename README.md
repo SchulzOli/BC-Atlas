@@ -93,7 +93,7 @@ documentation, test, and demonstration. [Guide](./docs/vscode.md)
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations, a flow diagram per scenario, and BPMN 2.0 processes per use case. [Example](./examples/docs/index.md) |
 | | `bca graph render` | Render saved graph selections as SVG, static HTML, DOT, or JSON through the CLI or MCP, locally and without Graphviz. |
 | **Integrate** | `bca run` | One entry point for Git hooks, schedules, and pipelines; verifies, stages, or publishes generated files. Also available as a [GitHub Action](./docs/automation-and-ci.md#github-actions). |
-| | `bca update` | "BC Atlas 0.21.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
+| | `bca update` | "BC Atlas 0.22.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
 | | `bca mcp` | A Model Context Protocol server for AI agents; `bca help --format json` is the versioned command contract. |
 
 Run `bca` for the same overview in your terminal and `bca help <command>` for
