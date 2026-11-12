@@ -14,6 +14,8 @@
   const BOX_HEIGHT = 30;
   const BOX_GAP = 12;
   const LAYER_GAP = 64;
+  /** How far above the highest box the titles of the columns stand. */
+  const HEAD_GAP = 34;
 
   // The same layout for the same graph, every time.
   function random(seed) {
@@ -152,28 +154,34 @@
    * @returns { boxes: [{ x, y, w, h }] by node index (the middle of each box; undefined for hidden nodes),
    *   routes: Map "from>to" -> [{ x, y }] the points a relation passes }
    */
-  function layered(nodes, edges, visible, shown, widthOf) {
+  function layered(nodes, edges, visible, shown, widthOf, heads) {
     const ids = [];
     for (let index = 0; index < nodes.length; index++) if (visible[index]) ids.push(index);
+    // Nodes that name their column (rank) stand in it: the picture has fixed columns, with a title each.
+    const ranked = ids.some((index) => nodes[index].rank !== undefined);
+    const rankOf = (index) => nodes[index].rank ?? 0;
     const out = new Map(ids.map((index) => [index, new Set()]));
     const into = new Map(ids.map((index) => [index, new Set()]));
     for (const [from, to, kind] of edges) {
       if (from === to || !visible[from] || !visible[to] || !shown[kind]) continue;
+      if (ranked && rankOf(from) === rankOf(to)) continue;
       // The second of two opposite relations follows the first.
       if (out.get(to).has(from)) continue;
       out.get(from).add(to);
       into.get(to).add(from);
     }
     const byName = (a, b) => (nodes[a].group ?? 0) - (nodes[b].group ?? 0) || String(nodes[a].label).localeCompare(String(nodes[b].label)) || a - b;
-    const connected = ids.filter((index) => out.get(index).size || into.get(index).size).sort(byName);
-    const alone = ids.filter((index) => !out.get(index).size && !into.get(index).size).sort(byName);
+    const connected = ids.filter((index) => ranked || out.get(index).size || into.get(index).size).sort(byName);
+    const alone = ranked ? [] : ids.filter((index) => !out.get(index).size && !into.get(index).size).sort(byName);
 
     // Depth first: a relation back to a node on the way closes a circle.
     const state = new Map();
     const back = new Set();
     const roots = connected.slice().sort((a, b) => into.get(a).size - into.get(b).size || byName(a, b));
+    // In columns a relation runs from the column on the left to the one on the right.
+    if (ranked) for (const from of connected) for (const to of out.get(from)) if (rankOf(from) > rankOf(to)) back.add(`${from}>${to}`);
     for (const start of roots) {
-      if (state.has(start)) continue;
+      if (ranked || state.has(start)) continue;
       const stack = [[start, [...out.get(start)].sort(byName), 0]];
       state.set(start, 1);
       while (stack.length) {
@@ -223,6 +231,8 @@
     }
     const lowest = Math.min(0, ...layer.values());
     for (const index of connected) layer.set(index, layer.get(index) - lowest);
+    const ranks = [...new Set(connected.map(rankOf))].sort((a, b) => a - b);
+    if (ranked) for (const index of connected) layer.set(index, ranks.indexOf(rankOf(index)));
 
     // Columns of items: a node (its index) or a point of a long relation (below zero).
     const columns = [];
@@ -234,6 +244,9 @@
     };
     for (const index of connected) (columns[layer.get(index)] ??= []).push(index);
     for (let column = 0; column < columns.length; column++) columns[column] ??= [];
+    // A column whose nodes name their order keeps it: the steps of a process, top to bottom.
+    const ordered = columns.map((column) => column.length > 0 && column.every((index) => nodes[index].order !== undefined));
+    columns.forEach((column, at) => { if (ordered[at]) column.sort((a, b) => nodes[a].order - nodes[b].order); });
     const routing = connected.length <= 600;
     const passes = [];
     let points = 0;
@@ -264,6 +277,7 @@
       const forward = sweep % 2 === 0;
       const turn = forward ? columns.slice(1) : columns.slice(0, -1).reverse();
       for (const column of turn) {
+        if (ordered[columns.indexOf(column)]) continue;
         const wanted = new Map(column.map((item) => {
           const near = (forward ? left : right).get(item) ?? [];
           return [item, near.length ? near.reduce((sum, other) => sum + rank.get(other), 0) / near.length : rank.get(item)];
@@ -274,12 +288,14 @@
     }
 
     // Places: a column with very many nodes takes several.
-    const most = Math.max(14, Math.ceil(Math.sqrt(connected.length) * 1.8));
+    const most = ranked ? 30 : Math.max(14, Math.ceil(Math.sqrt(connected.length) * 1.8));
     const spot = new Map();
     const heightOf = (item) => (item < 0 ? 8 : BOX_HEIGHT);
     const parts = [];
     let x = 0;
+    const spans = [];
     for (const column of columns) {
+      spans.push([x, x]);
       for (let start = 0; start < column.length; start += most) {
         const part = column.slice(start, start + most);
         const width = Math.max(24, ...part.map((item) => (item < 0 ? 0 : widthOf(item))));
@@ -294,6 +310,7 @@
         parts.push(part);
         part.left = x;
         part.width = width;
+        spans.at(-1)[1] = x + width;
         x += width + LAYER_GAP;
       }
     }
@@ -396,7 +413,11 @@
       boxes[node].y -= shiftY;
     }
     const routes = new Map(passes.map(([key, chain]) => [key, chain.map((point) => ({ x: spot.get(point).x - shiftX, y: spot.get(point).y - shiftY }))]));
-    return { boxes, routes };
+    // The title of each column, above the highest box.
+    const titles = ranked && heads?.length
+      ? ranks.map((rank, at) => ({ title: heads.find((head) => head.rank === rank)?.title, count: columns[at].filter((item) => item >= 0).length, x: (spans[at][0] + spans[at][1]) / 2 - shiftX, y: top - shiftY - HEAD_GAP })).filter(({ title }) => title)
+      : undefined;
+    return { boxes, routes, heads: titles };
   }
 
   // ------------------------------------------------------------------ pens
@@ -590,7 +611,8 @@
 
   /** What stands out: the node under the pointer, else the highlight, else the selection. */
   function emphasisOf(v) {
-    if (v.hover >= 0) return { center: v.hover, has: (index) => index === v.hover || v.neighbors[v.hover].has(index) };
+    // The pointer on the selected node leaves what the selection lights up as it is.
+    if (v.hover >= 0 && !(v.highlight && v.hover === v.selected)) return { center: v.hover, has: (index) => index === v.hover || v.neighbors[v.hover].has(index) };
     if (v.highlight) return { has: (index) => v.highlight.has(index) };
     if (v.selected >= 0) return { center: v.selected, has: (index) => index === v.selected || v.neighbors[v.selected].has(index) };
     return undefined;
@@ -613,6 +635,8 @@
         bottom = Math.max(bottom, box.y + box.h / 2);
       }
       if (left === Infinity) left = right = top = bottom = 0;
+      // The titles of the columns belong to the picture.
+      for (const head of v.heads ?? []) top = Math.min(top, head.y - 12);
       v.camera.zoom = Math.min(1.4, (free.width - 48) / Math.max(right - left, 1), (free.height - 48) / Math.max(bottom - top, 1));
       v.camera.x = free.x - ((left + right) / 2) * v.camera.zoom;
       v.camera.y = free.y - ((top + bottom) / 2) * v.camera.zoom;
@@ -725,8 +749,9 @@
         const into = depth < 0.88 ? behind : depth > 1.2 ? front : path;
         for (const value of anchors(edge)) into.push(value);
       }
-      const opacity = focus ? 0.1 : many ? 0.16 : boxed ? 0.55 : 0.42;
-      const color = v.kinds[kind].color ?? "#64748B";
+      // In the overview relations stay in the background until something is selected.
+      const opacity = focus ? (v.quiet ? 0.07 : 0.1) : many ? 0.16 : v.quiet ? (v.kinds[kind].color ? 0.75 : 0.34) : boxed ? 0.55 : 0.42;
+      const color = v.kinds[kind].color ?? (v.quiet ? look.muted ?? "#64748B" : "#64748B");
       if (boxed) pen.curves(path, color, opacity, 1, v.kinds[kind].dash);
       else {
         if (behind.length) pen.lines(behind, color, opacity * 0.45, 0.8, v.kinds[kind].dash);
@@ -735,7 +760,7 @@
       }
     }
     const arrow = (edge, opacity, weight) => {
-      const color = v.kinds[edge[2]].color ?? "#64748B";
+      const color = v.kinds[edge[2]].color ?? (v.quiet ? look.text : "#64748B");
       const line = anchors(edge);
       let tipX;
       let tipY;
@@ -760,10 +785,19 @@
       pen.triangle(tipX, tipY, tipX - ux * 7 - uy * 3.2, tipY - uy * 7 + ux * 3.2, tipX - ux * 7 + uy * 3.2, tipY - uy * 7 - ux * 3.2, color, opacity);
     };
     // Few relations get their direction drawn.
-    if (!many && !focus && v.edges.length <= 600) {
+    if (!many && !focus && !v.quiet && v.edges.length <= 600) {
       for (const edge of v.edges) if (v.shown[edge[2]] && placed[edge[0]] && placed[edge[1]]) arrow(edge, boxed ? 0.7 : 0.55, 1);
     }
     for (const edge of strong) arrow(edge, 0.95, 1.8);
+
+    // The titles of the columns of a diagram that has them.
+    if (boxed) {
+      for (const head of v.heads ?? []) {
+        const at = projectOn(v, { x: head.x, y: head.y, z: 0 }, distance);
+        const size = Math.max(9, Math.min(15, 13 * v.camera.zoom));
+        pen.text(String(head.title).toUpperCase(), at.x, at.y, size, look.muted ?? "#64748B", 0.95, undefined, look.font, "middle");
+      }
+    }
 
     // Nodes from the back to the front.
     const order = [];
@@ -871,7 +905,8 @@
       v.degree[from]++;
       v.degree[to]++;
     }
-    if (form === "diagram") Object.assign(v, layered(nodes, edges, v.visible, v.shown, (index) => boxWidthOf(v.measure(v.labels[index]))));
+    v.quiet = Boolean(scene.flow);
+    if (form === "diagram") Object.assign(v, layered(nodes, edges, v.visible, v.shown, (index) => boxWidthOf(v.measure(v.labels[index])), scene.columns));
     else {
       const next = random(nodes.length + edges.length * 7);
       const flat = form !== "3d";
@@ -912,6 +947,7 @@
     let points = seed(nodes, scene.groups?.length ?? 1);
     let boxes;
     let routes = new Map();
+    let heads;
     const pinned = new Set();
     let visible = new Uint8Array(nodes.length).fill(1);
     let shown = new Uint8Array(Math.max(kinds.length, 1)).fill(1);
@@ -947,7 +983,7 @@
     const labels = nodes.map(({ label }) => shorten(label));
     const diagram = () => form === "diagram";
     /** The picture as it is now (see picture). */
-    const state = () => ({ nodes, edges, kinds, labels, visible, shown, form, points, boxes, routes: morph ? NO_ROUTES : routes, camera, width, height, room, hover, selected, highlight, rings, sizes, pinned, degree, neighbors, place: morph ? current : undefined });
+    const state = () => ({ nodes, edges, kinds, labels, visible, shown, form, points, boxes, routes: morph ? NO_ROUTES : routes, heads: morph || !diagram() ? undefined : heads, quiet: Boolean(scene.flow), camera, width, height, room, hover, selected, highlight, rings, sizes, pinned, degree, neighbors, place: morph ? current : undefined });
 
     function connect() {
       for (const set of neighbors) set.clear();
@@ -979,7 +1015,7 @@
     };
     const boxWidth = (index) => boxWidthOf(measure(labels[index]));
     function arrange() {
-      ({ boxes, routes } = layered(nodes, edges, visible, shown, boxWidth));
+      ({ boxes, routes, heads } = layered(nodes, edges, visible, shown, boxWidth, scene.columns));
     }
     const place = (index) => (diagram() ? { x: boxes[index].x, y: boxes[index].y, z: 0 } : points[index]);
     /** Someone who asked for less motion gets the next picture at once. */

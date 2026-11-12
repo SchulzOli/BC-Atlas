@@ -15,14 +15,23 @@ Open a folder with an `app.json`, and BC Atlas analyzes it. There is nothing
 else to install: the extension brings its engine along and runs it on the
 editor's own Node.js runtime. Everything stays on your machine.
 
-## One view: a toolbar and the graph
+## First: how it works
 
-![The System lens of the purchasing example: every object as a node, a codeunit selected with its facts and relations, findings as rings](marketing/screenshots/view.png)
+![The overview of the purchasing example: people, processes, screens, logic, and data in five columns; the process test a team lead is stopped at is selected, and its way through the screens and the logic to the tables is lit](marketing/screenshots/view.png)
+
+The view opens on the **Overview**: how the app works, from left to right.
+Who uses it, what they do, on which screens, with which logic, in which
+data. Lines stay quiet until you click something; then its way lights up,
+from the person who starts it to the tables it ends in. A large project
+shows areas in place of single objects, and an area opens with a double
+click.
+
+## One view: a toolbar and the graph
 
 The source code is the only fact. Everything BC Atlas reads from it is one
 graph, and the toolbar decides what you see of it:
 
-- a **lens** shows a part: the system, the components, the apps, the data,
+- a **lens** shows a part: how it works, the system, the components, the apps, the data,
   the calls, the events, the contracts, the pages, the permissions, what is
   public or internal, the findings, the processes, the people;
 - **2D**, **Diagram**, or **3D** is the form, for any lens;

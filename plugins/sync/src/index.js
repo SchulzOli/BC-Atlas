@@ -225,6 +225,7 @@ export function activate(context) {
         lenses: [{
           id: "sync",
           title: "Recordings",
+          hint: "what was recorded in Business Central",
           summary: "What was recorded in Business Central, the objects each recording runs through, and what is synced or waits for it.",
           kinds: ["channel", "recording", "object"],
           relations: ["syncs", "not synced", "runs through", "changes"],

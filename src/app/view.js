@@ -87,7 +87,8 @@ export function viewState(atlas, options = {}) {
     }
   }
   if (options.select) state.sel = findNode(atlas, options.select, "--select").id;
-  state.form = oneOf(options.form, S.FORMS, "--form") || "2d";
+  // Without --form a lens is drawn in the form it reads best in.
+  state.form = oneOf(options.form, S.FORMS, "--form") || "";
   state.color = oneOf(options.color, S.COLORS, "--color");
   state.size = oneOf(options.size, S.SIZES, "--size");
   state.group = oneOf(options.group, S.GROUPS, "--group");
@@ -157,7 +158,8 @@ function sceneText(atlas, found, scene, flags, state) {
     const group = scene.groups[scene.nodes[row.place].group] || "";
     (groups.get(group) ?? groups.set(group, []).get(group)).push(row);
   }
-  for (const [group, members] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
+  // The overview reads in the order of its columns; everything else by name.
+  for (const [group, members] of [...groups].sort(([a], [b]) => (scene.flow ? scene.groups.indexOf(a) - scene.groups.indexOf(b) : a.localeCompare(b)))) {
     if (groups.size > 1 || group) lines.push(group || "(no group)");
     for (const { node, at, place } of members) {
       const findings = at >= 0 ? found.findingsOf.get(at) ?? [] : [];
@@ -260,7 +262,7 @@ export async function renderView(workspace, options = {}) {
   const theme = options.theme ?? "light";
   if (!LOOKS[theme]) throw new UsageError("--theme must be light or dark");
   const svg = GRAPH.drawing(scene, {
-    form: state.form,
+    form: S.formOf(atlas, state),
     width: size(options.width, "width", 1440),
     height: size(options.height, "height", 900),
     visible: flags.nodes,

@@ -178,6 +178,19 @@ bca check --fail-on warning
 `--format markdown` produces a summary for pull requests or job pages; see
 [Automation](./docs/automation-and-ci.md).
 
+## See how it works
+
+```sh
+bca view --lens overview                      # who does what, on which screens, with which logic, in which data
+bca view --lens overview -o overview.svg      # the same as a picture, in five columns
+bca export -o atlas.html                      # the view as one file; it opens on the overview
+```
+
+The overview is the first thing the view shows: people, processes,
+screens, logic, and data in columns, read from left to right. Lines are
+quiet; select a process test or an object and its way through the app
+lights up. See [the view](./docs/vscode.md#the-overview-how-it-works).
+
 ## Battle-test it: simulate the use in your company
 
 ```sh

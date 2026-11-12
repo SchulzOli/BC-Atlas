@@ -89,7 +89,8 @@ test("the service answers the view and the editor from one analysis", async () =
   // Where dependencies should be (rules) and where they are (object links), top layer first.
   assert.deepEqual(configured.matrix.order, ["Integration", "Sales", "Core"]);
   assert.equal(configured.matrix.cells[2][0].allowed, false, "Core may not use Integration");
-  assert.deepEqual((await service.call("lenses")).slice(0, 2), [
+  assert.deepEqual((await service.call("lenses")).slice(0, 3), [
+    { id: "overview", title: "Overview", summary: "How it works, from left to right: who uses it, what they do, on which screens, with which logic, in which data." },
     { id: "system", title: "System", summary: "Every object and every relation between them." },
     { id: "components", title: "Components", summary: "The components in their layers and the dependencies between them, allowed or the wrong way." }
   ]);
@@ -127,7 +128,7 @@ test("the atlas is everything read from the source as one graph", async () => {
   );
 
   // Lenses: parts of the one graph. One without anything in it is left out.
-  assert.deepEqual(atlas.lenses.map(({ id }) => id), ["system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health"]);
+  assert.deepEqual(atlas.lenses.map(({ id }) => id), ["overview", "system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health"]);
   const kinds = new Set(atlas.relations.map(({ kind }) => kind));
   for (const lens of atlas.lenses) {
     assert.ok(lens.title && lens.summary && lens.reads, `${lens.id} says what it shows and what it reads`);
@@ -150,7 +151,10 @@ test("the atlas is everything read from the source as one graph", async () => {
     assert.ok(story.title && story.summary && story.steps.length > 0);
     assert.ok(story.steps.every(({ title, text, lens, nodes }) => title && text && lenses.has(lens) && nodes.every((index) => atlas.nodes[index])), `${story.id}: every step has a text, a lens, and nodes that exist`);
   }
-  const [first] = atlas.stories[0].steps;
+  // The story of the system starts with how it works, then what it is made of.
+  const [how, first] = atlas.stories[0].steps;
+  assert.deepEqual([how.title, how.lens], ["How it works", "overview"]);
+  assert.match(how.text, /^From left to right: 2 screens, 6 logic objects, 3 tables\. The screens run the logic, and the logic reads and writes the data\./u);
   assert.match(first.text, /^12 objects in 3 apps: 5 codeunits, 3 tables, 2 pages, 1 interface, 1 permissionset\./u);
   const wrongWay = atlas.stories.find(({ id }) => id === "architecture").steps[0];
   assert.match(wrongWay.text, /CON Item Sync \(Integration\) depends on CON Item in Core\. Add Core to dependsOn of Integration/u);
@@ -414,7 +418,7 @@ test("the app is one view: a toolbar and the graph", () => {
   // What shows and how it reads as text is one module, shared with `bca view` (test/view.test.js).
   assert.ok(html.indexOf("root.BCA_SCENE = {") > html.indexOf("root.BCA_GRAPH = {") && html.indexOf("const S = BCA_SCENE;") > html.indexOf("root.BCA_SCENE = {"), "graph, scene, then the view");
   // The whole state of the view is in its address, and the editor hears of it.
-  assert.match(html, /const DEFAULTS = Object\.freeze\(\{ lens: "system", form: "2d", q: "", sel: ""/u);
+  assert.match(html, /const DEFAULTS = Object\.freeze\(\{ lens: "overview", form: "", q: "", sel: ""/u, "the view opens on the overview, in the form its lens reads best in");
   assert.match(html, /vscode\.postMessage\(\{ type: "state", lens: state\.lens, story: state\.story \}\)/u);
   // Everything that shows can be saved.
   for (const format of ["png", "svg", "json", "nodes", "relations", "lens", "docs", "link"]) assert.ok(html.includes(`["${format}", "`), `export: ${format}`);

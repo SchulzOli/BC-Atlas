@@ -4,7 +4,7 @@ The source as it is now.
 
 12 objects in 3 apps, 26 relations. Health failed: 1 error, 0 warnings, 11 info. Architecture (configured): 3 components, 1 dependency the wrong way.
 
-![System](system.svg)
+![Overview](system.svg)
 
 ## Layers
 
@@ -50,6 +50,7 @@ The other sides of the same system: each lens is a part of the one graph.
 
 | Lens | Nodes | Relations | Shows |
 | --- | ---: | ---: | --- |
+| [Overview](lenses/overview.md) | 12 | 9 | How it works, from left to right: who uses it, what they do, on which screens, with which logic, in which data. |
 | [System](lenses/system.md) | 13 | 30 | Every object and every relation between them. |
 | [Components](lenses/components.md) | 3 | 3 | The components in their layers and the dependencies between them, allowed or the wrong way. |
 | [Apps](lenses/apps.md) | 4 | 4 | The apps of the workspace, the apps they depend on, and what they use of each other. |
@@ -67,7 +68,7 @@ The other sides of the same system: each lens is a part of the one graph.
 
 Walks through the system, step by step.
 
-- [What multi-app is](stories/system.md): The system from the outside in: apps, components, hubs, data, events, the user interface, and its health.
+- [What multi-app is](stories/system.md): The system from the outside in: how it works, then its apps, components, hubs, data, events, the user interface, and its health.
 - [What to fix](stories/fix.md): 1 finding, the most severe first, each on the nodes it is about.
 - [Dependencies the wrong way](stories/architecture.md): 1 work item to reach the configured architecture.
 

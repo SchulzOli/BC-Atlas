@@ -2,79 +2,83 @@
 
 [System](../README.md) › Stories
 
-The system from the outside in: apps, components, hubs, data, events, the user interface, and its health.
+The system from the outside in: how it works, then its apps, components, hubs, data, events, the user interface, and its health.
 
-## 1. multi-app
+## 1. How it works
+
+From left to right: 2 screens, 6 logic objects, 3 tables. The screens run the logic, and the logic reads and writes the data. A line leads from what uses to what is used.
+
+## 2. multi-app
 
 12 objects in 3 apps: 5 codeunits, 3 tables, 2 pages, 1 interface, 1 permissionset. Every dot is one of them, every line something one does with another. All of it is read from the AL source.
 
-## 2. The apps
+## 3. The apps
 
 Contoso Core, Contoso Integration, Contoso Sales. A line is what one app uses of another.
 
 Shown: `Contoso Core`, `Contoso Integration`, `Contoso Sales`.
 
-## 3. 3 components
+## 4. 3 components
 
 Core, Sales, Integration. Lower layers know nothing of higher ones.
 
 Shown: `Core`, `Sales`, `Integration`.
 
-## 4. Core
+## 5. Core
 
 6 objects: CON Item, CON Price Group, CON Item Card, CON Price Calculation, CON Standard Pricing, and 1 more.
 
 Shown: `CON Item`, `CON Price Group`, `CON Item Card`, `CON Price Calculation`, `CON Standard Pricing`, `CON Pricing Mgt.`.
 
-## 5. Sales
+## 6. Sales
 
 4 objects: CON Sales Quote, CON Quote Mgt., CON Sales Quote, CON Sales.
 
 Shown: `CON Sales Quote`, `CON Quote Mgt.`, `CON Sales Quote`, `CON Sales`.
 
-## 6. Integration
+## 7. Integration
 
 2 objects: CON Quote Export, CON Item Sync. 1 dependency point the wrong way.
 
 Shown: `CON Quote Export`, `CON Item Sync`.
 
-## 7. What everything depends on
+## 8. What everything depends on
 
 CON Item (used by 4, uses 1); CON Sales Quote (used by 4, uses 1); CON Quote Mgt. (used by 3, uses 2); CON Standard Pricing (used by 1, uses 3); CON Quote Export (used by 0, uses 3). A change here reaches furthest.
 
 Shown: `CON Item`, `CON Sales Quote`, `CON Quote Mgt.`, `CON Standard Pricing`, `CON Quote Export`.
 
-## 8. The data
+## 9. The data
 
 3 tables: CON Item, CON Price Group, CON Sales Quote. Orange lines write, blue lines read.
 
 Shown: `CON Item`, `CON Price Group`, `CON Sales Quote`.
 
-## 9. Events
+## 10. Events
 
 CON Quote Mgt., CON Pricing Mgt. publish events or subscribe to them. This is where other code can step in without changing these objects.
 
 Shown: `CON Quote Mgt.`, `CON Pricing Mgt.`.
 
-## 10. Contracts
+## 11. Contracts
 
 1 interface: CON Price Calculation. What implements an interface can be exchanged.
 
 Shown: `CON Price Calculation`.
 
-## 11. The user interface
+## 12. The user interface
 
 2 pages and reports: CON Item Card, CON Sales Quote.
 
 Shown: `CON Item Card`, `CON Sales Quote`.
 
-## 12. Permissions
+## 13. Permissions
 
 1 permission set: CON Sales.
 
 Shown: `CON Sales`.
 
-## 13. Health: failed
+## 14. Health: failed
 
 1 error, 0 warnings, 11 info. Turn on Check to see them on the graph.
 

@@ -4,6 +4,35 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- **The overview: how it works.** The view opens on a new lens. It shows
+  how the app works in columns with their titles, from left to right:
+  people, processes, screens, logic, data. Lines are quiet (no arrows, no
+  colors; a line runs from a column on the left to one on the right), and
+  a click lights the way of what is selected: a process test with who
+  performs it and everything it touches, an object with what uses it,
+  what it uses, and the process tests that touch it. Permission sets,
+  enums, and test codeunits are not part of it. Above 48 objects a box is
+  an area (a component, a namespace, or an app) with the number of objects
+  it holds, and a double click goes into it. `bca view --lens overview`
+  writes it as text in the order of the columns, or as a picture.
+
+### Changed
+
+- **Less noise in the view.** The lens menu lists the lenses under what
+  they answer (how it works, structure, parts, people and rules, quality),
+  one line each. A lens opens in the form it reads best in: the overview,
+  processes, people, requirements, the simulation, runs, components, and
+  apps as a diagram, the rest in a plane; `--form` and the address of the
+  view still say otherwise. The legend of the overview starts folded.
+- The story of the system starts with how it works.
+- `bca view` without `--lens` and with a picture or `--inside` shows the
+  overview, no longer the System lens; `--lens system` gives that.
+- Object nodes of test codeunits carry `test: true`.
+
 ## 0.21.0 - 2026-11-11
 
 ### Added

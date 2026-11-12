@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- The view opens on the new **Overview**: how the app works in five
+  columns (people, processes, screens, logic, data), with quiet lines. A
+  click lights the way of what is selected through the columns; a large
+  project shows areas that open with a double click.
+- The lens menu is grouped by what a lens answers, one line each, and a
+  lens opens in the form it reads best in.
+
 ## 0.21.0
 
 - The engine is BC Atlas 0.21.0.

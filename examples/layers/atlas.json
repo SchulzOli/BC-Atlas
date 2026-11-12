@@ -819,8 +819,39 @@
  ],
  "lenses": [
   {
+   "id": "overview",
+   "title": "Overview",
+   "section": "How it works",
+   "hint": "how it works, from who uses it to the data",
+   "summary": "How it works, from left to right: who uses it, what they do, on which screens, with which logic, in which data.",
+   "flow": true,
+   "form": "diagram",
+   "kinds": [
+    "object",
+    "task",
+    "person"
+   ],
+   "needs": [],
+   "relations": [
+    "relates",
+    "source",
+    "implements",
+    "uses",
+    "reads",
+    "calls",
+    "writes",
+    "subscribes",
+    "permits"
+   ],
+   "group": "kind",
+   "color": "type",
+   "reads": "the objects of the AL source and what they do with each other, the process tests, and the people of `simulation` in .bca.json"
+  },
+  {
    "id": "system",
    "title": "System",
+   "section": "Structure",
+   "hint": "every object and every relation",
    "summary": "Every object and every relation between them.",
    "kinds": [
     "object"
@@ -843,6 +874,9 @@
   {
    "id": "components",
    "title": "Components",
+   "section": "Structure",
+   "hint": "the layers and their dependencies",
+   "form": "diagram",
    "summary": "The components in their layers and the dependencies between them, allowed or the wrong way.",
    "kinds": [
     "component"
@@ -858,6 +892,9 @@
   {
    "id": "apps",
    "title": "Apps",
+   "section": "Structure",
+   "hint": "the apps and what they use of each other",
+   "form": "diagram",
    "summary": "The apps of the workspace, the apps they depend on, and what they use of each other.",
    "kinds": [
     "app"
@@ -874,6 +911,8 @@
   {
    "id": "modules",
    "title": "Modules",
+   "section": "Structure",
+   "hint": "namespaces and what they use",
    "summary": "Namespaces and what they use of each other.",
    "kinds": [
     "module"
@@ -888,6 +927,8 @@
   {
    "id": "data",
    "title": "Data",
+   "section": "Parts",
+   "hint": "tables and the code that uses them",
    "summary": "Tables and the code that reads, writes, relates, and extends them.",
    "kinds": [
     "object"
@@ -909,6 +950,8 @@
   {
    "id": "calls",
    "title": "Calls",
+   "section": "Parts",
+   "hint": "which objects call which",
    "summary": "Which objects call and run which.",
    "kinds": [
     "object"
@@ -924,6 +967,8 @@
   {
    "id": "events",
    "title": "Events",
+   "section": "Parts",
+   "hint": "publishers and subscribers",
    "summary": "Event publishers and their subscribers.",
    "kinds": [
     "object"
@@ -939,6 +984,8 @@
   {
    "id": "contracts",
    "title": "Contracts",
+   "section": "Parts",
+   "hint": "interfaces and what implements them",
    "summary": "Interfaces and what implements them.",
    "kinds": [
     "object"
@@ -957,6 +1004,8 @@
   {
    "id": "pages",
    "title": "Pages",
+   "section": "Parts",
+   "hint": "pages, reports, and what they show",
    "summary": "Pages and reports, and what they show, run, and contain.",
    "kinds": [
     "object"
@@ -991,6 +1040,8 @@
   {
    "id": "security",
    "title": "Permissions",
+   "section": "People and rules",
+   "hint": "permission sets and what they permit",
    "summary": "Permission sets and what they permit and include.",
    "kinds": [
     "object"
@@ -1009,6 +1060,8 @@
   {
    "id": "visibility",
    "title": "Visibility",
+   "section": "Quality",
+   "hint": "public, internal, or local",
    "summary": "What is public, internal, or local, and what could be narrower.",
    "kinds": [
     "object"
@@ -1031,6 +1084,8 @@
   {
    "id": "health",
    "title": "Findings",
+   "section": "Quality",
+   "hint": "the rules and what they found",
    "summary": "The rules of the health check and the objects they found.",
    "kinds": [
     "rule",
@@ -1192,8 +1247,14 @@
    "id": "system",
    "kind": "tour",
    "title": "What multi-app is",
-   "summary": "The system from the outside in: apps, components, hubs, data, events, the user interface, and its health.",
+   "summary": "The system from the outside in: how it works, then its apps, components, hubs, data, events, the user interface, and its health.",
    "steps": [
+    {
+     "title": "How it works",
+     "text": "From left to right: 2 screens, 6 logic objects, 3 tables. The screens run the logic, and the logic reads and writes the data. A line leads from what uses to what is used.",
+     "lens": "overview",
+     "nodes": []
+    },
     {
      "title": "multi-app",
      "text": "12 objects in 3 apps: 5 codeunits, 3 tables, 2 pages, 1 interface, 1 permissionset. Every dot is one of them, every line something one does with another. All of it is read from the AL source.",

@@ -37,7 +37,7 @@ test("the layers are pages from the system down to each procedure, and every lin
 
   // Layer 0: the system, with its picture, and the way down to every layer.
   const system = files.get("README.md");
-  assert.match(system, /^# multi-app\n\nThe source as it is now\.\n\n12 objects in 3 apps, 26 relations\. Health failed: 1 error, 0 warnings, 11 info\. Architecture \(configured\): 3 components, 1 dependency the wrong way\.\n\n!\[System\]\(system\.svg\)/u);
+  assert.match(system, /^# multi-app\n\nThe source as it is now\.\n\n12 objects in 3 apps, 26 relations\. Health failed: 1 error, 0 warnings, 11 info\. Architecture \(configured\): 3 components, 1 dependency the wrong way\.\n\n!\[Overview\]\(system\.svg\)/u);
   assert.match(files.get("system.svg"), /^<svg /u);
   assert.match(system, /\| \[Integration\]\(components\/integration\.md\) \| Layer 2 \| 2 \| depends on \[Sales\]\(components\/sales\.md\), wrong way \[Core\]\(components\/core\.md\) \| 3 \(error\) \|/u);
   assert.match(system, /\| \[Data\]\(lenses\/data\.md\) \| 8 \| 9 \| Tables and the code that reads, writes, relates, and extends them\. \|/u);

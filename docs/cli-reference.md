@@ -626,11 +626,15 @@ implementation draws the page and writes these files, so they always agree.
 
 ```sh
 bca view ./app                                            # what there is to see: lenses, stories, sources
+bca view ./app --lens overview                            # how it works: people, processes, screens, logic, data
+bca view ./app --lens overview -o overview.svg            # the same as a picture, in columns
+bca view ./app --lens overview --select "task:Approve a released purchase request"   # the way of one process test
 bca view ./app --lens data                                # the Data lens as text: nodes by group, what each does
 bca view ./app --lens health --check                      # the findings with their fixes, on the objects they are about
 bca view ./app --lens data --form diagram -o data.svg     # the same lens as a picture
 bca view ./app --inside codeunit:50100 --form diagram -o posting.png
-bca view ./app --inside component:Core                    # a component, an app, or a namespace: its objects
+bca view ./app --inside component:Core                    # how a component, an app, or a namespace works: its screens, logic, data
+bca view ./app --lens system --inside component:Core      # its objects, and everything they do with each other
 bca view ./app --lens sync                                # a lens of a plugin: the recordings of Business Central
 bca view ./app --focus "table:Sales Header" --depth 2 --format json
 bca view ./app --story fix                                # a story, step by step
@@ -660,8 +664,8 @@ bca view ./app --format json > atlas.json                 # the whole graph
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--lens` | id | What the graph shows: `system` (default), `components`, `apps`, `modules`, `data`, `calls`, `events`, `contracts`, `pages`, `security`, `visibility`, `health`, `processes`, `people`, `requirements`, `simulation`, `run`, and the lenses of plugins, such as `sync` (the recordings of Business Central). A lens with nothing in it does not exist for a project; `bca view` without options lists the lenses a project has. |
-| `--inside` | node | Go into one node. An object opens to its procedures, triggers, and events, and what each does with other objects; an app, a component, or a namespace opens to its objects and what they do with each other. A name, an ID, or a selector such as `codeunit:50100` or `component:Core`. |
+| `--lens` | id | What the graph shows: `overview` (default: how it works, in columns from who uses it to the data), `system`, `components`, `apps`, `modules`, `data`, `calls`, `events`, `contracts`, `pages`, `security`, `visibility`, `health`, `processes`, `people`, `requirements`, `simulation`, `run`, and the lenses of plugins, such as `sync` (the recordings of Business Central). A lens with nothing in it does not exist for a project; `bca view` without options lists the lenses a project has. |
+| `--inside` | node | Go into one node. An object opens to its procedures, triggers, and events, and what each does with other objects; an app, a component, or a namespace opens to how it works (its screens, logic, and data), or with `--lens system` to its objects and everything they do with each other. A name, an ID, or a selector such as `codeunit:50100` or `component:Core`. |
 | `--focus` | node | Only this node and what is near it. A name, an ID, or a selector such as `table:Customer`, `component:Core`, or `person:Anna`. |
 | `--depth` | n | How many steps from the `--focus` node. Default: `1`. |
 | `--find` | text | In a picture, the nodes whose name, type, component, namespace, or ID match stand out; a list holds only them. |
@@ -671,7 +675,7 @@ bca view ./app --format json > atlas.json                 # the whole graph
 | `--story` | id | A story instead of a lens: its steps with their texts. The overview lists the stories of the project. `run:<agent>` is the [run](./battle-test.md#a-run-step-by-step) of the simulation of one person. |
 | `--step` | n | One step of the `--story`, from 1: its nodes, in its lens. For a run, the picture holds what the run reached at that step. |
 | `--stories` | flag | Every story of the system as one document (`text`, `md`, or `json`). |
-| `--form` | form | The form of a picture: `2d` (default), `diagram`, or `3d`. |
+| `--form` | form | The form of a picture: `2d`, `diagram`, or `3d`. Without it, the form the lens reads best in: `diagram` for the overview, processes, people, requirements, the simulation, runs, components, and apps, `2d` for the rest. |
 | `--color` | by | Color the nodes by `type`, `component`, `namespace`, `app`, `level`, or `findings` instead of what the lens does. |
 | `--size` | by | Size the nodes by `relations`, `usedBy`, `uses`, `lines`, `complexity`, `objects`, or `findings`. |
 | `--group` | by | Hold the nodes together by `component`, `namespace`, `app`, `kind`, or `none`. |
