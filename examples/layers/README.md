@@ -4,7 +4,17 @@ The source as it is now.
 
 12 objects in 3 apps, 26 relations. Health failed: 1 error, 0 warnings, 11 info. Architecture (configured): 3 components, 1 dependency the wrong way.
 
-![System](system.svg)
+![Overview](system.svg)
+
+## Start here
+
+1. **How it works**: the picture above, and [what is in it](lenses/overview.md).
+2. **[How it is connected](architecture.md)**: 3 apps, 3 components, and what depends on what.
+3. **[What to change, and how](changes.md)**: 7 changes, the most important first.
+   - Declare that Contoso Integration depends on Contoso Core (small)
+   - Bring in what Contoso Integration refers to (small)
+   - CON Item Sync: declare the dependency; it points inward (small)
+4. **Down the layers**: from the apps to each procedure, below.
 
 ## Layers
 
@@ -50,6 +60,7 @@ The other sides of the same system: each lens is a part of the one graph.
 
 | Lens | Nodes | Relations | Shows |
 | --- | ---: | ---: | --- |
+| [Overview](lenses/overview.md) | 12 | 9 | How it works, from left to right: who uses it, what they do, on which screens, with which logic, in which data. |
 | [System](lenses/system.md) | 13 | 30 | Every object and every relation between them. |
 | [Components](lenses/components.md) | 3 | 3 | The components in their layers and the dependencies between them, allowed or the wrong way. |
 | [Apps](lenses/apps.md) | 4 | 4 | The apps of the workspace, the apps they depend on, and what they use of each other. |
@@ -67,9 +78,9 @@ The other sides of the same system: each lens is a part of the one graph.
 
 Walks through the system, step by step.
 
-- [What multi-app is](stories/system.md): The system from the outside in: apps, components, hubs, data, events, the user interface, and its health.
+- [What multi-app is](stories/system.md): The system from the outside in: how it works, then its apps, components, hubs, data, events, the user interface, and its health.
 - [What to fix](stories/fix.md): 1 finding, the most severe first, each on the nodes it is about.
-- [Dependencies the wrong way](stories/architecture.md): 1 work item to reach the configured architecture.
+- [What to change, and how](stories/architecture.md): 7 changes to the architecture, the most important first; the last 2 are options. Each says why, and how to do it.
 
 ## Findings
 

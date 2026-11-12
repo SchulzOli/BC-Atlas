@@ -336,6 +336,9 @@ code { font-family: var(--mono); font-size: 0.92em; padding: 1px 4px; border-rad
   background: none;
   text-align: left;
 }
+/* One line: the name, and next to it what it shows. */
+#popover .item.line { grid-template-columns: 112px minmax(0, 1fr); align-items: baseline; padding: 5px 10px; }
+#popover .item.line small { grid-column: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #popover .item:hover, #popover .item:focus-visible { background: var(--hover); outline: 0; }
 #popover .item[aria-current="true"] { background: var(--accent-soft); }
 #popover .item b { font-weight: 600; }

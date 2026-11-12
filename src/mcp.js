@@ -342,7 +342,7 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
   }));
 
   server.registerTool("bc_atlas_view", {
-    description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, components, namespaces, objects, health rules, process tests, people, requirements, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (system, components, data, calls, events, health, processes, people, ..., and the lenses of plugins, such as sync for what was recorded in Business Central) returns that part of the graph: nodes with their facts and findings, and relations. inside goes into one node: an object opens to its procedures and what each does, an app, a component, or a namespace to its objects; focus returns a node and what is near it; story returns a generated walk through the graph (what the system is, a process step by step, what to fix, or run:<agent>: one person of the simulation performing the assigned process tests, each step [done], [blocked] with what is missing, or [waiting]; with step, the picture as that step built it). format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",
+    description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, components, namespaces, objects, health rules, process tests, people, requirements, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (overview: how it works, in columns from who uses the app over the process tests, screens, and logic to the data, each relation from left to right; system, components, data, calls, events, health, processes, people, ..., and the lenses of plugins, such as sync for what was recorded in Business Central) returns that part of the graph: nodes with their facts and findings, and relations. inside goes into one node: an object opens to its procedures and what each does, an app, a component, or a namespace to how it works (with lens system: to its objects and everything they do with each other); focus returns a node and what is near it; story returns a generated walk through the graph (what the system is, a process step by step, what to fix, or run:<agent>: one person of the simulation performing the assigned process tests, each step [done], [blocked] with what is missing, or [waiting]; with step, the picture as that step built it). format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",
     inputSchema: z.object({
       path: architectureFields.path,
       projectRoot: architectureFields.projectRoot,
@@ -415,6 +415,34 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
       // The overview names every agent and process test; the details come on request.
       agents: agent ? named(agents, agent, "name") : agents.map(({ name, roles, permissionSets, taskGroups }) => ({ name, roles, permissionSets: permissionSets.map((set) => set.name), taskGroups })),
       tasks: task ? named(tasks, task, "id") : tasks.map(({ id, title, features, permissions, source }) => ({ id, title, features, permissions, source }))
+    };
+  }));
+
+  server.registerTool("bc_atlas_layers", {
+    description: "Write the documentation of a repository, in sync with the source, for one app or many: README.md (how it works, where to start), architecture.md (how the apps and components are connected: dependencies, layers, cycles, shared tables), changes.md (what to change in the architecture and how: each change with why, the steps, and the effort, the most important first), and one page per app, component, namespace, and object, each with a picture. Returns where the pages are, whether they were in sync, and the changes. With check it writes nothing and inSync says whether the pages match the source (for a pipeline). For the changes alone, without writing files, use bc_atlas_view with story architecture.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      compiler: projectFields.compiler,
+      output: z.string().min(1).optional().describe("Folder of the pages (default: layers.outputDir in .bca.json, else docs/layers)"),
+      check: z.boolean().optional().describe("Write nothing; report whether the pages are in sync with the source"),
+      pictures: z.enum(["auto", "all", "none"]).optional().describe("Pictures of single objects: auto (up to 400 objects), all, or none")
+    }),
+    annotations: { readOnlyHint: false, idempotentHint: true }
+  }, tool(async ({ path: input, ...values }) => {
+    const { syncLayers } = await import("./commands/layers.js");
+    const { output, check, inSync, current } = await syncLayers(input, values);
+    return {
+      output,
+      start: `${output}/README.md`,
+      check,
+      inSync,
+      counts: current?.manifest.counts,
+      files: current?.files,
+      written: current?.written.length,
+      removed: current?.removed.length,
+      changes: (current?.atlas.changes ?? []).map(({ title, kind, why, how, effort, optional }) => ({ title, kind, why, how, effort, ...(optional ? { optional } : {}) }))
     };
   }));
 

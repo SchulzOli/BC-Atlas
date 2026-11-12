@@ -74,23 +74,24 @@ const ATLAS_RELATIONS = {
  * `from` keeps only relations that start at an object of these types.
  */
 export const LENSES = [
-  { id: "system", title: "System", summary: "Every object and every relation between them.", kinds: ["object"], relations: "*", group: "component", color: "type", reads: "the objects of the AL source and all their relations: calls, data access, events, extensions, permissions" },
-  { id: "components", title: "Components", summary: "The components in their layers and the dependencies between them, allowed or the wrong way.", kinds: ["component"], relations: ["depends on", "wrong way", "not declared"], group: "layer", color: "kind", reads: "the components of `architecture` in .bca.json (or the proposal), and the relations between the objects assigned to them" },
-  { id: "apps", title: "Apps", summary: "The apps of the workspace, the apps they depend on, and what they use of each other.", kinds: ["app"], relations: ["declared", "implicit", "undeclared", "unresolved"], group: "origin", color: "kind", reads: "`app.json` of every app, its `dependencies`, and the relations between objects of different apps" },
-  { id: "modules", title: "Modules", summary: "Namespaces and what they use of each other.", kinds: ["module"], relations: ["depends on"], group: "app", color: "kind", reads: "the namespaces of the objects and the relations that cross them" },
-  { id: "data", title: "Data", summary: "Tables and the code that reads, writes, relates, and extends them.", kinds: ["object"], relations: ["reads", "writes", "relates", "extends"], connected: true, types: ["table", "tableextension"], group: "component", color: "type", reads: "tables and the `reads`, `writes`, `relates`, and `extends` relations" },
-  { id: "calls", title: "Calls", summary: "Which objects call and run which.", kinds: ["object"], relations: ["calls", "runs", "starts"], connected: true, group: "component", color: "type", reads: "the procedure calls and `Run` statements in the code" },
-  { id: "events", title: "Events", summary: "Event publishers and their subscribers.", kinds: ["object"], relations: ["publishes", "subscribes", "events"], connected: true, group: "component", color: "type", reads: "`[IntegrationEvent]`, `[BusinessEvent]`, and `[EventSubscriber]` procedures" },
-  { id: "contracts", title: "Contracts", summary: "Interfaces and what implements them.", kinds: ["object"], relations: ["implements", "selects"], connected: true, types: ["interface"], group: "component", color: "type", reads: "`interface` objects, `implements`, and the `Implementation` of enum values" },
-  { id: "pages", title: "Pages", summary: "Pages and reports, and what they show, run, and contain.", kinds: ["object"], relations: "*", connected: true, from: ["page", "pageextension", "pagecustomization", "report", "reportextension"], types: ["page", "report"], group: "component", color: "type", reads: "pages, page extensions, reports, their source tables, parts, and actions" },
-  { id: "security", title: "Permissions", summary: "Permission sets and what they permit and include.", kinds: ["object"], relations: ["permits", "includes"], connected: true, types: ["permissionset"], group: "component", color: "type", reads: "`permissionset` objects, their `Permissions`, and `IncludedPermissionSets`" },
-  { id: "visibility", title: "Visibility", summary: "What is public, internal, or local, and what could be narrower.", kinds: ["object"], relations: "*", group: "component", color: "level", reads: "the `Access` property and the uses found from other apps and objects" },
-  { id: "health", title: "Findings", summary: "The rules of the health check and the objects they found.", kinds: ["rule", "object"], relations: ["error", "warning", "info"], connected: true, group: "kind", color: "severity", reads: "the findings of `bca check` (rules, AL compiler, analyzers) and the objects they are on" },
-  { id: "processes", title: "Processes", summary: "The process tests step by step, and the objects each one touches.", kinds: ["process", "task", "object"], relations: ["step", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the AL UI tests with `[SCENARIO]`, and the code behind every step" },
-  { id: "people", title: "People", summary: "Who performs which process test with which permission sets, and what blocks them.", kinds: ["person", "task", "object"], relations: ["performs", "blocked", "must not", "can, but must not", "holds"], connected: true, group: "kind", color: "kind", reads: "the roles and agents of `simulation` in .bca.json, their permission sets, and the process tests" },
-  { id: "requirements", title: "Requirements", summary: "What the company needs, and the process tests that prove it.", kinds: ["requirement", "task"], relations: ["proven by"], group: "kind", color: "status", reads: "the `requirements` of `simulation` in .bca.json and the process tests" },
-  { id: "simulation", title: "Simulation", summary: "The company that uses the app: its people and roles, the process tests each role does or must not do, the recordings they stand on, and the requirements they prove.", kinds: ["person", "role", "task", "requirement", "recording"], needs: ["person", "role"], relations: ["has role", "does", "forbids", "blocked", "can, but must not", "proven by", "grounds"], group: "kind", color: "status", reads: "the `simulation` section of .bca.json (or the [PERMISSIONS] of the process tests), the process tests, and the recordings of the sync plugin" },
-  { id: "run", title: "Run", summary: "The canvas the simulation runs on: who performs which process test, and the objects each step touches.", kinds: ["person", "task", "object"], needs: ["person"], relations: ["performs", "blocked", "can, but must not", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the agents of `simulation` in .bca.json, the process tests, and what each step of a test needs" }
+  { id: "overview", title: "Overview", section: "How it works", hint: "how it works, from who uses it to the data", summary: "How it works, from left to right: who uses it, what they do, on which screens, with which logic, in which data.", flow: true, form: "diagram", kinds: ["object", "task", "person"], needs: [], relations: "*", group: "kind", color: "type", reads: "the objects of the AL source and what they do with each other, the process tests, and the people of `simulation` in .bca.json" },
+  { id: "system", title: "System", section: "Structure", hint: "every object and every relation", summary: "Every object and every relation between them.", kinds: ["object"], relations: "*", group: "component", color: "type", reads: "the objects of the AL source and all their relations: calls, data access, events, extensions, permissions" },
+  { id: "components", title: "Components", section: "Structure", hint: "the layers and their dependencies", form: "diagram", summary: "The components in their layers and the dependencies between them, allowed or the wrong way.", kinds: ["component"], relations: ["depends on", "wrong way", "not declared"], group: "layer", color: "kind", reads: "the components of `architecture` in .bca.json (or the proposal), and the relations between the objects assigned to them" },
+  { id: "apps", title: "Apps", section: "Structure", hint: "the apps and what they use of each other", form: "diagram", summary: "The apps of the workspace, the apps they depend on, and what they use of each other.", kinds: ["app"], relations: ["declared", "implicit", "undeclared", "unresolved"], group: "origin", color: "kind", reads: "`app.json` of every app, its `dependencies`, and the relations between objects of different apps" },
+  { id: "modules", title: "Modules", section: "Structure", hint: "namespaces and what they use", summary: "Namespaces and what they use of each other.", kinds: ["module"], relations: ["depends on"], group: "app", color: "kind", reads: "the namespaces of the objects and the relations that cross them" },
+  { id: "data", title: "Data", section: "Parts", hint: "tables and the code that uses them", summary: "Tables and the code that reads, writes, relates, and extends them.", kinds: ["object"], relations: ["reads", "writes", "relates", "extends"], connected: true, types: ["table", "tableextension"], group: "component", color: "type", reads: "tables and the `reads`, `writes`, `relates`, and `extends` relations" },
+  { id: "calls", title: "Calls", section: "Parts", hint: "which objects call which", summary: "Which objects call and run which.", kinds: ["object"], relations: ["calls", "runs", "starts"], connected: true, group: "component", color: "type", reads: "the procedure calls and `Run` statements in the code" },
+  { id: "events", title: "Events", section: "Parts", hint: "publishers and subscribers", summary: "Event publishers and their subscribers.", kinds: ["object"], relations: ["publishes", "subscribes", "events"], connected: true, group: "component", color: "type", reads: "`[IntegrationEvent]`, `[BusinessEvent]`, and `[EventSubscriber]` procedures" },
+  { id: "contracts", title: "Contracts", section: "Parts", hint: "interfaces and what implements them", summary: "Interfaces and what implements them.", kinds: ["object"], relations: ["implements", "selects"], connected: true, types: ["interface"], group: "component", color: "type", reads: "`interface` objects, `implements`, and the `Implementation` of enum values" },
+  { id: "pages", title: "Pages", section: "Parts", hint: "pages, reports, and what they show", summary: "Pages and reports, and what they show, run, and contain.", kinds: ["object"], relations: "*", connected: true, from: ["page", "pageextension", "pagecustomization", "report", "reportextension"], types: ["page", "report"], group: "component", color: "type", reads: "pages, page extensions, reports, their source tables, parts, and actions" },
+  { id: "security", title: "Permissions", section: "People and rules", hint: "permission sets and what they permit", summary: "Permission sets and what they permit and include.", kinds: ["object"], relations: ["permits", "includes"], connected: true, types: ["permissionset"], group: "component", color: "type", reads: "`permissionset` objects, their `Permissions`, and `IncludedPermissionSets`" },
+  { id: "visibility", title: "Visibility", section: "Quality", hint: "public, internal, or local", summary: "What is public, internal, or local, and what could be narrower.", kinds: ["object"], relations: "*", group: "component", color: "level", reads: "the `Access` property and the uses found from other apps and objects" },
+  { id: "health", title: "Findings", section: "Quality", hint: "the rules and what they found", summary: "The rules of the health check and the objects they found.", kinds: ["rule", "object"], relations: ["error", "warning", "info"], connected: true, group: "kind", color: "severity", reads: "the findings of `bca check` (rules, AL compiler, analyzers) and the objects they are on" },
+  { id: "processes", title: "Processes", section: "How it works", hint: "the process tests, step by step", form: "diagram", summary: "The process tests step by step, and the objects each one touches.", kinds: ["process", "task", "object"], relations: ["step", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the AL UI tests with `[SCENARIO]`, and the code behind every step" },
+  { id: "people", title: "People", section: "People and rules", hint: "who performs what, and what blocks them", form: "diagram", summary: "Who performs which process test with which permission sets, and what blocks them.", kinds: ["person", "task", "object"], relations: ["performs", "blocked", "must not", "can, but must not", "holds"], connected: true, group: "kind", color: "kind", reads: "the roles and agents of `simulation` in .bca.json, their permission sets, and the process tests" },
+  { id: "requirements", title: "Requirements", section: "People and rules", hint: "what the company needs, and its proof", form: "diagram", summary: "What the company needs, and the process tests that prove it.", kinds: ["requirement", "task"], relations: ["proven by"], group: "kind", color: "status", reads: "the `requirements` of `simulation` in .bca.json and the process tests" },
+  { id: "simulation", title: "Simulation", section: "People and rules", hint: "the company that uses the app", form: "diagram", summary: "The company that uses the app: its people and roles, the process tests each role does or must not do, the recordings they stand on, and the requirements they prove.", kinds: ["person", "role", "task", "requirement", "recording"], needs: ["person", "role"], relations: ["has role", "does", "forbids", "blocked", "can, but must not", "proven by", "grounds"], group: "kind", color: "status", reads: "the `simulation` section of .bca.json (or the [PERMISSIONS] of the process tests), the process tests, and the recordings of the sync plugin" },
+  { id: "run", title: "Run", section: "How it works", hint: "the simulation at work", form: "diagram", summary: "The canvas the simulation runs on: who performs which process test, and the objects each step touches.", kinds: ["person", "task", "object"], needs: ["person"], relations: ["performs", "blocked", "can, but must not", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the agents of `simulation` in .bca.json, the process tests, and what each step of a test needs" }
 ];
 
 const plural = (count, word, many = `${word}s`) => `${Number(count).toLocaleString("en-US")} ${count === 1 ? word : many}`;
@@ -218,6 +219,8 @@ async function structure(workspace, graph) {
       about: meta?.documentation,
       access: meta?.access,
       obsolete: meta?.obsolete?.state,
+      // A test codeunit tests the app; it is not part of how the app works.
+      test: /^test/iu.test(meta?.subtype ?? "") ? true : undefined,
       lines: meta?.size?.lines,
       procedures: meta?.size?.procedures,
       complexity: meta?.complexity?.total,
@@ -276,6 +279,9 @@ async function structure(workspace, graph) {
       objects: component.metrics?.objects,
       wrongWay: component.violations || undefined,
       instability: component.metrics?.instability,
+      // How much of its coupling stays inside, in percent.
+      cohesion: component.metrics?.cohesion === undefined ? undefined : Math.round(component.metrics.cohesion * 100),
+      cycle: component.inCycle ? "yes" : undefined,
       canBeApp: component.extractable ? "yes" : "no"
     }));
   }
@@ -569,8 +575,194 @@ function runs(graph, battle) {
   }).filter(Boolean);
 }
 
+/** What the list of changes says when it is empty. */
+export const NOTHING_TO_CHANGE = "No app uses another without declaring it, no components depend on each other in a circle, no dependency points the wrong way, and no table is written from outside its component.";
+
+/**
+ * What to change in the architecture, and how: everything the analysis knows about it as one list,
+ * the most important first. The view (the story "architecture"), `bca view`, the layered
+ * documentation (changes.md), and agents all show this list.
+ *
+ * @returns [{ id, kind, title, why, how: [step], effort: "S" | "M" | "L", optional?, proposed?, brief?, lens, nodes: [index], file?, line? }]
+ *   kind: architecture (decide on one), apps (what an app declares), cycle, dependency (one that points the
+ *   wrong way), data (a table others write), surface (what is public without need), extract (a component
+ *   that can be an app)
+ */
+function changes({ graph, assessment }) {
+  const result = [];
+  const { nodes, edges, relations } = graph;
+  const outcome = assessment.result ?? {};
+  const components = outcome.components ?? [];
+  const index = (id) => graph.at(id);
+  const component = (name) => index(`component::${name}`);
+  const present = (indexes) => [...new Set(indexes.filter((at) => at !== undefined && at >= 0))];
+  // An object as the analysis names it: "codeunit 50201 CON Item Sync".
+  const named = (text) => nodes.findIndex((node) => node.kind === "object" && !node.external && `${node.type} ${node.objectId ? `${node.objectId} ` : ""}${node.label}` === text);
+  const proposed = Boolean(assessment.proposal);
+  const share = outcome.summary?.coupling?.share;
+  const kindOf = (relation) => relations[relation].kind;
+
+  // 1. Without an architecture nothing is checked: decide on one first.
+  if (proposed && components.length > 1) {
+    const layers = new Set(components.map(({ layer }) => layer)).size;
+    result.push({
+      id: "architecture",
+      kind: "architecture",
+      title: "Decide on the architecture",
+      why: `No architecture is configured. From the code, BC Atlas proposes ${plural(components.length, "component")} in ${plural(layers, "layer")}: ${list(components.map(({ name }) => name), 8)}.${share === undefined ? "" : ` ${Math.round(share * 100)}% of the coupling stays inside them.`} Until it is saved nothing checks it, and every change below that names a component rests on this proposal.`,
+      how: [
+        "Look at it: the Components lens of the view, or `bca architecture`.",
+        "Change what does not fit: `bca architecture --group-by namespace` (or `folder`, `app`), or name the components yourself under `architecture` in .bca.json.",
+        "Save it: `bca architecture --write`.",
+        "Accept today's state: `bca architecture --update-baseline`. From then on `bca check` fails only on new dependencies the wrong way."
+      ],
+      effort: "S",
+      lens: "components",
+      nodes: present(components.map(({ name }) => component(name)))
+    });
+  }
+
+  // 2. What an app uses of another app without saying so, and what nobody can find.
+  const between = edges.filter(([from, to]) => nodes[from].kind === "app" && nodes[to].kind === "app")
+    .sort((a, b) => (kindOf(a[2]) === "unresolved") - (kindOf(b[2]) === "unresolved"));
+  for (const [from, to, relation, weight] of between) {
+    const [a, b] = [nodes[from], nodes[to]];
+    const count = plural(weight ?? 1, "relation");
+    if (kindOf(relation) === "undeclared") {
+      result.push({
+        id: `apps:${a.label}>${b.label}`,
+        kind: "apps",
+        title: `Declare that ${a.label} depends on ${b.label}`,
+        why: `${a.label} uses ${b.label} (${count}), but its app.json does not name ${b.label}. It compiles only as long as something else brings ${b.label} along.`,
+        how: [
+          `Add ${b.label} to \`dependencies\` in the app.json of ${a.label}: its id, name, publisher, and version.`,
+          `Or, when ${a.label} should not know ${b.label}: remove the use. The Apps lens shows the ${count} between them.`
+        ],
+        effort: "S",
+        lens: "apps",
+        nodes: [from, to]
+      });
+    } else if (kindOf(relation) === "unresolved") {
+      result.push({
+        id: `apps:${a.label}>unresolved`,
+        kind: "apps",
+        title: `Bring in what ${a.label} refers to`,
+        why: `${a.label} refers to objects (${count}) that are in no app of this repository and in no symbol package. What depends on them, and what a change to them breaks, is not known.`,
+        how: [
+          "Download the symbols of the apps it depends on into `.alpackages` (AL: Download Symbols), or add the app that holds them to the workspace.",
+          "Run BC Atlas again: the relations to these objects then show."
+        ],
+        effort: "S",
+        lens: "apps",
+        nodes: [from, to]
+      });
+    }
+  }
+
+  // 3. Components that depend on each other.
+  for (const members of outcome.cycles ?? []) {
+    const between = (outcome.edges ?? []).filter(({ source, target }) => members.includes(source) && members.includes(target));
+    const thin = between.slice().sort((a, b) => a.objectEdges - b.objectEdges || a.weight - b.weight)[0];
+    result.push({
+      id: `cycle:${members.join(">")}`,
+      kind: "cycle",
+      title: `Break the cycle between ${members.join(" and ")}`,
+      why: `${members.join(" and ")} depend on each other, so none of them can be understood, tested, or released without the others.${thin ? ` The way from ${thin.source} to ${thin.target} is the thinnest: ${plural(thin.objectEdges, "object dependency", "object dependencies")} (${Object.entries(thin.kinds ?? {}).map(([kind, count]) => `${count} ${kind}`).join(", ")}).` : ""}`,
+      how: [
+        ...(thin ? [`Cut the way from ${thin.source} to ${thin.target}: move what causes it into ${thin.target}, or let ${thin.target} raise an event or offer an interface that ${thin.source} answers.`] : ["Decide which of them is below the other, and turn the dependencies that go the other way."]),
+        "The dependencies to turn are the ones the wrong way, below."
+      ],
+      effort: "M",
+      lens: "components",
+      nodes: present(members.map(component))
+    });
+  }
+
+  // 4. Each dependency that points the wrong way, with the way to resolve it.
+  for (const item of (outcome.workItems ?? []).slice(0, 60)) {
+    const targets = (item.targets ?? []).map(({ label, type }) => `${type} ${label}`);
+    result.push({
+      id: `dependency:${item.id}`,
+      kind: "dependency",
+      title: `${item.source.label}: ${item.title[0].toLowerCase()}${item.title.slice(1)}`,
+      why: `The ${item.source.type} ${item.source.label} of ${item.sourceComponent} depends on ${list(targets)} of ${item.targetComponent}${item.violations > 1 ? ` (${item.violations} dependencies)` : ""}, which the ${proposed ? "proposed" : "configured"} architecture does not allow.`,
+      how: [...(item.steps ?? []), ...(item.alternatives ?? []).map((alternative) => `Or: ${alternative.title[0].toLowerCase()}${alternative.title.slice(1)} (effort ${alternative.effort}).`)],
+      effort: item.effort ?? "M",
+      // Against a proposal it is a suggestion; against what is configured, a violation.
+      ...(proposed ? { proposed: true } : {}),
+      lens: "system",
+      nodes: present([index(item.source.id), ...(item.targets ?? []).map(({ label, type }) => nodes.findIndex((node) => node.kind === "object" && node.label === label && node.type === type))]),
+      file: item.source.file,
+      line: item.source.line
+    });
+  }
+
+  // 5. A table of one component that others write.
+  for (const owned of outcome.dataOwnership ?? []) {
+    if (owned.status !== "shared-writes" || !owned.writers?.length) continue;
+    const writers = owned.writers.map(({ component: name, objects }) => `${name} (${list(objects, 3)})`);
+    result.push({
+      id: `data:${owned.id}`,
+      kind: "data",
+      title: `Let ${owned.component} own the writes to ${owned.table}`,
+      why: `The ${owned.table} belongs to ${owned.component}, and ${list(writers, 3)} ${owned.writers.length === 1 ? "writes" : "write"} it as well. Whoever changes the table has to know every one of them.`,
+      brief: `of ${owned.component}, also written by ${list(writers, 3)}`,
+      how: [
+        `Put the writes behind a codeunit of ${owned.component} and call it from ${list(owned.writers.map(({ component: name }) => name), 3)}.`,
+        `Or move the table to the component that writes it most, when it belongs there.`
+      ],
+      effort: "M",
+      lens: "data",
+      nodes: present([index(owned.id), ...owned.writers.flatMap(({ objects }) => objects.map(named))]),
+      file: owned.file,
+      line: owned.line
+    });
+  }
+
+  // 6. What is public and used by nobody outside its component.
+  for (const check of outcome.checks ?? []) {
+    if (check.rule !== "could-be-internal") continue;
+    const [, count, names] = check.message.match(/^(\d+) object\(s\) of .+? could be Access = Internal: (.+?) \(bca /u) ?? [];
+    if (!count) continue;
+    result.push({
+      id: `surface:${check.component}`,
+      kind: "surface",
+      title: `Make ${plural(Number(count), "object")} of ${check.component} internal`,
+      why: `Nothing outside ${check.component} uses ${names}. As long as ${Number(count) === 1 ? "it is" : "they are"} public, other apps can start to depend on ${Number(count) === 1 ? "it" : "them"}, and every change is a breaking one.`,
+      how: [
+        `\`bca refactor surface --component "${check.component}"\` shows the change: Access = Internal on these objects, and what others use listed under \`exposes\` in .bca.json.`,
+        "Add `--apply` to write it."
+      ],
+      effort: "S",
+      optional: true,
+      lens: "visibility",
+      nodes: present([component(check.component), ...names.split(", ").map(named)])
+    });
+  }
+
+  // 7. A component that could be an app of its own.
+  const apps = nodes.filter((node) => node.kind === "app" && !node.external && (!node.origin || node.origin === "This workspace")).length;
+  for (const part of components) {
+    // A component that is one app already is one.
+    if (!part.extractable || (part.match ?? []).every((selector) => String(selector).startsWith("app:")) || components.length <= apps) continue;
+    const cohesion = part.metrics?.cohesion;
+    result.push({
+      id: `extract:${part.name}`,
+      kind: "extract",
+      title: `${part.name} can become an app of its own`,
+      why: `${part.name} (${plural(part.metrics?.objects ?? 0, "object")}) ${part.dependsOnActual?.length ? `depends only on ${list(part.dependsOnActual)}` : "depends on no other component"}, nothing it uses points back at it${cohesion === undefined ? "" : `, and ${Math.round(cohesion * 100)}% of its coupling stays inside`}. An app of its own is built, tested, and released on its own.`,
+      how: [`\`bca architecture --extract "${part.name}"\` writes the plan: what blocks it, its app.json, the tables to move, and the steps in order.`],
+      effort: "L",
+      optional: true,
+      lens: "components",
+      nodes: present([component(part.name)])
+    });
+  }
+  return result;
+}
+
 /** The stories: walks through the graph that explain, document, test, and demonstrate the system. */
-function stories({ graph, findings, report, assessment, battle, title }) {
+function stories({ graph, findings, report, assessment, battle, title, changed = [], lensIds = new Set() }) {
   const result = [];
   const { nodes, edges, relations } = graph;
   const at = (id) => graph.at(id);
@@ -594,6 +786,22 @@ function stories({ graph, findings, report, assessment, battle, title }) {
   const byType = new Map();
   for (const { node } of objects) byType.set(node.type, (byType.get(node.type) ?? 0) + 1);
   const apps = nodes.map((node, index) => ({ node, index })).filter(({ node }) => node.kind === "app" && !node.external);
+  // First how it works: who does what, on which screens, with which logic, in which data.
+  const own = objects.filter(({ node }) => !node.test);
+  const of = (...types) => own.filter(({ node }) => types.includes(node.type)).length;
+  const parts = [
+    [nodes.filter(({ kind }) => kind === "person").length, "person", "people"],
+    [nodes.filter(({ kind }) => kind === "task").length, "process test"],
+    [of("page", "pageextension", "pagecustomization", "report", "reportextension", "requestpage"), "screen"],
+    [of("codeunit", "query", "xmlport", "interface"), "logic object"],
+    [of("table", "tableextension"), "table"]
+  ].filter(([count]) => count);
+  tour.push({
+    title: "How it works",
+    text: `From left to right: ${parts.map(([count, one, many]) => plural(count, one, many)).join(", ")}. ${parts[0][1] === "person" ? "People perform the process tests on the screens; the " : parts[0][1] === "process test" ? "The process tests run on the screens; the " : "The "}screens run the logic, and the logic reads and writes the data. A line leads from what uses to what is used.`,
+    lens: "overview",
+    nodes: []
+  });
   tour.push({
     title,
     text: `${plural(objects.length, "object")} in ${plural(apps.length, "app")}: ${[...byType].sort((a, b) => b[1] - a[1]).map(([type, count]) => `${count} ${type}${count === 1 ? "" : "s"}`).join(", ")}. Every dot is one of them, every line something one does with another. All of it is read from the AL source.`,
@@ -640,7 +848,7 @@ function stories({ graph, findings, report, assessment, battle, title }) {
     lens: findings.some(({ origin }) => origin === "health") ? "health" : "system",
     nodes: [...new Set(findings.filter(({ origin }) => origin === "health").flatMap((finding) => finding.nodes))]
   });
-  result.push({ id: "system", kind: "tour", title: `What ${title} is`, summary: "The system from the outside in: apps, components, hubs, data, events, the user interface, and its health.", steps: tour });
+  result.push({ id: "system", kind: "tour", title: `What ${title} is`, summary: "The system from the outside in: how it works, then its apps, components, hubs, data, events, the user interface, and its health.", steps: tour });
 
   // 2. One story per process: the process tests in order, step by step.
   for (const process of battle?.processes ?? []) {
@@ -702,20 +910,29 @@ function stories({ graph, findings, report, assessment, battle, title }) {
     });
   }
 
-  // 4. The dependencies that point the wrong way, and how to resolve each.
-  const work = assessment.result.workItems ?? [];
-  if (work.length) {
+  // 4. What to change in the architecture, and how. Also when there is nothing: that is an answer too.
+  if (!changed.length && objects.length) {
     result.push({
       id: "architecture",
       kind: "check",
-      title: "Dependencies the wrong way",
-      summary: `${plural(work.length, "work item")} to reach the ${assessment.proposal ? "proposed" : "configured"} architecture.`,
-      steps: work.slice(0, 40).map((item) => ({
-        title: `${item.source.label}: ${item.title}`,
-        text: `${item.source.label} (${item.sourceComponent}) depends on ${list((item.targets ?? []).map(({ label }) => label))} in ${item.targetComponent}. ${(item.steps ?? []).join(" ")} Effort: ${item.effort}.`,
-        lens: "system",
-        nodes: [at(item.source.id), ...(item.targets ?? []).map(({ label, type }) => nodes.findIndex((node) => node.kind === "object" && node.label === label && node.type === type))].filter((index) => index !== undefined && index >= 0),
-        status: "error"
+      title: "What to change, and how",
+      summary: "Nothing to change in the architecture, as it stands.",
+      steps: [{ title: "Nothing to change", text: NOTHING_TO_CHANGE, lens: lensIds.has("overview") ? "overview" : "system", nodes: [] }]
+    });
+  }
+  if (changed.length) {
+    const must = changed.filter(({ optional }) => !optional).length;
+    result.push({
+      id: "architecture",
+      kind: "check",
+      title: "What to change, and how",
+      summary: `${plural(changed.length, "change")} to the architecture, the most important first${must < changed.length ? `; ${must ? `the last ${changed.length - must} are` : "all of them are"} options` : ""}. Each says why, and how to do it.`,
+      steps: changed.slice(0, 60).map((change) => ({
+        title: change.title,
+        text: `${change.why} How: ${change.how.join(" ")} Effort: ${change.effort}.`,
+        lens: lensIds.has(change.lens) ? change.lens : "system",
+        nodes: change.nodes,
+        status: change.optional ? "info" : (change.kind === "dependency" && !change.proposed) || change.kind === "apps" ? "error" : "warning"
       }))
     });
   }
@@ -782,6 +999,7 @@ export async function createAtlas(workspace) {
       .map((lens) => ({ ...lens, relations: lens.relations.filter((kind) => present.has(kind)) }))
       .filter((lens) => lens.kinds.some((kind) => kinds.has(kind)) && lens.relations.length));
 
+  const changed = changes({ graph, assessment });
   return {
     schema: 1,
     title: overview.title,
@@ -794,7 +1012,8 @@ export async function createAtlas(workspace) {
       objects: report.summary.objects,
       relations: report.summary.relationships,
       health: { passed: report.passed, failOn: report.failOn, ...report.counts },
-      architecture: overview.architecture,
+      // With how much of the coupling stays inside the components, in percent.
+      architecture: { ...overview.architecture, ...(assessment.result?.summary?.coupling?.share === undefined ? {} : { inside: Math.round(assessment.result.summary.coupling.share * 100) }) },
       ...(battle ? { battle: { passed: battle.passed, ...battle.summary, company: battle.company?.name } } : {})
     },
     sources: commonSources({ model, assessment }),
@@ -813,8 +1032,10 @@ export async function createAtlas(workspace) {
     edges: graph.edges,
     lenses,
     findings,
+    // What to change in the architecture, and how: the most important first.
+    changes: changed,
     stories: [
-      ...stories({ graph, findings, report, assessment, battle, title: overview.title }),
+      ...stories({ graph, findings, report, assessment, battle, title: overview.title, changed, lensIds: new Set(lenses.map(({ id }) => id)) }),
       // The runs of the simulation, when its canvas is among the lenses.
       ...(lenses.some(({ id }) => id === "run") ? runs(graph, battle) : []),
       // A step of a plugin's story names a lens of the atlas, its own or one of BC Atlas.

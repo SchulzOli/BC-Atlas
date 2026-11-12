@@ -13,8 +13,8 @@
   const RANK = { error: 3, warning: 2, info: 1 };
   // Calm colors that stay apart for people who see colors differently.
   const PALETTE = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#7C3AED", "#4E5D78", "#A23636", "#14766E", "#8B7400", "#A21CAF"];
-  const KIND_NAMES = { object: "Object", app: "App", component: "Component", module: "Namespace", rule: "Rule", process: "Process", task: "Process test", person: "Person", role: "Role", requirement: "Requirement", member: "Member", recording: "Recording", channel: "Channel" };
-  const DEFAULTS = Object.freeze({ lens: "system", form: "2d", q: "", sel: "", focus: "", depth: "1", check: "", story: "", step: "0", color: "", size: "", group: "", off: "", hide: "", inside: "" });
+  const KIND_NAMES = { object: "Object", app: "App", component: "Component", module: "Namespace", rule: "Rule", process: "Process", task: "Process test", person: "Person", role: "Role", requirement: "Requirement", member: "Member", recording: "Recording", channel: "Channel", area: "Area" };
+  const DEFAULTS = Object.freeze({ lens: "overview", form: "", q: "", sel: "", focus: "", depth: "1", check: "", story: "", step: "0", color: "", size: "", group: "", off: "", hide: "", inside: "" });
   const FORMS = Object.freeze(["2d", "diagram", "3d"]);
   const COLORS = Object.freeze(["type", "component", "namespace", "app", "level", "findings"]);
   const SIZES = Object.freeze(["relations", "usedBy", "uses", "lines", "complexity", "objects", "findings"]);
@@ -27,8 +27,23 @@
     module: (node, holder) => node.namespace === holder.label && (!holder.app || node.app === holder.app)
   };
 
+  // The overview reads from left to right: who uses the app, what they do, on which screens,
+  // with which logic, in which data. Each is a column; what is in none of them is not in the overview.
+  const FLOW = [
+    { key: "people", title: "People", one: "person", of: (node) => node.kind === "person" },
+    { key: "processes", title: "Processes", one: "process test", of: (node) => node.kind === "task" },
+    { key: "screens", title: "Screens", one: "screen", of: (node) => node.kind === "object" && ["page", "pageextension", "pagecustomization", "report", "reportextension", "requestpage"].includes(node.type) },
+    { key: "logic", title: "Logic", one: "logic object", of: (node) => node.kind === "object" && ["codeunit", "query", "xmlport", "interface"].includes(node.type) },
+    { key: "data", title: "Data", one: "table", of: (node) => node.kind === "object" && ["table", "tableextension"].includes(node.type) }
+  ];
+  /** Above this many objects the overview shows areas (components, namespaces, or apps) in place of single objects. */
+  const FLOW_OBJECTS = 48;
+  /** A column of the overview holds at most this many areas; the smallest are one box. */
+  const FLOW_AREAS = 12;
+
   const list = (value) => new Set(value ? String(value).split("|") : []);
   const kindOf = (node) => (node.kind === "object" || node.kind === "member" ? node.type : node.kind);
+  const fmtCount = (value) => Number(value).toLocaleString("en-US");
 
   /** Where each node of an atlas is, the findings on it, and the worst of them. */
   function index(atlas) {
@@ -56,6 +71,7 @@
       const value = node[mode] ?? (node.kind === "module" && mode === "namespace" ? node.label : undefined);
       return { key: value ?? "none", label: value ?? (node.external ? "other apps" : `no ${mode}`), color: undefined };
     }
+    if (node.kind === "area") return { key: node.column, label: `${node.column}, by area`, color: node.color };
     if (node.external) return { key: "external", label: "other apps", color: node.color };
     if (mode === "status" && node.status) return { key: `${node.kind}:${node.status}`, label: `${KIND_NAMES[node.kind]?.toLowerCase() ?? node.kind}: ${node.status}`, color: node.color };
     return { key: kindOf(node), label: node.kind === "object" || node.kind === "member" ? node.type : (KIND_NAMES[node.kind] ?? node.kind).toLowerCase(), color: node.color };
@@ -96,7 +112,139 @@
     // An app, a component, or a namespace that is gone into: its objects.
     const holder = !opened && state.inside && position.has(state.inside) ? atlas.nodes[position.get(state.inside)] : undefined;
     const holds = holder && HOLDERS[holder.kind];
-    if (holds) {
+    // What the overview adds to a node: its column, and its place in it.
+    const ranks = new Map();
+    let columns;
+    // What each process test of the overview touches, also what it reaches through something else.
+    const touching = new Map();
+    if (lens.flow && !opened) {
+      const inside = holds ? (node) => holds(node, holder) : undefined;
+      if (holds) {
+        title = holder.label;
+        summary = `How the ${(KIND_NAMES[holder.kind] ?? holder.kind).toLowerCase()} ${holder.label} works, from left to right: its screens, its logic, its data, and who uses them.`;
+      }
+      const column = atlas.nodes.map((node) => (node.test ? -1 : FLOW.findIndex(({ of }) => of(node))));
+      // In a holder: its objects, and what reaches them from outside the columns of objects.
+      if (inside) atlas.nodes.forEach((node, at) => { if (column[at] >= 2 && (node.external || !inside(node))) column[at] = -1; });
+      const objects = column.filter((at) => at >= 2).length;
+      // Many objects: an area stands for the objects of one kind it holds.
+      let areaOf;
+      let unit = (at) => atlas.nodes[at];
+      let finish = () => {};
+      if (objects > FLOW_OBJECTS) {
+        const own = atlas.nodes.filter((node, at) => column[at] >= 2 && !node.external);
+        const by = ["component", "namespace", "app"].find((key) => new Set(own.map((node) => node[key] ?? "")).size > 1) ?? "component";
+        areaOf = (node) => (node.external ? "Other apps" : node[by] ?? `No ${by}`);
+        const size = FLOW.map(() => new Map());
+        atlas.nodes.forEach((node, at) => { if (column[at] >= 2) size[column[at]].set(areaOf(node), (size[column[at]].get(areaOf(node)) ?? 0) + 1); });
+        const kept = size.map((areas) => new Set([...areas].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, areas.size > FLOW_AREAS ? FLOW_AREAS - 1 : FLOW_AREAS).map(([name]) => name)));
+        const named = areaOf;
+        areaOf = (node, at) => (kept[column[at]].has(named(node)) ? named(node) : "");
+        const holderKind = { component: "component", namespace: "module", app: "app" }[by];
+        const areas = new Map();
+        const areaAt = (at) => {
+          const node = atlas.nodes[at];
+          if (column[at] < 2) return node;
+          const name = areaOf(node, at);
+          const key = `area::${FLOW[column[at]].key}::${name}`;
+          if (!areas.has(key)) {
+            const real = name && atlas.nodes.find((candidate) => candidate.kind === holderKind && candidate.label === (by === "namespace" ? node.namespace : name) && (by !== "namespace" || !candidate.app || candidate.app === node.app));
+            areas.set(key, { id: key, kind: "area", column: FLOW[column[at]].key, area: name, label: "", color: node.color, holder: real?.id, count: 0, members: [] });
+          }
+          const area = areas.get(key);
+          area.count++;
+          if (area.members.length < 6) area.members.push(node.label);
+          return area;
+        };
+        const units = atlas.nodes.map((_, at) => (column[at] < 0 ? undefined : areaAt(at)));
+        unit = (at) => units[at];
+        finish = () => {
+          const others = FLOW.map((_, at) => (size[at].size > kept[at].size ? size[at].size - kept[at].size : 0));
+          for (const area of areas.values()) {
+            const at = FLOW.findIndex(({ key }) => key === area.column);
+            const what = `${fmtCount(area.count)} ${FLOW[at].one}${area.count === 1 ? "" : "s"}`;
+            area.label = `${area.area || `${fmtCount(others[at])} more areas`} · ${fmtCount(area.count)}`;
+            area.about = `${what} ${area.area ? `of ${area.area}` : `of ${fmtCount(others[at])} smaller areas`}: ${area.members.join(", ")}${area.count > area.members.length ? `, and ${fmtCount(area.count - area.members.length)} more` : ""}.`;
+          }
+        };
+      }
+      // Relations between columns, each once, from the left column to the right.
+      const system = atlas.lenses.find(({ id }) => id === "system");
+      const between = new Set(system?.relations ?? []);
+      const weights = new Map();
+      const flows = new Map();
+      const add = (from, to, kind, weight) => {
+        if (column[from] < 0 || column[to] < 0 || column[from] === column[to]) return;
+        const [a, b] = column[from] < column[to] ? [from, to] : [to, from];
+        const key = `${unit(a).id}\n${unit(b).id}\n${kind}`;
+        if (!weights.has(key)) flows.set(key, [a, b, kind]);
+        weights.set(key, (weights.get(key) ?? 0) + (weight ?? 1));
+      };
+      const touches = new Map();
+      for (const [from, to, relation, weight] of atlas.edges) {
+        const kind = atlas.relations[relation].kind;
+        if (column[from] === 0 && column[to] === 1 && (kind === "performs" || kind === "blocked")) add(from, to, kind === "blocked" ? "stopped at" : "does", weight);
+        else if (column[from] === 1 && column[to] >= 2 && kind === "touches") (touches.get(from) ?? touches.set(from, []).get(from)).push(to);
+        else if (column[from] >= 2 && column[to] >= 2 && between.has(kind)) add(from, to, "uses", weight);
+      }
+      // A process test leads to what it touches first: what that uses in turn is reached through it.
+      const after = new Map();
+      for (const [a, b] of flows.values()) if (column[a] >= 2) (after.get(unit(a).id) ?? after.set(unit(a).id, new Set()).get(unit(a).id)).add(unit(b).id);
+      const reach = (start) => {
+        const seen = new Set();
+        const open = [start];
+        while (open.length) for (const next of after.get(open.pop()) ?? []) if (!seen.has(next)) { seen.add(next); open.push(next); }
+        return seen;
+      };
+      const reached = new Map();
+      for (const [task, targets] of touches) {
+        const ids = [...new Set(targets.map((at) => unit(at).id))];
+        const behind = new Set();
+        for (const id of ids) for (const other of (reached.get(id) ?? reached.set(id, reach(id)).get(id))) behind.add(other);
+        for (const target of targets) if (!behind.has(unit(target).id)) add(task, target, "uses", 1);
+        touching.set(atlas.nodes[task].id, new Set(ids));
+      }
+      // People and process tests show when the objects do; in a holder, only those that lead into it.
+      const leading = new Set();
+      for (const [a] of flows.values()) if (column[a] === 1) leading.add(a);
+      for (const [a, b] of flows.values()) if (column[a] === 0 && leading.has(b)) leading.add(a);
+      // Between areas, a relation that also runs through the column in between is told by that way.
+      if (areaOf) {
+        for (const [key, [a, b]] of [...flows]) {
+          if (column[b] - column[a] < 2) continue;
+          const through = [...(after.get(unit(a).id) ?? [])].some((middle) => middle !== unit(b).id && after.get(middle)?.has(unit(b).id));
+          if (through) flows.delete(key);
+        }
+      }
+      const order = new Map();
+      // Areas stand in the same order in every column: the largest first, the rest of them last.
+      if (areaOf) {
+        const total = new Map();
+        atlas.nodes.forEach((_, at) => { if (column[at] >= 2) total.set(unit(at).area, (total.get(unit(at).area) ?? 0) + 1); });
+        const sorted = [...total.keys()].sort((a, b) => (a === "") - (b === "") || total.get(b) - total.get(a) || a.localeCompare(b, undefined, { numeric: true }));
+        atlas.nodes.forEach((_, at) => { if (column[at] >= 2) order.set(unit(at).id, sorted.indexOf(unit(at).area)); });
+      }
+      atlas.nodes.forEach((node, at) => {
+        if (column[at] < 0 || (inside && column[at] < 2 && !leading.has(at))) return;
+        const shown = unit(at);
+        if (!place.has(shown.id)) {
+          ranks.set(shown.id, column[at]);
+          // Process tests stand in the order of the process.
+          if (column[at] === 1) order.set(shown.id, at);
+        }
+        enter(shown, shown === node ? at : -1);
+      });
+      finish();
+      for (const name of ["does", "stopped at", "uses"]) {
+        if ([...flows.values()].some(([, , kind]) => kind === name)) kindAt({ kind: name, ...(name === "stopped at" ? { color: SEVERITY.error } : {}) });
+      }
+      for (const [key, [a, b, kind]] of flows) {
+        if (!place.has(unit(a).id) || !place.has(unit(b).id)) continue;
+        links.push([place.get(unit(a).id), place.get(unit(b).id), kindAt({ kind }), weights.get(key)]);
+      }
+      columns = FLOW.map(({ key, title: name }, rank) => ({ key, title: name, rank })).filter(({ rank }) => [...ranks.values()].includes(rank));
+      for (const [id, at] of order) ranks.set(id, { rank: ranks.get(id), order: at });
+    } else if (holds) {
       title = holder.label;
       summary = `The objects of the ${(KIND_NAMES[holder.kind] ?? holder.kind).toLowerCase()} ${holder.label}, and what they do with each other.`;
       const system = atlas.lenses.find(({ id }) => id === "system") ?? lens;
@@ -178,10 +326,14 @@
     });
     const edges = links.filter(([from, to]) => renumber.has(from) && renumber.has(to)).map(([from, to, kind, weight]) => [renumber.get(from), renumber.get(to), kind, weight]);
 
+    const renumbered = new Map(shownEntries.map(({ node }, at) => [node.id, at]));
     // Groups hold together; classes give the colors and the legend.
     const groupBy = state.group || (opened ? "kind" : holds ? (holder.kind === "module" ? "kind" : "namespace") : lens.group);
-    const groupOf = (node) => (groupBy === "none" ? "" : groupBy === "kind" ? kindOf(node) : node[groupBy] ?? (node.external ? "Other apps" : node.kind === "object" ? "" : node.kind));
-    const groups = [...new Set(shownEntries.map(({ node }) => String(groupOf(node))))].sort((a, b) => a.localeCompare(b));
+    // The overview groups by its columns, in their order.
+    const byColumn = columns && !state.group;
+    const columnOf = (node) => FLOW[ranks.get(node.id)?.rank ?? ranks.get(node.id)]?.title ?? "";
+    const groupOf = (node) => (byColumn ? columnOf(node) : groupBy === "none" ? "" : groupBy === "kind" ? kindOf(node) : node[groupBy] ?? (node.external ? "Other apps" : node.kind === "object" ? "" : node.kind));
+    const groups = [...new Set(shownEntries.map(({ node }) => String(groupOf(node))))].sort((a, b) => (byColumn ? FLOW.findIndex(({ title: name }) => name === a) - FLOW.findIndex(({ title: name }) => name === b) : a.localeCompare(b)));
     const groupPosition = new Map(groups.map((group, at) => [group, at]));
     const mode = state.color || (opened || holds ? "type" : lens.color);
     const classes = new Map();
@@ -198,7 +350,7 @@
     [...classes.values()].filter(({ color }) => !color).sort((a, b) => String(a.key).localeCompare(String(b.key)))
       .forEach((entry, at) => { entry.color = entry.key === "none" ? NEUTRAL : PALETTE[at % PALETTE.length]; });
     return {
-      key: [opened || holds ? `inside:${state.inside}` : lens.id, state.focus, state.depth, groupBy].join("\n"),
+      key: [opened || holds ? `inside:${state.inside}${columns ? ":flow" : ""}` : lens.id, state.focus, state.depth, groupBy].join("\n"),
       lens,
       title,
       summary,
@@ -206,7 +358,14 @@
       entries: shownEntries,
       place: new Map(shownEntries.map(({ node }, at) => [node.id, at])),
       // Each with its id, so a node keeps its place when what shows changes.
-      nodes: shownEntries.map(({ node }, at) => ({ id: node.id, label: node.label, group: groupPosition.get(String(groupOf(node))), color: own[at] ?? classed[at].color })),
+      nodes: shownEntries.map(({ node }, at) => {
+        const rank = ranks.get(node.id);
+        return { id: node.id, label: node.label, group: groupPosition.get(String(groupOf(node))), color: own[at] ?? classed[at].color,
+          ...(rank === undefined ? {} : typeof rank === "number" ? { rank } : rank) };
+      }),
+      // The overview: its columns, and relations that stay quiet until something is selected.
+      ...(columns ? { touches: new Map([...touching].filter(([id]) => renumbered.has(id)).map(([id, ids]) => [renumbered.get(id), new Set([...ids].filter((other) => renumbered.has(other)).map((other) => renumbered.get(other)))])) } : {}),
+      ...(columns ? { flow: true, columns: columns.filter(({ rank }) => shownEntries.some(({ node }) => (ranks.get(node.id)?.rank ?? ranks.get(node.id)) === rank)) } : {}),
       classOf: classed,
       classes: [...classes.values()].sort((a, b) => b.count - a.count),
       edges,
@@ -273,7 +432,47 @@
     const step = story?.steps[Math.min(Number(state.step) || 0, story.steps.length - 1)];
     if (step) return new Set(step.nodes.map((at) => view.place.get(atlas.nodes[at]?.id)).filter((at) => at !== undefined));
     const hits = matches(view, state.q);
-    return String(state.q ?? "").trim() ? new Set(hits) : undefined;
+    if (String(state.q ?? "").trim()) return new Set(hits);
+    // In the overview a selected node lights its way: what leads to it, and what it leads to.
+    if (view.flow && state.sel && view.place.has(state.sel)) return pathOf(view, view.place.get(state.sel));
+    return undefined;
+  }
+
+  /**
+   * The way of a node through the overview. A process test: who performs it and what it touches.
+   * A person: their process tests and what those touch. An object: what uses it and what it uses,
+   * all the way, the process tests that touch it, and who performs them.
+   */
+  function pathOf(view, start) {
+    const lit = new Set([start]);
+    const rank = (at) => view.nodes[at].rank;
+    const walk = (from, here, there, only) => {
+      const open = [from];
+      while (open.length) {
+        const at = open.pop();
+        for (const edge of view.edges) {
+          if (edge[here] !== at || lit.has(edge[there]) || !only(edge[there])) continue;
+          lit.add(edge[there]);
+          open.push(edge[there]);
+        }
+      }
+    };
+    const isObject = (at) => rank(at) >= 2;
+    const tasks = new Set();
+    if (rank(start) === 1) tasks.add(start);
+    else if (rank(start) === 0) { for (const [from, to] of view.edges) if (from === start) tasks.add(to); }
+    else {
+      walk(start, 0, 1, isObject);
+      walk(start, 1, 0, isObject);
+      // Without process tests that know what they touch, what uses it leads up to who does it.
+      for (const [task, touched] of view.touches ?? []) if (touched.has(start)) tasks.add(task);
+    }
+    for (const task of tasks) {
+      lit.add(task);
+      for (const other of view.touches?.get(task) ?? []) lit.add(other);
+      if (rank(start) !== 0) for (const [from, to] of view.edges) if (to === task && rank(from) === 0) lit.add(from);
+    }
+    return lit;
   }
 
   // ---------------------------------------------------------------- as text
@@ -361,10 +560,13 @@
    */
   function into(atlas, node, state) {
     if (node.kind === "member") return undefined;
+    if (node.kind === "area") return node.holder && node.holder !== state.inside ? { inside: node.holder, focus: "", sel: "", story: "" } : undefined;
     if ((node.kind === "object" && !node.external) || HOLDERS[node.kind]) {
       return node.id === state.inside ? undefined : { inside: node.id, focus: "", sel: node.id, story: "" };
     }
     const home = atlas.lenses.find(({ id, kinds }) => id === state.lens && kinds.includes(node.kind))
+      // An object of another app: the lens with every relation shows what is next to it.
+      ?? (node.kind === "object" ? atlas.lenses.find(({ id }) => id === "system") : undefined)
       ?? atlas.lenses.find(({ kinds }) => kinds[0] === node.kind)
       // What a plugin added lives in the lens of that plugin.
       ?? atlas.lenses.find(({ kinds, plugin }) => node.plugin && plugin === node.plugin && kinds.includes(node.kind))
@@ -403,6 +605,13 @@
     return crumbs;
   }
 
+  /** The form a state is drawn in: the one it names, else the one its lens reads best in. */
+  function formOf(atlas, state) {
+    if (FORMS.includes(state.form)) return state.form;
+    const lens = atlas.lenses.find(({ id }) => id === state.lens) ?? atlas.lenses[0];
+    return FORMS.includes(lens?.form) ? lens.form : "2d";
+  }
+
   /** The address of a state: only what differs from the start. */
   function stateHash(state) {
     const params = new URLSearchParams();
@@ -411,7 +620,7 @@
   }
 
   root.BCA_SCENE = {
-    DEFAULTS, FORMS, COLORS, SIZES, GROUPS, SEVERITY, KIND_NAMES,
+    DEFAULTS, FORMS, COLORS, SIZES, GROUPS, SEVERITY, KIND_NAMES, formOf, pathOf,
     index, scene, shown, matches, sizeValues, rings, highlight, kindOf, into, trail, lensesOf,
     storyMarkdown, documentation, lensMarkdown, nodesCsv, relationsCsv, sceneData, stateHash
   };

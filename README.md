@@ -21,14 +21,45 @@ Parser and renderer are WebAssembly: Node.js is the only requirement.
 
 **Documentation: [schulzoli.github.io/BC-Atlas](https://schulzoli.github.io/BC-Atlas/)**
 
+## Start here
+
+In the folder of your repository, with one app or many:
+
 ```sh
 npm install --global bc-atlas
-cd path/to/al-project
+cd path/to/repository
+bca layers                  # writes docs/layers: the documentation of the repository
+```
+
+`docs/layers/README.md` is where to start reading. It leads to three things:
+
+| Page | Answers |
+| --- | --- |
+| `README.md` | **How it works**: people, processes, screens, logic, and data in one picture, and the way down to every app, component, namespace, object, and procedure. |
+| `architecture.md` | **How it is connected**: the apps and what each uses of the others (declared, undeclared, not found), the components in their layers, cycles, and tables written from outside their component. |
+| `changes.md` | **What to change, and how**: every change to the architecture the analysis finds, the most important first, each with why, the steps, the effort, and where. |
+
+The pages are generated from the AL source alone, and the same source gives
+the same pages, so they can be kept in sync:
+
+```sh
+bca layers --check          # fails when the pages differ from the source: a step for a pipeline
+bca setup                   # or let a Git hook, a pipeline, or a schedule write them
+```
+
+The same without files: `bca view --story architecture` prints what to
+change and how, `bca export` writes the view as one file to open in a
+browser, and in VS Code the **BC Atlas** extension shows it next to the
+code. An AI agent gets it through the MCP tools `bc_atlas_layers` and
+`bc_atlas_view`. [Guide](./docs/layers.md), [example](./examples/layers/README.md).
+
+More commands:
+
+```sh
 bca setup                   # .bca.json, Husky hooks, VS Code tasks, pipeline, schedule (or: bca setup agent)
 bca check                   # architecture gate for CI
 bca simulate                # battle test: your roles and permission sets against the process tests
 bca view                    # what there is to see: the lenses and stories of the app, in the terminal
-bca layers                  # docs/layers: the system explained from the whole down to each procedure, in sync with the source
 bca export --view report    # docs/atlas/README.md: overview, diagrams, health
 bca export --view handbook  # docs/handbook: events, data, permissions, UI, code health
 bca update                  # new version? see what changed and update everything in one step
@@ -56,7 +87,7 @@ documentation, test, and demonstration. [Guide](./docs/vscode.md)
 | | `bca graph query` | Reuse a saved graph for impact analysis or message migrations without re-analyzing AL; keep IDs, directions, evidence, and metadata. [Guide](./docs/dependency-explorer.md#query-and-render-saved-graphs) |
 | **Export** | `bca export` | Everything the extension shows, as files: the BC Atlas view (a toolbar and the graph, with every lens, finding, and story) as one offline HTML file to share (default), the Markdown report ([example](./examples/report/README.md)), the 3D explorer, one Markdown page per object, any of eleven diagram views as D2, SVG, PNG, PDF, or JSON, with `--watch`, and the project as a knowledge graph in RDF with an OWL ontology ([Turtle, RDF/XML, OWL, N-Triples, JSON-LD](./docs/knowledge-graph.md)). |
 | | `bca view` | The view of the app without a window, for the terminal, pipelines, and agents: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. `bca view --lens data --form diagram -o data.svg`, `bca view --story fix`, `bca view --inside codeunit:50100`. The same code draws the app and writes these files. [Reference](./docs/cli-reference.md#view) |
-| | `bca layers` | The layered documentation: the system explained from the whole down to each procedure, one page per app, component, namespace, and object, each with a picture. In sync with the source (`--check`, or the `layers` task of `bca run`), for the source as it is now and as it was at any commit, tag, or release (`--at v1.4.0`, `--releases`), with what changed between them. [Guide](./docs/layers.md), [example](./examples/layers/README.md) |
+| | `bca layers` | The documentation of a repository: how it works, how its apps and components are connected (`architecture.md`), what to change in the architecture and how (`changes.md`), and the system explained from the whole down to each procedure, one page per app, component, namespace, and object, each with a picture. In sync with the source (`--check`, or the `layers` task of `bca run`), for the source as it is now and as it was at any commit, tag, or release (`--at v1.4.0`, `--releases`), with what changed between them. [Guide](./docs/layers.md), [example](./examples/layers/README.md) |
 | | `bca bundle` | Everything as one artifact: validation, the simulation with a snapshot of every process test, the layered documentation with the view, narrative pages, and the test results and build outputs you give it. One folder, one ZIP file, one manifest with the commit and every step. [Guide](./docs/bundle.md) |
 | | `bca export --view handbook` | The system handbook: what the app consists of, its events, data (who inserts, modifies, deletes, reads each table), permissions, interfaces, user interface, and code health, across all objects, in English or German, linked to the object catalog. [Guide](./docs/handbook.md), [example](./examples/handbook/README.md) |
 | | `bca docs` | User guides and test cases from AL UI tests (`[SCENARIO]`, `[GIVEN]`, `[WHEN]`, `[THEN]`) as Markdown, HTML, DITA 1.3, or Azure DevOps CSV, with real captions and translations, a flow diagram per scenario, and BPMN 2.0 processes per use case. [Example](./examples/docs/index.md) |
@@ -177,6 +208,19 @@ bca check --fail-on warning
 
 `--format markdown` produces a summary for pull requests or job pages; see
 [Automation](./docs/automation-and-ci.md).
+
+## See how it works
+
+```sh
+bca view --lens overview                      # who does what, on which screens, with which logic, in which data
+bca view --lens overview -o overview.svg      # the same as a picture, in five columns
+bca export -o atlas.html                      # the view as one file; it opens on the overview
+```
+
+The overview is the first thing the view shows: people, processes,
+screens, logic, and data in columns, read from left to right. Lines are
+quiet; select a process test or an object and its way through the app
+lights up. See [the view](./docs/vscode.md#the-overview-how-it-works).
 
 ## Battle-test it: simulate the use in your company
 

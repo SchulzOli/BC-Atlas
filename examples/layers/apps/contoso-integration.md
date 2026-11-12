@@ -26,6 +26,17 @@ The app Contoso Integration holds 2 objects (2 codeunits). It depends on 3 other
 - unresolved (unresolved)
 - undeclared [Contoso Core](contoso-core.md)
 
+## What to change here
+
+- 1. Declare that Contoso Integration depends on Contoso Core (small)
+- 2. Bring in what Contoso Integration refers to (small)
+- 3. CON Item Sync: declare the dependency; it points inward (small)
+- 4. Let Core own the writes to table 50000 CON Item (medium)
+- 5. Let Sales own the writes to table 50100 CON Sales Quote (medium)
+- 7. Make 2 objects of Integration internal (small)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Objects
 
 | Object | Type | ID | Namespace | Lines | Uses | Used by | Findings |

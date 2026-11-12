@@ -25,6 +25,15 @@ The app Contoso Core holds 6 objects (2 codeunits, 2 tables, 1 interface, 1 page
 - declared [Contoso Sales](contoso-sales.md)
 - undeclared [Contoso Integration](contoso-integration.md)
 
+## What to change here
+
+- 1. Declare that Contoso Integration depends on Contoso Core (small)
+- 3. CON Item Sync: declare the dependency; it points inward (small)
+- 4. Let Core own the writes to table 50000 CON Item (medium)
+- 6. Make 1 object of Core internal (small)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Objects
 
 | Object | Type | ID | Namespace | Lines | Uses | Used by | Findings |

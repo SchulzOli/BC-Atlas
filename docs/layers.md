@@ -7,7 +7,15 @@ graph the [BC Atlas view](./vscode.md#the-bc-atlas-view) shows, and it is
 kept in sync: a run changes only the pages whose source changed.
 
 It documents the source **as it is now**, and the source **as it was** at
-any commit, tag, or release.
+any commit, tag, or release, for a repository with one app or with many.
+
+It answers three questions, on three pages:
+
+| Question | Page |
+| --- | --- |
+| How does it work? | `README.md`: the [overview](./vscode.md#the-overview-how-it-works) as a picture, and where to go from there |
+| How is it connected? | `architecture.md` |
+| What should change, and how? | `changes.md` |
 
 ```sh
 bca layers                      # docs/layers: the source as it is now
@@ -18,6 +26,49 @@ bca layers --releases           # the working tree, and every release not record
 
 The pages of the example with three apps are in
 [examples/layers](../examples/layers/README.md).
+
+## How it is connected
+
+`architecture.md` is the architecture on one page.
+
+- **Apps.** A picture and a table of the apps of the repository: what each
+  depends on and what depends on it, with the number of relations, and
+  whether the dependency is declared in `app.json`, undeclared (used, but
+  not named there), or leads to objects that are not found.
+- **Components.** A picture and a table of the components in their layers:
+  what each depends on, what depends on it, how much of its coupling stays
+  inside, its instability, whether it is in a cycle, and whether it can be
+  an app of its own. They are the components of `architecture` in
+  `.bca.json`, or, when none is configured, the ones BC Atlas
+  [proposes from the code](./clean-architecture.md).
+- **Shared data.** Tables that are written from outside the component they
+  belong to.
+
+## What to change, and how
+
+`changes.md` lists every change to the architecture the analysis finds, the
+most important first. Each has a title, why, the steps, the effort (small,
+medium, large), the nodes it is about, and its place in the source.
+
+| Kind | When | How it says to do it |
+| --- | --- | --- |
+| Architecture | No architecture is configured | Look at the proposal, change what does not fit, save it (`bca architecture --write`), accept today's state (`--update-baseline`) |
+| Apps | An app uses another without naming it in `app.json`, or refers to objects that are found nowhere | Add the dependency, or remove the use; download the symbols |
+| Cycle | Components depend on each other | Cut the thinnest way: move what causes it, or turn it with an event or an interface |
+| Dependency the wrong way | An object depends on a component its own may not depend on | The way BC Atlas resolves it (declare, move, invert, go through a facade), with the alternatives |
+| Shared data | A table is written from outside its component | Put the writes behind a codeunit of the owner, or move the table |
+| Public surface | Objects are public and used by nobody outside their component | `bca refactor surface --component <name>` |
+| Option | A component can be an app of its own | `bca architecture --extract <name>` writes the plan |
+
+The last two kinds are options: not wrong as they are. When there is
+nothing to change, the page says so.
+
+The page of an app, a component, a namespace, and an object names the
+changes that are about it, under **What to change here**.
+
+The same list is `changes` in `atlas.json`, the story **What to change, and
+how** of the view, `bca view --story architecture` in the terminal, and
+what the MCP tool `bc_atlas_layers` returns.
 
 ## The layers
 
@@ -36,6 +87,8 @@ Across the layers:
 | --- | --- |
 | `lenses/<lens>.md` | Each lens of the view as a page with its picture: data, calls, events, contracts, pages, permissions, visibility, findings, processes, people, requirements, and the lenses of plugins |
 | `stories/<story>.md` | The generated walks through the system: what it is, each process step by step, who can do what, what to fix, and the [run](./battle-test.md#a-run-step-by-step) of each person of the simulation with the picture it built |
+| `architecture.md` | [How it is connected](#how-it-is-connected): apps, components, shared data, each with a picture |
+| `changes.md` | [What to change, and how](#what-to-change-and-how) |
 | `findings.md` | Everything the checks found, the most severe first, each linked to the objects it is about |
 | `atlas.json` | The graph itself: every node, relation, lens, finding, and story |
 | `layers.json` | What the folder holds, the numbers of the system, and for a state of the past its commit |

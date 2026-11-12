@@ -40,6 +40,12 @@ Layer 5: its procedures, triggers, and events, and what each of them does.
 - **calls** [codeunit 50011 CON Pricing Mgt.](codeunit-50011-con-pricing-mgt.md)
 - **uses** [codeunit 50011 CON Pricing Mgt.](codeunit-50011-con-pricing-mgt.md)
 
+## What to change here
+
+- 6. Make 1 object of Core internal (small)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Findings
 
 - **info** `undocumented-public-api`: codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice

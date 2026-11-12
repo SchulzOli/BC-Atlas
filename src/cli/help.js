@@ -37,7 +37,13 @@ const SHORT = {
   graph: "Query and render saved graphs without analyzing AL (query, render)",
   run: "Run the features configured for a Git hook, pipeline, or schedule",
   update: "Update BC Atlas together with the generated setup files",
-  mcp: "Start the Model Context Protocol server for AI agents"
+  mcp: "Start the Model Context Protocol server for AI agents",
+  view: "The view without a window: any lens, story, or object as text, JSON, CSV, Markdown, SVG, or PNG",
+  layers: "The documentation, in sync with the source: how it works, how it is connected, what to change and how",
+  bundle: "Everything as one artifact: validation, simulation, documentation, test results, build outputs",
+  ai: "What the AI plugin would use: the endpoint, the model, and what there is to write about",
+  plugins: "List the plugins of a project and what each contributes",
+  sync: "Show what each sync channel would write for a trigger, without writing"
 };
 
 export function overviewHelp(capabilities) {
@@ -47,6 +53,14 @@ export function overviewHelp(capabilities) {
     "Usage",
     "  bca <command> [app-root] [options]",
     "  In VS Code, the BC Atlas extension shows all of it in the editor.",
+    "",
+    "Start here, in the folder of your repository (one app or many)",
+    ...[
+      ["bca layers", "write the documentation: how it works, how the apps and components are connected, what to change and how"],
+      ["bca layers --check", "fail when that documentation is not in sync with the source (a step for a pipeline)"],
+      ["bca view --story architecture", "what to change in the architecture, and how, in the terminal"],
+      ["bca export", "the view as one file to open in a browser: it opens on how it works"]
+    ].map(([command, does]) => `  ${command.padEnd(31)}${does}`),
     ""
   ];
   for (const area of FEATURE_AREAS) {
@@ -77,7 +91,6 @@ export function overviewHelp(capabilities) {
     "Next steps",
     "  bca check ./app            health and architecture gate for an AL project",
     "  bca setup                  choose features, Git hooks, pipelines, and schedules",
-    "  bca export --view report   write docs/atlas/README.md with diagrams and a health summary",
     "  bca help <command>         show options and examples for one command",
     "  bca help --format json     print the machine-readable command contract",
     "",

@@ -35,6 +35,14 @@ Layer 5: its procedures, triggers, and events, and what each of them does.
 - **uses** [table 50000 CON Item](table-50000-con-item.md)
 - **writes** [table 50000 CON Item](table-50000-con-item.md)
 
+## What to change here
+
+- 3. CON Item Sync: declare the dependency; it points inward (small)
+- 4. Let Core own the writes to table 50000 CON Item (medium)
+- 7. Make 2 objects of Integration internal (small)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Findings
 
 - **error** `architecture-violation`: codeunit CON Item Sync (Integration) depends on 1 object(s) in Core; declare the dependency; it points inward (declare-dependency)

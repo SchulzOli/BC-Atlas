@@ -17,6 +17,7 @@
 // when they were written. That is what lets them be kept in sync (see
 // src/commands/layers.js) and compared between states of the source.
 import "./ui/scene.js";
+import { NOTHING_TO_CHANGE } from "./atlas.js";
 import { renderSnapshotHtml } from "./snapshot.js";
 import { renderView } from "./view.js";
 
@@ -27,6 +28,8 @@ export const LAYERS_SCHEMA = "bc-atlas.layers/1";
 const MAX_OBJECT_PICTURES = 400;
 const HOLDERS = [["app", "apps", "App", 1], ["component", "components", "Component", 2], ["module", "namespaces", "Namespace", 3]];
 const SEVERITIES = ["error", "warning", "info"];
+const EFFORT = { S: "small", M: "medium", L: "large" };
+const KIND_OF_CHANGE = { architecture: "Architecture", apps: "Apps", cycle: "Cycle", dependency: "Dependency the wrong way", data: "Shared data", surface: "Public surface", extract: "Option" };
 
 const slug = (text) => String(text).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "") || "unnamed";
 const cell = (value) => String(value ?? "").replaceAll("\\", "\\\\").replaceAll("|", "\\|").replace(/\s*\n\s*/gu, " ");
@@ -110,6 +113,13 @@ export async function buildLayers(workspace, { pictures = "auto", state, view = 
   };
   const worst = (findings) => (findings.length ? `${findings.length} (${findings[0].severity})` : "");
   const indexOf = (node) => found.position.get(node.id);
+  // What to change that is about these nodes, with the way to the page that says how.
+  const changesOn = (indexes, from) => {
+    const wanted = new Set(indexes);
+    const hits = (atlas.changes ?? []).map((change, position) => ({ change, position })).filter(({ change }) => change.nodes.some((index) => wanted.has(index)));
+    return hits.length ? ["## What to change here", "", ...hits.map(({ change, position }) => `- ${position + 1}. ${cell(change.title)} (${EFFORT[change.effort] ?? change.effort})`), "", `Why and how: [What to change, and how](${relative(from, "changes.md")}).`, ""] : [];
+  };
+
 
   // ------------------------------------------------------------ Layer 4 and 5
   const memberOf = { app: new Map(), component: new Map(), module: new Map() };
@@ -171,6 +181,7 @@ export async function buildLayers(workspace, { pictures = "auto", state, view = 
         table(["Member", "Kind", "Lines:", "Complexity:", "Does"], members.map((member) => [`\`${member.header ?? member.label}\``, member.type, member.lines ?? "", member.complexity ?? "", (does.get(member.id) ?? []).join("; ")])), ""] : []),
       ...(out.has(node.id) ? ["## Uses", "", ...grouped(out.get(node.id), file), ""] : []),
       ...(into.has(node.id) ? ["## Used by", "", ...grouped(into.get(node.id), file), ""] : []),
+      ...changesOn([indexOf(node)], file),
       ...(findings.length ? ["## Findings", "", ...findingLines(findings, file), ""] : []),
       FOOTER, ""
     ].join("\n"));
@@ -204,6 +215,7 @@ export async function buildLayers(workspace, { pictures = "auto", state, view = 
         ...parts.flatMap(([innerTitle, nodes]) => [`## ${innerTitle}s`, "", nodes.map((inner) => link(inner, file)).join(", "), ""]),
         ...(related(true).length ? ["## Depends on", "", ...related(true).map((line) => `- ${line}`), ""] : []),
         ...(related(false).length ? ["## Used by", "", ...related(false).map((line) => `- ${line}`), ""] : []),
+        ...changesOn([index, ...own.map(indexOf)], file),
         "## Objects", "",
         table(["Object", "Type", "ID", kind === "module" ? "Component" : "Namespace", "Lines:", "Uses:", "Used by:", "Findings"], own.map((object) => [link(object, file), object.type, object.objectId ?? "", (kind === "module" ? object.component : object.namespace) ?? "", object.lines ?? "", object.uses ?? "", object.usedBy ?? "", worst(findingsOn([indexOf(object)]))])), "",
         ...(findings.length ? ["## Findings", "", ...findingLines(findings, file), ""] : []),
@@ -245,10 +257,66 @@ export async function buildLayers(workspace, { pictures = "auto", state, view = 
     FOOTER, ""
   ].join("\n"));
 
-  // ---------------------------------------------------------------- Layer 0
+  // ------------------------------- How it is connected, and what to change
   const summary = atlas.summary ?? {};
   const health = summary.health;
   const architecture = summary.architecture;
+  const changes = atlas.changes ?? [];
+  const must = changes.filter(({ optional }) => !optional);
+  const options = changes.filter(({ optional }) => optional);
+  const onNodes = (indexes, from) => indexes.map((index) => atlas.nodes[index]).filter((node) => node && node.label !== "(unresolved)").map((node) => link(node, from)).join(", ");
+  const changeLines = (change, number, from) => [
+    `### ${number}. ${change.title}`, "",
+    `**Why.** ${change.why}`, "",
+    "**How.**", "",
+    ...change.how.map((step, position) => `${position + 1}. ${step}`), "",
+    `Effort: ${EFFORT[change.effort] ?? change.effort}.${change.nodes.length ? ` On: ${onNodes(change.nodes, from)}.` : ""}${change.file ? ` Source: \`${change.file}${change.line ? `:${change.line}` : ""}\`.` : ""}`, ""
+  ];
+  const changesIntro = changes.length
+    ? `${plural(changes.length, "change")} to the architecture, the most important first${options.length ? `; ${must.length ? `the last ${options.length} ${options.length === 1 ? "is an option" : "are options"}` : "all of them are options"}` : ""}. Each says why, and how to do it.`
+    : `Nothing to change. ${NOTHING_TO_CHANGE}`;
+  files.set("changes.md", [
+    "# What to change, and how", "", "[System](README.md) › What to change", "",
+    `${changesIntro} [How it is connected](architecture.md) shows what the changes are about.`, "",
+    ...(changes.length ? [table(["#:", "Change", "Kind", "Effort"], changes.map((change, position) => [position + 1, cell(change.title), KIND_OF_CHANGE[change.kind] ?? change.kind, EFFORT[change.effort] ?? change.effort])), ""] : []),
+    ...(must.length ? ["## Changes", "", ...must.flatMap((change, position) => changeLines(change, position + 1, "changes.md"))] : []),
+    ...(options.length ? ["## Options", "", "Not wrong as it is; worth it when the time is there.", "", ...options.flatMap((change, position) => changeLines(change, must.length + position + 1, "changes.md"))] : []),
+    FOOTER, ""
+  ].join("\n"));
+
+  const connected = (kind, node, direction, from) => atlas.edges.filter((edge) => edge[direction ? 0 : 1] === indexOf(node) && atlas.nodes[edge[direction ? 1 : 0]].kind === kind)
+    .map((edge) => {
+      const other = atlas.nodes[edge[direction ? 1 : 0]];
+      const count = edge[3] > 1 ? `, ${plural(edge[3], "relation")}` : "";
+      return other.label === "(unresolved)" ? `objects that are not found (${plural(edge[3] ?? 1, "relation")})` : `${link(other, from)} (${atlas.relations[edge[2]].kind}${count})`;
+    });
+  const ownApps = atlas.nodes.filter((node) => node.kind === "app" && pageOf.has(node.id));
+  const ownComponents = atlas.nodes.filter((node) => node.kind === "component" && pageOf.has(node.id));
+  const appsImage = ownApps.length > 1 ? await picture("architecture-apps.md", { lens: "apps" }) : "";
+  const componentsImage = ownComponents.length > 1 ? await picture("architecture-components.md", { lens: "components" }) : "";
+  const layerCount = new Set(ownComponents.map(({ layer }) => layer)).size;
+  const shared = changes.filter(({ kind }) => kind === "data");
+  files.set("architecture.md", [
+    "# How it is connected", "", "[System](README.md) › How it is connected", "",
+    `${plural(ownApps.length, "app")}${ownComponents.length ? `, ${plural(ownComponents.length, "component")} in ${plural(layerCount, "layer")} (${architecture?.mode === "proposal" ? "proposed from the code; none is configured" : "configured in .bca.json"})` : ""}.`
+      + `${architecture?.inside === undefined ? "" : ` ${architecture.inside}% of the coupling stays inside the components.`}`
+      + `${architecture?.components ? ` ${plural(architecture.violations ?? 0, "dependency").replace("dependencys", "dependencies")} the wrong way, ${plural(architecture.cycles ?? 0, "cycle")}.` : ""}`, "",
+    "## Apps", "",
+    ...(ownApps.length > 1 ? ["An app is what is built and installed as one. A line is what one app uses of another: declared in app.json, undeclared (used, but not named there), or unresolved (not found anywhere).", ""] : []),
+    ...(appsImage ? [appsImage] : []),
+    table(["App", "Objects:", "Depends on", "Used by"], ownApps.map((node) => [link(node, "architecture.md"), (memberOf.app.get(holderKey(node)) ?? []).length, connected("app", node, true, "architecture.md").join(", "), connected("app", node, false, "architecture.md").join(", ")])), "",
+    ...(ownComponents.length ? [
+      "## Components", "",
+      `A component is a part of the system that belongs together; a layer says what may depend on what: a component depends only on components below it. ${architecture?.mode === "proposal" ? "These are proposed from the code, because no architecture is configured: [decide on one](changes.md) to have it checked." : "These are the components of `architecture` in .bca.json; `bca check` fails on a dependency they do not allow."}`, "",
+      ...(componentsImage ? [componentsImage] : []),
+      table(["Component", "Layer", "Objects:", "Depends on", "Used by", "Inside:", "Instability:", "In a cycle", "Can be an app"], ownComponents.map((node) => [link(node, "architecture.md"), node.layer ?? "", node.objects ?? "", connected("component", node, true, "architecture.md").join(", "), connected("component", node, false, "architecture.md").join(", "), node.cohesion === undefined ? "" : `${node.cohesion}%`, node.instability ?? "", node.cycle ?? "no", node.canBeApp ?? ""])), "",
+      "Inside: how much of its coupling stays inside the component; the higher, the more it is a part of its own. Instability: 0 when others depend on it and it on nothing, 1 when it depends on others and nothing on it; what is stable should not depend on what is not.", ""
+    ] : []),
+    ...(shared.length ? ["## Shared data", "", "Tables that are written from outside the component they belong to.", "", ...shared.map((change) => `- ${onNodes(change.nodes.slice(0, 1), "architecture.md")} ${change.brief}.`), ""] : []),
+    "## What to change", "", changes.length ? `[${plural(changes.length, "change")}, the most important first](changes.md).` : changesIntro, "",
+    FOOTER, ""
+  ].join("\n"));
+  // ---------------------------------------------------------------- Layer 0
   const image = await picture("README.md", { lens: atlas.lenses[0]?.id });
   if (files.has("README.svg")) {
     files.set("system.svg", files.get("README.svg"));
@@ -259,6 +327,12 @@ export async function buildLayers(workspace, { pictures = "auto", state, view = 
     `# ${atlas.title}`, "", stateLine(state), "",
     `${plural(counts.objects, "object")} in ${plural(counts.apps, "app")}, ${plural(counts.relations, "relation")}.${health ? ` Health ${health.passed ? "passed" : "failed"}: ${plural(health.error, "error")}, ${plural(health.warning, "warning")}, ${health.info} info.` : ""}${architecture?.components ? ` Architecture (${architecture.mode}): ${plural(architecture.components, "component")}, ${plural(architecture.violations ?? 0, "dependency").replace("dependencys", "dependencies")} the wrong way.` : ""}`, "",
     ...(image ? [image.replace("README.svg", "system.svg")] : []),
+    "## Start here", "",
+    `1. **How it works**: the picture above${atlas.lenses[0] ? `, and [what is in it](${lensPage(atlas.lenses[0])})` : ""}.`,
+    `2. **[How it is connected](architecture.md)**: ${plural(counts.apps, "app")}${counts.components ? `, ${plural(counts.components, "component")}` : ""}, and what depends on what.`,
+    `3. **[What to change, and how](changes.md)**: ${changes.length ? `${plural(changes.length, "change")}, the most important first.` : "nothing, as it stands."}`,
+    ...changes.slice(0, 3).map((change) => `   - ${cell(change.title)} (${EFFORT[change.effort] ?? change.effort})`),
+    "4. **Down the layers**: from the apps to each procedure, below.", "",
     "## Layers", "", "The system from the whole down to each procedure. Every page links one layer up and one layer down.", "",
     table(["Layer", "What", "Count:", "Where"], [
       ["0", "System", 1, "this page"],

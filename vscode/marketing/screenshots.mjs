@@ -45,11 +45,12 @@ try {
   const purchasing = await exported("purchasing-app");
   const multi = await exported("multi-app");
   const screenshots = path.join(here, "screenshots");
-  const system = { check: "1", sel: purchasing.id("Purchase Request Mgt.") };
-  await shot(path.join(screenshots, "view.png"), purchasing.file, system);
-  await shot(path.join(root, "docs", "generated", "images", "view.png"), purchasing.file, system, { scheme: "light" });
+  // The view as it opens, with one process test selected: its way through the columns is lit.
+  const overview = { sel: purchasing.id("Approve a released purchase request", "task") };
+  await shot(path.join(screenshots, "view.png"), purchasing.file, overview);
+  await shot(path.join(root, "docs", "generated", "images", "view.png"), purchasing.file, overview, { scheme: "light" });
   await shot(path.join(screenshots, "diagram.png"), purchasing.file, { lens: "data", form: "diagram" });
-  await shot(path.join(screenshots, "space.png"), purchasing.file, { form: "3d", check: "1" });
+  await shot(path.join(screenshots, "space.png"), purchasing.file, { lens: "system", form: "3d", check: "1" });
   await shot(path.join(screenshots, "story.png"), purchasing.file, { story: "process:use-case-purchase-requests", step: "11", form: "diagram" });
   await shot(path.join(screenshots, "people.png"), purchasing.file, { lens: "people", form: "diagram", sel: purchasing.id("Ben (Team lead)", "person") });
   await shot(path.join(screenshots, "components.png"), multi.file, { lens: "components", form: "diagram", sel: multi.id("Integration", "component") });

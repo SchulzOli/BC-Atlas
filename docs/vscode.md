@@ -20,11 +20,46 @@ tabs, and no list of contents. The AL source is the only fact; everything
 BC Atlas reads from it is one graph, and the toolbar decides which part of
 it you see, in which form, and what stands out.
 
+### The overview: how it works
+
+The view opens on the **Overview**. It is not every object and every
+relation; it is how the app works, read from left to right, in columns
+with their titles:
+
+| Column | Holds |
+| --- | --- |
+| **People** | Who uses the app: the agents of the [simulation](./battle-test.md). There when the project has process tests. |
+| **Processes** | What they do: the process tests, in the order of the process. A test someone is stopped at is red. |
+| **Screens** | Where they do it: pages and reports. |
+| **Logic** | What runs behind the screens: codeunits, queries, XMLports, interfaces. |
+| **Data** | Where it ends up: tables. |
+
+- **Lines are quiet.** A line leads from what uses to what is used, each
+  pair once, with no arrow and no color, because every line runs from a
+  column on the left to one on the right. Only a person who is stopped has
+  a red line to the process test.
+- **Click anything to see its way.** A process test lights who performs it
+  and everything it touches, down to the tables. An object lights what
+  uses it and what it uses, all the way, the process tests that touch it,
+  and who performs them. Everything else steps back.
+- **What is not part of how it works is not in it:** permission sets,
+  enums, and test codeunits. They are in the lenses made for them.
+- **A large project shows areas.** Above 48 objects a box is an area (a
+  component, a namespace, or an app) with the number of screens, logic
+  objects, or tables it holds, the largest first, and a line carries how
+  many relations it stands for. Double-click an area for how it works
+  inside, object by object.
+- Without process tests the overview is Screens, Logic, and Data.
+
+`bca view --lens overview` writes the same as text, in the order of the
+columns, and `-o overview.svg` draws it. `--select "task:<process test>"`
+gives the way of that process test.
+
 | In the toolbar | Does |
 | --- | --- |
-| **Lens** (the name next to the project) | What the graph shows: a part of the one graph. See [Lenses](#lenses). |
+| **Lens** (the name next to the project) | What the graph shows: a part of the one graph. The menu lists the lenses by what they answer: how it works, structure, parts, people and rules, quality. See [Lenses](#lenses). |
 | The **trail** next to it | Where you are once you went into something: `Components › Core › CON Item`. Every part of the way is one click back, and **‹** goes one step up. |
-| **2D**, **Diagram**, **3D** | The form. The same nodes as a graph in a plane, as boxes in layers in the direction of their relations, or as a graph in space. Any lens in any form. |
+| **2D**, **Diagram**, **3D** | The form. The same nodes as a graph in a plane, as boxes in layers in the direction of their relations, or as a graph in space. Any lens in any form; a lens opens in the form it reads best in (the overview, processes, people, and components as a diagram). |
 | **Find** | Lights up the nodes whose name, type, component, namespace, or ID matches. **Enter** goes to the next match, **Shift+Enter** to the one before. |
 | **Check** | Puts a ring on every node with a finding, in the color of the worst one. The number is the errors and warnings. |
 | **Story** | Walks through the graph step by step. See [Stories](#stories). |
@@ -73,6 +108,7 @@ select an object in one, switch, and it is still selected.
 
 | Lens | Nodes | Relations | Same as |
 | --- | --- | --- | --- |
+| Overview | people, process tests, screens, logic, and data, in columns | does, stopped at, uses | `bca view --lens overview` |
 | System | every AL object | everything objects do with each other | `bca export --view project` |
 | Components | the components of the architecture, by layer | dependencies between them: allowed, not declared, or the wrong way | `bca architecture` |
 | Apps | the apps of the workspace and the apps they depend on | declared, implicit, and undeclared dependencies | |

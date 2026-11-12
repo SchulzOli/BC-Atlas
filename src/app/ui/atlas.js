@@ -204,16 +204,17 @@
 
     const next = await sceneFor();
     // The card of the selected node floats on the right: the picture fits next to it.
-    const stage = $("#stage").clientWidth;
-    const room = { right: state.sel && next.place.has(state.sel) && stage > 680 ? Math.min(340, stage - 24) + 24 : 0 };
-    const moved = !graph || next.key !== applied.key || applied.form !== state.form;
+    const room = roomFor(next);
+    // The form the state names, else the one its lens reads best in.
+    const form = S.formOf(atlas, state);
+    const moved = !graph || next.key !== applied.key || applied.form !== form;
     if (!graph || next.key !== applied.key) {
       // What stays in the picture stays where it is; the rest comes and goes around it.
       const before = graph?.snapshot();
       graph?.destroy();
       scene = next;
       graph = BCA_GRAPH.create($("#graph"), scene, {
-        mode: state.form,
+        mode: form,
         from: before,
         room,
         onInfo: ({ selected }) => {
@@ -222,19 +223,27 @@
           state.sel = id;
           remember();
           inspector();
+          // In the overview what is selected lights its way through the columns, and the picture
+          // makes room for the card: a moment later, so that a double click still lands.
+          if (scene.flow && !state.story && !state.q.trim()) {
+            graph.highlight(S.highlight(atlas, scene, state));
+            const mine = scene;
+            clearTimeout(roomTimer);
+            roomTimer = setTimeout(() => { if (scene === mine) graph.room(roomFor(scene), { follow: true }); }, 480);
+          }
         },
         onOpen: (index) => open(scene.entries[index])
       });
-      applied = { key: next.key, form: state.form };
+      applied = { key: next.key, form };
     } else {
       scene = { ...next, nodes: scene.nodes };
       const colors = next.nodes.map(({ color }) => color);
       if (colors.join() !== applied.colors) graph.colors(colors);
     }
     applied.colors = scene.nodes.map(({ color }) => color).join();
-    if (applied.form !== state.form) {
-      graph.mode(state.form);
-      applied.form = state.form;
+    if (applied.form !== form) {
+      graph.mode(form);
+      applied.form = form;
     }
 
     // What shows: classes and kinds of relation switched off in the legend.
@@ -274,6 +283,13 @@
     storyBar(story, step);
     remember();
     place = placeOf(state);
+  }
+
+  /** What floats on the stage: the card of the selected node, on the right. */
+  let roomTimer;
+  function roomFor(view) {
+    const stage = $("#stage").clientWidth;
+    return { right: state.sel && view.place.has(state.sel) && stage > 680 ? Math.min(340, stage - 24) + 24 : 0 };
   }
 
   /** A double click goes into a node: a member to its source, anything else to what it is made of or stands next to. */
@@ -316,7 +332,7 @@
       + crumbs.slice(1).map((crumb, index) => (index + 1 === crumbs.length - 1
         ? `<b aria-current="location" title="${esc(crumb.label)}">${esc(crumb.label)}</b>`
         : `<button data-crumb="${index + 1}" title="${esc(crumb.label)}">${esc(crumb.label)}</button>`)).join("");
-    for (const button of $$("#forms button")) button.setAttribute("aria-checked", String(button.dataset.form === state.form));
+    for (const button of $$("#forms button")) button.setAttribute("aria-checked", String(button.dataset.form === S.formOf(atlas, state)));
     const search = $("#search");
     if (document.activeElement !== search) search.value = state.q;
     const counts = { error: 0, warning: 0, info: 0 };
@@ -352,18 +368,20 @@
     const off = list(state.off);
     const counts = new Map();
     for (const edge of scene.edges) counts.set(edge[2], (counts.get(edge[2]) ?? 0) + 1);
-    folded ??= innerWidth < 720;
+    // The overview explains itself by its columns: its legend starts folded.
+    const fold = folded ?? (innerWidth < 720 || Boolean(scene.flow));
     // A run says how far its picture is built.
     const building = Boolean(storyOf(state.story)?.build) && flags;
     const reached = building ? flags.nodes.reduce((sum, visible) => sum + (visible ? 1 : 0), 0) : 0;
     element.innerHTML = `
-      <div class="where"><b>${esc(scene.title)}</b><span>${building ? `${fmt(reached)} of ` : ""}${plural(scene.entries.length, "node")}, ${plural(scene.edges.length, "relation")}</span><button class="fold" data-fold aria-expanded="${!folded}" title="${folded ? "Show the legend" : "Hide the legend"}" aria-label="Legend"></button>${folded ? "" : `<p>${esc(scene.summary)}</p>`}</div>
-      ${folded ? "" : `<div class="chips">${scene.classes.map((entry) => `<button class="chip ${hidden.has(String(entry.key)) ? "off" : ""}" data-class="${esc(entry.key)}" title="Show or hide"><i style="color:${esc(entry.color)}"></i>${esc(entry.label)} <small>${fmt(entry.count)}</small></button>`).join("")}</div>
-      ${scene.kinds.length ? `<div class="chips">${scene.kinds.map((kind, index) => `<button class="chip ${off.has(kind.kind) ? "off" : ""}" data-kind="${esc(kind.kind)}" title="Show or hide"><i class="line ${kind.dash ? "dash" : ""}" style="color:${esc(kind.color)}"></i>${esc(kind.kind)} <small>${fmt(counts.get(index) ?? 0)}</small></button>`).join("")}</div>` : ""}`}`;
+      <div class="where"><b>${esc(scene.title)}</b><span>${building ? `${fmt(reached)} of ` : ""}${plural(scene.entries.length, "node")}, ${plural(scene.edges.length, "relation")}</span><button class="fold" data-fold aria-expanded="${!fold}" title="${fold ? "Show the legend" : "Hide the legend"}" aria-label="Legend"></button>${fold ? "" : `<p>${esc(scene.summary)}</p>`}</div>
+      ${fold ? "" : `<div class="chips">${scene.classes.map((entry) => `<button class="chip ${hidden.has(String(entry.key)) ? "off" : ""}" data-class="${esc(entry.key)}" title="Show or hide"><i style="color:${esc(entry.color)}"></i>${esc(entry.label)} <small>${fmt(entry.count)}</small></button>`).join("")}</div>
+      ${scene.kinds.length && !scene.flow ? `<div class="chips">${scene.kinds.map((kind, index) => `<button class="chip ${off.has(kind.kind) ? "off" : ""}" data-kind="${esc(kind.kind)}" title="Show or hide"><i class="line ${kind.dash ? "dash" : ""}" style="color:${esc(kind.color)}"></i>${esc(kind.kind)} <small>${fmt(counts.get(index) ?? 0)}</small></button>`).join("")}</div>` : ""}`}`;
+    element.dataset.folded = String(fold);
   }
   $("#legend").addEventListener("click", (event) => {
     if (event.target.closest("[data-fold]")) {
-      folded = !folded;
+      folded = $("#legend").dataset.folded !== "true";
       return legend();
     }
     const chip = event.target.closest(".chip");
@@ -542,7 +560,13 @@
 
   // --------------------------------------------------------------- popover
   const MENUS = {
-    lens: () => atlas.lenses.map((lens) => `<button class="item" role="menuitem" data-set-lens="${esc(lens.id)}" ${lens.id === state.lens && !state.inside ? 'aria-current="true"' : ""}><b>${esc(lens.title)}</b><small>${esc(lens.summary)}</small></button>`).join(""),
+    // The lenses by what they answer; each in one line, its full text on hover.
+    lens: () => {
+      const sections = new Map();
+      for (const lens of atlas.lenses) (sections.get(lens.section ?? "More") ?? sections.set(lens.section ?? "More", []).get(lens.section ?? "More")).push(lens);
+      return [...sections].map(([section, lenses]) => `<h3>${esc(section)}</h3>${lenses.map((lens) =>
+        `<button class="item line" role="menuitem" data-set-lens="${esc(lens.id)}" title="${esc(lens.summary)}" ${lens.id === state.lens && !state.inside ? 'aria-current="true"' : ""}><b>${esc(lens.title)}</b><small>${esc(lens.hint ?? lens.summary)}</small></button>`).join("")}`).join("");
+    },
     story: () => `${atlas.stories.map((story) => `<button class="item" role="menuitem" data-set-story="${esc(story.id)}" ${story.id === state.story ? 'aria-current="true"' : ""}><b>${esc(story.title)}</b><span>${plural(story.steps.length, "step")}</span><small>${esc(story.summary)}</small></button>`).join("")}
       <hr><p class="text" style="color:var(--muted);font-size:12.5px">A story is generated from the source. It explains, documents, tests, or demonstrates the system on the graph, and saves as Markdown.</p>`,
     view: () => {

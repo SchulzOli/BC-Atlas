@@ -30,6 +30,12 @@ The table CON Sales Quote of the app Contoso Sales, in the component Sales, has 
 - **uses** [codeunit 50100 CON Quote Mgt.](codeunit-50100-con-quote-mgt.md), [codeunit 50200 CON Quote Export](codeunit-50200-con-quote-export.md)
 - **writes** [codeunit 50100 CON Quote Mgt.](codeunit-50100-con-quote-mgt.md), [codeunit 50200 CON Quote Export](codeunit-50200-con-quote-export.md)
 
+## What to change here
+
+- 5. Let Sales own the writes to table 50100 CON Sales Quote (medium)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Findings
 
 - **info** `foreign-table-write`: table 50100 CON Sales Quote of Sales is written by Integration (1 object); let Sales own the writes behind a codeunit, or move the table

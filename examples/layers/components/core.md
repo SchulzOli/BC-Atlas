@@ -18,6 +18,14 @@ The component Core holds 6 objects (2 codeunits, 2 tables, 1 interface, 1 page) 
 - wrong way [Integration](integration.md)
 - depends on [Sales](sales.md)
 
+## What to change here
+
+- 3. CON Item Sync: declare the dependency; it points inward (small)
+- 4. Let Core own the writes to table 50000 CON Item (medium)
+- 6. Make 1 object of Core internal (small)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Objects
 
 | Object | Type | ID | Namespace | Lines | Uses | Used by | Findings |

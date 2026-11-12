@@ -17,6 +17,13 @@ The namespace Contoso.Core.Items holds 3 objects (2 tables, 1 page). It depends 
 - depends on [Contoso.Integration](contoso-integration.md)
 - depends on [Contoso.Sales.Quotes](contoso-sales-quotes.md)
 
+## What to change here
+
+- 3. CON Item Sync: declare the dependency; it points inward (small)
+- 4. Let Core own the writes to table 50000 CON Item (medium)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Objects
 
 | Object | Type | ID | Component | Lines | Uses | Used by | Findings |

@@ -37,7 +37,7 @@ export const SEVERITIES = Object.freeze(["error", "warning", "info"]);
 export const FAIL_LEVELS = Object.freeze(["error", "warning", "info", "never"]);
 export const REPORT_VIEWS = Object.freeze(["project", "module", "data", "contracts", "events", "ui"]);
 // What the view shows (the lenses of src/app/atlas.js), its forms, and what `bca view` writes.
-export const VIEW_LENSES = Object.freeze(["system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements", "simulation", "run"]);
+export const VIEW_LENSES = Object.freeze(["overview", "system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements", "simulation", "run"]);
 export const VIEW_FORMS = Object.freeze(["2d", "diagram", "3d"]);
 export const VIEW_FORMATS = Object.freeze(["text", "json", "md", "csv", "svg", "png", "link"]);
 
@@ -632,7 +632,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         argv: ["bca", "view", "[app-root]"],
         purpose: "The BC Atlas view without a window: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. What the toolbar of the app does, from the terminal.",
         options: {
-          lens: string(`What the graph shows: a part of the one graph (${VIEW_LENSES.join(", ")}, and the lenses of plugins, such as sync). Without it (and without --story), the overview lists the lenses and stories of the project.`, { group: SELECTION, value: "id", default: "system" }),
+          lens: string(`What the graph shows: a part of the one graph (${VIEW_LENSES.join(", ")}, and the lenses of plugins, such as sync). overview is how it works, in columns from who uses it to the data. Without a lens (and without --story), the command lists the lenses and stories of the project.`, { group: SELECTION, value: "id", default: "overview" }),
           inside: string("Go into a node: an object opens to its procedures, triggers, and events and what each does with other objects; an app, a component, or a namespace to its objects. A name, an ID, or a selector such as codeunit:50100 or component:Core.", { group: SELECTION, value: "node" }),
           focus: string("Only this node and what is near it (see --depth). A name, an ID, or a selector such as table:Customer or person:Anna.", { group: SELECTION, value: "node" }),
           depth: string("How many steps from the --focus node.", { group: SELECTION, value: "n", default: "1" }),
@@ -643,7 +643,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           story: string("A story instead of a lens: its steps with their texts. With --step, the nodes of that step in its lens. run:<agent> is the run of the simulation of one person; its picture holds what the run reached at that step.", { group: "Stories", value: "id" }),
           step: string("One step of the --story, from 1: what stands out in it.", { group: "Stories", value: "n" }),
           stories: flag("Every story of the system as one document (text, md, or json).", { group: "Stories" }),
-          form: string("The form of a picture: a graph in a plane, boxes in layers in the direction of the relations, or a graph in space.", { group: RENDERING, enum: VIEW_FORMS, default: "2d" }),
+          form: string("The form of a picture: a graph in a plane, boxes in layers in the direction of the relations, or a graph in space. Without it, the form the lens reads best in: a diagram for the overview, processes, people, and components, a plane for the rest.", { group: RENDERING, enum: VIEW_FORMS }),
           color: string("Color the nodes by this instead of what the lens does.", { group: RENDERING, enum: ["type", "component", "namespace", "app", "level", "findings"] }),
           size: string("Size the nodes by this.", { group: RENDERING, enum: ["relations", "usedBy", "uses", "lines", "complexity", "objects", "findings"] }),
           group: string("Hold the nodes together by this instead of what the lens does.", { group: RENDERING, enum: ["component", "namespace", "app", "kind", "none"] }),

@@ -107,7 +107,8 @@ atlas: async ({ atlas, object }) => ({
 ```
 
 `atlas` is the graph so far (`nodes`, `relations`, `edges`). The lenses of plugins come after those
-of BC Atlas and cannot replace one; a relation to a node that is not there is left out; a finding
+of BC Atlas and cannot replace one. A lens may give a `hint` (a few words for the lens menu) and a
+`form` (`diagram` or `3d`: the form it opens in); a relation to a node that is not there is left out; a finding
 with the rule and message of one of the plugin's health rules is that finding, now on its nodes. A
 plugin that throws becomes the finding `plugin-atlas-failed`, and the view still shows. Nothing
 else is needed: the lens is in the menu of the view, in `bca view --lens`, in the MCP tool

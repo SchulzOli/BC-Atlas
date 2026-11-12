@@ -189,7 +189,7 @@ test("the extension analyzes the workspace and fills the editor and the panel", 
   assert.match(panel.webview.html, /history\.replaceState\(null, "", "#lens=components"\)/u);
   await panel.receive({ type: "request", id: 7, method: "atlas", params: {} });
   const response = panel.posted.find(({ id }) => id === 7);
-  assert.deepEqual(response.result.lenses.slice(0, 3).map(({ id }) => id), ["system", "components", "apps"]);
+  assert.deepEqual(response.result.lenses.slice(0, 3).map(({ id }) => id), ["overview", "system", "components"]);
   assert.ok(response.result.stories.length > 0);
   await panel.receive({ type: "request", id: 8, method: "nope", params: {} });
   assert.match(panel.posted.find(({ id }) => id === 8).error, /unknown method/u);

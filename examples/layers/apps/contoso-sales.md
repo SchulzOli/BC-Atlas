@@ -28,6 +28,12 @@ The app Contoso Sales holds 4 objects (1 codeunit, 1 page, 1 permissionset, 1 ta
 
 - declared [Contoso Integration](contoso-integration.md)
 
+## What to change here
+
+- 5. Let Sales own the writes to table 50100 CON Sales Quote (medium)
+
+Why and how: [What to change, and how](../changes.md).
+
 ## Objects
 
 | Object | Type | ID | Namespace | Lines | Uses | Used by | Findings |

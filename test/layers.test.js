@@ -37,7 +37,7 @@ test("the layers are pages from the system down to each procedure, and every lin
 
   // Layer 0: the system, with its picture, and the way down to every layer.
   const system = files.get("README.md");
-  assert.match(system, /^# multi-app\n\nThe source as it is now\.\n\n12 objects in 3 apps, 26 relations\. Health failed: 1 error, 0 warnings, 11 info\. Architecture \(configured\): 3 components, 1 dependency the wrong way\.\n\n!\[System\]\(system\.svg\)/u);
+  assert.match(system, /^# multi-app\n\nThe source as it is now\.\n\n12 objects in 3 apps, 26 relations\. Health failed: 1 error, 0 warnings, 11 info\. Architecture \(configured\): 3 components, 1 dependency the wrong way\.\n\n!\[Overview\]\(system\.svg\)/u);
   assert.match(files.get("system.svg"), /^<svg /u);
   assert.match(system, /\| \[Integration\]\(components\/integration\.md\) \| Layer 2 \| 2 \| depends on \[Sales\]\(components\/sales\.md\), wrong way \[Core\]\(components\/core\.md\) \| 3 \(error\) \|/u);
   assert.match(system, /\| \[Data\]\(lenses\/data\.md\) \| 8 \| 9 \| Tables and the code that reads, writes, relates, and extends them\. \|/u);
@@ -79,6 +79,66 @@ test("the layers are pages from the system down to each procedure, and every lin
   const plain = await buildLayers(new Workspace(multi, {}, { live: false }), { pictures: "none" });
   assert.ok(![...plain.files.keys()].some((file) => file.endsWith(".svg")));
   assert.doesNotMatch(plain.files.get("README.md"), /!\[/u);
+});
+
+test("the pages say how it is connected, what to change, and how", async () => {
+  const { files, atlas } = await buildLayers(new Workspace(multi, {}, { live: false }));
+  // The first page leads there: how it works, how it is connected, what to change.
+  const start = files.get("README.md");
+  assert.match(start, /\n## Start here\n\n1\. \*\*How it works\*\*: the picture above, and \[what is in it\]\(lenses\/overview\.md\)\.\n2\. \*\*\[How it is connected\]\(architecture\.md\)\*\*: 3 apps, 3 components, and what depends on what\.\n3\. \*\*\[What to change, and how\]\(changes\.md\)\*\*: 7 changes, the most important first\.\n {3}- Declare that Contoso Integration depends on Contoso Core \(small\)\n/u);
+  assert.ok(start.indexOf("## Start here") < start.indexOf("## Layers"));
+
+  // How it is connected: the apps and the components, each with a picture and what depends on what.
+  const connected = files.get("architecture.md");
+  assert.match(connected, /^# How it is connected\n\n\[System\]\(README\.md\) › How it is connected\n\n3 apps, 3 components in 3 layers \(configured in \.bca\.json\)\. 57% of the coupling stays inside the components\. 1 dependency the wrong way, 0 cycles\.\n/u);
+  assert.ok(connected.includes("![Apps](architecture-apps.svg)") && connected.includes("![Components](architecture-components.svg)"));
+  assert.ok(files.get("architecture-apps.svg").startsWith("<svg ") && files.get("architecture-components.svg").startsWith("<svg "));
+  assert.ok(connected.includes("| [Contoso Integration](apps/contoso-integration.md) | 2 | [Contoso Sales](apps/contoso-sales.md) (declared, 4 relations), objects that are not found (2 relations), [Contoso Core](apps/contoso-core.md) (undeclared, 3 relations) |  |"));
+  assert.ok(connected.includes("| [Core](components/core.md) | Layer 0 | 6 |  | [Integration](components/integration.md) (wrong way), [Sales](components/sales.md) (depends on, 2 relations) | 55% | 0 | no | yes |"));
+  assert.ok(connected.includes("## Shared data\n\nTables that are written from outside the component they belong to.\n\n- [CON Item](objects/table-50000-con-item.md) of Core, also written by Integration (codeunit 50201 CON Item Sync)."));
+  assert.ok(connected.includes("[7 changes, the most important first](changes.md)."));
+
+  // What to change, and how: the list of the atlas, each with why, the steps, the effort, and where.
+  const changes = files.get("changes.md");
+  assert.match(changes, /^# What to change, and how\n\n\[System\]\(README\.md\) › What to change\n\n7 changes to the architecture, the most important first; the last 2 are options\. Each says why, and how to do it\./u);
+  assert.ok(changes.includes("| 3 | CON Item Sync: declare the dependency; it points inward | Dependency the wrong way | small |"));
+  assert.ok(changes.includes([
+    "### 3. CON Item Sync: declare the dependency; it points inward", "",
+    "**Why.** The codeunit CON Item Sync of Integration depends on table CON Item of Core, which the configured architecture does not allow.", "",
+    "**How.**", "",
+    "1. Add Core to dependsOn of Integration in .bca.json (and to app.json when they are separate apps).",
+    "2. Or: go through a component you already depend on (effort M).", "",
+    "Effort: small. On: [CON Item Sync](objects/codeunit-50201-con-item-sync.md), [CON Item](objects/table-50000-con-item.md). Source: `integration/ItemSync.al:6`."
+  ].join("\n")));
+  assert.ok(changes.indexOf("## Options") > changes.indexOf("### 5.") && changes.indexOf("## Options") < changes.indexOf("### 6."), "what is not wrong as it is comes last");
+  assert.equal([...changes.matchAll(/^### \d+\. /gmu)].length, atlas.changes.length);
+
+  // A page says what there is to change about it, and leads to how.
+  const app = files.get("apps/contoso-integration.md");
+  assert.ok(app.includes("## What to change here\n\n- 1. Declare that Contoso Integration depends on Contoso Core (small)\n"));
+  assert.ok(app.includes("Why and how: [What to change, and how](../changes.md)."));
+  assert.ok(files.get("objects/table-50000-con-item.md").includes("- 4. Let Core own the writes to table 50000 CON Item (medium)"));
+  assert.ok(!files.get("apps/contoso-sales.md").includes("Declare that"), "only what is about it");
+  for (const page of ["README.md", "architecture.md", "changes.md", "apps/contoso-integration.md"]) {
+    for (const target of links(files.get(page))) assert.ok(files.has(path.posix.normalize(path.posix.join(path.posix.dirname(page), target))), `${page} links to ${target}`);
+  }
+
+  // Without a configured architecture the first change is to decide on one; what follows rests on the proposal.
+  const proposed = await buildLayers(new Workspace(path.join(root, "examples", "purchasing-app"), {}, { live: false }), { pictures: "none" });
+  assert.deepEqual(proposed.atlas.changes.slice(0, 2).map(({ kind, title }) => [kind, title]), [["architecture", "Decide on the architecture"], ["cycle", "Break the cycle between Purchase and Request"]]);
+  assert.match(proposed.atlas.changes[0].why, /^No architecture is configured\. From the code, BC Atlas proposes 2 components in 2 layers: Purchase, Request\. 76% of the coupling stays inside them\./u);
+  assert.ok(proposed.atlas.changes[0].how.includes("Save it: `bca architecture --write`."));
+  assert.match(proposed.atlas.changes[1].why, /The way from Request to Purchase is the thinnest: 3 object dependencies/u);
+  assert.ok(proposed.atlas.changes.filter(({ kind }) => kind === "dependency").every((change) => change.proposed), "against a proposal a dependency the wrong way is a suggestion");
+  assert.match(proposed.files.get("architecture.md"), /1 app, 2 components in 2 layers \(proposed from the code; none is configured\)\./u);
+  assert.ok(proposed.files.get("architecture.md").includes("[decide on one](changes.md)"));
+
+  // Nothing to change is an answer too.
+  const calm = await buildLayers(new Workspace(path.join(root, "examples", "warehouse-app"), {}, { live: false }), { pictures: "none" });
+  assert.deepEqual(calm.atlas.changes, []);
+  assert.match(calm.files.get("changes.md"), /\n\nNothing to change\. No app uses another without declaring it, /u);
+  assert.ok(calm.files.get("README.md").includes("3. **[What to change, and how](changes.md)**: nothing, as it stands."));
+  assert.deepEqual(calm.atlas.stories.find(({ id }) => id === "architecture").steps.map(({ title }) => title), ["Nothing to change"]);
 });
 
 test("bca layers keeps the folder in sync: it writes what changed, removes what is gone, and --check only looks", () => {
