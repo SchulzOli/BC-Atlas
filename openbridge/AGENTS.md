@@ -1,6 +1,6 @@
 # Agent instructions
 
-This repository contains `bc-openbridge/` (gateway + AL extension) and `bc-mcp/` (MCP server for agents).
+This folder (`openbridge/` in the BC Atlas monorepo) contains `bc-openbridge/` (gateway + AL extension) and `bc-mcp/` (MCP server for agents).
 For code changes follow each project's README and run `npm run check` in the project you touched.
 
 The section below applies when a task involves Microsoft Dynamics 365 Business Central data (customers/Debitoren, vendors/Kreditoren,

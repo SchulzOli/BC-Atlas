@@ -25,6 +25,19 @@ updates:
         update-types: [minor, patch]
       vscode-major:
         update-types: [major]
+  # BC OpenBridge: the gateway and the MCP server, each with its own lockfile.
+  - package-ecosystem: npm
+    directories:
+      - /openbridge/bc-openbridge
+      - /openbridge/bc-mcp
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      openbridge-minor-and-patch:
+        update-types: [minor, patch]
+      openbridge-major:
+        update-types: [major]
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -9,6 +9,7 @@ plugins/*/e2e
 plugins/*/examples
 plugins/*/scripts
 plugins/*/test
+openbridge
 .git
 coverage
 docs
