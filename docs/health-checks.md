@@ -114,6 +114,41 @@ and direct readers to JSON; limitations remain visible. SARIF uses the primary
 location for the finding and emits file-backed supporting evidence as
 `relatedLocations`, with `limitations` in result properties.
 
+## Trend
+
+`--compare` adds what changed since an earlier JSON report: new and fixed
+findings, and how the counts and metrics moved. Keep the report of the main
+branch (a build artifact, for example) and compare a pull request with it:
+
+```sh
+bca check ./app --format json -o health-main.json     # on main
+bca check ./app --compare health-main.json            # on the branch
+bca check ./app --compare health-main.json --format markdown -o health.md
+```
+
+```text
+Trend (compared with health-main.json)
+  Findings       1 new, 2 fixed
+  Errors         0
+  Warnings       3 -> 2 (-1)
+  Info           4
+  Files          41 -> 43 (+2)
+  Objects        118 -> 121 (+3)
+  Relationships  902 -> 915 (+13)
+  Unresolved     0
+  Cycles         1 -> 0 (-1)
+
+New findings
+  WARN   codeunit 50140 Sales Export depends on 27 distinct objects (limit 25)
+```
+
+Text and Markdown show the trend below the findings; JSON carries it as
+`trend` (`comparedWith`, `previous`, `counts`, `summary`, `new`, `fixed`), and
+SARIF is unchanged. Two findings are the same when their rule and their
+object (or file) match, so a moved line or a changed count in a message is
+not a new finding. The trend does not change the exit code; `--fail-on`
+decides that as before.
+
 ## Configure
 
 ```json

@@ -4,6 +4,26 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- **The trend of the health check.** `bca check --compare <report.json>`
+  compares the check with an earlier report of `bca check --format json`
+  and adds what changed: new and fixed findings, and how the counts of
+  errors, warnings, and info and the metrics (files, objects,
+  relationships, unresolved references, cycles) moved. Text and Markdown
+  show it below the findings, JSON carries it as `trend`. A moved line or
+  a changed count in a message is not a new finding. The exit code is
+  decided by `--fail-on` as before.
+
+### Changed
+
+- BC OpenBridge (the gateway and the MCP server for operating Business
+  Central) lives in this repository under `openbridge/`. It is not part
+  of the npm package, the VS Code extension, or the container image.
+- `web-tree-sitter` 0.27.2 and `3d-force-graph` 1.80.2.
+
 ## 0.22.0 - 2026-11-12
 
 ### Added

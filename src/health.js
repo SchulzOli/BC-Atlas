@@ -2,6 +2,7 @@ import { qualityFindings } from "./quality-rules.js";
 import { FAIL_LEVELS, SEVERITIES } from "./capabilities.js";
 import { analyzeContractFallbacks } from "./contract-analysis.js";
 import { analyzeContextResponsibilities } from "./context-analysis.js";
+import { formatTrendMarkdown, formatTrendText } from "./health-trend.js";
 
 const SEVERITY_RANK = { error: 3, warning: 2, info: 1 };
 
@@ -374,6 +375,7 @@ export function formatHealthText(report, { limit = 50 } = {}) {
   if (report.findings.length > limit) {
     lines.push(`  ... ${report.findings.length - limit} more; use --format json for the full list`);
   }
+  if (report.trend) lines.push("", ...formatTrendText(report.trend, { limit }));
   lines.push("", healthResultLine(report));
   return `${lines.join("\n")}\n`;
 }
@@ -426,5 +428,6 @@ export function formatHealthMarkdown(report, { heading = "## Architecture health
   } else {
     lines.push("No findings.", "");
   }
+  if (report.trend) lines.push(...formatTrendMarkdown(report.trend, { limit }));
   return `${lines.join("\n")}`;
 }
