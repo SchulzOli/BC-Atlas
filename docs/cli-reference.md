@@ -339,6 +339,7 @@ bca check ./app --compiler off --compiler-log .output/errorlogs
 | `--fail-on` | level | `error`, `warning`, `info`, or `never`. Default: `error`. |
 | `-f`, `--format` | format | `text`, `json`, `markdown`, or `sarif` (SARIF 2.1.0 for GitHub code scanning and Azure DevOps). Default: `text`. |
 | `-o`, `--output` | path | Write the report to a file; the result line goes to stderr. |
+| `--compare` | path | Add the [trend](./health-checks.md#trend) against an earlier report of `bca check --format json`: new and fixed findings, and how counts and metrics changed. Does not change the exit code. |
 | `--max-fan-in` | integer | Warn when more distinct objects depend on one object. Default: `25`. |
 | `--max-fan-out` | integer | Warn when one object depends on more distinct objects. Default: `25`. |
 | `--analyzers` | list | Code analyzers for the AL compile: `CodeCop`, `UICop`, `AppSourceCop`, `PerTenantExtensionCop`, or DLL paths. Default: `al.codeAnalyzers` when `al.enableCodeAnalysis` is on. |

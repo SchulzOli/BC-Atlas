@@ -205,6 +205,7 @@ const checkOptions = {
   failOn: string("Lowest severity that fails the check.", { group: GENERAL, enum: FAIL_LEVELS, default: "error" }),
   format: string("Report format; sarif for GitHub code scanning and Azure DevOps.", { group: OUTPUT, short: "f", enum: ["text", "json", "markdown", "sarif"], default: "text" }),
   output: string("Write the report to a file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
+  compare: string("Add the trend against an earlier report of bca check --format json: new and fixed findings, and how counts and metrics changed.", { group: OUTPUT, value: "path" }),
   maxFanIn: string("Warn when an object has more distinct dependents.", { group: GENERAL, value: "n", default: "25" }),
   maxFanOut: string("Warn when an object has more distinct dependencies.", { group: GENERAL, value: "n", default: "25" }),
   analyzers: string("Code analyzers for the AL compile: CodeCop, UICop, AppSourceCop, PerTenantExtensionCop, or DLL paths (default: al.codeAnalyzers when al.enableCodeAnalysis is on).", {
@@ -398,11 +399,15 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         purpose: "Score architecture health and fail CI on cycles, policy violations, or diagnostics.",
         options: checkOptions,
         output: { type: "json", when: "--format json", schema: "HealthReport" },
-        rules: ["Exit code 1 means at least one finding reached --fail-on."],
+        rules: [
+          "Exit code 1 means at least one finding reached --fail-on.",
+          "--compare adds the trend to text, markdown, and json (trend); it does not change the exit code."
+        ],
         examples: [
           "bca check ./app",
           "bca check ./app --fail-on warning",
-          "bca check ./app --format markdown -o health.md"
+          "bca check ./app --format markdown -o health.md",
+          "bca check ./app --compare health-main.json --format markdown -o health.md"
         ]
       }),
       command({

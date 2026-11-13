@@ -280,6 +280,102 @@ test("check reports architecture health and fails on configured policy violation
   }
 });
 
+test("check --compare adds the trend against an earlier JSON report", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const fixtures = fileURLToPath(new URL("./fixtures", import.meta.url));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-trend-"));
+  try {
+    const earlier = path.join(directory, "earlier.json");
+    const written = spawnSync(process.execPath, [cli, "check", fixtures, "--format", "json", "-o", earlier], { encoding: "utf8" });
+    assert.equal(written.status, 0, written.stderr);
+
+    // Nothing changed: no new and no fixed findings.
+    const same = spawnSync(process.execPath, [cli, "check", fixtures, "--compare", earlier, "--format", "json"], { encoding: "utf8" });
+    assert.equal(same.status, 0, same.stderr);
+    const unchanged = JSON.parse(same.stdout).trend;
+    assert.deepEqual([unchanged.new, unchanged.fixed], [[], []]);
+    assert.equal(unchanged.summary.objects.delta, 0);
+    assert.equal(unchanged.previous.passed, true);
+
+    // A lower limit makes new warnings; the trend names them and the exit code follows --fail-on.
+    const worse = spawnSync(process.execPath, [
+      cli, "check", fixtures, "--max-fan-out", "1", "--compare", earlier, "--format", "json"
+    ], { encoding: "utf8" });
+    assert.equal(worse.status, 0, worse.stderr);
+    const trend = JSON.parse(worse.stdout).trend;
+    assert.ok(trend.new.length > 0);
+    assert.ok(trend.new.every(({ rule }) => rule === "high-fan-out"));
+    assert.equal(trend.counts.warning.delta, trend.new.length);
+    assert.deepEqual(trend.fixed, []);
+
+    const text = spawnSync(process.execPath, [cli, "check", fixtures, "--max-fan-out", "1", "--compare", earlier], { encoding: "utf8" });
+    assert.match(text.stdout, /^Trend \(compared with .*earlier\.json\)$/mu);
+    assert.match(text.stdout, new RegExp(`^  Findings +${trend.new.length} new, 0 fixed$`, "mu"));
+    assert.match(text.stdout, /^New findings$/mu);
+    const markdown = spawnSync(process.execPath, [
+      cli, "check", fixtures, "--max-fan-out", "1", "--compare", earlier, "--format", "markdown"
+    ], { encoding: "utf8" });
+    assert.match(markdown.stdout, /\| New \| Warning \| `high-fan-out` \|/u);
+
+    // The other way round: the warnings of the earlier report are fixed.
+    const strict = path.join(directory, "strict.json");
+    spawnSync(process.execPath, [cli, "check", fixtures, "--max-fan-out", "1", "--format", "json", "-o", strict], { encoding: "utf8" });
+    const better = spawnSync(process.execPath, [cli, "check", fixtures, "--compare", strict, "--format", "json"], { encoding: "utf8" });
+    const improved = JSON.parse(better.stdout).trend;
+    assert.equal(improved.fixed.length, trend.new.length);
+    assert.deepEqual(improved.new, []);
+
+    const notAReport = path.join(directory, "other.json");
+    writeFileSync(notAReport, JSON.stringify({ name: "something else" }));
+    for (const [file, message] of [
+      [notAReport, /is not a health report/u],
+      [path.join(directory, "missing.json"), /file not found/u],
+      [fileURLToPath(new URL("../README.md", import.meta.url)), /is not JSON/u]
+    ]) {
+      const rejected = spawnSync(process.execPath, [cli, "check", fixtures, "--compare", file], { encoding: "utf8" });
+      assert.equal(rejected.status, 2);
+      assert.match(rejected.stderr, message);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("the trend pairs findings by rule and object, not by message or line", async () => {
+  const { compareHealth } = await import("../src/health-trend.js");
+  const report = (findings, objects = 1) => ({
+    passed: true,
+    failOn: "error",
+    summary: { files: 1, objects, relationships: 0, unresolved: 0, cycles: 0 },
+    counts: {
+      error: findings.filter(({ severity }) => severity === "error").length,
+      warning: findings.filter(({ severity }) => severity === "warning").length,
+      info: findings.filter(({ severity }) => severity === "info").length
+    },
+    findings
+  });
+  const item = (rule, object, message, more = {}) => ({ severity: "warning", rule, message, object, ...more });
+  const before = report([
+    item("high-fan-out", "codeunit 1 A", "A depends on 26 objects", { line: 10 }),
+    item("AA0137", "codeunit 1 A", "variable x is unused"),
+    item("AA0137", "codeunit 1 A", "variable y is unused"),
+    item("dependency-cycle", "codeunit 2 B", "cycle B -> C -> B")
+  ]);
+  const after = report([
+    item("high-fan-out", "codeunit 1 A", "A depends on 30 objects", { line: 42 }),
+    item("AA0137", "codeunit 1 A", "variable y is unused"),
+    item("AA0137", "codeunit 1 A", "variable z is unused"),
+    item("AA0137", "codeunit 1 A", "variable w is unused"),
+    item("high-fan-out", "codeunit 3 D", "D depends on 27 objects")
+  ], 2);
+  const trend = compareHealth(after, before);
+  assert.deepEqual(trend.new.map(({ message }) => message), ["variable w is unused", "D depends on 27 objects"]);
+  assert.deepEqual(trend.fixed.map(({ message }) => message), ["cycle B -> C -> B"]);
+  assert.deepEqual(trend.counts.warning, { before: 4, after: 5, delta: 1 });
+  assert.deepEqual(trend.summary.objects, { before: 1, after: 2, delta: 1 });
+  assert.throws(() => compareHealth(after, { findings: "none" }), /not a report/u);
+});
+
 test("check formats preserve architecture origin and source evidence", () => {
   const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
   const project = fileURLToPath(new URL("../examples/multi-app", import.meta.url));

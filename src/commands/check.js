@@ -2,9 +2,10 @@ import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createArchitectureModel } from "../architecture.js";
-import { CheckFailedError } from "../cli/errors.js";
+import { CheckFailedError, UsageError } from "../cli/errors.js";
 import { displayPath } from "../output.js";
 import { assessHealth, formatHealthMarkdown, formatHealthText, healthResultLine } from "../health.js";
+import { compareHealth } from "../health-trend.js";
 import { assessArchitecture } from "../blueprint/index.js";
 import { renderSarif } from "../sarif.js";
 import { withPluginFindings } from "../plugins/health.js";
@@ -48,8 +49,27 @@ export function renderHealth(report, format, { root, fallbackFile } = {}) {
   return formatHealthText(report);
 }
 
+/** The report with its trend against an earlier report of `bca check --format json`. */
+export async function withTrend(report, file) {
+  let previous;
+  try {
+    previous = JSON.parse(await fs.readFile(path.resolve(file), "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") throw new UsageError(`--compare: file not found: ${file}`);
+    if (!(error instanceof SyntaxError)) throw error;
+    throw new UsageError(`--compare: ${file} is not JSON; write one with "bca check --format json -o <file>"`);
+  }
+  try {
+    return { ...report, trend: compareHealth(report, previous, { source: displayPath(path.resolve(file)) }) };
+  } catch {
+    throw new UsageError(`--compare: ${file} is not a health report; write one with "bca check --format json -o <file>"`);
+  }
+}
+
 export async function checkCommand(input, values) {
-  const { report, architecture } = await runHealthCheck(input, values, { onProgress: terminalProgress() });
+  const result = await runHealthCheck(input, values, { onProgress: terminalProgress() });
+  const { architecture } = result;
+  const report = values.compare ? await withTrend(result.report, values.compare) : result.report;
   const { model, options } = architecture;
   const content = renderHealth(report, values.format ?? "text", {
     root: options.projectRoot,

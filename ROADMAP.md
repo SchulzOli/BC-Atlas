@@ -8,7 +8,6 @@ open an issue to discuss priorities.
 - Detect namespace/folder disagreement and surface it as a diagnostic.
 - Health rules for unused interfaces, unreachable procedures, and excessive
   module coupling.
-- Trend reporting: compare `bca check --format json` results between commits.
 - Transaction-boundary risks: writes after explicit commits and partial
   processing paths.
 
