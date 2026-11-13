@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "business-central": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["bc-mcp/src/server.ts"]
+    }
+  }
+}
