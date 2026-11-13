@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "business-central": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/bc-mcp/src/server.ts"]
+    }
+  }
+}

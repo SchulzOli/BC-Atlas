@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "start": "node ./src/cli.js",
-    "test": "node --import ./test/setup.js --test",
+    "test": "node --import ./test/setup.js --test \"test/**/*.test.js\" \"plugins/**/*.test.js\" \"vscode/test/**/*.test.js\"",
     "check": "node ./scripts/check-syntax.js && npm run docs:check",
     "docs": "node ./scripts/generate-docs.js",
     "docs:check": "node ./scripts/generate-docs.js --check",

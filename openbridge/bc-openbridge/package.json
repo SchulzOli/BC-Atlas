@@ -1,0 +1,25 @@
+{
+  "name": "bc-openbridge",
+  "version": "0.1.0",
+  "description": "Interoperabilitäts-Gateway für Microsoft Dynamics 365 Business Central – offene Standards (OpenAPI, CloudEvents, Standard Webhooks, MCP, OAuth 2.0/OIDC) und Zero-Trust-Sicherheit.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "dev:mock": "node scripts/dev-mock.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "check": "npm run typecheck && npm test",
+    "create-api-key": "node scripts/create-api-key.ts",
+    "audit:verify": "node scripts/verify-audit.ts",
+    "sbom": "npm sbom --sbom-format cyclonedx --omit dev"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "^5.9.3"
+  }
+}

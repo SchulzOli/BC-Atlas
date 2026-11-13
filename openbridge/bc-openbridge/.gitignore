@@ -1,0 +1,12 @@
+node_modules/
+.env
+*.local.json
+audit*.jsonl
+secrets/
+api-keys.json
+event-subscribers.json
+sbom.cdx.json
+.alpackages/
+.snapshots/
+*.app
+.dev-agent-key

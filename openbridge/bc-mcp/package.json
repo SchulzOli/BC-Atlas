@@ -1,0 +1,25 @@
+{
+  "name": "bc-mcp",
+  "version": "0.2.0",
+  "description": "Harness-neutral MCP server (stdio) for operating Microsoft Dynamics 365 Business Central through the BC OpenBridge gateway – works with Claude Code, OpenAI Codex, GitHub Copilot, Cursor and other MCP clients.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "bc-mcp": "src/server.ts"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "client-config": "node scripts/client-config.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "check": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "^5.9.3"
+  }
+}

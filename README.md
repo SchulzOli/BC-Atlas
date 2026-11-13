@@ -363,6 +363,27 @@ The AL grammar is pinned in `vendor/tree-sitter-al.wasm`; update it with
 `npm run update:grammar -- <tree-sitter-al tag>`. The [roadmap](./ROADMAP.md)
 lists planned work.
 
+### Repository layout
+
+This repository is a monorepo:
+
+| Folder | What it is |
+|---|---|
+| `src/`, `vendor/`, `schemas/` | BC Atlas itself: the `bca` CLI and the MCP server (npm package `bc-atlas`) |
+| [`plugins/sync/`](./plugins/sync/) | The sync layer and the Business Central side that records processes (formerly the repository `bc-atlas-sync`) |
+| [`plugins/ai/`](./plugins/ai/) | The AI plugin |
+| [`vscode/`](./vscode/) | The VS Code extension |
+| [`openbridge/`](./openbridge/) | BC OpenBridge: the gateway (`bc-openbridge/`) and the MCP server for operating Business Central (`bc-mcp/`), formerly the repository `bc-openbridge` |
+
+`openbridge/` has its own packages, lockfiles, and Node version (24). It is
+not part of the npm package or the container image of BC Atlas, and the
+`OpenBridge` workflow tests it when something below it changes:
+
+```sh
+cd openbridge/bc-openbridge && npm ci && npm run check
+cd ../bc-mcp && npm ci && npm run check
+```
+
 ### Publishing
 
 Releases are published manually through the `Release` workflow
