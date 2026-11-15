@@ -120,7 +120,12 @@ export async function flowDefineCommand(input, values) {
     return undefined;
   }
   process.stdout.write(flowsText(flowsConfig({ flows: result.flows }, { pluginTasks: result.artifacts.filter(({ plugin }) => plugin).map(({ id }) => id) }), result));
-  console.error([result.written ? `Wrote ${displayPath(result.file)}` : result.changed ? "Dry run: nothing written." : "Nothing changed.", ...hints(result)].join("\n"));
+  const freed = result.freed.flatMap(({ steps }) => steps);
+  console.error([
+    result.written ? `Wrote ${displayPath(result.file)}` : result.changed ? "Dry run: nothing written." : "Nothing changed.",
+    ...(freed.length ? [`${freed.length} step(s) ran only through what was taken out and left the flow with it: ${freed.map((step) => step.id ?? step.what).join(", ")}. ${result.written ? "They are on the canvas of the builder, in no flow, to be wired again." : ""}`.trim()] : []),
+    ...hints(result)
+  ].join("\n"));
   return undefined;
 }
 

@@ -79,6 +79,8 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_handbook",
         "bc_atlas_inspect",
         "bc_atlas_layers",
+        "bc_atlas_process",
+        "bc_atlas_process_define",
         "bc_atlas_refactor_move",
         "bc_atlas_refactor_surface",
         "bc_atlas_report",

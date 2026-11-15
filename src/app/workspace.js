@@ -242,6 +242,18 @@ export class Workspace {
     return { file: result.file, written: result.written, changed: result.changed, flows: result.flows };
   }
 
+  /**
+   * Changes the processes (src/process) in .bca.json.
+   * @returns { file, written, changed, processes }
+   */
+  async defineProcesses({ operations = [], dryRun = false } = {}) {
+    const { root, config } = await this.configured();
+    const { defineProcesses } = await import("../process/index.js");
+    const result = await defineProcesses(root, { operations, dryRun, config });
+    if (result.written) this.reset();
+    return result;
+  }
+
   /** Keeps how the flow builder lays the flows out (src/flows/canvas.js). It changes no analysis. */
   async saveFlowCanvas(canvas = {}) {
     const { root } = await this.configured();

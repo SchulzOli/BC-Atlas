@@ -71,6 +71,8 @@ export function createService(workspace) {
     runFlow: (params = {}) => workspace.runFlow(params),
     exportFlow: (params = {}) => workspace.exportFlow(params),
     saveFlowCanvas: (params = {}) => workspace.saveFlowCanvas(params),
+    // The Process mode of the builder: operations on the processes.
+    defineProcesses: (params = {}) => workspace.defineProcesses(params),
     updateProposal: (params = {}) => workspace.updateProposal({
       keep: params.keep,
       release: params.release || undefined,

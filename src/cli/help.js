@@ -31,6 +31,7 @@ function topLevelName(definition) {
 const SHORT = {
   check: "Gate CI on architecture health: cycles, policies, architecture violations, diagnostics",
   simulate: "Battle-test the app as your company uses it: roles, permission sets, process tests, fit-gap",
+  process: "How the company works with the app: processes in lanes (BPMN), mined, run with its people, improved (define, run, export)",
   architecture: "Find a target architecture, resolve what stands in its way, and enforce it with a baseline",
   refactor: "Move objects between components, lock a component's public surface (move, surface)",
   export: "Write files: the pages as one offline HTML file, report, explorer, catalog, or one diagram",

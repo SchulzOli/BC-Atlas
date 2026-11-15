@@ -69,6 +69,20 @@ The steps of a flow are a graph. A step with an `id` can be waited for, and
 - Steps that wait for each other in a circle are not valid, and neither is an
   `after` that names no step of the flow.
 
+### Removing a step
+
+A step that runs only through another would, without it, run whatever became
+of it: remove a gate, and what it guarded would run unguarded. So there is one
+rule, wherever a step is removed (the canvas, a form, `--unstep`, an agent):
+
+- the step goes, **and the steps that wait for nothing but it leave the flow
+  with it**, and so do the steps that wait only for those;
+- a step that also waits for a step that stays, stays, and waits for that one;
+- what leaves without being removed is not lost: it is on the canvas of the
+  builder, in no flow, with the wires among those that left together. One wire
+  from a flow or a step brings them back. `bca flow define` names them, and
+  `--dry-run` shows them without changing anything.
+
 On the canvas a wire is an `after`; from the terminal it is `--id` and
 `--after`:
 
@@ -94,8 +108,9 @@ builder:
 
 ### The canvas: place and wire
 
-**Open the builder** in the Flow menu opens the flow builder on its
-**Canvas**. Every trigger, flow, and step is a node you place where you want
+**Open the builder** in the Flow menu opens the builder on **Flows**: a
+canvas. (Its other side, **Processes**, builds [how the company works with
+the app](./processes.md) in lanes.) Every trigger, flow, and step is a node you place where you want
 it, and wires say what belongs together:
 
 | Wire from | into | It means |
@@ -121,7 +136,7 @@ trigger onto the canvas and pull its wire into the flow.
   of the flow, together with the steps that run only through it: they keep
   their wires among each other, and one wire from a flow or a step brings them
   all back. Removing one of several wires into a step only makes it wait for
-  one step less.
+  one step less. [Removing a step](#removing-a-step) follows the same rule.
 - **Wire a step of another flow** and it moves, with its place and options;
   what waited for it there no longer does.
 - **Select and remove.** Click a node or a wire and press **Delete**, or use
@@ -137,26 +152,6 @@ Where the nodes are, and the nodes that are in no flow yet, is kept in
 the same for everyone; delete it and the builder lays the flows out itself.
 The flows themselves are only in `.bca.json`, so `bca run` never reads the
 canvas.
-
-### Lanes: drag and drop
-
-**Lanes** at the top of the builder shows the same flows as a board: the
-triggers and the artifacts on the left, one lane per flow on the right.
-
-| Drag | Drop it on | It does |
-| --- | --- | --- |
-| an artifact | the steps of a flow | adds a step that makes it, where you dropped it, saved to a place nothing else saves to (`docs/layers`, then `docs/layers-2`) |
-| an artifact or a trigger | the dashed lane at the bottom | starts a new flow, with the title you typed there or the name of the artifact |
-| a step | another place among the steps | changes the order |
-| a step | another flow | moves it there, with its place and options |
-| a trigger | a flow | the flow runs on it; from another flow, it moves |
-| a step, or a trigger of a flow | the bin | takes it out of the flow |
-
-A click on a step opens its form (where it is saved, its options); a click on
-the title of a flow opens the flow's form (title, triggers, delivery, remove).
-**Run now** and **GitHub Actions** are on every lane. With the keyboard, a
-step is a button and **+** adds one through the form. The lanes show what a
-step comes after but do not wire: that is the canvas, or `--after`.
 
 Every change is written to `.bca.json`. The lens **Flows** shows the result as
 a diagram from left to right: the trigger that starts a flow, the artifacts it

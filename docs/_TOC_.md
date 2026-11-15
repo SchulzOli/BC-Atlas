@@ -20,6 +20,7 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 - [Split a monolith into apps](./modularization.md)
 - [Architecture health checks](./health-checks.md)
 - [Battle test: simulate the use in your company](./battle-test.md)
+- [Processes: how the company works with the app](./processes.md)
 
 ## Export
 

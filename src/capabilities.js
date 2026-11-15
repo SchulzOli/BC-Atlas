@@ -37,7 +37,7 @@ export const SEVERITIES = Object.freeze(["error", "warning", "info"]);
 export const FAIL_LEVELS = Object.freeze(["error", "warning", "info", "never"]);
 export const REPORT_VIEWS = Object.freeze(["project", "module", "data", "contracts", "events", "ui"]);
 // What the view shows (the lenses of src/app/atlas.js), its forms, and what `bca view` writes.
-export const VIEW_LENSES = Object.freeze(["overview", "system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements", "simulation", "flows", "run"]);
+export const VIEW_LENSES = Object.freeze(["overview", "system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements", "simulation", "models", "flows", "run"]);
 export const VIEW_FORMS = Object.freeze(["2d", "diagram", "3d"]);
 export const VIEW_FORMATS = Object.freeze(["text", "json", "md", "csv", "svg", "png", "link"]);
 
@@ -525,6 +525,108 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           "bca graph render graph.json --root-group legacy -o orders.svg",
           "bca graph render orders.json -o orders.html"
         ]
+      }),
+      command({
+        id: "process",
+        area: "analyze",
+        argv: ["bca", "process", "[app-root]"],
+        purpose: "How the company works with the app: processes as models in lanes (BPMN), each step done by a role and shown to work by a process test or a recording. Shows the processes of the project (\"processes\" in .bca.json) and how each runs with the people of the simulation; --mine shows the processes as the process tests and recordings have them.",
+        options: {
+          mine: flag("Process mining: the processes as they are, discovered from the process tests and the recordings of Business Central. Who really does what in which order, and what each step does in the app (its events: clicks, pages opened, code run, reads, writes).", { group: SELECTION }),
+          format: string("text (default) or json: the processes, how each runs, the mined processes, and the roles and tests a step can name.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          tests: string("Folder with the process tests (default: simulation.tests, then docs.tests in .bca.json, then the app itself).", { group: GENERAL, value: "path" }),
+          recordings: string("Folder with recordings of Business Central (fact snapshots as JSON): they are mined and run like process tests (default: simulation.recordings).", { group: GENERAL, value: "path" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config,
+          compiler: projectOptions.compiler,
+          compilerLog: projectOptions.compilerLog
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.processes" },
+        rules: [
+          "A process has steps. A step is in the lane of who does it (a role of simulation.roles), names the test that shows it works (a process test by document ID, or a recording), and comes after other steps (after); a wire with a name (when) is one way of several.",
+          "A step: runs (someone in the lane gets through its test), is blocked (the lane is stopped, with what is missing), is done by another lane, has nobody set to do it, or is unproven (it has no test).",
+          "BC Atlas reads the source and the recordings; it runs neither the app nor the tests."
+        ],
+        examples: ["bca process", "bca process --mine", "bca process ./app --recordings recordings --mine", "bca process --format json"]
+      }),
+      command({
+        id: "process.define",
+        area: "analyze",
+        argv: ["bca", "process", "define", "[app-root]"],
+        purpose: "Define the processes: add or change a process and its steps (title, lane, test, what it comes after), take a mined process as a model, or import one from BPMN 2.0. Without options it shows the processes as they are.",
+        options: {
+          process: string("Add this process, or change it.", { group: SELECTION, value: "id" }),
+          title: string("The title of the process; with --at, the new title of that step.", { group: GENERAL, value: "text" }),
+          step: string("Add a step with this title.", { group: SELECTION, value: "title" }),
+          at: string("Change the step with this id instead of adding one: --title, --lane, --test, --after, --id.", { group: SELECTION, value: "step" }),
+          id: string("The id of the step (default: from its title).", { group: GENERAL, value: "name" }),
+          lane: string("Who does the step: a role of the company.", { group: GENERAL, value: "role" }),
+          test: string("What shows that the step works: a process test by document ID, or a recording. An empty value takes it away.", { group: GENERAL, value: "id" }),
+          after: string("The steps this step comes after, by id, comma-separated; <step>:<name> names the way (one of several): approve:approved. An empty value takes the wires away.", { group: GENERAL, value: "list" }),
+          unstep: string("Remove the step with this id; what came after it comes after what it came after.", { group: SELECTION, value: "step" }),
+          renameLane: string("Rename a lane of the process, as <lane>=<new name>.", { group: SELECTION, value: "lane=name" }),
+          remove: string("Remove a process. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
+          adopt: string("Take a mined process (bca process --mine) as a model, by its id. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
+          import: string("Take the process of a BPMN 2.0 file as a model: its lanes, its tasks, and the ways between them. --process and --title name it.", { group: SELECTION, value: "path" }),
+          from: string("Apply the operations of a JSON file: a list of { op, process, ... } (set, remove, step, unstep, wire, unwire, lane, adopt). What the builder of the view saves.", { group: SELECTION, value: "path" }),
+          dryRun: flag("Check the change and show the result; write nothing.", { group: OUTPUT }),
+          format: string("text (default) or json: the processes after the change.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          tests: string("Folder with the process tests, for --adopt.", { group: GENERAL, value: "path" }),
+          recordings: string("Folder with recordings of Business Central, for --adopt.", { group: GENERAL, value: "path" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.processes" },
+        rules: [
+          "A change names what it changes and keeps the rest. A process that is not valid never reaches .bca.json: a step that comes after a step that is not there, or steps that come after each other in a circle.",
+          "From BPMN, events and gateways are not steps: a way through them is one way, named after the sequence flow that leaves the gateway. A way back (a loop) is left out."
+        ],
+        examples: [
+          "bca process define --adopt purchase-requests",
+          "bca process define --process orders --title \"Sales orders\"",
+          "bca process define --process orders --step \"Take the order\" --lane \"Order processor\" --test sales-order-create",
+          "bca process define --process orders --step \"Post the order\" --lane Accountant --test sales-order-post --after take-the-order",
+          "bca process define --process orders --at post-the-order --after take-the-order:released",
+          "bca process define --process orders --import orders.bpmn",
+          "bca process define --process orders --unstep post-the-order"
+        ]
+      }),
+      command({
+        id: "process.run",
+        area: "analyze",
+        argv: ["bca", "process", "run", "[app-root]"],
+        purpose: "Test and demonstrate the processes: each one step by step with the people of the simulation. Who performs a step, who is stopped and by what, where the work changes hands, what each step does in the app, and what to improve.",
+        options: {
+          process: string("Only this process. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
+          format: string("text (default), markdown, or json. Inferred from the extension of --output.", { group: OUTPUT, short: "f", enum: ["text", "markdown", "json"] }),
+          output: string("Write to this file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
+          tests: string("Folder with the process tests (default: simulation.tests, then docs.tests in .bca.json, then the app itself).", { group: GENERAL, value: "path" }),
+          recordings: string("Folder with recordings of Business Central the people perform as well (default: simulation.recordings).", { group: GENERAL, value: "path" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config,
+          compiler: projectOptions.compiler,
+          compilerLog: projectOptions.compilerLog
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.processes" },
+        rules: [
+          "Exit code 1 when a process stops: a lane cannot perform a step, or a step names a test that is not there. A pipeline gates on it.",
+          "What to improve: a step nobody can show to work, a step another role does, a lane that is no role, work that goes back and forth between two lanes, steps the process tests have and the model has not, and an order the app does not allow."
+        ],
+        examples: ["bca process run", "bca process run --process purchase-requests", "bca process run -o docs/processes.md", "bca process run --format json"]
+      }),
+      command({
+        id: "process.export",
+        area: "analyze",
+        argv: ["bca", "process", "export", "[app-root]"],
+        purpose: "Write a process as BPMN 2.0, for other tools: a pool with a lane per role, a user task per step, and an exclusive gateway where the way parts, with the diagram.",
+        options: {
+          process: string("The process to export.", { group: SELECTION, value: "id", required: true }),
+          output: string("The file to write (default: <process>.bpmn); - prints it.", { group: OUTPUT, short: "o", value: "path" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "file", pathOption: "output", default: "<process>.bpmn" },
+        examples: ["bca process export --process purchase-requests", "bca process export --process purchase-requests -o docs/purchase-requests.bpmn"]
       }),
       command({
         id: "architecture",

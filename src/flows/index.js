@@ -5,12 +5,12 @@ import { automationConfig, syncModesFor, SYNC_MODES, TRIGGERS } from "../automat
 import { loadPlugins } from "../plugins/registry.js";
 import { ARTIFACTS, makeArtifact, stepOutputs } from "./artifacts.js";
 import { applyFlowOperations, CONDITIONS, FLOW_SCHEMA, flowsConfig, stepJson, stepOrder } from "./config.js";
-import { readFlowCanvas } from "./canvas.js";
+import { readFlowCanvas, writeFlowCanvas } from "./canvas.js";
 
 export { ARTIFACTS } from "./artifacts.js";
 export { exportFlow, FLOW_EXPORT_TARGETS } from "./export.js";
 export { CANVAS_FILE, normalizeCanvas, readFlowCanvas, writeFlowCanvas } from "./canvas.js";
-export { applyFlowOperations, CONDITIONS, FLOW_SCHEMA, flowId, flowOutputs, flowsConfig, flowsFor, flowsText, freeStepId, stepJson, stepOrder } from "./config.js";
+export { applyFlowOperations, CONDITIONS, FLOW_SCHEMA, flowId, flowOutputs, flowsConfig, flowsFor, flowsText, freeStepId, stepJson, stepKey, stepOrder } from "./config.js";
 
 /**
  * Runs flows. The steps of a flow run each after those it waits for, else as written. A step
@@ -138,12 +138,34 @@ export async function defineFlows(input, { operations = [], dryRun = false, conf
   const plugins = await loadPlugins(root, config);
   const pluginTasks = plugins.taskSummaries();
   // What is not valid never reaches the file.
-  const next = applyFlowOperations(config, operations, { pluginTasks: Object.keys(pluginTasks) });
+  const freed = [];
+  const next = applyFlowOperations(config, operations, { pluginTasks: Object.keys(pluginTasks), freed });
   const changed = JSON.stringify(next) !== JSON.stringify(config);
   const written = changed && !dryRun;
   if (written) {
     await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.writeFile(file, `${JSON.stringify(next, null, 2)}\n`);
+    // Steps that left a flow with the step they ran through stay on the canvas of the builder, in no flow.
+    if (freed.length) {
+      const canvas = await readFlowCanvas(root);
+      let number = Math.max(0, ...canvas.loose.flatMap(({ key, group }) => [key, group]).map((name) => Number(/^loose:(\d+)$/u.exec(name ?? "")?.[1] ?? 0)));
+      for (const { steps } of freed) {
+        const group = `loose:${++number}`;
+        for (const { key, step } of steps) {
+          const loose = `loose:${++number}`;
+          canvas.loose.push({ key: loose, step, group });
+          if (canvas.positions[key]) canvas.positions[loose] = canvas.positions[key];
+        }
+      }
+      await writeFlowCanvas(root, canvas);
+    }
   }
-  return { ...description(next, pluginTasks, file), written, changed };
+  return {
+    ...description(next, pluginTasks, file),
+    canvas: await readFlowCanvas(root),
+    written,
+    changed,
+    // What left a flow without being removed: [{ flow, steps: [json] }].
+    freed: freed.map(({ flow, steps }) => ({ flow, steps: steps.map(({ step }) => step) }))
+  };
 }

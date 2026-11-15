@@ -18,6 +18,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Get started | `setup agent` | Add a `/bca-setup` command for Claude Code, Copilot, or Cursor. |
 | Analyze | `check` | Score architecture health and fail CI on cycles, policy violations, architecture violations, or diagnostics. |
 | Analyze | `simulate` | Battle-test the app as your company uses it: agents with roles, permission sets, and task groups perform the process tests; fails CI when a role is blocked or can do what it must not, and writes the fit-gap analysis. |
+| Analyze | `process`, `process define`, `process run`, `process export` | How the company works with the app: processes in lanes (BPMN), mined from the process tests and recordings, run with the people of the simulation, with what to improve. |
 | Analyze | `graph query` | Query a saved graph as reusable JSON without analyzing AL. |
 | Export | `graph render` | Render a saved graph selection as SVG, HTML, DOT, or JSON. |
 | Analyze | `architecture` | Find a target architecture, list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
@@ -47,6 +48,10 @@ bca check [app-root] [options]
 bca simulate [app-root] [--tests <path>] [--company <path>] [-o <path>] [options]
 bca graph query <graph.json> [options]
 bca graph render <graph.json> [-o <path>] [options]
+bca process [app-root] [--mine] [options]
+bca process define [app-root] [options]
+bca process run [app-root] [--process <id>] [options]
+bca process export [app-root] --process <id> [-o <file>]
 bca architecture [app-root] [options]
 bca refactor move [app-root] --object <selector> --to <component> [--apply]
 bca refactor surface [app-root] [--component <component>] [--apply]
@@ -451,6 +456,98 @@ describe. The changed simulation runs before anything is written, so a
 definition that is not valid never reaches `.bca.json`. The exit code is 0
 when the definition was applied, whatever the simulation finds;
 [`simulate`](#simulate) is the gate.
+
+
+### `process`
+
+```text
+bca process [app-root] [--mine] [--recordings <path>] [--format json]
+```
+
+Shows the [processes](./processes.md) of the project: models of how the
+company works with the app, in lanes, and how each runs with the people of the
+simulation. `--mine` shows the processes as the process tests and recordings
+have them.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--mine` | flag | Process mining: the processes as they are, with who does each step and its events (clicks, pages opened, code run, reads, writes). |
+| `--format` | `text` or `json` | `json`: the processes, their runs, the mined processes, and the roles and tests a step can name (`bc-atlas.processes/1`). Default: `text`. |
+| `--tests` | path | Folder with the process tests. |
+| `--recordings` | path | Folder with recordings of Business Central (fact snapshots). |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
+| `--compiler`, `--compiler-log` | | As for `check`. |
+
+### `process define`
+
+```text
+bca process define [app-root] --adopt <mined process>
+bca process define [app-root] --process <id> [--title <text>]
+bca process define [app-root] --process <id> --step <title> [--lane <role>] [--test <id>] [--after <steps>]
+bca process define [app-root] --process <id> --at <step> [--title <text>] [--lane <role>] [--test <id>] [--after <steps>]
+bca process define [app-root] --process <id> --import <file.bpmn>
+```
+
+Changes the processes in `.bca.json`. A change names what it changes and keeps
+the rest; a process that is not valid is never written.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--process` | id | Add this process, or change it. |
+| `--title` | text | The title of the process; with `--at`, of that step. |
+| `--step` | title | Add a step with this title. |
+| `--at` | step | Change the step with this id instead of adding one. |
+| `--id` | name | The id of the step (default: from its title). |
+| `--lane` | role | Who does the step: a role of the company. |
+| `--test` | id | What shows that the step works: a process test by document ID, or a recording. An empty value takes it away. |
+| `--after` | list | The steps it comes after, by id; `<step>:<name>` names the way: `approve:approved`. An empty value takes the wires away. |
+| `--unstep` | step | Remove the step; what came after it comes after what it came after. |
+| `--rename-lane` | lane=name | Rename a lane of the process. |
+| `--remove` | id | Remove a process. Repeatable. |
+| `--adopt` | id | Take a mined process as a model. Repeatable. |
+| `--import` | path | Take the process of a BPMN 2.0 file as a model. |
+| `--from` | path | Apply the operations of a JSON file: what the builder of an exported view saves. |
+| `--dry-run` | flag | Check the change and show the result; write nothing. |
+| `--format` | `text` or `json` | Output mode. Default: `text`. |
+| `--tests`, `--recordings` | path | Where to mine from, for `--adopt`. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
+
+### `process run`
+
+```text
+bca process run [app-root] [--process <id>] [-o <file>] [--format text|markdown|json]
+```
+
+Tests and demonstrates the processes: each one step by step with the people of
+the simulation, and what to improve. Exits with `1` when a process stops.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--process` | id | Only this process. Repeatable. |
+| `--format` | `text`, `markdown`, `json` | Inferred from the extension of `--output`. Default: `text`. |
+| `--output`, `-o` | path | Write to this file instead of stdout. |
+| `--tests` | path | Folder with the process tests. |
+| `--recordings` | path | Folder with recordings of Business Central. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
+| `--compiler`, `--compiler-log` | | As for `check`. |
+
+### `process export`
+
+```text
+bca process export [app-root] --process <id> [-o <file.bpmn>]
+```
+
+Writes a process as BPMN 2.0 with its diagram, for other tools.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--process` | id | The process to export. Required. |
+| `--output`, `-o` | path | The file to write (default: `<process>.bpmn`); `-` prints it. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
 
 ## Export
 

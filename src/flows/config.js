@@ -192,6 +192,20 @@ export function flowOutputs(flows) {
 /** The flows a trigger runs. */
 export const flowsFor = (flows, trigger) => flows.filter(({ when }) => when.includes(trigger));
 
+/** The names of the steps a step, as it is written, waits for. */
+const waitsOn = (step) => [step.after ?? []].flat().flatMap((wire) => (typeof wire === "string" ? wire.split(",").map((part) => part.trim().split(":")[0]).filter(Boolean) : wire?.step ? [String(wire.step)] : []));
+
+/**
+ * The node of a step on the canvas of the builder: the place it saves to, which no other step has;
+ * for a step that saves nothing, its flow, its artifact, and its number among those.
+ */
+export function stepKey(flow, steps, index) {
+  const place = (step) => (step.to ? posix(step.to) : ARTIFACTS[step.what]?.to);
+  const step = steps[index];
+  if (place(step)) return `step:${place(step)}`;
+  return `gate:${flow}:${step.what}:${steps.slice(0, index).filter((other) => other.what === step.what && !place(other)).length + 1}`;
+}
+
 // ------------------------------------------------------------------ define
 // A change to the flows is a list of operations, as for the simulation
 // (src/simulation/define.js): the Flow menu of the view, `bca flow define`,
@@ -202,7 +216,13 @@ export const flowsFor = (flows, trigger) => flows.filter(({ when }) => when.incl
 //   { op: "step", flow, what, to?, at?, ...options }   add a step; with at (1-based) change that step
 //   { op: "wire", flow, from, into, if? }              step `into` comes after step `from` (numbers from 1), if passed, failed, or always
 //   { op: "unwire", flow, from, into }                 it no longer does
-//   { op: "unstep", flow, at }                         remove a step; steps that waited for it no longer do
+//   { op: "unstep", flow, at }                         remove a step, and take out the steps that run only through it
+//   { op: "detach", flow, at }                         take a step out, with the steps that run only through it
+//
+// A step that runs only through another would, without it, run whatever became of it: a gate that
+// goes must not open what it guarded. So the steps that wait for nothing but a step that leaves
+// leave the flow with it. They are not lost: `freed` names them, and the builder keeps them on its
+// canvas, with the wires among them, to be wired again (canvas.js).
 //   { op: "move", flow, at, by }                       move a step up (-1) or down (1)
 //   { op: "deliver", trigger, sync }                   how a trigger delivers what was saved (its sync mode)
 
@@ -213,9 +233,11 @@ const position = (flow, at, id) => {
 
 /**
  * Applies operations to a configuration.
+ * @param options.freed is filled with the steps that left a flow without being removed:
+ *   [{ flow, steps: [{ key, step }] }], key being the node of the step on the canvas of the builder
  * @returns the changed configuration (a copy); throws when the result is not valid
  */
-export function applyFlowOperations(config = {}, operations = [], { pluginTasks = [] } = {}) {
+export function applyFlowOperations(config = {}, operations = [], { pluginTasks = [], freed = [] } = {}) {
   const next = structuredClone(config);
   const flows = Array.isArray(next.flows) ? next.flows : [];
   const find = (id) => flows.find((flow) => flow.id === id);
@@ -270,16 +292,42 @@ export function applyFlowOperations(config = {}, operations = [], { pluginTasks 
       if (op === "wire") others.push(!operation.if || operation.if === "passed" ? from.id : { step: from.id, if: operation.if });
       if (others.length) into.after = others;
       else delete into.after;
-    } else if (op === "unstep") {
+    } else if (op === "unstep" || op === "detach") {
       const flow = need(operation);
-      const [gone] = flow.steps.splice(position(flow, operation.at, flow.id), 1);
-      // What waited for it no longer does.
-      if (gone.id) {
-        for (const other of flow.steps) {
-          if (!other.after) continue;
-          other.after = [other.after].flat().filter((wire) => (typeof wire === "string" ? wire.split(":")[0] : wire?.step) !== gone.id);
-          if (!other.after.length) delete other.after;
-        }
+      const index = position(flow, operation.at, flow.id);
+      const before = flow.steps.map((step) => waitsOn(step).map((name) => flow.steps.findIndex(({ id }) => id === name)));
+      // The step, and every step that waits for nothing but steps that leave.
+      const out = new Set([index]);
+      for (let grown = true; grown;) {
+        grown = false;
+        before.forEach((others, order) => {
+          if (!out.has(order) && others.length && others.every((other) => out.has(other))) {
+            out.add(order);
+            grown = true;
+          }
+        });
+      }
+      const kept = [...out].filter((order) => op === "detach" || order !== index).sort((a, b) => a - b);
+      if (kept.length) {
+        freed.push({
+          flow: flow.id,
+          steps: kept.map((order) => {
+            const { after, ...step } = flow.steps[order];
+            // The wires among those that leave together come along; the step that was cut loose waits for nothing.
+            const wires = order === index ? [] : [after ?? []].flat().flatMap((wire) => (typeof wire === "string" ? wire.split(",").map((part) => part.trim()).filter(Boolean) : [wire]))
+              .filter((wire) => kept.includes(flow.steps.findIndex(({ id }) => id === (typeof wire === "string" ? wire.split(":")[0] : wire?.step))));
+            return { key: stepKey(flow.id, flow.steps, order), step: { ...step, ...(wires.length ? { after: wires } : {}) } };
+          })
+        });
+      }
+      const names = new Set([...out].map((order) => flow.steps[order].id).filter(Boolean));
+      flow.steps = flow.steps.filter((_, order) => !out.has(order));
+      // What also waited for other steps stays, and waits for those.
+      for (const other of flow.steps) {
+        if (!other.after) continue;
+        other.after = [other.after].flat().flatMap((wire) => (typeof wire === "string" ? wire.split(",").map((part) => part.trim()).filter(Boolean) : [wire]))
+          .filter((wire) => !names.has(typeof wire === "string" ? wire.split(":")[0] : wire?.step));
+        if (!other.after.length) delete other.after;
       }
     } else if (op === "move") {
       const flow = need(operation);
@@ -295,7 +343,7 @@ export function applyFlowOperations(config = {}, operations = [], { pluginTasks 
       next.automation.triggers ??= {};
       next.automation.triggers[trigger] = { tasks: [], ...(next.automation.triggers[trigger] ?? {}), sync };
     } else {
-      throw new Error(`flows: unknown operation "${op ?? ""}"; use set, remove, step, wire, unwire, unstep, move, or deliver`);
+      throw new Error(`flows: unknown operation "${op ?? ""}"; use set, remove, step, wire, unwire, unstep, detach, move, or deliver`);
     }
   }
   if (flows.length) next.flows = flows;

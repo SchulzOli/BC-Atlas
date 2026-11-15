@@ -466,6 +466,54 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
     return { ...manifest, files: manifest.files.length, output, zip };
   }));
 
+  server.registerTool("bc_atlas_process", {
+    description: "The processes of a project: how the company works with the app. Returns the models of .bca.json (processes: steps in lanes, each lane a role, each step with the process test or recording that shows it works, and what it comes after), how each model runs with the people of the simulation (runs: per step who performs it, whether the lane gets through it, is blocked and by which missing permissions, is done by another role, or is unproven; where the work changes hands; what each step does in the app as events: clicks, pages opened, code run, reads, writes), what to improve (findings with a fix each), and the processes as they are (mined: process mining from the process tests and recordings). Also the roles a lane can be and the tests a step can name. Reads the source and the recordings; runs neither the app nor the tests. Change the models with bc_atlas_process_define.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      compiler: projectFields.compiler,
+      tests: z.string().optional().describe("Folder with the process tests (default: simulation.tests, docs.tests, or the app)"),
+      recordings: z.string().optional().describe("Folder with recordings of Business Central (fact snapshots), mined and run like process tests"),
+      process: z.string().optional().describe("Only this process: its run and its findings")
+    }),
+    annotations: { readOnlyHint: true, idempotentHint: true }
+  }, tool(async ({ path: input, process: only, ...values }) => {
+    const { describeProcesses } = await import("./process/project.js");
+    const result = await describeProcesses(input, values);
+    if (!only) return result;
+    const run = result.runs.find(({ id }) => id === only);
+    if (!run) throw new Error(`there is no process "${only}"; there ${result.runs.length === 1 ? "is" : "are"} ${result.runs.map(({ id }) => id).join(", ") || "none"}`);
+    return { schema: result.schema, process: result.processes.find(({ id }) => id === only), run, simulated: result.simulated };
+  }));
+
+  server.registerTool("bc_atlas_process_define", {
+    description: "Define the processes of a project in the processes section of .bca.json. Send operations: set (add a process or change its title), remove, step (add a step with title, lane, test; with step it changes the step of that id), unstep (remove a step; what came after it comes after what it came after), wire and unwire (step into comes after step from; when names the way when it is one of several), lane (rename a lane), adopt (take a whole model: a mined process of bc_atlas_process, or your own). Returns the processes after the change. A change that is not valid writes nothing. Run them with bc_atlas_process.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      operations: z.array(z.object({
+        op: z.enum(["set", "remove", "step", "unstep", "wire", "unwire", "lane", "adopt"]),
+        process: z.string().optional().describe("The id of the process"),
+        title: z.string().optional().describe("set: the title of the process; step: of the step; lane: the new name"),
+        step: z.string().optional().describe("step: the id of the step to change; unstep: the step to remove"),
+        id: z.string().optional().describe("step: the id of a new step, or a new id"),
+        lane: z.string().optional().describe("step: who does it, a role of the company; lane: the lane to rename"),
+        test: z.string().optional().describe("step: the process test (document ID) or recording that shows it works"),
+        from: z.string().optional().describe("wire, unwire: the step that comes first, by id"),
+        into: z.string().optional().describe("wire, unwire: the step that comes after it"),
+        when: z.string().optional().describe("wire: the name of the way, when it is one of several"),
+        model: z.object({ id: z.string(), title: z.string().optional(), steps: z.array(z.record(z.string(), z.unknown())) }).optional().describe("adopt: a process with id, title, and steps")
+      })).optional().describe("Applied in order; all or nothing"),
+      dryRun: z.boolean().optional().describe("Check the change and return the result; write nothing")
+    }),
+    annotations: { readOnlyHint: false, idempotentHint: true }
+  }, tool(async ({ path: input, operations, dryRun, ...values }) => {
+    const { defineProcesses } = await import("./process/index.js");
+    return defineProcesses(input, { ...values, operations: operations ?? [], dryRun });
+  }));
+
   server.registerTool("bc_atlas_flow_define", {
     description: "Define the flows of a project: its own workflows in the flows section of .bca.json. A flow says what to make from the source (steps, each one artifact: layers, report, handbook, catalog, docs, simulate, check, view, diagram, app, knowledge-graph, or a task of a plugin), when (the triggers: pre-commit, pre-push, ci, schedule, manual), and where to save each artifact (to, relative to the project). Send operations to add or change a flow (set), remove it, add or change a step (step; with at it changes that step), remove a step (unstep), move one (move), say that a step comes after another if that one passed, failed, or always (wire, unwire, or id and after on a step: the steps are a graph, and a run skips a step whose condition does not hold), or say how a trigger delivers what was saved (deliver: its sync mode). Without operations it returns the flows as they are, the triggers with their sync modes, and the catalog of artifacts with the options of each. A change that is not valid writes nothing. Run a flow with bc_atlas_run and flows.",
     inputSchema: z.object({

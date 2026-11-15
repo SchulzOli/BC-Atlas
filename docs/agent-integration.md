@@ -126,6 +126,8 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_handbook` reads the [system handbook](./handbook.md) (one page or all, in English or German): who writes a table, who subscribes to an event, what a permission set grants, which pages users can open, where the code is complex.
 - `bc_atlas_setup_plan` detects the project and returns setup questions with recommendations.
 - `bc_atlas_setup_apply` previews (default) or writes `.bca.json`, Git hooks, and a pipeline.
+- `bc_atlas_process` returns the [processes](./processes.md) of a project: the models in lanes, how each runs with the people of the simulation (who performs a step, what stops a lane, where the work changes hands, the events of each step), what to improve, and the processes as they are (mined from the process tests and recordings).
+- `bc_atlas_process_define` changes the models: operations add or change a process and its steps, wire them, rename a lane, or take a mined process as a model.
 - `bc_atlas_run` runs the tasks and flows configured for a trigger, or flows by id (`flows`), and reports sync status.
 - `bc_atlas_flow_define` defines the [flows](./flows.md) of a project: operations add or change a flow, its triggers, and its steps (the artifact to make and where to save it), say which step comes after which and when (`wire`, `unwire`, or `id` and `after` on a step), or set the sync mode of a trigger. Without operations it returns the flows and the catalog of artifacts with their options.
 - `bc_atlas_flow_export` writes a flow as a workflow for GitHub Actions (`.github/workflows/bc-atlas-<flow>.yml`) and returns its events, its delivery, and the workflow; `dryRun` writes nothing.

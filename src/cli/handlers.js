@@ -24,6 +24,10 @@ const MODULES = {
   flow: ["../commands/flow.js", "flowCommand"],
   "flow.define": ["../commands/flow.js", "flowDefineCommand"],
   "flow.export": ["../commands/flow.js", "flowExportCommand"],
+  process: ["../commands/process.js", "processCommand"],
+  "process.define": ["../commands/process.js", "processDefineCommand"],
+  "process.run": ["../commands/process.js", "processRunCommand"],
+  "process.export": ["../commands/process.js", "processExportCommand"],
   update: ["../commands/update.js", "updateCommand"],
   "plugins.list": ["../commands/plugins.js", "pluginsListCommand"],
   "plugins.show": ["../commands/plugins.js", "pluginsShowCommand"],
@@ -45,6 +49,7 @@ const IMPORTS = {
   "../commands/graph.js": () => import("../commands/graph.js"),
   "../commands/run.js": () => import("../commands/run.js"),
   "../commands/flow.js": () => import("../commands/flow.js"),
+  "../commands/process.js": () => import("../commands/process.js"),
   "../commands/update.js": () => import("../commands/update.js"),
   "../commands/plugins.js": () => import("../commands/plugins.js")
 };

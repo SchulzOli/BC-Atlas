@@ -289,16 +289,49 @@ test("bca flow export writes a GitHub Actions workflow that runs the flow and de
   }
 });
 
-test("the view has the flow builder: a board to drag artifacts, steps, and triggers on", () => {
-  const html = renderAppHtml({ mode: "vscode" });
-  assert.match(html, /<section id="board" class="float" aria-label="Flow builder" hidden><\/section>/u);
-  assert.ok(html.includes('data-flow-act="board"'), "the Flow menu opens it");
-  // What is dragged, and where it can be dropped.
-  for (const kind of ["artifact", "step", "trigger"]) assert.ok(html.includes(`data-drag="${kind}"`), kind);
-  for (const zone of ["steps", "when", "new", "bin"]) assert.ok(html.includes(`data-drop="${zone}"`), zone);
-  for (const event of ["dragstart", "dragover", "drop", "dragend"]) assert.ok(html.includes(`$("#board").addEventListener("${event}"`), event);
-  // A step is reachable without a pointer: it is a button that opens its form.
-  assert.ok(html.includes('class="step" draggable="true"') && html.includes('tabindex="0" role="button"'));
+test("a step that is removed takes out what ran only through it, the same from the terminal and in the builder", async () => {
+  const root = repository();
+  try {
+    await defineFlows(root, { operations: [
+      { op: "set", flow: "docs" },
+      { op: "step", flow: "docs", what: "check", id: "gate" },
+      { op: "step", flow: "docs", what: "layers", to: "docs/system", id: "pages", after: ["gate"] },
+      { op: "step", flow: "docs", what: "handbook", after: ["pages:always"] },
+      { op: "step", flow: "docs", what: "catalog" }
+    ] });
+    await writeFlowCanvas(root, { positions: { "step:docs/system": [500, 40], "step:docs/handbook": [750, 40] } });
+    // The gate goes: the pages and the handbook must not run whatever became of it.
+    const result = bca(["flow", "define", root, "--flow", "docs", "--unstep", "1"]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr, /2 step\(s\) ran only through what was taken out and left the flow with it: pages, handbook\. They are on the canvas of the builder/u);
+    assert.deepEqual(JSON.parse(readFileSync(path.join(root, ".bca.json"), "utf8")).flows[0].steps, [{ what: "catalog" }]);
+    // They are kept, with the wire between them and where they were.
+    const canvas = await readFlowCanvas(root);
+    assert.deepEqual(canvas.loose.map(({ step, group }) => [step, group]), [
+      [{ what: "layers", to: "docs/system", id: "pages" }, "loose:1"],
+      [{ what: "handbook", after: ["pages:always"] }, "loose:1"]
+    ]);
+    assert.deepEqual([canvas.positions["loose:2"], canvas.positions["loose:3"]], [[500, 40], [750, 40]]);
+    // The builder sends the same operation, and gets the same.
+    const service = createService(new Workspace(root, {}, { live: false }));
+    await service.call("defineFlows", { operations: [{ op: "step", flow: "docs", what: "report", after: [] }, { op: "wire", flow: "docs", from: 1, into: 2 }] });
+    const changed = await service.call("defineFlows", { operations: [{ op: "detach", flow: "docs", at: 1 }] });
+    assert.deepEqual(changed.flows[0].steps, []);
+    assert.deepEqual((await service.call("atlas")).flows.canvas.loose.slice(2).map(({ step }) => step.what), ["catalog", "report"]);
+    // A dry run keeps nothing.
+    await defineFlows(root, { operations: [{ op: "step", flow: "docs", what: "check", id: "gate" }, { op: "step", flow: "docs", what: "view", after: ["gate"] }] });
+    const before = readFileSync(path.join(root, ".bca/flow-canvas.json"), "utf8");
+    const dry = await defineFlows(root, { operations: [{ op: "unstep", flow: "docs", at: 1 }], dryRun: true });
+    assert.deepEqual([dry.written, dry.freed[0].steps.map(({ what }) => what)], [false, ["view"]]);
+    assert.equal(readFileSync(path.join(root, ".bca/flow-canvas.json"), "utf8"), before);
+
+    const html = renderAppHtml({ mode: "vscode" });
+    assert.match(html, /<section id="board" class="float" aria-label="Flow builder" hidden><\/section>/u);
+    assert.ok(html.includes('flowApply([{ op: gone ? "unstep" : "detach"'), "the canvas sends the operation and does not decide itself");
+    for (const kind of ["artifact", "trigger", "flow"]) assert.ok(html.includes(`data-drag="${kind}"`), kind);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("the canvas of the builder keeps where the nodes are, next to the flows", async () => {
@@ -387,8 +420,18 @@ test("the steps of a flow are a graph: names, wires with conditions, and no circ
   assert.deepEqual(applyFlowOperations(config, [{ op: "step", flow: "docs", at: 2, what: "report" }]).flows[0].steps[1], { what: "report", id: "layers", after: ["gate"] });
   config = applyFlowOperations(config, [{ op: "unwire", flow: "docs", from: 2, into: 3 }, { op: "step", flow: "docs", at: 2, after: [] }]);
   assert.deepEqual(config.flows[0].steps.map(({ after }) => after), [undefined, undefined, ["gate"]]);
-  // What waited for a step that goes no longer does.
-  assert.deepEqual(applyFlowOperations(config, [{ op: "unstep", flow: "docs", at: 1 }]).flows[0].steps, [{ what: "layers", to: "docs/system", id: "layers" }, { what: "check", to: "docs/health.md" }]);
+  // A step that goes takes out what ran only through it: a gate that is gone must not open what it guarded.
+  const freed = [];
+  assert.deepEqual(applyFlowOperations(config, [{ op: "unstep", flow: "docs", at: 1 }], { freed }).flows[0].steps, [{ what: "layers", to: "docs/system", id: "layers" }]);
+  assert.deepEqual(freed, [{ flow: "docs", steps: [{ key: "step:docs/health.md", step: { what: "check", to: "docs/health.md" } }] }]);
+  // What also waits for a step that stays, stays, and waits for that one.
+  const both = applyFlowOperations(config, [{ op: "wire", flow: "docs", from: 2, into: 3, if: "always" }]);
+  assert.deepEqual(applyFlowOperations(both, [{ op: "unstep", flow: "docs", at: 1 }]).flows[0].steps[1], { what: "check", to: "docs/health.md", after: [{ step: "layers", if: "always" }] });
+  // Taken out, not removed: the step itself comes along, and the wires among those that leave.
+  const chain = applyFlowOperations(config, [{ op: "step", flow: "docs", what: "handbook" }, { op: "wire", flow: "docs", from: 3, into: 4, if: "failed" }]);
+  const cut = [];
+  assert.deepEqual(applyFlowOperations(chain, [{ op: "detach", flow: "docs", at: 3 }], { freed: cut }).flows[0].steps.map(({ what }) => what), ["check", "layers"]);
+  assert.deepEqual(cut[0].steps.map(({ key, step }) => [key, step.after]), [["step:docs/health.md", undefined], ["step:docs/handbook", [{ step: "check", if: "failed" }]]]);
   assert.throws(() => applyFlowOperations(config, [{ op: "wire", flow: "docs", from: 3, into: 1 }]), /in a circle/u);
   assert.throws(() => applyFlowOperations(config, [{ op: "wire", flow: "docs", from: 2, into: 2 }]), /cannot come after itself/u);
 });

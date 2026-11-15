@@ -8,6 +8,35 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Processes: how the company works with the app.** A process is a model
+  in lanes, as in BPMN (`"processes"` in `.bca.json`): every step in the
+  lane of the role that does it, with the process test or recording that
+  shows it works, and what it comes after; a wire with a name is one way
+  of several.
+  - **Process mining**: `bca process --mine` discovers the processes as
+    they are from the process tests and the recordings of Business
+    Central: the order, the role that performs each step, the handovers,
+    and the events of each step (clicks, pages opened, code run, reads,
+    writes). `bca process define --adopt` takes one as a model.
+  - **The run** is the test and the demonstration: `bca process run`
+    walks each process with the people of the simulation and says who
+    performs a step, what stops a lane (the missing permissions), and
+    where the work changes hands. It exits with 1 when a process stops.
+  - **What to improve**: a step that is blocked, done by another role,
+    unstaffed, or unproven; a lane that is no role; work that goes back
+    and forth; steps the tests have and the model has not; an order the
+    app does not allow. Each with what to do.
+  - **The process builder** (**Flow → Open the process builder**): lanes
+    to build on. Take a mined process, drag process tests and recordings
+    into the lanes, drag a step to another lane, pull wires between
+    steps, name the ways, and **Play** the process on the graph.
+  - **The lens Process models**, a story per process, and the findings on
+    its steps.
+  - **BPMN 2.0** out (`bca process export`, **BPMN** in the builder) and
+    in (`bca process define --import`).
+  - The MCP tools `bc_atlas_process` and `bc_atlas_process_define`.
+  - [Guide](./docs/processes.md).
+
 - **Flows: your own workflows.** A flow says what to make from the source,
   when, and where to save it: an id, the triggers it runs on, and steps,
   each one artifact with its place and options (`"flows"` in `.bca.json`).
@@ -39,11 +68,13 @@ follows [Semantic Versioning](https://semver.org/).
     wire leads to stays on the canvas, in no flow; steps that leave a flow
     together keep their wires and come back together. Where
     the nodes are is kept in `.bca/flow-canvas.json`.
-  - **Lanes** in the builder is the same as a board to build on by drag
-    and drop: drag an artifact into a flow
-    to add a step where you drop it, drag steps into their order or into
-    another flow, drop a trigger on a flow to start it, and drop a step or
-    a trigger on the bin to take it out. A click on a step opens its form.
+  - **One rule for a step that is removed**, wherever it is removed (the
+    canvas, a form, `bca flow define --unstep`, an agent): the steps that
+    wait for nothing but it leave the flow with it, so that a gate that
+    goes does not open what it guarded. They stay on the canvas of the
+    builder, in no flow, with their wires, to be wired again. The earlier
+    lanes board of the builder is gone: its place is taken by the
+    processes.
   - **The lens Flows** shows them as a diagram: the trigger that starts a
     flow, the artifacts it makes, and where each is saved.
   - **`bca flow`** shows the flows and the catalog of artifacts

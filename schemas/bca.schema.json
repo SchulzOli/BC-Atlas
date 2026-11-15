@@ -213,6 +213,36 @@
     },
     "docs": { "type": "object" },
     "automation": { "type": "object" },
+    "processes": {
+      "description": "How the company works with the app: processes in lanes (BPMN). bca process mines, runs, and exports them. See docs/processes.md.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "title": { "type": "string" },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id"],
+              "properties": {
+                "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+                "title": { "type": "string" },
+                "lane": { "description": "Who does the step: a role of simulation.roles.", "type": "string" },
+                "test": { "description": "What shows that the step works: a process test by document ID, or a recording.", "type": "string" },
+                "after": {
+                  "description": "The steps this step comes after, by id. A wire with \"when\" is one way of several.",
+                  "type": "array",
+                  "items": { "oneOf": [{ "type": "string" }, { "type": "object", "required": ["step"], "properties": { "step": { "type": "string" }, "when": { "type": "string" } } }] }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "flows": {
       "description": "Your own workflows: what to make from the source, when, and where to save it. bca run runs the flows of a trigger after its tasks; bca run --flow <id> runs one by name. See docs/flows.md.",
       "type": "array",

@@ -836,13 +836,17 @@
       ${muted(LIVE ? `Writes <code>.github/workflows/bc-atlas-${esc(flow.id)}.yml</code>: it runs on ${flow.when.includes("ci") ? "pull requests and pushes" : ""}${flow.when.includes("ci") && flow.when.includes("schedule") ? ", " : ""}${flow.when.includes("schedule") ? "the schedule" : ""}${flow.when.some((name) => name === "ci" || name === "schedule") ? ", or" : ""} by hand.` : "Copies the command that writes the workflow file.")}` : ""}`;
   }
   MENUS.flow = () => {
+    if (procForm) return procFormHtml();
     if (flowForm) return flowFormHtml();
     const { flows } = atlas.flows;
     const shown = atlas.lenses.some(({ id }) => id === "flows");
     return `<p class="text"><b>Your own workflows.</b> A flow says what to make from the source, when, and where to save it.</p>
       ${flows.length ? `<h3>Flows</h3>${flows.map((flow) => `<button class="item" role="menuitem" data-flow-act="edit" data-flow="${esc(flow.id)}"><b>${esc(flow.title)}</b><span>${plural(flow.steps.length, "step")}</span><small>${flow.when.length ? `on ${esc(flow.when.join(", "))}` : "only by name"}${flow.steps.length ? `: ${esc(flow.steps.map((step) => artifactOf(step.what)?.title ?? step.what).join(", "))}` : ""}</small></button>`).join("")}` : muted("None yet. A first one could write the documentation into the repository before every push.")}
-      <div class="actions"><button class="btn primary" data-flow-act="board" title="Drag artifacts into flows, order the steps, and drop triggers onto a flow">Open the builder</button><button class="btn" data-flow-act="new">New flow…</button></div>
+      <div class="actions"><button class="btn primary" data-flow-act="board" title="A canvas of nodes to place and wire freely">Open the builder</button><button class="btn" data-flow-act="new">New flow…</button></div>
       ${shown ? `<button class="item" role="menuitem" data-flow-act="show" ${state.lens === "flows" && !state.inside ? 'aria-current="true"' : ""}><b>Show the flows</b><small>From the trigger that starts each to the artifacts it makes and where they are saved</small></button>` : ""}
+      ${atlas.processes ? `<hr><p class="text"><b>Processes.</b> How the company works with the app: steps in lanes, mined from the process tests, run with the people of the simulation.</p>
+      ${atlas.processes.processes.map((model) => { const run = atlas.processes.runs.find(({ id }) => id === model.id); return `<button class="item" role="menuitem" data-flow-act="process" data-process="${esc(model.id)}"><b>${esc(model.title)}</b><span>${run?.passed ? "runs" : "stops"}</span><small>${plural(model.steps.length, "step")}, ${plural(run?.handovers ?? 0, "handover")}, ${run?.findings.length ?? 0} to improve</small></button>`; }).join("")}
+      <div class="actions"><button class="btn" data-flow-act="process" title="Processes in lanes (BPMN): build, mine, play, improve">Open the process builder</button></div>` : ""}
       ${flowChanges.length ? `<hr><h3>${plural(flowChanges.length, "change")} to save</h3><ul class="pending">${flowChanges.map((operation) => `<li>${esc(describeOperation(operation))}</li>`).join("")}</ul>
         <div class="actions"><button class="btn primary" data-flow-act="save">Save the changes (JSON)</button><button class="btn" data-flow-act="forget">Forget them</button></div>
         ${muted("This file is a snapshot. Apply the changes to the project with <code>bca flow define --from flow-changes.json</code>.")}` : ""}
@@ -870,11 +874,34 @@
       } else if (operation.op === "deliver") triggers[operation.trigger].sync = operation.sync;
       else if (!flow) continue;
       else if (operation.op === "remove") flows.splice(flows.indexOf(flow), 1);
-      else if (operation.op === "unstep") {
-        const [gone] = flow.steps.splice(operation.at - 1, 1);
-        // What waited for it no longer does.
+      else if (operation.op === "unstep" || operation.op === "detach") {
+        // The step, and every step that waits for nothing but steps that leave: as src/flows/config.js.
+        const index = operation.at - 1;
+        const before = flow.steps.map((step) => wiresOf(step).map((wire) => flow.steps.findIndex(({ id }) => id === wire.step)));
+        const out = new Set([index]);
+        for (let grown = true; grown;) {
+          grown = false;
+          before.forEach((others, order) => {
+            if (!out.has(order) && others.length && others.every((other) => out.has(other))) {
+              out.add(order);
+              grown = true;
+            }
+          });
+        }
+        const kept = [...out].filter((order) => operation.op === "detach" || order !== index).sort((a, b) => a - b);
+        // They stay on the canvas, in no flow, with the wires among them.
+        const group = kept.length ? looseKey() : undefined;
+        for (const order of kept) {
+          const { after: _after, ...step } = flow.steps[order];
+          const wires = order === index ? [] : wiresOf(flow.steps[order]).filter((wire) => kept.includes(flow.steps.findIndex(({ id }) => id === wire.step)));
+          const key = looseKey();
+          canvas.loose.push({ key, step: { ...step, ...(wires.length ? { after: wires } : {}) }, group });
+          if (canvas.positions[stepKey(flow, order)]) canvas.positions[key] = canvas.positions[stepKey(flow, order)];
+        }
+        const names = new Set([...out].map((order) => flow.steps[order].id).filter(Boolean));
+        flow.steps = flow.steps.filter((_, order) => !out.has(order));
         for (const other of flow.steps) {
-          const left = wiresOf(other).filter((wire) => wire.step !== gone.id);
+          const left = wiresOf(other).filter((wire) => !names.has(wire.step));
           if (left.length) other.after = left;
           else delete other.after;
         }
@@ -919,31 +946,18 @@
     }
   }
   function boardHtml() {
-    const { flows, triggers, artifacts } = atlas.flows;
-    const chip = (name, flow) => `<span class="trigger" draggable="true" data-drag="trigger" data-name="${esc(name)}" ${flow ? `data-flow="${esc(flow)}"` : ""} title="${esc(triggers[name].summary)}${flow ? `. Delivery: ${esc(triggers[name].sync)}` : ""}">${esc(name)}</span>`;
-    const lane = (flow) => `<article class="lane" data-lane="${esc(flow.id)}">
-        <header><button class="name" data-board="flow" data-flow="${esc(flow.id)}" title="Title, triggers, and delivery">${esc(flow.title)}</button><small>${esc(flow.id)}</small><span class="spacer"></span>
-          ${LIVE ? `<button class="btn" data-flow-act="run" data-flow="${esc(flow.id)}" title="bca run --flow ${esc(flow.id)}" ${flow.steps.length ? "" : "disabled"}>Run now</button>` : ""}<button class="btn" data-flow-act="github" data-flow="${esc(flow.id)}" title="Export it as a workflow for GitHub Actions" ${flow.steps.length ? "" : "disabled"}>GitHub Actions</button></header>
-        <div class="row">
-          <div class="when" data-drop="when" data-flow="${esc(flow.id)}">${flow.when.map((name) => chip(name, flow.id)).join("") || '<span class="hint">Drop a trigger: without one it runs only by name</span>'}</div>
-          <span class="arrow" aria-hidden="true">→</span>
-          <ol class="steps" data-drop="steps" data-flow="${esc(flow.id)}">${flow.steps.map((step, index) => {
-    const { what, to, id: _id, after: _after, ...options } = step;
-    const detail = options.lens ?? options.story ?? options.view ?? options.language;
-    return `<li class="step" draggable="true" data-drag="step" data-flow="${esc(flow.id)}" data-at="${index + 1}" tabindex="0" role="button" title="Click to change it; drag it to another place, another flow, or the bin"><b>${index + 1}. ${esc(artifactOf(what)?.title ?? what)}${detail ? `: ${esc(detail)}` : ""}</b><small>${esc(placeOfStep(step) ? `→ ${placeOfStep(step)}` : artifactOf(what)?.plugin ? "task of a plugin" : "gate")}${wiresOf(step).length ? ` · after ${esc(wiresOf(step).map((wire) => `${wire.step}${wire.if === "passed" ? "" : ` (if ${wire.if})`}`).join(", "))}` : ""}</small></li>`;
-  }).join("")}<li class="add"><button class="btn" data-board="add" data-flow="${esc(flow.id)}">${flow.steps.length ? "+" : "Drop an artifact here, or add a step…"}</button></li></ol>
-        </div></article>`;
-    const wired = boardMode === "canvas";
-    return `<header class="top"><h2>Flow builder</h2><div class="segments" role="radiogroup" aria-label="How to build"><button role="radio" data-board-mode="canvas" aria-checked="${wired}" title="Nodes to place and wire freely">Canvas</button><button role="radio" data-board-mode="lanes" aria-checked="${!wired}" title="One lane per flow, steps in a row">Lanes</button></div>
-        <p>${wired ? "Drag nodes onto the canvas and wire them: a trigger into a flow, a flow into the steps it starts with, a step into those that come after it. Click a wire to say when it holds. Double-click a node for its settings." : "Drag an artifact into a flow to make it there, drag steps into their order, and drop a trigger on a flow to start it. Click a step for where it is saved and its options."}</p><button class="close" data-board="close" aria-label="Close" title="Close (Esc)">×</button></header>
-      <div class="body">
+    const { triggers, artifacts } = atlas.flows;
+    const chip = (name) => `<span class="trigger" draggable="true" data-drag="trigger" data-name="${esc(name)}" title="${esc(triggers[name].summary)}">${esc(name)}</span>`;
+    const flows = boardMode === "canvas";
+    return `<header class="top"><h2>Builder</h2><div class="segments" role="radiogroup" aria-label="What to build"><button role="radio" data-board-mode="canvas" aria-checked="${flows}" title="Your own workflows: what to make from the source, when, and where to save it">Flows</button><button role="radio" data-board-mode="process" aria-checked="${!flows}" title="How the company works with the app: processes in lanes (BPMN), mined, run, improved">Processes</button></div>
+        <p>${flows ? "Drag nodes onto the canvas and wire them: a trigger into a flow, a flow into the steps it starts with, a step into those that come after it. Click a wire to say when it holds. Double-click a node for its settings." : "A process in lanes: every step in the lane of the role that does it. Drag a process test into a lane, pull a wire from a step into the one that comes after it, and play it with the people of the simulation."}</p><button class="close" data-board="close" aria-label="Close" title="Close (Esc)">×</button></header>
+      <div class="body">${flows ? `
         <aside class="palette" aria-label="What to drag">
-          ${wired ? `<h3>Flow</h3><input type="text" id="board-title" placeholder="Title of a new flow" autocomplete="off" aria-label="Title of a new flow"><div class="flowcard" draggable="true" data-drag="flow" title="Drag it onto the canvas to start a flow"><b>New flow</b><small>drag it onto the canvas</small></div>` : ""}
+          <h3>Flow</h3><input type="text" id="board-title" placeholder="Title of a new flow" autocomplete="off" aria-label="Title of a new flow"><div class="flowcard" draggable="true" data-drag="flow" title="Drag it onto the canvas to start a flow"><b>New flow</b><small>drag it onto the canvas</small></div>
           <h3>When</h3><div class="triggers">${Object.keys(triggers).map((name) => chip(name)).join("")}</div>
           <h3>Make</h3>${artifacts.map((artifact) => `<div class="artifact" draggable="true" data-drag="artifact" data-what="${esc(artifact.id)}" title="${esc(artifact.summary)}"><b>${esc(artifact.title)}</b><small>${esc(artifact.plugin ? "task of a plugin" : artifact.to ?? "gate")}</small></div>`).join("")}
-          ${wired ? "" : '<div class="bin" data-drop="bin">Drop here to take it out of the flow</div>'}
         </aside>
-        ${wired ? `<div class="canvas" data-drop="canvas" tabindex="0" aria-label="The canvas of the flows">
+        <div class="canvas" data-drop="canvas" tabindex="0" aria-label="The canvas of the flows">
           <div class="world"></div>
           <div class="tools" role="group" aria-label="Canvas">
             <select data-canvas-if aria-label="When the step after the selected wire runs" title="When the step after this wire runs" hidden>${Object.entries(atlas.flows.conditions ?? { passed: "", failed: "", always: "" }).map(([key, text]) => `<option value="${esc(key)}" title="${esc(text)}">${esc({ passed: "Runs if it passed", failed: "Runs if it fails", always: "Runs in any case" }[key] ?? key)}</option>`).join("")}</select>
@@ -953,23 +967,22 @@
             <button class="btn" data-canvas="out" aria-label="Zoom out">−</button><button class="btn" data-canvas="in" aria-label="Zoom in">+</button>
           </div>
           ${flowChanges.length ? `<p class="kept">${plural(flowChanges.length, "change")} kept in this snapshot. <button class="btn" data-board="save">Save the changes (JSON)</button></p>` : ""}
-        </div>` : `<div class="lanes">${flows.map(lane).join("")}
-          <article class="lane new" data-drop="new"><input type="text" id="board-title" placeholder="Title of a new flow" autocomplete="off" aria-label="Title of a new flow"><span class="hint">then drop an artifact or a trigger here to start it</span><button class="btn" data-board="create">Create</button></article>
-          ${flowChanges.length ? `<p class="kept">${plural(flowChanges.length, "change")} kept in this snapshot. <button class="btn" data-board="save">Save the changes (JSON)</button> and apply them with <code>bca flow define --from flow-changes.json</code>.</p>` : ""}
-        </div>`}
+        </div>` : procHtml()}
       </div>`;
   }
   function boardDraw() {
     const element = $("#board");
     element.hidden = !boardOpen || !atlas?.flows;
     if (element.hidden) return;
-    const title = $("#board-title")?.value ?? "";
+    const titles = ["#board-title", "#proc-title", "#proc-newlane"].map((id) => [id, $(id)?.value ?? ""]);
     element.innerHTML = boardHtml();
-    $("#board-title").value = title;
+    for (const [id, value] of titles) if ($(id)) $(id).value = value;
     if (boardMode === "canvas") canvasDraw();
+    else procWiresDraw();
   }
-  function boardShow(open) {
+  function boardShow(open, mode) {
     boardOpen = open;
+    if (mode) boardMode = mode;
     boardDraw();
   }
   /** The id and title of a flow that starts on the board. */
@@ -980,139 +993,80 @@
     $("#board-title").value = "";
     return { op: "set", flow: id, title };
   }
-  /** Where in the order something dropped at this point goes: before the first step that comes after it. */
-  function boardIndex(zone, event) {
-    const cards = $$(".step", zone);
-    const at = cards.findIndex((card) => {
-      const box = card.getBoundingClientRect();
-      return event.clientY < box.top || (event.clientY <= box.bottom && event.clientX < box.left + box.width / 2);
-    });
-    return at < 0 ? cards.length : at;
-  }
-  const boardMark = (zone, index) => {
-    for (const marked of $$("#board .before, #board .after, #board .over")) marked.classList.remove("before", "after", "over");
-    if (!zone) return;
-    zone.classList.add("over");
-    if (index === undefined) return;
-    const cards = $$(".step", zone);
-    if (cards[index]) cards[index].classList.add("before");
-    else cards.at(-1)?.classList.add("after");
-  };
-  /** What a drop means, as operations; nothing when it changes nothing. */
-  function boardDrop(zone, index) {
-    const kind = zone.dataset.drop;
-    const target = zone.dataset.flow;
-    if (kind === "bin") {
-      if (drag.kind === "step") return [{ op: "unstep", flow: drag.flow, at: drag.at }];
-      if (drag.kind === "trigger" && drag.flow) return [{ op: "set", flow: drag.flow, when: flowOf(drag.flow).when.filter((name) => name !== drag.name) }];
-      return [];
-    }
-    if (kind === "new") {
-      if (drag.kind === "trigger") return [{ ...boardNewFlow("New flow"), when: [drag.name] }];
-      if (drag.kind === "artifact") {
-        const start = boardNewFlow(artifactOf(drag.what).title);
-        return [start, { op: "step", flow: start.flow, what: drag.what, to: freePlace(drag.what) }];
-      }
-      return [];
-    }
-    const flow = flowOf(target);
-    if (drag.kind === "trigger") {
-      const operations = flow.when.includes(drag.name) ? [] : [{ op: "set", flow: target, when: [...flow.when, drag.name] }];
-      // From another flow: it moves.
-      if (drag.flow && drag.flow !== target) operations.push({ op: "set", flow: drag.flow, when: flowOf(drag.flow).when.filter((name) => name !== drag.name) });
-      return operations;
-    }
-    if (kind !== "steps") return [];
-    const count = flow.steps.length;
-    const position = index ?? count;
-    if (drag.kind === "artifact") {
-      return [{ op: "step", flow: target, what: drag.what, to: freePlace(drag.what) }, ...(position < count ? [{ op: "move", flow: target, at: count + 1, by: position - count }] : [])];
-    }
-    if (drag.kind === "step" && drag.flow === target) {
-      const to = position > drag.at - 1 ? position - 1 : position;
-      return to === drag.at - 1 ? [] : [{ op: "move", flow: target, at: drag.at, by: to - (drag.at - 1) }];
-    }
-    if (drag.kind === "step") {
-      // Into another flow: the step with its place and options, and out of the flow it came from.
-      const { id: _id, after: _after, ...moved } = flowOf(drag.flow).steps[drag.at - 1];
-      return [{ op: "step", flow: target, ...moved }, ...(position < count ? [{ op: "move", flow: target, at: count + 1, by: position - count }] : []), { op: "unstep", flow: drag.flow, at: drag.at }];
-    }
-    return [];
-  }
+  /** Where something that is dragged may be dropped. */
   const boardZone = (event) => {
-    if (!drag) return undefined;
-    const zone = event.target.closest?.("[data-drop]");
-    if (!zone) return event.target.closest?.(".lane[data-lane]") && drag.kind === "trigger" ? $("[data-drop=when]", event.target.closest(".lane")) : undefined;
-    if (zone.dataset.drop === "canvas") return ["artifact", "trigger", "flow"].includes(drag.kind) && !drag.flow ? zone : undefined;
-    // An artifact or a step dropped on the triggers of a lane goes to the end of its steps.
-    if (zone.dataset.drop === "when" && drag.kind !== "trigger") return $("[data-drop=steps]", zone.closest(".lane"));
-    if (zone.dataset.drop === "steps" && drag.kind === "trigger") return $("[data-drop=when]", zone.closest(".lane"));
-    return zone;
+    const zone = drag ? event.target.closest?.("[data-drop]") : undefined;
+    if (!zone) return undefined;
+    if (zone.dataset.drop === "canvas") return ["artifact", "trigger", "flow"].includes(drag.kind) ? zone : undefined;
+    return ["test", "blank", "role", "pstep"].includes(drag.kind) ? zone : undefined;
+  };
+  const boardOver = (zone) => {
+    for (const marked of $$("#board .over")) marked.classList.remove("over");
+    zone?.classList.add("over");
   };
   $("#board").addEventListener("dragstart", (event) => {
     const item = event.target.closest?.("[data-drag]");
-    if (!item) return;
-    drag = { kind: item.dataset.drag, what: item.dataset.what, name: item.dataset.name, flow: item.dataset.flow, at: Number(item.dataset.at) || undefined };
+    if (!item || event.target.closest(".port")) return event.preventDefault();
+    drag = { kind: item.dataset.drag, what: item.dataset.what, name: item.dataset.name, test: item.dataset.test, step: item.dataset.step };
     // Firefox drags only what carries data.
-    event.dataTransfer.setData("text/plain", item.dataset.what ?? item.dataset.name ?? `${drag.flow} ${drag.at}`);
+    event.dataTransfer.setData("text/plain", item.dataset.what ?? item.dataset.name ?? item.dataset.test ?? item.dataset.step ?? drag.kind);
     event.dataTransfer.effectAllowed = "copyMove";
     item.classList.add("dragging");
-    $("#board").classList.toggle("removable", drag.kind === "step" || Boolean(drag.kind === "trigger" && drag.flow));
+    return undefined;
   });
   $("#board").addEventListener("dragover", (event) => {
     const zone = boardZone(event);
-    if (!zone) return boardMark();
+    boardOver(zone);
+    if (!zone) return;
     event.preventDefault();
-    event.dataTransfer.dropEffect = drag.kind === "artifact" || (drag.kind === "trigger" && !drag.flow) ? "copy" : "move";
-    boardMark(zone, zone.dataset.drop === "steps" ? boardIndex(zone, event) : undefined);
-    return undefined;
+    event.dataTransfer.dropEffect = drag.kind === "pstep" ? "move" : "copy";
   });
   $("#board").addEventListener("drop", (event) => {
     const zone = boardZone(event);
     if (!zone) return;
     event.preventDefault();
-    if (zone.dataset.drop === "canvas") {
-      const dropped = drag;
-      drag = undefined;
-      boardMark();
-      canvasDrop(dropped, event);
-      return;
-    }
-    const operations = boardDrop(zone, zone.dataset.drop === "steps" ? boardIndex(zone, event) : undefined);
+    const dropped = drag;
     drag = undefined;
-    boardMark();
-    if (operations.length) flowApply(operations);
+    boardOver();
+    if (zone.dataset.drop === "canvas") canvasDrop(dropped, event);
+    else procDrop(zone, dropped);
   });
   $("#board").addEventListener("dragend", () => {
     drag = undefined;
-    boardMark();
-    $("#board").classList.remove("removable");
+    boardOver();
     $("#board .dragging")?.classList.remove("dragging");
   });
   $("#board").addEventListener("click", (event) => {
-    const step = event.target.closest(".step");
-    if (step) return flowEdit(step.dataset.flow, Number(step.dataset.at));
     const item = event.target.closest("button");
-    if (!item) return undefined;
+    if (!item) {
+      // A step or a wire of a process: selected.
+      const step = event.target.closest(".pstep");
+      const hit = event.target.closest("[data-pwire]");
+      if (step || hit) {
+        procPicked = step ? { step: step.dataset.step } : { wire: hit.dataset.pwire.split("\n") };
+        procWiresDraw();
+      }
+      return undefined;
+    }
     if (item.dataset.boardMode) {
       boardMode = item.dataset.boardMode;
       return boardDraw();
     }
     if (item.dataset.canvas) return canvasTool(item.dataset.canvas);
+    if (item.dataset.proc) return procClick(item);
     if (item.dataset.flowAct) return flowClick(item);
     const act = item.dataset.board;
     if (act === "close") return boardShow(false);
-    if (act === "flow") return flowEdit(item.dataset.flow);
-    if (act === "add") return flowEdit(item.dataset.flow, "new");
     if (act === "save") return download("flow-changes.json", `${JSON.stringify({ operations: flowChanges }, null, 2)}\n`, "application/json");
-    if (act === "create") {
-      if (!$("#board-title").value.trim()) return toast("A flow needs a title.");
-      return flowApply([boardNewFlow()]);
-    }
     return undefined;
+  });
+  $("#board").addEventListener("dblclick", (event) => {
+    const step = event.target.closest?.(".pstep");
+    if (step) procEdit(step.dataset.step);
   });
   $("#board").addEventListener("keydown", (event) => {
     if (event.key === "Escape") return boardShow(false);
+    const typing = event.target.matches?.("input, select");
     if (event.target.classList?.contains("canvas")) {
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
@@ -1120,12 +1074,325 @@
       }
       if (event.key === "Enter" && picked?.node) return canvasOpen(picked.node);
     }
-    // A step is a button for the keyboard too; the forms do what dragging does.
-    if ((event.key === "Enter" || event.key === " ") && event.target.classList?.contains("step")) {
-      event.preventDefault();
-      flowEdit(event.target.dataset.flow, Number(event.target.dataset.at));
+    if (event.target.closest?.(".proc") && !typing) {
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        return procRemove();
+      }
+      // A step is a button for the keyboard too.
+      if ((event.key === "Enter" || event.key === " ") && event.target.classList.contains("pstep")) {
+        event.preventDefault();
+        return procEdit(event.target.dataset.step);
+      }
     }
-    if (event.key === "Enter" && event.target.id === "board-title") $('[data-board="create"]').click();
+    if (event.key === "Enter" && event.target.id === "board-title") toast("Drag New flow onto the canvas to start it.");
+    if (event.key === "Enter" && event.target.id === "proc-title") $('[data-proc="create"]').click();
+    return undefined;
+  });
+
+  // ---------------------------------------------------------------- process
+  // The processes of the company as BPMN lanes to build on (src/process): every step in the lane
+  // of the role that does it, bound to the process test or recording that shows it works, wired
+  // to what it comes after. A process test dragged into a lane is a step; a wire pulled from a
+  // step into another says what comes after what; Play walks the process with the people of the
+  // simulation. Every change is an operation: written to .bca.json in VS Code, kept to save in
+  // an exported file.
+  let processId;
+  let procPicked;
+  let procForm;
+  let procWiring;
+  const procChanges = [];
+  const procModels = () => atlas.processes?.processes ?? [];
+  const procModel = () => procModels().find(({ id }) => id === processId) ?? procModels()[0];
+  const procWires = (step) => [step.after ?? []].flat().map((wire) => (typeof wire === "string" ? { step: wire } : { step: wire.step, when: wire.when }));
+  const procRun = (model) => atlas.processes.runs.find(({ id }) => id === model.id);
+  /** How a step ran, as long as it is the step that ran. */
+  const procStatus = (model, step) => procRun(model)?.steps.find((ran) => ran.id === step.id && (ran.test ?? "") === (step.test ?? "") && ran.lane === (step.lane ?? ""))?.status;
+  const PROC_STATUS = { runs: "runs", blocked: "stopped", "other-lane": "other role", unstaffed: "nobody set", unproven: "no test", unknown: "test missing" };
+  /** The lanes of a process in the order its steps name them, and the column of each step: one after the last it comes after. */
+  function procLayout(model) {
+    const columns = new Map();
+    const column = (step, seen = new Set()) => {
+      if (!columns.has(step.id)) {
+        const before = seen.has(step.id) ? [] : procWires(step).map((wire) => model.steps.find(({ id }) => id === wire.step)).filter(Boolean);
+        columns.set(step.id, 1 + Math.max(0, ...before.map((other) => column(other, new Set([...seen, step.id])))));
+      }
+      return columns.get(step.id);
+    };
+    for (const step of model.steps) column(step);
+    return { lanes: [...new Set(model.steps.map(({ lane }) => lane ?? ""))], columns, count: Math.max(1, ...columns.values()) };
+  }
+  function procHtml() {
+    if (!atlas.processes) return '<div class="proc"><p class="empty">The processes of <code>.bca.json</code> are not valid; <code>bca process</code> says what is wrong.</p></div>';
+    const { mined, roles, tests, simulated } = atlas.processes;
+    const model = procModel();
+    const test = (id) => tests.find((item) => item.id === id);
+    let board = `<p class="empty">No process yet. ${mined.length ? "Take one as the process tests have it, on the left, or name a new one." : "Name one on the left and create it."}</p>`;
+    if (model) {
+      const layout = procLayout(model);
+      const run = procRun(model);
+      const stale = procChanges.length > 0;
+      const card = (step) => {
+        const status = procStatus(model, step);
+        return `<div class="pstep ${status ? `st-${status}` : "st-new"} ${procPicked?.step === step.id ? "picked" : ""}" draggable="true" data-drag="pstep" data-step="${esc(step.id)}" tabindex="0" role="button" title="${esc(status ? atlas.processes.statuses[status] : "Not run yet")}. Double-click to change it; drag it to another lane; pull a wire from its right into the step that comes after it"><span class="port in"></span><b>${esc(step.title ?? step.id)}</b><small>${esc(step.test ? test(step.test)?.title ?? step.test : "no test yet")}</small><small class="st">${esc(status ? PROC_STATUS[status] : "not run yet")}</small><span class="port out" draggable="false" title="Drag a wire from here"></span></div>`;
+      };
+      const row = (lane) => `<section class="plane" data-drop="lane" data-lane="${esc(lane)}"><header><input type="text" data-proc-lane="${esc(lane)}" value="${esc(lane)}" placeholder="No lane" list="proc-roles" title="The role that does these steps. Change it to rename the lane" aria-label="Lane" autocomplete="off"></header><div class="track">${Array.from({ length: layout.count }, (_, index) => `<div class="cell">${model.steps.filter((step) => (step.lane ?? "") === lane && layout.columns.get(step.id) === index + 1).map(card).join("")}</div>`).join("")}</div></section>`;
+      board = `<div class="ptools"><b>${esc(model.title)}</b>${run && !stale ? `<span class="state ${run.passed ? "ok" : "bad"}">${run.passed ? "Runs" : "Stops"} · ${plural(run.steps.length, "step")} · ${plural(run.handovers, "handover")} · ${run.findings.length} to improve</span>` : '<span class="state">changed: it runs again once the changes are in the project</span>'}<span class="spacer"></span>
+          <button class="btn primary" data-proc="play" title="Walk the process step by step with the people of the simulation" ${model.steps.length ? "" : "disabled"}>▶ Play</button>
+          <button class="btn" data-proc="bpmn" title="Save it as BPMN 2.0, for other tools" ${model.steps.length ? "" : "disabled"}>BPMN</button>
+          <button class="btn" data-proc="unpick" title="Remove what is selected: a step, or a wire (Delete)" disabled>Remove</button>
+          <button class="btn" data-proc="remove" title="Remove the whole process">Remove the process</button></div>
+        <div class="swim" style="--columns:${layout.count}"><svg class="pwires" aria-hidden="true"></svg>${layout.lanes.map(row).join("")}
+          <section class="plane new" data-drop="newlane"><header><input type="text" id="proc-newlane" placeholder="New lane: a role" list="proc-roles" autocomplete="off" aria-label="Name of a new lane"></header><div class="track"><span class="hint">Name the lane, then drop a step here; or drop a role.</span></div></section>
+        </div>
+        ${run && !stale && run.findings.length ? `<div class="pfindings"><h3>What to improve</h3>${run.findings.map((finding) => `<button class="finding ${esc(finding.severity)}" data-proc="goto" data-step="${esc(finding.step ?? "")}"><b>${esc(finding.severity)} · ${esc(finding.rule)}</b><p>${rich(finding.message)}</p>${finding.fix ? `<p class="fix">${rich(finding.fix)}</p>` : ""}</button>`).join("")}</div>` : ""}
+        ${simulated ? "" : '<p class="hint">The project has no process tests and no recordings: nothing can show whether a step works.</p>'}
+        ${procChanges.length ? `<p class="kept">${plural(procChanges.length, "change")} kept in this snapshot. <button class="btn" data-proc="save">Save the changes (JSON)</button> and apply them with <code>bca process define --from process-changes.json</code>.</p>` : ""}`;
+    }
+    return `<aside class="palette" aria-label="What to drag">
+        <h3>Process</h3>
+        ${procModels().length ? `<select data-proc-select aria-label="The process to build on">${procModels().map((item) => `<option value="${esc(item.id)}" ${item.id === model?.id ? "selected" : ""}>${esc(item.title ?? item.id)}</option>`).join("")}</select>` : ""}
+        <input type="text" id="proc-title" placeholder="Title of a new process" autocomplete="off" aria-label="Title of a new process"><button class="btn" data-proc="create">Create</button>
+        ${mined.length ? `<h3>As the tests have it</h3>${mined.map((found) => `<button class="mined" data-proc="adopt" data-id="${esc(found.id)}" title="Mined from the ${esc(found.sources.join(" and "))}: who really does what, in which order. Take it as a model to change"><b>${esc(found.title)}</b><small>${plural(found.steps.length, "step")}, ${plural(found.handovers, "handover")} · ${procModels().some(({ id }) => id === found.id) ? "take again" : "take as a model"}</small></button>`).join("")}` : ""}
+        <h3>Steps</h3>
+        <div class="artifact" draggable="true" data-drag="blank" title="Something that is done and has no test yet"><b>Empty step</b><small>no test yet</small></div>
+        ${tests.map((item) => `<div class="artifact" draggable="true" data-drag="test" data-test="${esc(item.id)}" title="${esc(item.recorded ? "A recording of Business Central" : "A process test")}: ${esc(item.id)}"><b>${esc(item.title)}</b><small>${esc(item.recorded ? "recording" : "process test")} · ${esc(item.id)}</small></div>`).join("")}
+        ${roles.length ? `<h3>Roles</h3><div class="triggers">${roles.map((role) => `<span class="trigger role" draggable="true" data-drag="role" data-name="${esc(role.name)}" title="${esc(role.description ?? "A role of the company")}. Drop it on the board for a lane">${esc(role.name)}</span>`).join("")}</div>` : ""}
+        <datalist id="proc-roles">${roles.map((role) => `<option value="${esc(role.name)}"></option>`).join("")}</datalist>
+      </aside>
+      <div class="proc" tabindex="0" aria-label="The lanes of the process">${board}</div>`;
+  }
+  /** The wires of the process, drawn over its lanes from where the steps are. */
+  function procWiresDraw() {
+    const swim = $("#board .swim");
+    const model = procModel();
+    for (const element of $$("#board .pstep")) element.classList.toggle("picked", procPicked?.step === element.dataset.step);
+    const remove = $('#board [data-proc="unpick"]');
+    if (remove) remove.disabled = !procPicked;
+    if (!swim || !model) return;
+    const box = swim.getBoundingClientRect();
+    const port = (id, side) => {
+      const rect = $(`#board .pstep[data-step="${CSS.escape(id)}"]`)?.getBoundingClientRect();
+      return rect ? [(side === "out" ? rect.right : rect.left) - box.left, rect.top + rect.height / 2 - box.top] : undefined;
+    };
+    const paths = [];
+    for (const step of model.steps) {
+      for (const wire of procWires(step)) {
+        const from = port(wire.step, "out");
+        const to = port(step.id, "in");
+        if (!from || !to) continue;
+        const path = curve(from, to);
+        const chosen = procPicked?.wire?.[0] === wire.step && procPicked.wire[1] === step.id;
+        paths.push(`<path class="wire ${chosen ? "picked" : ""}" d="${path}"></path>${wire.when ? `<text class="label" x="${(from[0] + to[0]) / 2}" y="${(from[1] + to[1]) / 2 - 7}" text-anchor="middle">${esc(wire.when)}</text>` : ""}<path class="hit" data-pwire="${esc(`${wire.step}\n${step.id}`)}" d="${path}"><title>Click to select the wire, then Remove; the name of a way is in the form of the step</title></path>`);
+      }
+    }
+    if (procWiring) paths.push(`<path class="wire pending" d="${curve(port(procWiring.from, "out"), procWiring.to)}"></path>`);
+    $("#board .pwires").innerHTML = paths.join("");
+  }
+  /** What operations do to the processes, in a snapshot: the same as src/process/index.js, without its checks. */
+  function procLocal(operations) {
+    const processes = atlas.processes.processes;
+    const filled = (entry) => Object.fromEntries(Object.entries(entry).filter(([, value]) => value !== "" && value !== undefined && value !== null && !(Array.isArray(value) && !value.length)));
+    const write = (wires) => wires.map((wire) => (wire.when ? wire : wire.step));
+    for (const operation of operations) {
+      const model = processes.find(({ id }) => id === operation.process);
+      if (operation.op === "set") {
+        if (!model) processes.push({ id: operation.process, title: operation.title || operation.process, steps: [] });
+        else if (operation.title) model.title = operation.title;
+      } else if (operation.op === "adopt") {
+        const entry = { id: operation.model.id, title: operation.model.title, steps: operation.model.steps.map(({ id, title, lane, test, after }) => filled({ id, title, lane, test, after: procWires({ after }).map((wire) => filled(wire)) })) };
+        const at = processes.findIndex(({ id }) => id === entry.id);
+        if (at >= 0) processes[at] = entry;
+        else processes.push(entry);
+      } else if (!model) continue;
+      else if (operation.op === "remove") processes.splice(processes.indexOf(model), 1);
+      else if (operation.op === "step") {
+        const { op: _op, process: _process, step: name, ...fields } = operation;
+        const step = name ? model.steps.find(({ id }) => id === name) : undefined;
+        if (step) Object.assign(step, fields), Object.keys(step).forEach((key) => (step[key] === "" ? delete step[key] : undefined));
+        else model.steps.push(filled(fields));
+      } else if (operation.op === "unstep") {
+        const gone = model.steps.find(({ id }) => id === operation.step);
+        model.steps.splice(model.steps.indexOf(gone), 1);
+        // The way goes on without it.
+        for (const other of model.steps) {
+          const wires = procWires(other);
+          const through = wires.find((wire) => wire.step === gone.id);
+          if (!through) continue;
+          const rest = wires.filter((wire) => wire.step !== gone.id);
+          for (const before of procWires(gone)) if (!rest.some((wire) => wire.step === before.step)) rest.push(filled({ step: before.step, when: through.when ?? before.when }));
+          if (rest.length) other.after = write(rest);
+          else delete other.after;
+        }
+      } else if (operation.op === "wire" || operation.op === "unwire") {
+        const into = model.steps.find(({ id }) => id === operation.into);
+        const rest = procWires(into).filter((wire) => wire.step !== operation.from);
+        if (operation.op === "wire") rest.push(filled({ step: operation.from, when: operation.when }));
+        if (rest.length) into.after = write(rest);
+        else delete into.after;
+      } else if (operation.op === "lane") {
+        for (const step of model.steps) if ((step.lane ?? "") === (operation.lane ?? "")) step.lane = operation.title;
+      }
+    }
+  }
+  /** Sends operations: written to .bca.json in VS Code, kept to save in an exported file. */
+  async function procApply(operations) {
+    if (!operations.length) return false;
+    if (!LIVE) {
+      procLocal(operations);
+      procChanges.push(...operations);
+      toast(`Kept ${plural(operations.length, "change")}. Save the changes from the builder.`);
+      procForm = undefined;
+      closeMenu();
+      boardDraw();
+      return true;
+    }
+    try {
+      const result = await call("defineProcesses", { operations });
+      toast(result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed.");
+    } catch (error) {
+      // What is not valid was not written.
+      toast(error.message.replace(/^processes: /u, ""));
+      return false;
+    }
+    procForm = undefined;
+    closeMenu();
+    await reload("Running the processes");
+    return true;
+  }
+  /** Whether a step comes, directly or through others, after another. */
+  function procComesAfter(model, step, other, seen = new Set()) {
+    if (seen.has(step)) return false;
+    seen.add(step);
+    return procWires(model.steps.find(({ id }) => id === step) ?? {}).some((wire) => wire.step === other || procComesAfter(model, wire.step, other, seen));
+  }
+  const procFreeId = (model, title) => {
+    for (let count = 1; ; count += 1) {
+      const candidate = count === 1 ? flowIdOf(title) : `${flowIdOf(title)}-${count}`;
+      if (!model.steps.some(({ id }) => id === candidate)) return candidate;
+    }
+  };
+  /** Something dropped on a lane: a new step there, or a step that changes its lane. */
+  function procDrop(zone, dropped) {
+    const model = procModel();
+    if (!model) return toast("Create a process first, on the left.");
+    const lane = dropped.kind === "role" ? dropped.name : zone.dataset.drop === "lane" ? zone.dataset.lane : $("#proc-newlane").value.trim();
+    if (zone.dataset.drop === "newlane" && !lane) return toast("Name the new lane first: a role of the company.");
+    if (dropped.kind === "pstep") {
+      const step = model.steps.find(({ id }) => id === dropped.step);
+      return (step.lane ?? "") === lane ? undefined : procApply([{ op: "step", process: model.id, step: step.id, lane }]);
+    }
+    const found = dropped.kind === "test" ? atlas.processes.tests.find(({ id }) => id === dropped.test) : undefined;
+    const title = found?.title ?? "New step";
+    const id = procFreeId(model, title);
+    // It comes after the step that is selected, so one step follows the other.
+    const before = procPicked?.step && model.steps.some(({ id: own }) => own === procPicked.step) ? procPicked.step : undefined;
+    procPicked = { step: id };
+    if ($("#proc-newlane")) $("#proc-newlane").value = "";
+    return procApply([{ op: "step", process: model.id, id, title, lane, ...(found ? { test: found.id } : {}) }, ...(before ? [{ op: "wire", process: model.id, from: before, into: id }] : [])]);
+  }
+  function procRemove() {
+    const model = procModel();
+    if (!model || !procPicked) return undefined;
+    const chosen = procPicked;
+    procPicked = undefined;
+    return procApply([chosen.wire ? { op: "unwire", process: model.id, from: chosen.wire[0], into: chosen.wire[1] } : { op: "unstep", process: model.id, step: chosen.step }]);
+  }
+  /** The form of a step: its title, its lane, its test, and the names of the ways into it. */
+  function procEdit(step) {
+    closeMenu();
+    procForm = { process: procModel().id, step };
+    showMenu($("#flow-button"));
+  }
+  function procFormHtml() {
+    const model = procModels().find(({ id }) => id === procForm.process);
+    const step = model?.steps.find(({ id }) => id === procForm.step);
+    if (!step) return muted("The step is gone.");
+    const { tests } = atlas.processes;
+    const status = procStatus(model, step);
+    const ran = procRun(model)?.steps.find(({ id }) => id === step.id);
+    return `<h3>Step of ${esc(model.title)}</h3>
+      <label class="field wide"><span>Title</span><input type="text" data-p="title" value="${esc(step.title ?? "")}" autocomplete="off"></label>
+      <label class="field wide" title="The role that does it"><span>Lane</span><input type="text" data-p="lane" value="${esc(step.lane ?? "")}" list="proc-form-roles" placeholder="a role of the company" autocomplete="off"></label>
+      <datalist id="proc-form-roles">${atlas.processes.roles.map((role) => `<option value="${esc(role.name)}"></option>`).join("")}</datalist>
+      <label class="field wide" title="What shows that the step works"><span>Test</span><select data-p="test"><option value="">None yet</option>${tests.map((item) => `<option value="${esc(item.id)}" ${item.id === step.test ? "selected" : ""}>${esc(item.title)}${item.recorded ? " (recording)" : ""}</option>`).join("")}${step.test && !tests.some(({ id }) => id === step.test) ? `<option value="${esc(step.test)}" selected>${esc(step.test)} (not there)</option>` : ""}</select></label>
+      ${procWires(step).map((wire) => `<label class="field wide" title="When the way is one of several, its name: approved, rejected"><span>After ${esc(model.steps.find(({ id }) => id === wire.step)?.title ?? wire.step)}</span><input type="text" data-p-when="${esc(wire.step)}" value="${esc(wire.when ?? "")}" placeholder="always; or the name of the way" autocomplete="off"></label>`).join("") || muted("It starts the process. Pull a wire into it from the step it comes after.")}
+      ${status ? muted(`${esc(atlas.processes.statuses[status])}.${ran?.performers.length ? ` ${status === "runs" || status === "other-lane" ? "Performed" : "Tried"} by ${esc(ran.performers.map(({ agent }) => agent).join(", "))}.` : ""}${ran?.missing.length ? ` Missing: ${ran.missing.map((line) => `<code>${esc(line)}</code>`).join(", ")}.` : ""}${ran?.touches.objects.length ? ` In the app: ${plural(ran.touches.steps, "click")}, opens ${ran.touches.opens}, runs ${ran.touches.runs}, reads ${ran.touches.reads}, writes ${ran.touches.writes}.` : ""}`) : ""}
+      <hr><div class="actions"><button class="btn primary" data-proc="step-apply">Apply</button><button class="btn" data-proc="step-remove">Remove</button><button class="btn" data-proc="step-close">Close</button></div>`;
+  }
+  function procClick(item) {
+    const act = item.dataset.proc;
+    const model = procModel();
+    if (act === "create") {
+      const title = $("#proc-title").value.trim();
+      if (!title) return toast("A process needs a title.");
+      let id = flowIdOf(title);
+      for (let count = 2; procModels().some((other) => other.id === id); count += 1) id = `${flowIdOf(title)}-${count}`;
+      $("#proc-title").value = "";
+      processId = id;
+      return procApply([{ op: "set", process: id, title }]);
+    }
+    if (act === "adopt") {
+      const found = atlas.processes.mined.find(({ id }) => id === item.dataset.id);
+      processId = found.id;
+      return procApply([{ op: "adopt", model: { id: found.id, title: found.title, steps: found.steps.map(({ id, title, lane, test, after }) => ({ id, title, lane, test, after })) } }]);
+    }
+    if (act === "save") return download("process-changes.json", `${JSON.stringify({ operations: procChanges }, null, 2)}\n`, "application/json");
+    if (act === "step-close") return closeMenu();
+    if (act === "step-remove") return procApply([{ op: "unstep", process: procForm.process, step: procForm.step }]);
+    if (act === "step-apply") {
+      const value = (name) => $(`#popover [data-p="${name}"]`).value.trim();
+      const target = procModels().find(({ id }) => id === procForm.process);
+      const step = target.steps.find(({ id }) => id === procForm.step);
+      if (!value("title")) return toast("A step needs a title.");
+      const operations = [{ op: "step", process: target.id, step: step.id, title: value("title"), lane: value("lane"), test: value("test") }];
+      for (const input of $$("#popover [data-p-when]")) {
+        const wire = procWires(step).find((item) => item.step === input.dataset.pWhen);
+        if ((wire.when ?? "") !== input.value.trim()) operations.push({ op: "wire", process: target.id, from: wire.step, into: step.id, when: input.value.trim() });
+      }
+      return procApply(operations);
+    }
+    if (!model) return undefined;
+    if (act === "unpick") return procRemove();
+    if (act === "goto") {
+      procPicked = item.dataset.step ? { step: item.dataset.step } : undefined;
+      procWiresDraw();
+      return $(`#board .pstep[data-step="${CSS.escape(item.dataset.step)}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+    if (act === "remove") {
+      // Asked twice before a process goes.
+      if (item.textContent !== "Remove it for good") {
+        item.textContent = "Remove it for good";
+        item.classList.add("primary");
+        return undefined;
+      }
+      processId = undefined;
+      return procApply([{ op: "remove", process: model.id }]);
+    }
+    if (act === "bpmn") {
+      const xml = atlas.processes.bpmn[model.id];
+      if (!xml || procChanges.length) return toast(`The BPMN is written from the project: apply the changes, then bca process export --process ${model.id}.`);
+      return download(`${model.id}.bpmn`, xml, "application/xml");
+    }
+    if (act === "play") {
+      // The run plays on the lens of the process models, step by step.
+      const story = storyOf(`model:${model.id}`);
+      if (!story || procChanges.length) return toast(`The run is of the project: apply the changes, then play it, or bca process run --process ${model.id}.`);
+      boardShow(false);
+      stop();
+      return set({ story: story.id, step: "0", q: "", form: "diagram", sel: "", hide: "", off: "" }).then(() => play(story));
+    }
+    return undefined;
+  }
+  $("#board").addEventListener("change", (event) => {
+    if (event.target.dataset.procSelect !== undefined) {
+      processId = event.target.value;
+      procPicked = undefined;
+      return boardDraw();
+    }
+    // A lane with another name: every step of it moves.
+    const lane = event.target.dataset.procLane;
+    if (lane !== undefined && event.target.value.trim() && event.target.value.trim() !== lane) return procApply([{ op: "lane", process: procModel().id, lane, title: event.target.value.trim() }]);
     return undefined;
   });
 
@@ -1440,40 +1707,18 @@
   }
   /**
    * Takes a step out of its flow, and with it the steps that run only through it: they would
-   * otherwise run whatever became of it. They stay on the canvas with their wires, in no flow.
+   * otherwise run whatever became of it. That is one rule, in src/flows/config.js, for the canvas,
+   * the forms, and the terminal alike; what leaves without being removed stays on the canvas.
    * @param gone the step itself is removed, not kept on the canvas
    */
-  function canvasDetach(flow, index, gone) {
-    const out = new Set([index]);
-    for (let grown = true; grown;) {
-      grown = false;
-      flow.steps.forEach((step, order) => {
-        if (out.has(order)) return;
-        const before = wiresOf(step).map((wire) => flow.steps.findIndex(({ id }) => id === wire.step));
-        if (before.length && before.every((other) => out.has(other))) {
-          out.add(order);
-          grown = true;
-        }
-      });
-    }
-    const members = [...out].sort((a, b) => a - b);
-    const kept = members.filter((order) => !(gone && order === index));
-    const freed = kept.map((order) => {
-      const { after: _after, ...step } = flow.steps[order];
-      // Wires to what stays in the flow, or goes for good, do not come along.
-      const wires = wiresOf(flow.steps[order]).filter((wire) => kept.includes(flow.steps.findIndex(({ id }) => id === wire.step)) && order !== index);
-      return { step: { ...step, ...(wires.length ? { after: wires } : {}) }, pos: model.nodes.get(stepKey(flow, order)).pos };
+  async function canvasDetach(flow, index, gone) {
+    // Where the nodes are, so that those that leave the flow stay where they are.
+    flow.steps.forEach((_, order) => {
+      const node = model.nodes.get(stepKey(flow, order));
+      if (node) canvas.positions[node.key] = node.pos;
     });
-    const dropped = stepKey(flow, index);
-    return flowApply(members.reverse().map((order) => ({ op: "unstep", flow: flow.id, at: order + 1 })), undefined, () => {
-      const group = looseKey();
-      for (const { step, pos } of freed) {
-        const key = looseKey();
-        canvas.loose.push({ key, step, group });
-        canvas.positions[key] = pos;
-      }
-      if (gone) delete canvas.positions[dropped];
-    });
+    await canvasSave();
+    return flowApply([{ op: gone ? "unstep" : "detach", flow: flow.id, at: index + 1 }]);
   }
   /** Takes what is selected away: a wire, or a node. */
   async function canvasRemove() {
@@ -1521,6 +1766,16 @@
   }
   // Pointer: a wire from a port, a node by its body, the canvas by its ground.
   $("#board").addEventListener("pointerdown", (event) => {
+    // A wire from a step of a process into the step that comes after it.
+    const from = event.button === 0 ? event.target.closest?.(".pstep .port.out")?.closest(".pstep") : undefined;
+    if (from) {
+      const box = $("#board .swim").getBoundingClientRect();
+      gesture = { kind: "pwire", box };
+      procWiring = { from: from.dataset.step, to: [event.clientX - box.left, event.clientY - box.top] };
+      event.preventDefault();
+      try { $("#board").setPointerCapture(event.pointerId); } catch { /* optional */ }
+      return;
+    }
     const ground = event.target.closest?.(".canvas");
     if (!ground || event.button !== 0 || event.target.closest("button, select, .tools, .kept")) return;
     const element = event.target.closest(".node");
@@ -1547,6 +1802,13 @@
   });
   $("#board").addEventListener("pointermove", (event) => {
     if (!gesture) return;
+    if (gesture.kind === "pwire") {
+      procWiring.to = [event.clientX - gesture.box.left, event.clientY - gesture.box.top];
+      const over = document.elementFromPoint(event.clientX, event.clientY)?.closest?.("#board .pstep");
+      for (const element of $$("#board .pstep.aim")) element.classList.remove("aim");
+      if (over && over.dataset.step !== procWiring.from) over.classList.add("aim");
+      return procWiresDraw();
+    }
     if (gesture.kind === "wire") {
       wiring.to = canvasPoint(event);
       const over = document.elementFromPoint(event.clientX, event.clientY)?.closest?.("#board .node");
@@ -1575,6 +1837,17 @@
     const done = gesture;
     gesture = undefined;
     try { $("#board").releasePointerCapture(event.pointerId); } catch { /* optional */ }
+    if (done.kind === "pwire") {
+      const from = procWiring.from;
+      procWiring = undefined;
+      const into = event.type === "pointerup" ? document.elementFromPoint(event.clientX, event.clientY)?.closest?.("#board .pstep")?.dataset.step : undefined;
+      for (const element of $$("#board .pstep.aim")) element.classList.remove("aim");
+      procWiresDraw();
+      const process = procModel();
+      if (!into || into === from || procWires(process.steps.find(({ id }) => id === into)).some((wire) => wire.step === from)) return undefined;
+      if (procComesAfter(process, from, into)) return toast("That would be a circle: the step you pull from already comes after this one.");
+      return procApply([{ op: "wire", process: process.id, from, into }]);
+    }
     if (done.kind === "wire") {
       const from = wiring.from;
       wiring = undefined;
@@ -1709,7 +1982,12 @@
     }
     if (act === "board") {
       closeMenu();
-      return boardShow(true);
+      return boardShow(true, "canvas");
+    }
+    if (act === "process") {
+      closeMenu();
+      if (item.dataset.process) processId = item.dataset.process;
+      return boardShow(true, "process");
     }
     const id = item.dataset.flow ?? flowForm?.flow;
     if (act === "step") {
@@ -1786,7 +2064,10 @@
   function closeMenu() {
     if (!openMenu) return;
     if (openMenu.dataset.menu === "simulate") simForm = undefined;
-    if (openMenu.dataset.menu === "flow") flowForm = undefined;
+    if (openMenu.dataset.menu === "flow") {
+      flowForm = undefined;
+      procForm = undefined;
+    }
     $("#popover").hidden = true;
     openMenu.setAttribute("aria-expanded", "false");
     openMenu = undefined;
@@ -1814,7 +2095,8 @@
   $("#popover").addEventListener("click", async (event) => {
     const item = event.target.closest("button");
     if (!item) return;
-    if (item.dataset.flowAct) flowClick(item);
+    if (item.dataset.proc) procClick(item);
+    else if (item.dataset.flowAct) flowClick(item);
     else if (item.dataset.sim || item.dataset.simEdit || item.dataset.simNew || item.dataset.simGo !== undefined || item.dataset.simRun) simulateClick(item);
     else if (item.dataset.setLens) {
       closeMenu();
