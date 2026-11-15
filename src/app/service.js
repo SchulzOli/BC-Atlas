@@ -70,6 +70,7 @@ export function createService(workspace) {
     defineFlows: (params = {}) => workspace.defineFlows(params),
     runFlow: (params = {}) => workspace.runFlow(params),
     exportFlow: (params = {}) => workspace.exportFlow(params),
+    saveFlowCanvas: (params = {}) => workspace.saveFlowCanvas(params),
     updateProposal: (params = {}) => workspace.updateProposal({
       keep: params.keep,
       release: params.release || undefined,

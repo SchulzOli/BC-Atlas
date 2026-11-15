@@ -70,6 +70,7 @@
     found = S.index(atlas);
     ({ position, findingsOf } = found);
     insides.clear();
+    canvasRead();
   }
   /** One object from the inside (src/app/atlas.js), or nothing when it is not part of an export. */
   async function inside(id) {
@@ -900,17 +901,29 @@
     return `<li class="step" draggable="true" data-drag="step" data-flow="${esc(flow.id)}" data-at="${index + 1}" tabindex="0" role="button" title="Click to change it; drag it to another place, another flow, or the bin"><b>${index + 1}. ${esc(artifactOf(what)?.title ?? what)}${detail ? `: ${esc(detail)}` : ""}</b><small>${esc(placeOfStep(step) ? `→ ${placeOfStep(step)}` : artifactOf(what)?.plugin ? "task of a plugin" : "gate")}</small></li>`;
   }).join("")}<li class="add"><button class="btn" data-board="add" data-flow="${esc(flow.id)}">${flow.steps.length ? "+" : "Drop an artifact here, or add a step…"}</button></li></ol>
         </div></article>`;
-    return `<header class="top"><h2>Flow builder</h2><p>Drag an artifact into a flow to make it there, drag steps into their order, and drop a trigger on a flow to start it. Click a step for where it is saved and its options.</p><button class="close" data-board="close" aria-label="Close" title="Close (Esc)">×</button></header>
+    const wired = boardMode === "canvas";
+    return `<header class="top"><h2>Flow builder</h2><div class="segments" role="radiogroup" aria-label="How to build"><button role="radio" data-board-mode="canvas" aria-checked="${wired}" title="Nodes to place and wire freely">Canvas</button><button role="radio" data-board-mode="lanes" aria-checked="${!wired}" title="One lane per flow, steps in a row">Lanes</button></div>
+        <p>${wired ? "Drag nodes onto the canvas and wire them: a trigger into a flow, a flow into its first step, a step into the next. Double-click a node for its settings." : "Drag an artifact into a flow to make it there, drag steps into their order, and drop a trigger on a flow to start it. Click a step for where it is saved and its options."}</p><button class="close" data-board="close" aria-label="Close" title="Close (Esc)">×</button></header>
       <div class="body">
         <aside class="palette" aria-label="What to drag">
+          ${wired ? `<h3>Flow</h3><input type="text" id="board-title" placeholder="Title of a new flow" autocomplete="off" aria-label="Title of a new flow"><div class="flowcard" draggable="true" data-drag="flow" title="Drag it onto the canvas to start a flow"><b>New flow</b><small>drag it onto the canvas</small></div>` : ""}
           <h3>When</h3><div class="triggers">${Object.keys(triggers).map((name) => chip(name)).join("")}</div>
           <h3>Make</h3>${artifacts.map((artifact) => `<div class="artifact" draggable="true" data-drag="artifact" data-what="${esc(artifact.id)}" title="${esc(artifact.summary)}"><b>${esc(artifact.title)}</b><small>${esc(artifact.plugin ? "task of a plugin" : artifact.to ?? "gate")}</small></div>`).join("")}
-          <div class="bin" data-drop="bin">Drop here to take it out of the flow</div>
+          ${wired ? "" : '<div class="bin" data-drop="bin">Drop here to take it out of the flow</div>'}
         </aside>
-        <div class="lanes">${flows.map(lane).join("")}
+        ${wired ? `<div class="canvas" data-drop="canvas" tabindex="0" aria-label="The canvas of the flows">
+          <div class="world"></div>
+          <div class="tools" role="group" aria-label="Canvas">
+            <button class="btn" data-canvas="remove" title="Remove what is selected: a node, or a wire (Delete)" disabled>Remove</button>
+            <button class="btn" data-canvas="tidy" title="Lay the nodes out again">Tidy up</button>
+            <button class="btn" data-canvas="fit" title="Show everything">Fit</button>
+            <button class="btn" data-canvas="out" aria-label="Zoom out">−</button><button class="btn" data-canvas="in" aria-label="Zoom in">+</button>
+          </div>
+          ${flowChanges.length ? `<p class="kept">${plural(flowChanges.length, "change")} kept in this snapshot. <button class="btn" data-board="save">Save the changes (JSON)</button></p>` : ""}
+        </div>` : `<div class="lanes">${flows.map(lane).join("")}
           <article class="lane new" data-drop="new"><input type="text" id="board-title" placeholder="Title of a new flow" autocomplete="off" aria-label="Title of a new flow"><span class="hint">then drop an artifact or a trigger here to start it</span><button class="btn" data-board="create">Create</button></article>
           ${flowChanges.length ? `<p class="kept">${plural(flowChanges.length, "change")} kept in this snapshot. <button class="btn" data-board="save">Save the changes (JSON)</button> and apply them with <code>bca flow define --from flow-changes.json</code>.</p>` : ""}
-        </div>
+        </div>`}
       </div>`;
   }
   function boardDraw() {
@@ -920,6 +933,7 @@
     const title = $("#board-title")?.value ?? "";
     element.innerHTML = boardHtml();
     $("#board-title").value = title;
+    if (boardMode === "canvas") canvasDraw();
   }
   function boardShow(open) {
     boardOpen = open;
@@ -995,6 +1009,7 @@
     if (!drag) return undefined;
     const zone = event.target.closest?.("[data-drop]");
     if (!zone) return event.target.closest?.(".lane[data-lane]") && drag.kind === "trigger" ? $("[data-drop=when]", event.target.closest(".lane")) : undefined;
+    if (zone.dataset.drop === "canvas") return ["artifact", "trigger", "flow"].includes(drag.kind) && !drag.flow ? zone : undefined;
     // An artifact or a step dropped on the triggers of a lane goes to the end of its steps.
     if (zone.dataset.drop === "when" && drag.kind !== "trigger") return $("[data-drop=steps]", zone.closest(".lane"));
     if (zone.dataset.drop === "steps" && drag.kind === "trigger") return $("[data-drop=when]", zone.closest(".lane"));
@@ -1022,6 +1037,13 @@
     const zone = boardZone(event);
     if (!zone) return;
     event.preventDefault();
+    if (zone.dataset.drop === "canvas") {
+      const dropped = drag;
+      drag = undefined;
+      boardMark();
+      canvasDrop(dropped, event);
+      return;
+    }
     const operations = boardDrop(zone, zone.dataset.drop === "steps" ? boardIndex(zone, event) : undefined);
     drag = undefined;
     boardMark();
@@ -1038,6 +1060,11 @@
     if (step) return flowEdit(step.dataset.flow, Number(step.dataset.at));
     const item = event.target.closest("button");
     if (!item) return undefined;
+    if (item.dataset.boardMode) {
+      boardMode = item.dataset.boardMode;
+      return boardDraw();
+    }
+    if (item.dataset.canvas) return canvasTool(item.dataset.canvas);
     if (item.dataset.flowAct) return flowClick(item);
     const act = item.dataset.board;
     if (act === "close") return boardShow(false);
@@ -1052,6 +1079,13 @@
   });
   $("#board").addEventListener("keydown", (event) => {
     if (event.key === "Escape") return boardShow(false);
+    if (event.target.classList?.contains("canvas")) {
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        return canvasRemove();
+      }
+      if (event.key === "Enter" && picked?.node) return canvasOpen(picked.node);
+    }
     // A step is a button for the keyboard too; the forms do what dragging does.
     if ((event.key === "Enter" || event.key === " ") && event.target.classList?.contains("step")) {
       event.preventDefault();
@@ -1060,6 +1094,384 @@
     if (event.key === "Enter" && event.target.id === "board-title") $('[data-board="create"]').click();
     return undefined;
   });
+
+  // ----------------------------------------------------------------- canvas
+  // The flows as nodes to place and wire freely. A trigger, a flow, and every step is a node with
+  // ports: a wire from a trigger into a flow starts the flow on it, a wire from a flow into a step
+  // makes that its first step, a wire from a step into another makes that the next. A node that
+  // no wire leads to is on the canvas and in no flow. Wiring, unwiring, and removing send the
+  // operations the forms send; where the nodes are, and what is on the canvas without a flow, is
+  // the canvas (src/flows/canvas.js), kept in .bca/flow-canvas.json.
+  let boardMode = "canvas";
+  let canvas = { positions: {}, loose: [], triggers: [] };
+  const sight = { x: 28, y: 24, k: 1 };
+  let wiring;
+  let picked;
+  let gesture;
+  let removing;
+  let lastClick;
+  const CANVAS_KEY = () => `bca-flow-canvas:${atlas.title}`;
+  /** The canvas of the project: from the atlas, and in a snapshot what this browser kept. */
+  function canvasRead() {
+    canvas = structuredClone(atlas.flows?.canvas ?? { positions: {}, loose: [], triggers: [] });
+    if (LIVE) return;
+    try {
+      // Where the nodes were; what was changed in a snapshot is gone with the page, so nothing else is kept.
+      const kept = JSON.parse(localStorage.getItem(CANVAS_KEY()) ?? "null");
+      if (kept && typeof kept === "object") Object.assign(canvas.positions, kept);
+    } catch { /* optional */ }
+  }
+  /** Keeps the canvas: in the project in VS Code, in this browser for a snapshot. */
+  async function canvasSave() {
+    if (LIVE) return call("saveFlowCanvas", canvas).catch((error) => toast(error.message));
+    try { localStorage.setItem(CANVAS_KEY(), JSON.stringify(canvas.positions)); } catch { /* optional */ }
+    return undefined;
+  }
+  /** The key of a step: the place it saves to, which no other step has; for a gate, its flow and number. */
+  function stepKey(flow, index) {
+    const step = flow.steps[index];
+    const place = placeOfStep(step);
+    if (place) return `step:${place}`;
+    return `gate:${flow.id}:${step.what}:${flow.steps.slice(0, index).filter((other) => other.what === step.what && !placeOfStep(other)).length + 1}`;
+  }
+  /** The nodes and wires of the flows as they are, each node where the canvas has it or where it falls by itself. */
+  function canvasModel() {
+    const { flows, triggers } = atlas.flows;
+    const nodes = new Map();
+    const wires = [];
+    const at = (key, x, y) => canvas.positions[key] ?? [x, y];
+    const row = (index) => 36 + index * 150;
+    flows.forEach((flow, index) => {
+      const key = `flow:${flow.id}`;
+      nodes.set(key, { key, kind: "flow", flow, pos: at(key, 250, row(index)) });
+      let previous = key;
+      flow.steps.forEach((step, order) => {
+        const own = stepKey(flow, order);
+        nodes.set(own, { key: own, kind: "step", flow, at: order + 1, step, pos: at(own, 250 + 250 * (order + 1), row(index)) });
+        wires.push({ from: previous, to: own, kind: "then", flow: flow.id, at: order + 1 });
+        previous = own;
+      });
+    });
+    const named = [...new Set([...flows.flatMap(({ when }) => when), ...canvas.triggers])].filter((name) => triggers[name]);
+    let spare = 0;
+    for (const name of named) {
+      const key = `trigger:${name}`;
+      const first = flows.findIndex(({ when }) => when.includes(name));
+      nodes.set(key, { key, kind: "trigger", name, pos: at(key, 28, first >= 0 ? row(first) + flows[first].when.indexOf(name) * 50 : row(flows.length) + spare++ * 50) });
+      for (const flow of flows) if (flow.when.includes(name)) wires.push({ from: key, to: `flow:${flow.id}`, kind: "starts", trigger: name, flow: flow.id });
+    }
+    canvas.loose.forEach((entry, index) => nodes.set(entry.key, { key: entry.key, kind: "loose", step: entry.step, pos: at(entry.key, 500 + index * 28, row(flows.length) + index * 28) }));
+    return { nodes, wires };
+  }
+  function canvasNodeHtml(node) {
+    const { triggers } = atlas.flows;
+    const style = `style="left:${node.pos[0]}px;top:${node.pos[1]}px"`;
+    const ports = (into, out) => `${into ? '<span class="port in" data-port="in" title="Drop a wire here"></span>' : ""}${out ? '<span class="port out" data-port="out" title="Drag a wire from here"></span>' : ""}`;
+    if (node.kind === "trigger") return `<div class="node trigger" data-key="${esc(node.key)}" ${style} title="${esc(triggers[node.name].summary)}. Delivery: ${esc(triggers[node.name].sync)}"><small>When</small><b>${esc(node.name)}</b>${ports(false, true)}</div>`;
+    if (node.kind === "flow") {
+      const { flow } = node;
+      return `<div class="node flow" data-key="${esc(node.key)}" ${style} title="Double-click for its title, triggers, and delivery"><small>Flow · ${esc(flow.id)}</small><b>${esc(flow.title)}</b>
+        <span class="acts">${LIVE ? `<button class="btn" data-flow-act="run" data-flow="${esc(flow.id)}" title="bca run --flow ${esc(flow.id)}" ${flow.steps.length ? "" : "disabled"}>Run now</button>` : ""}<button class="btn" data-flow-act="github" data-flow="${esc(flow.id)}" title="Export it as a workflow for GitHub Actions" ${flow.steps.length ? "" : "disabled"}>GitHub Actions</button></span>${ports(true, true)}</div>`;
+    }
+    const { what, to: _to, ...options } = node.step;
+    const artifact = artifactOf(what);
+    const detail = options.lens ?? options.story ?? options.view ?? options.language;
+    const place = placeOfStep(node.step);
+    const loose = node.kind === "loose";
+    return `<div class="node step ${loose ? "loose" : ""}" data-key="${esc(node.key)}" ${style} title="${loose ? "In no flow yet: drag a wire into it from a flow or one of its steps" : "Double-click for where it is saved and its options"}"><small>${loose ? "Not wired" : `Step ${node.at}`}</small><b>${esc(artifact?.title ?? what)}${detail ? `: ${esc(detail)}` : ""}</b><small>${esc(place ? `→ ${place}` : artifact?.plugin ? "task of a plugin" : "gate")}</small>${ports(true, !loose)}</div>`;
+  }
+  let model;
+  function canvasDraw() {
+    const world = $("#board .world");
+    if (!world) return;
+    model = canvasModel();
+    world.innerHTML = `<svg class="wires" aria-hidden="true"></svg>${[...model.nodes.values()].map(canvasNodeHtml).join("")}`;
+    world.style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
+    if (picked?.node && !model.nodes.has(picked.node)) picked = undefined;
+    if (picked?.wire && !model.wires.some((wire) => wire.from === picked.wire.from && wire.to === picked.wire.to)) picked = undefined;
+    if (!model.nodes.size) world.insertAdjacentHTML("beforeend", '<p class="empty">Drag <b>New flow</b> here, then an artifact, and pull a wire from the flow into it.</p>');
+    canvasWires();
+  }
+  /** Where the ports of a node are, in the coordinates of the world. */
+  function canvasPort(key, side) {
+    const element = $(`#board .node[data-key="${CSS.escape(key)}"]`);
+    if (!element) return undefined;
+    return [element.offsetLeft + (side === "out" ? element.offsetWidth : 0), element.offsetTop + element.offsetHeight / 2];
+  }
+  const curve = ([x1, y1], [x2, y2]) => {
+    const bend = Math.max(36, Math.abs(x2 - x1) / 2);
+    return `M${x1} ${y1} C${x1 + bend} ${y1} ${x2 - bend} ${y2} ${x2} ${y2}`;
+  };
+  function canvasWires() {
+    const svg = $("#board .wires");
+    if (!svg) return;
+    const same = (wire) => picked?.wire && picked.wire.from === wire.from && picked.wire.to === wire.to;
+    svg.innerHTML = model.wires.map((wire, index) => {
+      const from = canvasPort(wire.from, "out");
+      const to = canvasPort(wire.to, "in");
+      if (!from || !to) return "";
+      const path = curve(from, to);
+      return `<path class="wire ${wire.kind} ${same(wire) ? "picked" : ""}" d="${path}"></path><path class="hit" data-wire="${index}" d="${path}"><title>Click to select the wire, then Remove</title></path>`;
+    }).join("") + (wiring ? `<path class="wire pending" d="${curve(canvasPort(wiring.from, "out"), wiring.to)}"></path>` : "");
+    for (const element of $$("#board .node")) element.classList.toggle("picked", picked?.node === element.dataset.key);
+    const remove = $('#board [data-canvas="remove"]');
+    if (remove) {
+      remove.disabled = !picked;
+      remove.textContent = removing && picked?.node === removing ? "Remove the flow and its steps" : "Remove";
+    }
+  }
+  /** A point of the screen in the coordinates of the world. */
+  function canvasPoint(event) {
+    const box = $("#board .canvas").getBoundingClientRect();
+    return [(event.clientX - box.left - sight.x) / sight.k, (event.clientY - box.top - sight.y) / sight.k];
+  }
+  function canvasZoom(factor, anchor) {
+    const element = $("#board .canvas");
+    const [px, py] = anchor ?? [element.clientWidth / 2, element.clientHeight / 2];
+    const k = Math.min(2, Math.max(0.3, sight.k * factor));
+    sight.x = px - (px - sight.x) * (k / sight.k);
+    sight.y = py - (py - sight.y) * (k / sight.k);
+    sight.k = k;
+    $("#board .world").style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
+  }
+  function canvasFit() {
+    const elements = $$("#board .node");
+    const element = $("#board .canvas");
+    if (!elements.length) return;
+    const left = Math.min(...elements.map((node) => node.offsetLeft));
+    const top = Math.min(...elements.map((node) => node.offsetTop));
+    const right = Math.max(...elements.map((node) => node.offsetLeft + node.offsetWidth));
+    const bottom = Math.max(...elements.map((node) => node.offsetTop + node.offsetHeight));
+    sight.k = Math.min(1.25, Math.max(0.3, Math.min((element.clientWidth - 56) / (right - left), (element.clientHeight - 96) / (bottom - top))));
+    sight.x = 28 - left * sight.k;
+    sight.y = 24 - top * sight.k;
+    $("#board .world").style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
+  }
+  function canvasTool(tool) {
+    if (tool === "in") return canvasZoom(1.2);
+    if (tool === "out") return canvasZoom(1 / 1.2);
+    if (tool === "fit") return canvasFit();
+    if (tool === "remove") return canvasRemove();
+    if (tool === "tidy") {
+      canvas.positions = {};
+      canvasSave();
+      canvasDraw();
+      return canvasFit();
+    }
+    return undefined;
+  }
+  let looseCount = 0;
+  const looseKey = () => {
+    do looseCount += 1; while (canvas.loose.some(({ key }) => key === `loose:${looseCount}`));
+    return `loose:${looseCount}`;
+  };
+  /** Something of the palette dropped on the canvas: a node there. */
+  async function canvasDrop(dropped, event) {
+    const [x, y] = canvasPoint(event);
+    const pos = [Math.round(x - 90), Math.round(y - 24)];
+    if (dropped.kind === "trigger") {
+      const key = `trigger:${dropped.name}`;
+      if (!model.nodes.has(key)) canvas.triggers.push(dropped.name);
+      canvas.positions[key] = pos;
+      picked = { node: key };
+      await canvasSave();
+      return canvasDraw();
+    }
+    if (dropped.kind === "artifact") {
+      const key = looseKey();
+      canvas.loose.push({ key, step: { what: dropped.what } });
+      canvas.positions[key] = pos;
+      picked = { node: key };
+      await canvasSave();
+      return canvasDraw();
+    }
+    const start = boardNewFlow(`Flow ${atlas.flows.flows.length + 1}`);
+    picked = { node: `flow:${start.flow}` };
+    return flowApply([start], undefined, () => { canvas.positions[`flow:${start.flow}`] = pos; });
+  }
+  /** A wire pulled from one node into another: what it means for the flows. */
+  async function canvasConnect(from, to) {
+    const source = model.nodes.get(from);
+    const target = model.nodes.get(to);
+    if (!source || !target || from === to) return undefined;
+    if (source.kind === "trigger") {
+      if (target.kind !== "flow") return toast("A trigger starts a flow: pull its wire into a flow.");
+      if (target.flow.when.includes(source.name)) return undefined;
+      return flowApply([{ op: "set", flow: target.flow.id, when: [...target.flow.when, source.name] }]);
+    }
+    if (target.kind !== "step" && target.kind !== "loose") return toast(target.kind === "flow" ? "Only a trigger leads into a flow." : "A wire from a flow or a step leads into a step.");
+    // After the flow node comes its first step; after a step, the next.
+    const flow = source.flow;
+    const position = source.kind === "flow" ? 0 : source.at;
+    const count = flow.steps.length;
+    if (target.kind === "loose") {
+      const step = { ...target.step, to: target.step.to ?? freePlace(target.step.what) };
+      return flowApply([{ op: "step", flow: flow.id, ...step }, ...(position < count ? [{ op: "move", flow: flow.id, at: count + 1, by: position - count }] : [])], undefined, () => {
+        canvas.loose = canvas.loose.filter(({ key }) => key !== to);
+        // The node stays where it is, under the key it has in a flow.
+        if (step.to) canvas.positions[`step:${step.to}`] = target.pos;
+        delete canvas.positions[to];
+      });
+    }
+    if (target.flow.id === flow.id) {
+      const index = target.at - 1;
+      const next = position > index ? position - 1 : position;
+      return next === index ? undefined : flowApply([{ op: "move", flow: flow.id, at: target.at, by: next - index }]);
+    }
+    return flowApply([{ op: "step", flow: flow.id, ...target.step }, ...(position < count ? [{ op: "move", flow: flow.id, at: count + 1, by: position - count }] : []), { op: "unstep", flow: target.flow.id, at: target.at }]);
+  }
+  /** Takes what is selected away: a wire, or a node. */
+  async function canvasRemove() {
+    if (!picked) return undefined;
+    if (picked.wire) {
+      const wire = model.wires.find(({ from, to }) => from === picked.wire.from && to === picked.wire.to);
+      picked = undefined;
+      if (!wire) return undefined;
+      const flow = flowOf(wire.flow);
+      if (wire.kind === "starts") {
+        // The trigger stays on the canvas, starting nothing.
+        return flowApply([{ op: "set", flow: flow.id, when: flow.when.filter((name) => name !== wire.trigger) }], undefined, () => {
+          if (!canvas.triggers.includes(wire.trigger)) canvas.triggers.push(wire.trigger);
+        });
+      }
+      // Without the wire into it, a step and those after it are in no flow: they stay on the canvas.
+      const operations = [];
+      const freed = [];
+      for (let at = flow.steps.length; at >= wire.at; at -= 1) {
+        freed.unshift({ step: { ...flow.steps[at - 1] }, pos: model.nodes.get(stepKey(flow, at - 1)).pos });
+        operations.push({ op: "unstep", flow: flow.id, at });
+      }
+      return flowApply(operations, undefined, () => {
+        for (const { step, pos } of freed) {
+          const key = looseKey();
+          canvas.loose.push({ key, step });
+          canvas.positions[key] = pos;
+        }
+      });
+    }
+    const node = model.nodes.get(picked.node);
+    if (!node) return undefined;
+    if (node.kind === "flow" && removing !== node.key) {
+      // Asked twice before a flow goes with its steps.
+      removing = node.key;
+      canvasWires();
+      return toast(`Remove again to take the flow ${node.flow.id} and its ${plural(node.flow.steps.length, "step")} away.`);
+    }
+    removing = undefined;
+    picked = undefined;
+    const gone = () => {
+      delete canvas.positions[node.key];
+      if (node.kind === "loose") canvas.loose = canvas.loose.filter(({ key }) => key !== node.key);
+      if (node.kind === "trigger") canvas.triggers = canvas.triggers.filter((name) => name !== node.name);
+    };
+    const operations = node.kind === "loose" ? []
+      : node.kind === "trigger" ? atlas.flows.flows.filter(({ when }) => when.includes(node.name)).map((flow) => ({ op: "set", flow: flow.id, when: flow.when.filter((name) => name !== node.name) }))
+        : [node.kind === "flow" ? { op: "remove", flow: node.flow.id } : { op: "unstep", flow: node.flow.id, at: node.at }];
+    if (operations.length) return flowApply(operations, undefined, gone);
+    // Only on the canvas: nothing of the flows changes.
+    gone();
+    await canvasSave();
+    return canvasDraw();
+  }
+  // Pointer: a wire from a port, a node by its body, the canvas by its ground.
+  $("#board").addEventListener("pointerdown", (event) => {
+    const ground = event.target.closest?.(".canvas");
+    if (!ground || event.button !== 0 || event.target.closest("button, .tools, .kept")) return;
+    const element = event.target.closest(".node");
+    const hit = event.target.closest("[data-wire]");
+    if (removing) removing = undefined;
+    if (event.target.closest(".port.out")) {
+      gesture = { kind: "wire" };
+      wiring = { from: element.dataset.key, to: canvasPoint(event) };
+    } else if (element) {
+      const node = model.nodes.get(element.dataset.key);
+      gesture = { kind: "node", key: node.key, element, start: [event.clientX, event.clientY], origin: [...node.pos], moved: false };
+    } else if (hit) {
+      const wire = model.wires[Number(hit.dataset.wire)];
+      picked = { wire: { from: wire.from, to: wire.to } };
+      ground.focus({ preventScroll: true });
+      return canvasWires();
+    } else {
+      gesture = { kind: "pan", start: [event.clientX, event.clientY], origin: [sight.x, sight.y], moved: false };
+    }
+    event.preventDefault();
+    ground.focus({ preventScroll: true });
+    try { $("#board").setPointerCapture(event.pointerId); } catch { /* optional */ }
+    return undefined;
+  });
+  $("#board").addEventListener("pointermove", (event) => {
+    if (!gesture) return;
+    if (gesture.kind === "wire") {
+      wiring.to = canvasPoint(event);
+      const over = document.elementFromPoint(event.clientX, event.clientY)?.closest?.("#board .node");
+      for (const element of $$("#board .node.aim")) element.classList.remove("aim");
+      if (over && over.dataset.key !== wiring.from) over.classList.add("aim");
+      return canvasWires();
+    }
+    const dx = event.clientX - gesture.start[0];
+    const dy = event.clientY - gesture.start[1];
+    if (Math.abs(dx) + Math.abs(dy) > 3) gesture.moved = true;
+    if (!gesture.moved) return;
+    if (gesture.kind === "pan") {
+      sight.x = gesture.origin[0] + dx;
+      sight.y = gesture.origin[1] + dy;
+      $("#board .world").style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
+      return;
+    }
+    const node = model.nodes.get(gesture.key);
+    node.pos = [Math.round(gesture.origin[0] + dx / sight.k), Math.round(gesture.origin[1] + dy / sight.k)];
+    gesture.element.style.left = `${node.pos[0]}px`;
+    gesture.element.style.top = `${node.pos[1]}px`;
+    canvasWires();
+  });
+  const canvasRelease = (event) => {
+    if (!gesture) return undefined;
+    const done = gesture;
+    gesture = undefined;
+    try { $("#board").releasePointerCapture(event.pointerId); } catch { /* optional */ }
+    if (done.kind === "wire") {
+      const from = wiring.from;
+      wiring = undefined;
+      const over = event.type === "pointerup" ? document.elementFromPoint(event.clientX, event.clientY)?.closest?.("#board .node") : undefined;
+      for (const element of $$("#board .node.aim")) element.classList.remove("aim");
+      canvasWires();
+      return over ? canvasConnect(from, over.dataset.key) : undefined;
+    }
+    if (done.kind === "pan") {
+      if (!done.moved) {
+        picked = undefined;
+        canvasWires();
+      }
+      return undefined;
+    }
+    picked = { node: done.key };
+    canvasWires();
+    if (!done.moved) {
+      // The pointer is held by the board while it is down, so a double click is two clicks on one node.
+      const twice = lastClick?.key === done.key && event.timeStamp - lastClick.time < 450;
+      lastClick = twice ? undefined : { key: done.key, time: event.timeStamp };
+      return twice ? canvasOpen(done.key) : undefined;
+    }
+    canvas.positions[done.key] = model.nodes.get(done.key).pos;
+    return canvasSave();
+  };
+  $("#board").addEventListener("pointerup", canvasRelease);
+  $("#board").addEventListener("pointercancel", canvasRelease);
+  /** A node opened: the form of a flow or of a step. */
+  function canvasOpen(key) {
+    const node = model.nodes.get(key);
+    if (!node) return undefined;
+    if (node.kind === "flow") return flowEdit(node.flow.id);
+    if (node.kind === "step") return flowEdit(node.flow.id, node.at);
+    return toast(node.kind === "loose" ? "It is in no flow yet: pull a wire into it from a flow or one of its steps, then set its place and options." : "A trigger has no settings of its own; how it delivers is in the form of a flow.");
+  }
+  $("#board").addEventListener("wheel", (event) => {
+    const ground = event.target.closest?.(".canvas");
+    if (!ground) return;
+    event.preventDefault();
+    const box = ground.getBoundingClientRect();
+    canvasZoom(event.deltaY < 0 ? 1.1 : 1 / 1.1, [event.clientX - box.left, event.clientY - box.top]);
+  }, { passive: false });
 
   /** Opens the Flow menu on one flow, or on one of its steps: from the card of a node. */
   function flowEdit(flow, step) {
@@ -1072,38 +1484,54 @@
     $("#popover").querySelector("input[type=text], select")?.focus({ preventScroll: true });
   };
   /** Sends operations: written to .bca.json in VS Code, kept to save in an exported file. Then back to `next`. */
-  async function flowApply(operations, next) {
+  /**
+   * @param next the form to go back to, when the menu is open
+   * @param change what the change means for the canvas of the builder: done once the flows changed
+   * @returns whether the flows changed
+   */
+  async function flowApply(operations, next, change) {
     if (!operations.length) {
-      if (!openMenu) return undefined;
+      if (!openMenu) return false;
       flowForm = next;
-      return flowRedraw();
+      flowRedraw();
+      return false;
     }
     if (!LIVE) {
       // A snapshot shows the change and keeps it to save; the project gets it with bca flow define --from.
       flowLocal(operations);
       flowChanges.push(...operations);
+      if (change) {
+        change();
+        await canvasSave();
+      }
       toast(`Kept: ${operations.map(describeOperation).join("; ")}. Save the changes from the Flow menu.`);
       boardDraw();
-      if (!openMenu) return undefined;
+      if (!openMenu) return true;
       flowForm = next?.flow && flowOf(next.flow) ? next : undefined;
-      return flowRedraw();
+      flowRedraw();
+      return true;
     }
     try {
       const result = await call("defineFlows", { operations });
       toast(result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed.");
-      const menu = Boolean(openMenu);
-      closeMenu();
-      await reload("Reading the flows");
-      if (!menu) return undefined;
-      // The builder stays open on the flow, so one step follows the other.
-      if (next?.flow && flowOf(next.flow)) {
-        flowForm = next;
-        showMenu($("#flow-button"));
-      }
     } catch (error) {
+      // What is not valid was not written: the flows and the canvas are as they were.
       toast(error.message.replace(/^flows: /u, ""));
+      return false;
     }
-    return undefined;
+    if (change) {
+      change();
+      await canvasSave();
+    }
+    const menu = Boolean(openMenu);
+    closeMenu();
+    await reload("Reading the flows");
+    // The builder stays open on the flow, so one step follows the other.
+    if (menu && next?.flow && flowOf(next.flow)) {
+      flowForm = next;
+      showMenu($("#flow-button"));
+    }
+    return true;
   }
   function flowClick(item) {
     const act = item.dataset.flowAct;

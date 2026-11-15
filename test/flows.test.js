@@ -10,7 +10,7 @@ import { createService } from "../src/app/service.js";
 import { renderAppHtml } from "../src/app/page.js";
 import { Workspace } from "../src/app/workspace.js";
 import { createCapabilities, findCommand } from "../src/capabilities.js";
-import { ARTIFACTS, applyFlowOperations, artifactCatalog, defineFlows, exportFlow, flowId, flowOutputs, flowsConfig, flowsFor } from "../src/flows/index.js";
+import { ARTIFACTS, applyFlowOperations, artifactCatalog, CANVAS_FILE, defineFlows, exportFlow, flowId, flowOutputs, flowsConfig, flowsFor, normalizeCanvas, readFlowCanvas, writeFlowCanvas } from "../src/flows/index.js";
 
 const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
 const example = fileURLToPath(new URL("../examples/multi-app", import.meta.url));
@@ -299,4 +299,42 @@ test("the view has the flow builder: a board to drag artifacts, steps, and trigg
   for (const event of ["dragstart", "dragover", "drop", "dragend"]) assert.ok(html.includes(`$("#board").addEventListener("${event}"`), event);
   // A step is reachable without a pointer: it is a button that opens its form.
   assert.ok(html.includes('class="step" draggable="true"') && html.includes('tabindex="0" role="button"'));
+});
+
+test("the canvas of the builder keeps where the nodes are, next to the flows", async () => {
+  const root = repository();
+  try {
+    assert.deepEqual(await readFlowCanvas(root), { positions: {}, loose: [], triggers: [] });
+    // Only what a canvas is made of is kept.
+    assert.deepEqual(normalizeCanvas({
+      positions: { "flow:docs": [260.4, "40"], bad: "here", worse: [1, Number.NaN] },
+      loose: [{ key: "loose:1", step: { what: "handbook", language: "de", to: "", nested: { no: 1 } } }, { key: "loose:1", step: { what: "twice" } }, { key: "loose:2" }],
+      triggers: ["schedule", "schedule", "nightly"],
+      more: true
+    }), { positions: { "flow:docs": [260, 40] }, loose: [{ key: "loose:1", step: { what: "handbook", language: "de" } }], triggers: ["schedule"] });
+
+    await defineFlows(root, { operations: [{ op: "set", flow: "docs", when: ["ci"] }, { op: "step", flow: "docs", what: "layers", to: "docs/system" }] });
+    const service = createService(new Workspace(root, {}, { live: false }));
+    assert.deepEqual((await service.call("atlas")).flows.canvas, { positions: {}, loose: [], triggers: [] });
+    const canvas = { positions: { "step:docs/system": [510, 40], "flow:docs": [260, 40] }, loose: [{ key: "loose:1", step: { what: "check" } }], triggers: ["schedule"] };
+    assert.deepEqual(await service.call("saveFlowCanvas", canvas), { written: true });
+    const file = path.join(root, CANVAS_FILE);
+    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { positions: { "flow:docs": [260, 40], "step:docs/system": [510, 40] }, loose: canvas.loose, triggers: ["schedule"] });
+    // The view reads it with the flows; the flows themselves are only in .bca.json.
+    const atlas = await service.call("atlas");
+    assert.deepEqual(atlas.flows.canvas.positions["flow:docs"], [260, 40]);
+    assert.deepEqual(atlas.flows.flows[0].steps, [{ what: "layers", to: "docs/system" }]);
+    assert.ok(!readFileSync(path.join(root, ".bca.json"), "utf8").includes("positions"));
+    assert.deepEqual(await service.call("saveFlowCanvas", canvas), { written: false });
+    // An empty canvas needs no file.
+    assert.deepEqual((await writeFlowCanvas(root, {})).written, true);
+    assert.ok(!existsSync(file));
+
+    // What the page wires with.
+    const html = renderAppHtml({ mode: "vscode" });
+    for (const part of ['data-board-mode="canvas"', 'data-drop="canvas"', 'class="port out"', 'class="port in"', 'data-canvas="remove"', 'data-drag="flow"', "function canvasConnect(", 'call("saveFlowCanvas", canvas)']) assert.ok(html.includes(part), part);
+    for (const event of ["pointerdown", "pointermove", "pointerup", "wheel"]) assert.ok(html.includes(`$("#board").addEventListener("${event}"`), event);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

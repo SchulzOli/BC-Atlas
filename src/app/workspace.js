@@ -242,6 +242,16 @@ export class Workspace {
     return { file: result.file, written: result.written, changed: result.changed, flows: result.flows };
   }
 
+  /** Keeps how the flow builder lays the flows out (src/flows/canvas.js). It changes no analysis. */
+  async saveFlowCanvas(canvas = {}) {
+    const { root } = await this.configured();
+    const { writeFlowCanvas } = await import("../flows/index.js");
+    const { written } = await writeFlowCanvas(root, canvas);
+    // The atlas holds the canvas: the next one read has this one.
+    if (written) this.memo.delete("atlas");
+    return { written };
+  }
+
   /**
    * Runs one flow now, as `bca run --flow <id>` does.
    * @returns { passed, flow, steps: [{ what, to, ok, summary }], outputs }

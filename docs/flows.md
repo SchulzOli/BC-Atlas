@@ -49,10 +49,48 @@ builder:
    trigger does with what was saved (its sync mode).
 4. **Run now** runs the flow at once.
 
-### Drag and drop
+### The canvas: place and wire
 
-**Open the builder** in the Flow menu shows the flows as a board: the triggers
-and the artifacts on the left, one lane per flow on the right.
+**Open the builder** in the Flow menu opens the flow builder on its
+**Canvas**. Every trigger, flow, and step is a node you place where you want
+it, and wires say what belongs together:
+
+| Wire from | into | It means |
+| --- | --- | --- |
+| a trigger | a flow | the flow runs on that trigger |
+| a flow | a step | that step is the first of the flow |
+| a step | a step | that step comes next |
+
+To build a flow: drag **New flow** from the left onto the canvas (type its
+title first, or rename it later), drag the artifacts you want onto the canvas,
+and pull a wire from the dot on the right of the flow into the first artifact,
+then from each step into the next. Drag a trigger onto the canvas and pull its
+wire into the flow.
+
+- **A node that no wire leads to is in no flow.** It stays on the canvas,
+  dashed, until you wire it. Removing the wire into a step takes that step and
+  those after it out of the flow and leaves them on the canvas.
+- **Rewire to reorder.** Pull a wire from a flow or a step into a step that is
+  already wired, and that step moves there, also from another flow.
+- **Select and remove.** Click a node or a wire and press **Delete**, or use
+  **Remove**. A flow goes with its steps and asks twice.
+- **Double-click** a flow or a step for its form (title, triggers, delivery;
+  place and options). **Enter** opens the selected node.
+- **Move around.** Drag the ground to pan, turn the wheel to zoom; **Fit**
+  shows everything, **Tidy up** lays the nodes out again.
+- **Run now** and **GitHub Actions** are on every flow node.
+
+Where the nodes are, and the nodes that are in no flow yet, is kept in
+`.bca/flow-canvas.json` next to `.bca.json`. Commit it and the canvas looks
+the same for everyone; delete it and the builder lays the flows out itself.
+The flows themselves are only in `.bca.json`, so `bca run` never reads the
+canvas. Steps of a flow are a row, one after the other: a wire cannot branch
+or join, and there are no conditions.
+
+### Lanes: drag and drop
+
+**Lanes** at the top of the builder shows the same flows as a board: the
+triggers and the artifacts on the left, one lane per flow on the right.
 
 | Drag | Drop it on | It does |
 | --- | --- | --- |
@@ -75,8 +113,9 @@ makes, and where each is saved. **Change…** on the card of a flow or an
 artifact opens its form.
 
 An exported view (`bca export`) is a snapshot: its Flow menu and its builder
-show each change and keep it, and save the changes as `flow-changes.json`,
-which
+show each change and keep it until the page is closed (the canvas remembers
+where you put the nodes in that browser), and save the changes as
+`flow-changes.json`, which
 `bca flow define --from flow-changes.json` applies to the project.
 
 ## From the terminal

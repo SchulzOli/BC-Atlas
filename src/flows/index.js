@@ -5,9 +5,11 @@ import { automationConfig, syncModesFor, SYNC_MODES, TRIGGERS } from "../automat
 import { loadPlugins } from "../plugins/registry.js";
 import { ARTIFACTS, makeArtifact, stepOutputs } from "./artifacts.js";
 import { applyFlowOperations, FLOW_SCHEMA, flowsConfig, stepJson } from "./config.js";
+import { readFlowCanvas } from "./canvas.js";
 
 export { ARTIFACTS } from "./artifacts.js";
 export { exportFlow, FLOW_EXPORT_TARGETS } from "./export.js";
+export { CANVAS_FILE, normalizeCanvas, readFlowCanvas, writeFlowCanvas } from "./canvas.js";
 export { applyFlowOperations, FLOW_SCHEMA, flowId, flowOutputs, flowsConfig, flowsFor, flowsText, stepJson } from "./config.js";
 
 /**
@@ -70,7 +72,8 @@ export async function describeFlows(input, { config: configPath, projectRoot } =
   const file = configPath ? path.resolve(configPath) : path.join(root, ".bca.json");
   const config = await readConfig(file);
   const plugins = await loadPlugins(root, config);
-  return description(config, plugins.taskSummaries(), file);
+  // How the builder lays the flows out (canvas.js).
+  return { ...description(config, plugins.taskSummaries(), file), canvas: await readFlowCanvas(root) };
 }
 
 function description(config, pluginTasks, file) {

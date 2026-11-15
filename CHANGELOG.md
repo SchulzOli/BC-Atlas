@@ -21,8 +21,16 @@ follows [Semantic Versioning](https://semver.org/).
     order of the steps, the sync mode of each trigger, and **Run now**. In
     VS Code a change is written to `.bca.json`; an exported view saves the
     changes as `flow-changes.json`.
-  - **The flow builder** (**Open the builder** in the Flow menu) is a
-    board to build flows on by drag and drop: drag an artifact into a flow
+  - **The flow builder** (**Open the builder** in the Flow menu) opens on a
+    **canvas** to place and wire freely: every trigger, flow, and step is
+    a node with ports. Drag nodes from the palette onto the canvas and pull
+    wires: a trigger into a flow, a flow into its first step, a step into
+    the next. Rewire to reorder or to move a step to another flow, select a
+    node or a wire and remove it, double-click a node for its form, pan and
+    zoom. A node no wire leads to stays on the canvas, in no flow. Where
+    the nodes are is kept in `.bca/flow-canvas.json`.
+  - **Lanes** in the builder is the same as a board to build on by drag
+    and drop: drag an artifact into a flow
     to add a step where you drop it, drag steps into their order or into
     another flow, drop a trigger on a flow to start it, and drop a step or
     a trigger on the bin to take it out. A click on a step opens its form.
