@@ -59,7 +59,9 @@ export function telemetryEvent(row, { caseField } = {}) {
   const type = TYPES[lower(fields.alobjecttype).replace(/\s+/gu, "")] ?? (lower(fields.itemtype) === "pageview" ? "page" : undefined);
   const session = fields.session_id ?? fields.sessionid ?? fields.operation_id;
   const user = fields.user_id ?? fields.user_authenticatedid ?? fields.userid;
-  const own = caseField ? fields[lower(caseField).replace(/^customdimensions\./u, "")] : undefined;
+  // A custom dimension of the app may arrive under its own name or with the prefix Business Central gives it ("al").
+  const named = lower(caseField ?? "").replace(/^customdimensions\./u, "");
+  const own = named ? fields[named] ?? fields[`al${named}`] ?? fields[named.replace(/^al/u, "")] : undefined;
   return {
     time,
     duration: milliseconds(fields.duration ?? fields.executiontimeinms ?? fields.serverexecutiontime ?? fields.totaltime),
@@ -205,7 +207,7 @@ export function span(ms) {
  * @param tasks the process tests and recordings of the simulation, by id: what each touches
  * @param marks { <test id>: <event id or text> } events that mark a step for certain
  * @returns undefined when no event belongs to the process, else
- *   { cases, events, from, to, throughput, variants: [{ steps, cases }], steps: { <id>: { count, cases, repeated, duration, work } }, ways: [{ from, into, count, cases, share, wait }] }
+ *   { cases, events, matching: { certain, person, place }, from, to, throughput, variants: [{ steps, cases }], steps: { <id>: { count, cases, repeated, duration, work } }, ways: [{ from, into, count, cases, share, wait }] }
  */
 export function timeProcess(steps, events, tasks, marks = {}) {
   const { order } = processOrder(steps.map((step) => ({ id: step.id, after: (step.after ?? []).map((wire) => (typeof wire === "string" ? { step: wire } : wire)) })));
@@ -223,7 +225,7 @@ export function timeProcess(steps, events, tasks, marks = {}) {
   }));
   const marked = steps.filter((step) => marks[step.test]).map((step) => [step.id, lower(marks[step.test])]);
   const candidatesOf = (event) => {
-    const sure = marked.find(([, mark]) => lower(event.event) === mark || (mark.length > 2 && lower(event.text).includes(mark)));
+    const sure = marked.find(([, mark]) => [mark, `al${mark}`].includes(lower(event.event)) || (mark.length > 2 && lower(event.text).includes(mark)));
     if (sure) return [sure[0]];
     if (!event.type) return [];
     const keys = [`${event.type}:${event.id}`, `${event.type}:${lower(event.name)}`];
@@ -237,17 +239,21 @@ export function timeProcess(steps, events, tasks, marks = {}) {
   }
   const stepOf = (event, current) => {
     let candidates = candidatesOf(event);
+    // How sure the step is: only one step can have the event, the person tells, or only the place of the case does.
+    let how = "certain";
     if (candidates.length > 1 && event.user) {
       // Of several steps: the ones this person is seen doing, else not the ones only others are seen doing.
       const own = candidates.filter((id) => doers.get(id).has(event.user));
       const free = candidates.filter((id) => !doers.get(id).size);
       candidates = own.length ? own : free.length ? free : candidates;
+      how = "person";
     }
-    if (candidates.length < 2) return { step: candidates[0] };
+    if (candidates.length < 2) return { step: candidates[0], how };
+    how = "place";
     // Several steps use it: the step the case is in keeps it for now, else the next on the way, else the way starts again.
-    if (current !== undefined && candidates.includes(current)) return { step: current, open: true };
+    if (current !== undefined && candidates.includes(current)) return { step: current, open: true, how };
     const ahead = candidates.filter((id) => current === undefined || rank.get(id) > rank.get(current)).sort((a, b) => rank.get(a) - rank.get(b));
-    return { step: ahead[0] ?? candidates.sort((a, b) => rank.get(a) - rank.get(b))[0] };
+    return { step: ahead[0] ?? candidates.sort((a, b) => rank.get(a) - rank.get(b))[0], how };
   };
   const byCase = new Map();
   for (const event of events) (byCase.get(event.case) ?? byCase.set(event.case, []).get(event.case)).push(event);
@@ -256,6 +262,7 @@ export function timeProcess(steps, events, tasks, marks = {}) {
   const variants = new Map();
   const throughput = [];
   let matched = 0;
+  const matching = { certain: 0, person: 0, place: 0 };
   let cases = 0;
   let from = Infinity;
   let to = -Infinity;
@@ -269,9 +276,10 @@ export function timeProcess(steps, events, tasks, marks = {}) {
       run.work += event.duration;
     };
     for (const event of log) {
-      const { step, open: undecided } = stepOf(event, runs.at(-1)?.step);
+      const { step, open: undecided, how } = stepOf(event, runs.at(-1)?.step);
       if (!step) continue;
       matched += 1;
+      matching[how] += 1;
       const last = runs.at(-1);
       if (last?.step === step) {
         if (undecided) open.push(event);
@@ -329,6 +337,8 @@ export function timeProcess(steps, events, tasks, marks = {}) {
   return {
     cases,
     events: matched,
+    // How the events found their step: only one step could have them, the person told, or only where the case was.
+    matching,
     from: new Date(from).toISOString(),
     to: new Date(to).toISOString(),
     throughput: stats(throughput),
@@ -372,6 +382,10 @@ export function timingFindings(run, timing) {
     if (way.from !== way.into && !wired.has(`${way.from}\n${way.into}`) && way.cases >= 2 && way.share >= 10) {
       findings.push({ severity: "info", rule: "process-way-not-in-model", message: `In ${way.cases} of ${timing.cases} cases ${title(way.into)} follows ${title(way.from)}, which the process ${run.title} does not have.`, fix: "Wire that way, with its name, or see why the work goes it.", step: way.into });
     }
+  }
+  // How much of it is a guess.
+  if (timing.matching.place / timing.events >= 0.3) {
+    findings.push({ severity: "info", rule: "process-telemetry-uncertain", message: `Of the ${timing.events} events of the process ${run.title}, ${timing.matching.place} could belong to several steps and were given to the step the case was in: the times of those steps are an estimate.`, fix: "Let the app send an event that marks each step (Session.LogMessage with an event id), and name it in processTelemetry.steps." });
   }
   for (const step of run.steps) {
     if (step.test && !timing.steps[step.id] && step.status !== "unknown") {

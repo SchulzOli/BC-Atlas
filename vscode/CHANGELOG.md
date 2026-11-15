@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Undo** in the builder (the button, or Ctrl+Z).
+- A change to the flows or the processes no longer analyses the project
+  again: the graph is read again on the analysis that is there.
+- **For Azure Pipelines**, next to For GitHub Actions, in the form of a
+  flow.
+
 ## 0.23.0
 
 - The engine is BC Atlas 0.23.0.

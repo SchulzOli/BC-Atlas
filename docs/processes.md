@@ -132,6 +132,43 @@ case is a session, and since a handover is another person in another session,
 the wait between two roles is not seen. Standard telemetry has no such field:
 the app has to send one.
 
+**How sure it is.** Mining says how the events found their step: how many
+only one step can have, how many by who did them, and how many only by where
+the case was. When a third or more are of the last kind, the times are an
+estimate and the finding `process-telemetry-uncertain` says so.
+
+**Let the app say it.** The surest telemetry is the one the app sends itself:
+one event per step, with the document it is about. A sketch in AL, to adapt
+and to check against the AL documentation of your version:
+
+```al
+codeunit 50230 "PR Process Telemetry"
+{
+    procedure Step(EventId: Text; StepName: Text; RequestNo: Code[20])
+    var
+        Dimensions: Dictionary of [Text, Text];
+    begin
+        Dimensions.Add('requestNo', RequestNo);
+        Session.LogMessage(EventId, StepName, Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, Dimensions);
+    end;
+}
+```
+
+Call it where a step is done (`Step('PR0003', 'Approved', Rec."No.")`) and
+name the field and the events:
+
+```json
+"processTelemetry": {
+  "path": "telemetry",
+  "case": "requestNo",
+  "steps": { "purchase-request-approve": "PR0003" }
+}
+```
+
+Business Central may write the names of custom dimensions and the event id
+with a prefix (`al`): BC Atlas takes a field and an event id with or without
+it. Look at one event in Application Insights to see what your version sends.
+
 The example in `examples/purchasing-app/telemetry` is made up, in the shape
 Application Insights answers with.
 
@@ -155,6 +192,7 @@ In the view, **Flow → Open the process builder** opens the builder on
 - Select a step or a wire and **Remove** it (or press Delete). When a step
   goes, the way closes around it: what came after it comes after what it came
   after. That is the same rule as for [a step of a flow](./flows.md#removing-a-step).
+- **Undo** (or Ctrl+Z) takes the last change back.
 - With telemetry, a step shows how often it is done and how long it takes,
   and a wire the share of the cases that go it and how long the work waits.
 
@@ -235,6 +273,7 @@ With [telemetry](#its-time-telemetry), also:
 | `process-step-slow` | a step takes more than twice as long as any other | see what it does in the app |
 | `process-way-not-in-model` | the work really goes a way the model has not | wire it, with its name, or see why it is gone |
 | `process-step-not-seen` | a step is in no case of the telemetry | nobody does it, or it cannot be told apart: name an event that marks it |
+| `process-telemetry-uncertain` | a third or more of the events could belong to several steps | let the app send an event per step |
 
 The findings are on the steps in the view (**Check**), in the story of the
 process, and in `bca process run`.

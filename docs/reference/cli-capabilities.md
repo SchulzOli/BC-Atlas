@@ -68,7 +68,7 @@ Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents.
 | `run` | `bca run [app-root]` | Run the features and the flows configured for a trigger (Git hook, pipeline, schedule) and sync their output. |
 | `flow` | `bca flow [app-root]` | Your own workflows: a flow says what to make from the source (the artifacts), when (the triggers), and where to save it. Shows the flows of the project ("flows" in .bca.json); bca flow define changes them, bca run runs them. |
 | `flow.define` | `bca flow define [app-root]` | Define the flows: add or change a flow, its triggers, and its steps (what to make and where to save it), and say how a trigger delivers what was saved. Without options it shows the flows as they are. |
-| `flow.export` | `bca flow export [app-root]` | Export a flow as a pipeline of its own: for GitHub Actions, one workflow file that runs the flow on the events of its triggers and delivers what it saves. |
+| `flow.export` | `bca flow export [app-root]` | Export a flow as a pipeline of its own: one workflow file for GitHub Actions, or one pipeline file for Azure Pipelines, that runs the flow on the events of its triggers and delivers what it saves. |
 | `plugins.list` | `bca plugins list [app-root]` | List the plugins of a project: built-in, npm (bc-atlas-plugin-*), .bca.json, and BCA_PLUGINS, with what each contributes. |
 | `plugins.show` | `bca plugins show <plugin-id>` | Show one plugin: manifest, commands, tasks, health rules, MCP tools, hooks, and extension points. |
 | `plugins.doctor` | `bca plugins doctor [app-root]` | Check every plugin: manifest, plugin API version, activation, contributions, and config sections. |

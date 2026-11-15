@@ -227,6 +227,8 @@ export function stepKey(flow, steps, index) {
 // came after nothing but a step that started the flow now starts the flow itself: `rerouted`
 // names every step whose wires changed, so nobody loses a gate without being told.
 //
+// { op: "restore", flows } puts the flows back as they were: what Undo in the builder sends.
+//
 // Taking a wire away is something else: a step that no wire leads to is in no flow. It leaves
 // with the steps that run only through it, and `freed` names them: the builder keeps them on its
 // canvas, with the wires among them, to be wired again (canvas.js).
@@ -269,6 +271,10 @@ export function applyFlowOperations(config = {}, operations = [], { pluginTasks 
       const { id, title, when, steps, ...rest } = flow;
       for (const key of Object.keys(flow)) delete flow[key];
       Object.assign(flow, { id, ...(title ? { title } : {}), when: when ?? [], steps: steps ?? [], ...rest });
+    } else if (op === "restore") {
+      // The flows as they were: what Undo in the builder sends.
+      if (!Array.isArray(operation.flows)) throw new Error("flows: restore needs \"flows\": the list of flows to go back to");
+      flows.splice(0, flows.length, ...structuredClone(operation.flows));
     } else if (op === "remove") {
       flows.splice(flows.indexOf(need(operation)), 1);
     } else if (op === "step") {
@@ -363,7 +369,7 @@ export function applyFlowOperations(config = {}, operations = [], { pluginTasks 
       next.automation.triggers ??= {};
       next.automation.triggers[trigger] = { tasks: [], ...(next.automation.triggers[trigger] ?? {}), sync };
     } else {
-      throw new Error(`flows: unknown operation "${op ?? ""}"; use set, remove, step, wire, unwire, unstep, detach, move, or deliver`);
+      throw new Error(`flows: unknown operation "${op ?? ""}"; use set, remove, step, wire, unwire, unstep, detach, move, deliver, or restore`);
     }
   }
   if (flows.length) next.flows = flows;

@@ -179,10 +179,19 @@ export function githubWorkflow({ appPath, version, triggers, nodeVersion = 24, l
   ].join("\n");
 }
 
-export function azurePipeline({ appPath, version, triggers, nodeVersion = 24, local = false, alTools = false }) {
+/**
+ * The pipeline of a project for Azure Pipelines (bca setup), or with `flow` of one flow (bca flow export).
+ * @param flow { id, title } and triggers.manual { sync, outputs } for a flow that neither a push nor a schedule starts
+ */
+export function azurePipeline({ appPath, version, triggers, nodeVersion = 24, local = false, alTools = false, flow }) {
   const ci = triggers.ci;
   const schedule = triggers.schedule;
-  const lines = [`# ${GENERATED_MARKER}. Change .bca.json or rerun "bca setup apply" instead of editing.`];
+  // Started by hand only: the one run there is publishes what the flow saved.
+  const manual = !ci && !schedule ? triggers.manual : undefined;
+  const suffix = flow ? `-${flow.id}` : "";
+  const lines = [flow
+    ? `# ${FLOW_MARKER}: the flow "${flow.id}" of .bca.json. Change the flow and export it again instead of editing.`
+    : `# ${GENERATED_MARKER}. Change .bca.json or rerun "bca setup apply" instead of editing.`];
   if (ci) {
     lines.push("trigger:", "  branches:", "    include: [main]", "", "pr:", "  branches:", "    include: ['*']", "");
   } else {
@@ -192,7 +201,7 @@ export function azurePipeline({ appPath, version, triggers, nodeVersion = 24, lo
     lines.push(
       "schedules:",
       `  - cron: "${schedule.cron}"`,
-      "    displayName: BC Atlas scheduled run",
+      `    displayName: ${flow ? `BC Atlas ${flow.id}, scheduled` : "BC Atlas scheduled run"}`,
       "    branches:",
       "      include: [main]",
       "    always: true",
@@ -224,8 +233,8 @@ export function azurePipeline({ appPath, version, triggers, nodeVersion = 24, lo
       "    displayName: Install the AL compiler (AL Development Tools)"
     ] : []),
     "  - bash: |",
-    "      if [ \"$BUILD_REASON\" = \"Schedule\" ]; then trigger=schedule; else trigger=ci; fi",
-    `      ${runner({ version, local })} run ${shellQuote(appPath)} --trigger "$trigger"`,
+    manual ? "      trigger=manual" : "      if [ \"$BUILD_REASON\" = \"Schedule\" ]; then trigger=schedule; else trigger=ci; fi",
+    `      ${runner({ version, local })} run ${shellQuote(appPath)} --trigger "$trigger"${flow ? ` --flow ${shellQuote(flow.id)}` : ""}`,
     "    displayName: Run BC Atlas",
     "    env:",
     "      BCA_CACHE_DIR: $(Pipeline.Workspace)/bc-atlas-cache"
@@ -239,8 +248,9 @@ export function azurePipeline({ appPath, version, triggers, nodeVersion = 24, lo
       );
     }
   };
-  if (ci?.sync === "artifact") publish(ci, "ne(variables['Build.Reason'], 'Schedule')", "bc-atlas");
-  if (schedule?.sync === "artifact") publish(schedule, "eq(variables['Build.Reason'], 'Schedule')", "bc-atlas-scheduled");
+  if (ci?.sync === "artifact") publish(ci, "ne(variables['Build.Reason'], 'Schedule')", `bc-atlas${suffix}`);
+  if (manual?.sync === "artifact") publish(manual, "ne(variables['Build.Reason'], 'Schedule')", `bc-atlas${suffix}`);
+  if (schedule?.sync === "artifact") publish(schedule, "eq(variables['Build.Reason'], 'Schedule')", `bc-atlas${suffix}-scheduled`);
   if (schedule?.sync === "commit" && schedule.outputs?.length) {
     lines.push(
       "  - bash: |",

@@ -154,6 +154,6 @@ export async function flowExportCommand(input, values) {
     `  runs     bca run --flow ${result.flow}`,
     `  on       ${result.events.join(", ")}`,
     ...Object.entries(result.delivery).map(([trigger, sync]) => `  ${trigger.padEnd(8)} ${{ verify: "fails when what the flow saves differs from the commit", artifact: "uploads what the flow saves as an artifact", "pull-request": "opens a pull request with what the flow saves", commit: "commits what the flow saves" }[sync]}`),
-    ...(result.written ? ["Commit the file; GitHub runs it from the next push."] : [])
+    ...(result.written ? [result.to === "github" ? "Commit the file; GitHub runs it from the next push." : `Commit the file, and create a pipeline from ${result.path} in Azure DevOps.`] : [])
   ].join("\n"));
 }

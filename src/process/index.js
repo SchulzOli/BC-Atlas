@@ -136,6 +136,7 @@ export const lanesOf = (process) => [...new Set(process.steps.map(({ lane }) => 
 //   { op: "unwire", process, from, into }                       it no longer does
 //   { op: "lane", process, lane, title }                        rename a lane
 //   { op: "adopt", model }                                      take a whole model: a mined or an imported process
+//   { op: "restore", processes }                                the processes as they were (Undo in the builder)
 
 /** Applies operations to a configuration; returns a copy, and throws when the result is not valid. */
 export function applyProcessOperations(config = {}, operations = []) {
@@ -166,6 +167,10 @@ export function applyProcessOperations(config = {}, operations = []) {
       let process = processes.find(({ id }) => id === operation.process);
       if (!process) processes.push(process = { id: operation.process, title: operation.title || operation.process, steps: [] });
       else if (operation.title) process.title = operation.title;
+    } else if (op === "restore") {
+      // The processes as they were: what Undo in the builder sends.
+      if (!Array.isArray(operation.processes)) throw new Error("processes: restore needs \"processes\": the list of processes to go back to");
+      processes.splice(0, processes.length, ...structuredClone(operation.processes));
     } else if (op === "remove") {
       processes.splice(processes.indexOf(need(operation)), 1);
     } else if (op === "adopt") {
@@ -219,7 +224,7 @@ export function applyProcessOperations(config = {}, operations = []) {
       if (!text(operation.title)) throw new Error("processes: lane needs \"title\": the new name of the lane");
       for (const step of process.steps) if ((step.lane ?? "") === (operation.lane ?? "")) step.lane = text(operation.title);
     } else {
-      throw new Error(`processes: unknown operation "${op ?? ""}"; use set, remove, step, unstep, wire, unwire, lane, or adopt`);
+      throw new Error(`processes: unknown operation "${op ?? ""}"; use set, remove, step, unstep, wire, unwire, lane, adopt, or restore`);
     }
   }
   if (processes.length) next.processes = processes;
@@ -438,6 +443,7 @@ export function runText(run, { markdown = false } = {}) {
   lines.push(`${run.passed ? "Runs" : "Stops"}: ${run.steps.length} step(s) in ${run.lanes.length} lane(s), ${run.handovers} handover(s).`);
   if (run.timing) {
     lines.push(`Telemetry: ${run.timing.cases} case(s) from ${run.timing.from.slice(0, 10)} to ${run.timing.to.slice(0, 10)}; a case takes ${span(run.timing.throughput.avg)} on average, ${span(run.timing.throughput.p95)} for the slowest.`);
+    lines.push(`How the events found their step: ${run.timing.matching.certain} only one step can have, ${run.timing.matching.person} by who did them, ${run.timing.matching.place} by where the case was.`);
     lines.push(`The ways really taken: ${run.timing.variants.slice(0, 4).map(({ steps: way, cases }) => `${way.join(" > ")} (${cases})`).join("; ")}.`);
   }
   lines.push("");

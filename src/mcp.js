@@ -522,7 +522,7 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
       projectRoot: architectureFields.projectRoot,
       config: architectureFields.config,
       operations: z.array(z.object({
-        op: z.enum(["set", "remove", "step", "wire", "unwire", "unstep", "move", "deliver"]),
+        op: z.enum(["set", "remove", "step", "wire", "unwire", "unstep", "detach", "move", "deliver"]),
         flow: z.string().optional().describe("The id of the flow: lowercase letters, digits, '.', '_', '-'"),
         title: z.string().optional().describe("set: the title of the flow"),
         when: z.array(z.enum(["pre-commit", "pre-push", "ci", "schedule", "manual"])).optional().describe("set: the triggers the flow runs on"),
@@ -553,7 +553,7 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
       projectRoot: architectureFields.projectRoot,
       config: architectureFields.config,
       flow: z.string().min(1).describe("The id of the flow"),
-      to: z.enum(["github"]).default("github"),
+      to: z.enum(["github", "azure-devops"]).default("github").describe("GitHub Actions, or Azure Pipelines (azure-pipelines.bc-atlas-<flow>.yml; a schedule that would open a pull request publishes an artifact instead)"),
       output: z.string().optional().describe("Another file than .github/workflows/bc-atlas-<flow>.yml"),
       force: z.boolean().optional().describe("Replace a file that was not written by this export"),
       dryRun: z.boolean().optional().describe("Return the workflow; write nothing")

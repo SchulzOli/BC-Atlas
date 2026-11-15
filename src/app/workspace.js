@@ -223,6 +223,16 @@ export class Workspace {
     return { file: result.file, written: result.written, derived: result.derived, definition: result.definition, line: simulationResultLine(result.report), passed: result.report.passed };
   }
 
+  /**
+   * Forgets the graph, and keeps the analysis it is made from. For what changes the graph and not
+   * the analysis: the flows, the processes, and the telemetry of .bca.json.
+   */
+  forgetAtlas() {
+    this.memo.delete("atlas");
+    this.updatedAt = new Date().toISOString();
+    return { updatedAt: this.updatedAt };
+  }
+
   /** Where the project and its .bca.json are, as the analysis found them. */
   async configured() {
     const { context } = await this.assessment();
@@ -238,7 +248,8 @@ export class Workspace {
     const { root, config } = await this.configured();
     const { defineFlows } = await import("../flows/index.js");
     const result = await defineFlows(root, { operations, dryRun, config });
-    if (result.written) this.reset();
+    // The flows are no part of the analysis: only the graph that shows them is read again.
+    if (result.written) this.forgetAtlas();
     return { file: result.file, written: result.written, changed: result.changed, flows: result.flows, rerouted: result.rerouted };
   }
 
@@ -250,7 +261,8 @@ export class Workspace {
     const { root, config } = await this.configured();
     const { defineProcesses } = await import("../process/index.js");
     const result = await defineProcesses(root, { operations, dryRun, config });
-    if (result.written) this.reset();
+    // The processes are run on the simulation that is there: only the graph is read again.
+    if (result.written) this.forgetAtlas();
     return result;
   }
 

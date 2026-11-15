@@ -149,6 +149,8 @@ trigger onto the canvas and pull its wire into the flow.
   **Remove**. A flow goes with its steps and asks twice.
 - **Double-click** a flow or a step for its form (title, triggers, delivery;
   place and options). **Enter** opens the selected node.
+- **Undo** (or Ctrl+Z) takes the last change back, on both sides of the
+  builder: the flows, or the processes, as they were.
 - **Move around.** Drag the ground to pan, turn the wheel to zoom; **Fit**
   shows everything, **Tidy up** lays the nodes out again.
 - **Run now** and **GitHub Actions** are on every flow node.
@@ -244,18 +246,23 @@ places.
 `bca run --flow <id>` runs flows by name, whatever their triggers, and leaves
 the tasks of the trigger out.
 
-## Export a flow for GitHub Actions
+## Export a flow for GitHub Actions or Azure Pipelines
 
-A flow can be a workflow of its own on GitHub:
+A flow can be a workflow of its own on GitHub, or a pipeline of its own in
+Azure Pipelines:
 
 ```sh
-bca flow export --flow docs            # writes .github/workflows/bc-atlas-docs.yml
-bca flow export --flow docs --dry-run  # says what it would write
-bca flow export --flow docs -o -       # prints the workflow
+bca flow export --flow docs                    # writes .github/workflows/bc-atlas-docs.yml
+bca flow export --flow docs --to azure-devops  # writes azure-pipelines.bc-atlas-docs.yml
+bca flow export --flow docs --dry-run          # says what it would write
+bca flow export --flow docs -o -               # prints it
 ```
 
-In the view, **Export → For GitHub Actions** in the form of a flow writes the
-same file. Commit it, and GitHub runs the flow.
+In the view, **Export → For GitHub Actions** and **For Azure Pipelines** in
+the form of a flow write the same files. Commit the file; GitHub runs it from
+the next push, and in Azure DevOps you create a pipeline from it once. Azure
+Pipelines has no step that opens a pull request: a schedule that would open
+one publishes what the flow saved as an artifact instead.
 
 | The flow runs on | The workflow starts on |
 | --- | --- |

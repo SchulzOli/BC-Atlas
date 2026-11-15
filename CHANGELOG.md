@@ -4,6 +4,34 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- **Undo in the builder** (the button, or Ctrl+Z), for flows and for
+  processes: the last change is taken back as one checked operation.
+- **`bca flow export --to azure-devops`** writes a flow as a pipeline of
+  its own for Azure Pipelines (`azure-pipelines.bc-atlas-<flow>.yml`); the
+  builder has **For Azure Pipelines** next to For GitHub Actions.
+- **How sure the telemetry is.** Mining and the run say how the events
+  found their step: only one step can have them, by who did them, or only
+  by where the case was. When a third or more are of the last kind, the
+  finding `process-telemetry-uncertain` says that the times are an
+  estimate. The guide has a sketch in AL for sending one event per step.
+
+### Changed
+
+- **A change to the flows or the processes no longer reads the project
+  again.** In VS Code the graph is read again on the analysis that is
+  there, so a wire or a step is as fast on a large project as on a small
+  one. A change to anything else in `.bca.json` reads the project as
+  before.
+- A custom dimension and an event id of the app are taken with or without
+  the prefix Business Central may give them (`al`).
+- An exported view refuses a change the project would refuse (a place that
+  is saved twice, a file of the wrong kind, a step that comes after a step
+  that is not there) instead of keeping it for later.
+
 ## 0.23.0 - 2026-11-15
 
 ### Added

@@ -832,7 +832,7 @@
       ${flow.when.length ? `<h3>Delivery: what happens to what was saved</h3>${flow.when.map((name) => `<label class="field wide" title="${esc(syncModes[triggers[name].sync])}"><span>${esc(name)}</span><select data-deliver="${esc(name)}">${triggers[name].modes.map((mode) => `<option value="${esc(mode)}" ${mode === triggers[name].sync ? "selected" : ""} title="${esc(syncModes[mode])}">${esc(mode)}: ${esc(syncModes[mode])}</option>`).join("")}</select></label>`).join("")}
       ${flow.when.some((name) => name !== "manual" && !triggers[name].configured) ? muted("Nothing calls some of these triggers yet: <code>bca setup</code> installs the Git hook or the pipeline.") : ""}` : ""}` : muted("Apply it, then add its steps.")}
       <hr><div class="actions"><button class="btn primary" data-flow-act="apply">Apply</button>${flow && LIVE ? `<button class="btn" data-flow-act="run" title="bca run --flow ${esc(flow.id)}">Run now</button>` : ""}${flow ? '<button class="btn" data-flow-act="remove">Remove</button>' : ""}<button class="btn" data-flow-act="back">Back</button></div>
-      ${flow?.steps.length ? `<hr><h3>Export</h3><div class="actions"><button class="btn" data-flow-act="github" title="One workflow file that runs this flow on GitHub and delivers what it saves">For GitHub Actions</button></div>
+      ${flow?.steps.length ? `<hr><h3>Export</h3><div class="actions"><button class="btn" data-flow-act="github" title="One workflow file that runs this flow on GitHub and delivers what it saves">For GitHub Actions</button><button class="btn" data-flow-act="github" data-to="azure-devops" title="One pipeline file that runs this flow in Azure Pipelines and delivers what it saves">For Azure Pipelines</button></div>
       ${muted(LIVE ? `Writes <code>.github/workflows/bc-atlas-${esc(flow.id)}.yml</code>: it runs on ${flow.when.includes("ci") ? "pull requests and pushes" : ""}${flow.when.includes("ci") && flow.when.includes("schedule") ? ", " : ""}${flow.when.includes("schedule") ? "the schedule" : ""}${flow.when.some((name) => name === "ci" || name === "schedule") ? ", or" : ""} by hand.` : "Copies the command that writes the workflow file.")}` : ""}`;
   }
   MENUS.flow = () => {
@@ -861,6 +861,25 @@
       const candidate = count === 1 ? flowIdOf(what) : `${flowIdOf(what)}-${count}`;
       if (!used.has(candidate)) return candidate;
     }
+  }
+  /** What is not valid about the flows as they are now, as src/flows/config.js would say it; nothing when all is well. */
+  function flowWrong() {
+    const places = new Map();
+    for (const flow of atlas.flows.flows) {
+      const names = new Set();
+      for (const step of flow.steps) {
+        if (step.id && names.has(step.id)) return `The flow ${flow.id} has two steps "${step.id}".`;
+        if (step.id) names.add(step.id);
+        const artifact = artifactOf(step.what);
+        if (!artifact) return `"${step.what}" is not an artifact.`;
+        const place = placeOfStep(step);
+        if (place && artifact.extensions && !artifact.extensions.includes(place.slice(place.lastIndexOf(".") + 1).toLowerCase())) return `${artifact.title} saves one file that ends in ${artifact.extensions.map((item) => `.${item}`).join(", ")}, not "${place}".`;
+        if (place && places.has(place)) return `"${place}" is saved twice: by ${places.get(place)} and by ${step.what} of the flow ${flow.id}. Give one of them another place.`;
+        if (place) places.set(place, `${step.what} of the flow ${flow.id}`);
+      }
+      for (const step of flow.steps) for (const wire of wiresOf(step)) if (!names.has(wire.step)) return `A step of the flow ${flow.id} comes after "${wire.step}", which is not a step of it.`;
+    }
+    return undefined;
   }
   /** What operations do to the flows, in a snapshot: the same as src/flows/config.js, without its checks. */
   function flowLocal(operations) {
@@ -962,7 +981,7 @@
     const chip = (name) => `<span class="trigger" draggable="true" data-drag="trigger" data-name="${esc(name)}" title="${esc(triggers[name].summary)}">${esc(name)}</span>`;
     const flows = boardMode === "canvas";
     return `<header class="top"><h2>Builder</h2><div class="segments" role="radiogroup" aria-label="What to build"><button role="radio" data-board-mode="canvas" aria-checked="${flows}" title="Your own workflows: what to make from the source, when, and where to save it">Flows</button><button role="radio" data-board-mode="process" aria-checked="${!flows}" title="How the company works with the app: processes in lanes (BPMN), mined, run, improved">Processes</button></div>
-        <p>${flows ? "Drag nodes onto the canvas and wire them: a trigger into a flow, a flow into the steps it starts with, a step into those that come after it. Click a wire to say when it holds. Double-click a node for its settings." : "A process in lanes: every step in the lane of the role that does it. Drag a process test into a lane, pull a wire from a step into the one that comes after it, and play it with the people of the simulation."}</p><button class="close" data-board="close" aria-label="Close" title="Close (Esc)">×</button></header>
+        <p>${flows ? "Drag nodes onto the canvas and wire them: a trigger into a flow, a flow into the steps it starts with, a step into those that come after it. Click a wire to say when it holds. Double-click a node for its settings." : "A process in lanes: every step in the lane of the role that does it. Drag a process test into a lane, pull a wire from a step into the one that comes after it, and play it with the people of the simulation."}</p><button class="btn" data-board="undo" title="Take the last change back (Ctrl+Z)" ${undone.length ? "" : "disabled"}>Undo</button><button class="close" data-board="close" aria-label="Close" title="Close (Esc)">×</button></header>
       <div class="body">${flows ? `
         <aside class="palette" aria-label="What to drag">
           <h3>Flow</h3><input type="text" id="board-title" placeholder="Title of a new flow" autocomplete="off" aria-label="Title of a new flow"><div class="flowcard" draggable="true" data-drag="flow" title="Drag it onto the canvas to start a flow"><b>New flow</b><small>drag it onto the canvas</small></div>
@@ -1069,6 +1088,7 @@
     if (item.dataset.flowAct) return flowClick(item);
     const act = item.dataset.board;
     if (act === "close") return boardShow(false);
+    if (act === "undo") return boardUndo();
     if (act === "save") return download("flow-changes.json", `${JSON.stringify({ operations: flowChanges }, null, 2)}\n`, "application/json");
     return undefined;
   });
@@ -1079,6 +1099,10 @@
   $("#board").addEventListener("keydown", (event) => {
     if (event.key === "Escape") return boardShow(false);
     const typing = event.target.matches?.("input, select");
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z" && !typing) {
+      event.preventDefault();
+      return boardUndo();
+    }
     if (event.target.classList?.contains("canvas")) {
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
@@ -1101,6 +1125,53 @@
     if (event.key === "Enter" && event.target.id === "proc-title") $('[data-proc="create"]').click();
     return undefined;
   });
+
+  // ------------------------------------------------------------------- undo
+  // What the builder changed, to take back: the flows or the processes as they were before each
+  // change. Undo sends them as one operation (restore), so it is checked and written like any other.
+  const undone = [];
+  const keepForUndo = (entry) => {
+    undone.push(entry);
+    if (undone.length > 50) undone.shift();
+  };
+  const flowsBefore = () => structuredClone({ flows: atlas.flows.flows, sync: Object.fromEntries(Object.entries(atlas.flows.triggers).map(([name, trigger]) => [name, trigger.sync])), loose: canvas.loose, triggers: canvas.triggers });
+  async function boardUndo() {
+    const last = undone.pop();
+    if (!last) return toast("Nothing to take back.");
+    if (last.kind === "process") {
+      if (LIVE) {
+        try {
+          await call("defineProcesses", { operations: [{ op: "restore", processes: last.before }] });
+        } catch (error) {
+          return toast(error.message.replace(/^processes: /u, ""));
+        }
+        toast("Taken back.");
+        return reload("Running the processes", false);
+      }
+      atlas.processes.processes = last.before;
+      procChanges.splice(procChanges.length - last.changes, last.changes);
+    } else {
+      // The flows, how their triggers deliver, and what was on the canvas in no flow; the nodes stay where they are now.
+      const delivery = Object.entries(last.before.sync).filter(([name, sync]) => atlas.flows.triggers[name].sync !== sync).map(([trigger, sync]) => ({ op: "deliver", trigger, sync }));
+      canvas.loose = last.before.loose;
+      canvas.triggers = last.before.triggers;
+      if (LIVE) {
+        try {
+          await call("defineFlows", { operations: [{ op: "restore", flows: last.before.flows }, ...delivery] });
+        } catch (error) {
+          return toast(error.message.replace(/^flows: /u, ""));
+        }
+        await canvasSave();
+        toast("Taken back.");
+        return reload("Reading the flows", false);
+      }
+      atlas.flows.flows = last.before.flows;
+      for (const [name, sync] of Object.entries(last.before.sync)) atlas.flows.triggers[name].sync = sync;
+      flowChanges.splice(flowChanges.length - last.changes, last.changes);
+    }
+    toast("Taken back.");
+    return boardDraw();
+  }
 
   // ---------------------------------------------------------------- process
   // The processes of the company as BPMN lanes to build on (src/process): every step in the lane
@@ -1286,8 +1357,24 @@
   /** Sends operations: written to .bca.json in VS Code, kept to save in an exported file. */
   async function procApply(operations) {
     if (!operations.length) return false;
+    const before = structuredClone(atlas.processes.processes);
     if (!LIVE) {
+      keepForUndo({ kind: "process", before, changes: operations.length });
       procLocal(operations);
+      // What the project would not take, a snapshot does not keep either.
+      const wrong = atlas.processes.processes.map((model) => {
+        const names = model.steps.map(({ id }) => id);
+        if (new Set(names).size !== names.length) return `The process ${model.title ?? model.id} has two steps of one name.`;
+        const lost = model.steps.flatMap((step) => procWires(step)).find((wire) => !names.includes(wire.step));
+        return lost ? `A step of the process ${model.title ?? model.id} comes after "${lost.step}", which is not a step of it.` : undefined;
+      }).find(Boolean);
+      if (wrong) {
+        undone.pop();
+        atlas.processes.processes = before;
+        toast(wrong);
+        boardDraw();
+        return false;
+      }
       procChanges.push(...operations);
       toast(`Kept ${plural(operations.length, "change")}. Save the changes from the builder.`);
       procForm = undefined;
@@ -1297,6 +1384,7 @@
     }
     try {
       const result = await call("defineProcesses", { operations });
+      if (result.written) keepForUndo({ kind: "process", before, changes: operations.length });
       toast(result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed.");
     } catch (error) {
       // What is not valid was not written.
@@ -1305,7 +1393,7 @@
     }
     procForm = undefined;
     closeMenu();
-    await reload("Running the processes");
+    await reload("Running the processes", false);
     return true;
   }
   /** Whether a step comes, directly or through others, after another. */
@@ -1968,9 +2056,22 @@
       flowRedraw();
       return false;
     }
+    const before = flowsBefore();
     if (!LIVE) {
       // A snapshot shows the change and keeps it to save; the project gets it with bca flow define --from.
+      keepForUndo({ kind: "flow", before, changes: operations.length });
       flowLocal(operations);
+      // What the project would not take, a snapshot does not keep either.
+      const wrong = flowWrong();
+      if (wrong) {
+        undone.pop();
+        atlas.flows.flows = before.flows;
+        canvas.loose = before.loose;
+        canvas.triggers = before.triggers;
+        toast(wrong);
+        boardDraw();
+        return false;
+      }
       flowChanges.push(...operations);
       if (change) {
         change();
@@ -1985,6 +2086,7 @@
     }
     try {
       const result = await call("defineFlows", { operations });
+      if (result.written) keepForUndo({ kind: "flow", before, changes: operations.length });
       const open = (result.rerouted ?? []).filter(({ after }) => !after.length).map(({ step }) => step);
       toast(`${result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed."}${open.length ? ` ${open.join(", ")} came after nothing else and now ${open.length === 1 ? "starts" : "start"} the flow.` : ""}`);
     } catch (error) {
@@ -1998,7 +2100,7 @@
     }
     const menu = Boolean(openMenu);
     closeMenu();
-    await reload("Reading the flows");
+    await reload("Reading the flows", false);
     // The builder stays open on the flow, so one step follows the other.
     if (menu && next?.flow && flowOf(next.flow)) {
       flowForm = next;
@@ -2070,12 +2172,12 @@
       closeMenu();
       if (!LIVE) {
         // A snapshot cannot write into the repository: the command does.
-        const command = `bca flow export --flow ${id}`;
+        const command = `bca flow export --flow ${id}${item.dataset.to ? ` --to ${item.dataset.to}` : ""}`;
         return navigator.clipboard?.writeText(command).then(() => toast(`Copied: ${command}. Run it in the project to write the workflow.`), () => toast(`Run in the project: ${command}`)) ?? toast(`Run in the project: ${command}`);
       }
-      return call("exportFlow", { flow: id }).then((result) => toast(result.action === "unchanged"
+      return call("exportFlow", { flow: id, ...(item.dataset.to ? { to: item.dataset.to } : {}) }).then((result) => toast(result.action === "unchanged"
         ? `${result.path} is up to date.`
-        : `Wrote ${result.path}: ${Object.entries(result.delivery).map(([trigger, sync]) => `${trigger} → ${sync}`).join(", ")}. Commit it, and GitHub runs the flow.`), (error) => toast(error.message.replace(/^flows: /u, "")));
+        : `Wrote ${result.path}: ${Object.entries(result.delivery).map(([trigger, sync]) => `${trigger} → ${sync}`).join(", ")}. ${result.to === "github" ? "Commit it, and GitHub runs the flow." : "Commit it, and create a pipeline from it in Azure DevOps."}`), (error) => toast(error.message.replace(/^flows: /u, "")));
     }
     if (act === "run") {
       closeMenu();
@@ -2255,11 +2357,12 @@
   });
 
   // ---------------------------------------------------------- live updates
-  async function reload(text) {
+  /** @param again read the source again; false for what changed the graph and not the analysis (the flows, the processes) */
+  async function reload(text, again = true) {
     $("#sync-button").className = "tool status menu busy";
     $("#sync-text").textContent = text;
     try {
-      if (text !== "Reading" && LIVE) await call("refresh").catch(() => undefined);
+      if (again && text !== "Reading" && LIVE) await call("refresh").catch(() => undefined);
       await load();
       applied = { ...applied, key: undefined };
       await render();

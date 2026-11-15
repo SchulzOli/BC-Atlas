@@ -6,7 +6,7 @@
 // the active editor is the selected node.
 "use strict";
 
-const { existsSync } = require("node:fs");
+const { existsSync, readFileSync } = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const vscode = require("vscode");
@@ -109,8 +109,11 @@ async function refresh({ reanalyze = true } = {}) {
   treeView.message = "Analyzing…";
   try {
     if (reanalyze) await engine.request("refresh");
+    else await engine.request("forgetAtlas").catch(() => undefined);
     overview = await engine.request("overview");
     objects = await engine.request("objects");
+    // What the analysis was made from, to tell a change to the flows from a change to the rules.
+    rememberConfig();
     updateStatus(overview);
     if (overview.summary?.compiler?.tool) log(`AL compiler: ${overview.summary.compiler.tool}`);
     treeView.message = undefined;
@@ -127,9 +130,43 @@ async function refresh({ reanalyze = true } = {}) {
   }
 }
 
-function scheduleRefresh() {
+/** Reads the .bca.json of the project, so that the next change to it can be told apart. */
+function rememberConfig() {
+  const file = path.join(overview?.projectRoot ?? project ?? "", ".bca.json");
+  try {
+    analysed.set(file, logic.analysisPart(readFileSync(file, "utf8")));
+  } catch {
+    analysed.delete(file);
+  }
+}
+
+// The part of each .bca.json the analysis depends on, as it was when it was last read.
+const analysed = new Map();
+let refreshWhole = false;
+
+/** Whether a change to this file changes the analysis: anything but a .bca.json in which only the builder's part changed. */
+function changesAnalysis(uri) {
+  if (!uri || path.basename(uri.fsPath) !== ".bca.json") return true;
+  let now;
+  try {
+    now = logic.analysisPart(readFileSync(uri.fsPath, "utf8"));
+  } catch {
+    // Deleted, or not readable: the analysis is another one.
+  }
+  const same = now !== undefined && analysed.get(uri.fsPath) === now;
+  analysed.set(uri.fsPath, now);
+  return !same;
+}
+
+/** @param uri the file that changed; without one, everything is read again */
+function scheduleRefresh(uri) {
+  refreshWhole ||= changesAnalysis(uri);
   clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(() => refresh(), 600);
+  refreshTimer = setTimeout(() => {
+    const reanalyze = refreshWhole;
+    refreshWhole = false;
+    refresh({ reanalyze });
+  }, 600);
 }
 
 async function updateProblems() {
@@ -219,7 +256,8 @@ class AtlasPanel {
     const { id, method, params } = message;
     try {
       const result = LOCAL_METHODS.has(method) ? await this[method](params) : await engine.request(method, params);
-      if (["adoptArchitecture", "updateBaseline", "updateProposal", "defineSimulation", "defineFlows", "defineProcesses"].includes(method)) scheduleRefresh();
+      // The flows and the processes change the graph, not the analysis: the view reads the graph again itself.
+      if (["adoptArchitecture", "updateBaseline", "updateProposal", "defineSimulation"].includes(method)) scheduleRefresh();
       this.post({ type: "response", id, result });
     } catch (error) {
       this.post({ type: "response", id, error: error.message });
@@ -468,9 +506,9 @@ async function activate(context) {
 
   for (const pattern of [WATCHED, PACKAGES]) {
     const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-    watcher.onDidChange(scheduleRefresh);
-    watcher.onDidCreate(scheduleRefresh);
-    watcher.onDidDelete(scheduleRefresh);
+    watcher.onDidChange((uri) => scheduleRefresh(uri));
+    watcher.onDidCreate((uri) => scheduleRefresh(uri));
+    watcher.onDidDelete((uri) => scheduleRefresh(uri));
     context.subscriptions.push(watcher);
   }
   // A new AL Language extension version brings a new compiler.

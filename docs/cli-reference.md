@@ -1034,7 +1034,7 @@ flows as they are.
 ### `flow export`
 
 ```text
-bca flow export [app-root] --flow <id> [--to github] [-o <file>] [--dry-run] [--force]
+bca flow export [app-root] --flow <id> [--to github|azure-devops] [-o <file>] [--dry-run] [--force]
 ```
 
 Exports a flow as a pipeline of its own: for GitHub Actions, the workflow
@@ -1046,7 +1046,7 @@ mode of the trigger. See
 | Option | Value | Description |
 | --- | --- | --- |
 | `--flow` | id | The flow to export. Required. |
-| `--to` | `github` | What to export it for. Default: `github`. |
+| `--to` | `github`, `azure-devops` | What to export it for: GitHub Actions, or Azure Pipelines (`azure-pipelines.bc-atlas-<flow>.yml`). Default: `github`. |
 | `--output`, `-o` | path | Write this file instead; `-` prints the workflow. |
 | `--force` | flag | Replace a file that `bca flow export` did not write. |
 | `--dry-run` | flag | Say what would be written; write nothing. |

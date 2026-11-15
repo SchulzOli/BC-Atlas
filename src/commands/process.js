@@ -37,6 +37,7 @@ function modelText(process, { mined = false } = {}) {
   if (mined && process.timing) {
     const { timing } = process;
     lines.push("", `  Telemetry: ${timing.cases} case(s), ${timing.events} event(s), ${timing.from.slice(0, 10)} to ${timing.to.slice(0, 10)}. A case takes ${span(timing.throughput.avg)} on average, ${span(timing.throughput.p95)} for the slowest.`);
+    lines.push(`  How the events found their step: ${timing.matching.certain} only one step can have, ${timing.matching.person} by who did them, ${timing.matching.place} by where the case was.`);
     lines.push("  The ways really taken:");
     for (const variant of timing.variants) lines.push(`    ${String(variant.cases).padStart(4)} case(s)  ${variant.steps.join(" > ")}`);
     lines.push("  Between the steps:");

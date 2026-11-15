@@ -157,8 +157,26 @@ function editorAlSettings(inspect, { workspaceFolder, multiRoot = false } = {}) 
   return Object.fromEntries(Object.entries(layers).filter(([, layer]) => Object.keys(layer).length));
 }
 
+// What the builder of the view writes into .bca.json: it changes the graph, not the analysis.
+const BUILDER_SETTINGS = ["flows", "processes", "processTelemetry"];
+
+/**
+ * The part of a .bca.json that the analysis depends on, as text to compare: everything but what
+ * the builder writes. Undefined when the file cannot be read as JSON.
+ */
+function analysisPart(text) {
+  try {
+    const config = JSON.parse(text);
+    if (!config || typeof config !== "object" || Array.isArray(config)) return undefined;
+    return JSON.stringify(Object.fromEntries(Object.entries(config).filter(([key]) => !BUILDER_SETTINGS.includes(key))));
+  } catch {
+    return undefined;
+  }
+}
+
 module.exports = {
   AL_SETTINGS,
+  analysisPart,
   editorAlSettings,
   EXPORTS,
   expandWorkspaceFolder,
