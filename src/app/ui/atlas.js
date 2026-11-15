@@ -836,13 +836,231 @@
     const shown = atlas.lenses.some(({ id }) => id === "flows");
     return `<p class="text"><b>Your own workflows.</b> A flow says what to make from the source, when, and where to save it.</p>
       ${flows.length ? `<h3>Flows</h3>${flows.map((flow) => `<button class="item" role="menuitem" data-flow-act="edit" data-flow="${esc(flow.id)}"><b>${esc(flow.title)}</b><span>${plural(flow.steps.length, "step")}</span><small>${flow.when.length ? `on ${esc(flow.when.join(", "))}` : "only by name"}${flow.steps.length ? `: ${esc(flow.steps.map((step) => artifactOf(step.what)?.title ?? step.what).join(", "))}` : ""}</small></button>`).join("")}` : muted("None yet. A first one could write the documentation into the repository before every push.")}
-      <div class="actions"><button class="btn primary" data-flow-act="new">New flow…</button></div>
+      <div class="actions"><button class="btn primary" data-flow-act="board" title="Drag artifacts into flows, order the steps, and drop triggers onto a flow">Open the builder</button><button class="btn" data-flow-act="new">New flow…</button></div>
       ${shown ? `<button class="item" role="menuitem" data-flow-act="show" ${state.lens === "flows" && !state.inside ? 'aria-current="true"' : ""}><b>Show the flows</b><small>From the trigger that starts each to the artifacts it makes and where they are saved</small></button>` : ""}
       ${flowChanges.length ? `<hr><h3>${plural(flowChanges.length, "change")} to save</h3><ul class="pending">${flowChanges.map((operation) => `<li>${esc(describeOperation(operation))}</li>`).join("")}</ul>
         <div class="actions"><button class="btn primary" data-flow-act="save">Save the changes (JSON)</button><button class="btn" data-flow-act="forget">Forget them</button></div>
         ${muted("This file is a snapshot. Apply the changes to the project with <code>bca flow define --from flow-changes.json</code>.")}` : ""}
       <hr>${muted(LIVE ? "A change is written to <code>.bca.json</code>. <code>bca run</code> runs the flows of a trigger; <b>Run now</b> runs one here." : "The same from a terminal or an agent: <code>bca flow define</code>, or the MCP tool <code>bc_atlas_flow_define</code>. <code>bca run --flow &lt;id&gt;</code> runs one.")}`;
   };
+  /** What operations do to the flows, in a snapshot: the same as src/flows/config.js, without its checks. */
+  function flowLocal(operations) {
+    const { flows, triggers } = atlas.flows;
+    const filled = (entry) => Object.fromEntries(Object.entries(entry).filter(([, value]) => value !== "" && value !== undefined && value !== null));
+    for (const operation of operations) {
+      const flow = flows.find(({ id }) => id === operation.flow);
+      if (operation.op === "set") {
+        if (!flow) flows.push({ id: operation.flow, title: operation.title || operation.flow, when: operation.when ?? [], steps: [] });
+        else Object.assign(flow, operation.title ? { title: operation.title } : {}, operation.when ? { when: operation.when } : {});
+      } else if (operation.op === "deliver") triggers[operation.trigger].sync = operation.sync;
+      else if (!flow) continue;
+      else if (operation.op === "remove") flows.splice(flows.indexOf(flow), 1);
+      else if (operation.op === "unstep") flow.steps.splice(operation.at - 1, 1);
+      else if (operation.op === "move") flow.steps.splice(operation.at - 1 + operation.by, 0, ...flow.steps.splice(operation.at - 1, 1));
+      else if (operation.op === "step") {
+        const { op: _op, flow: _flow, at, ...step } = operation;
+        if (!at) flow.steps.push(filled(step));
+        else flow.steps[at - 1] = filled({ ...(step.what && step.what !== flow.steps[at - 1].what ? {} : flow.steps[at - 1]), ...step });
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------- builder
+  // The flows as a board to build on by drag and drop: the triggers and the artifacts on the
+  // left, one lane per flow. An artifact dropped into a lane is a step, where it was dropped; a
+  // step is dragged to its place in the order, or into another flow; a trigger dropped on a lane
+  // starts that flow; what is dropped on the bin is taken away. Every drop is the same
+  // operations the forms send (flowApply). A click on a step opens its form.
+  let boardOpen = false;
+  let drag;
+  const placeOfStep = (step) => step.to ?? artifactOf(step.what)?.to;
+  /** A place nothing saves to yet: docs/layers, then docs/layers-2. */
+  function freePlace(what) {
+    const base = artifactOf(what)?.to;
+    if (!base) return undefined;
+    const used = new Set(atlas.flows.flows.flatMap(({ steps }) => steps.map(placeOfStep)));
+    const dot = base.lastIndexOf(".") > base.lastIndexOf("/") ? base.lastIndexOf(".") : base.length;
+    for (let count = 1; ; count += 1) {
+      const candidate = count === 1 ? base : `${base.slice(0, dot)}-${count}${base.slice(dot)}`;
+      if (!used.has(candidate)) return candidate;
+    }
+  }
+  function boardHtml() {
+    const { flows, triggers, artifacts } = atlas.flows;
+    const chip = (name, flow) => `<span class="trigger" draggable="true" data-drag="trigger" data-name="${esc(name)}" ${flow ? `data-flow="${esc(flow)}"` : ""} title="${esc(triggers[name].summary)}${flow ? `. Delivery: ${esc(triggers[name].sync)}` : ""}">${esc(name)}</span>`;
+    const lane = (flow) => `<article class="lane" data-lane="${esc(flow.id)}">
+        <header><button class="name" data-board="flow" data-flow="${esc(flow.id)}" title="Title, triggers, and delivery">${esc(flow.title)}</button><small>${esc(flow.id)}</small><span class="spacer"></span>
+          ${LIVE ? `<button class="btn" data-flow-act="run" data-flow="${esc(flow.id)}" title="bca run --flow ${esc(flow.id)}" ${flow.steps.length ? "" : "disabled"}>Run now</button>` : ""}<button class="btn" data-flow-act="github" data-flow="${esc(flow.id)}" title="Export it as a workflow for GitHub Actions" ${flow.steps.length ? "" : "disabled"}>GitHub Actions</button></header>
+        <div class="row">
+          <div class="when" data-drop="when" data-flow="${esc(flow.id)}">${flow.when.map((name) => chip(name, flow.id)).join("") || '<span class="hint">Drop a trigger: without one it runs only by name</span>'}</div>
+          <span class="arrow" aria-hidden="true">→</span>
+          <ol class="steps" data-drop="steps" data-flow="${esc(flow.id)}">${flow.steps.map((step, index) => {
+    const { what, to, ...options } = step;
+    const detail = options.lens ?? options.story ?? options.view ?? options.language;
+    return `<li class="step" draggable="true" data-drag="step" data-flow="${esc(flow.id)}" data-at="${index + 1}" tabindex="0" role="button" title="Click to change it; drag it to another place, another flow, or the bin"><b>${index + 1}. ${esc(artifactOf(what)?.title ?? what)}${detail ? `: ${esc(detail)}` : ""}</b><small>${esc(placeOfStep(step) ? `→ ${placeOfStep(step)}` : artifactOf(what)?.plugin ? "task of a plugin" : "gate")}</small></li>`;
+  }).join("")}<li class="add"><button class="btn" data-board="add" data-flow="${esc(flow.id)}">${flow.steps.length ? "+" : "Drop an artifact here, or add a step…"}</button></li></ol>
+        </div></article>`;
+    return `<header class="top"><h2>Flow builder</h2><p>Drag an artifact into a flow to make it there, drag steps into their order, and drop a trigger on a flow to start it. Click a step for where it is saved and its options.</p><button class="close" data-board="close" aria-label="Close" title="Close (Esc)">×</button></header>
+      <div class="body">
+        <aside class="palette" aria-label="What to drag">
+          <h3>When</h3><div class="triggers">${Object.keys(triggers).map((name) => chip(name)).join("")}</div>
+          <h3>Make</h3>${artifacts.map((artifact) => `<div class="artifact" draggable="true" data-drag="artifact" data-what="${esc(artifact.id)}" title="${esc(artifact.summary)}"><b>${esc(artifact.title)}</b><small>${esc(artifact.plugin ? "task of a plugin" : artifact.to ?? "gate")}</small></div>`).join("")}
+          <div class="bin" data-drop="bin">Drop here to take it out of the flow</div>
+        </aside>
+        <div class="lanes">${flows.map(lane).join("")}
+          <article class="lane new" data-drop="new"><input type="text" id="board-title" placeholder="Title of a new flow" autocomplete="off" aria-label="Title of a new flow"><span class="hint">then drop an artifact or a trigger here to start it</span><button class="btn" data-board="create">Create</button></article>
+          ${flowChanges.length ? `<p class="kept">${plural(flowChanges.length, "change")} kept in this snapshot. <button class="btn" data-board="save">Save the changes (JSON)</button> and apply them with <code>bca flow define --from flow-changes.json</code>.</p>` : ""}
+        </div>
+      </div>`;
+  }
+  function boardDraw() {
+    const element = $("#board");
+    element.hidden = !boardOpen || !atlas?.flows;
+    if (element.hidden) return;
+    const title = $("#board-title")?.value ?? "";
+    element.innerHTML = boardHtml();
+    $("#board-title").value = title;
+  }
+  function boardShow(open) {
+    boardOpen = open;
+    boardDraw();
+  }
+  /** The id and title of a flow that starts on the board. */
+  function boardNewFlow(fallback) {
+    const title = $("#board-title").value.trim() || fallback;
+    let id = flowIdOf(title);
+    for (let count = 2; flowOf(id); count += 1) id = `${flowIdOf(title)}-${count}`;
+    $("#board-title").value = "";
+    return { op: "set", flow: id, title };
+  }
+  /** Where in the order something dropped at this point goes: before the first step that comes after it. */
+  function boardIndex(zone, event) {
+    const cards = $$(".step", zone);
+    const at = cards.findIndex((card) => {
+      const box = card.getBoundingClientRect();
+      return event.clientY < box.top || (event.clientY <= box.bottom && event.clientX < box.left + box.width / 2);
+    });
+    return at < 0 ? cards.length : at;
+  }
+  const boardMark = (zone, index) => {
+    for (const marked of $$("#board .before, #board .after, #board .over")) marked.classList.remove("before", "after", "over");
+    if (!zone) return;
+    zone.classList.add("over");
+    if (index === undefined) return;
+    const cards = $$(".step", zone);
+    if (cards[index]) cards[index].classList.add("before");
+    else cards.at(-1)?.classList.add("after");
+  };
+  /** What a drop means, as operations; nothing when it changes nothing. */
+  function boardDrop(zone, index) {
+    const kind = zone.dataset.drop;
+    const target = zone.dataset.flow;
+    if (kind === "bin") {
+      if (drag.kind === "step") return [{ op: "unstep", flow: drag.flow, at: drag.at }];
+      if (drag.kind === "trigger" && drag.flow) return [{ op: "set", flow: drag.flow, when: flowOf(drag.flow).when.filter((name) => name !== drag.name) }];
+      return [];
+    }
+    if (kind === "new") {
+      if (drag.kind === "trigger") return [{ ...boardNewFlow("New flow"), when: [drag.name] }];
+      if (drag.kind === "artifact") {
+        const start = boardNewFlow(artifactOf(drag.what).title);
+        return [start, { op: "step", flow: start.flow, what: drag.what, to: freePlace(drag.what) }];
+      }
+      return [];
+    }
+    const flow = flowOf(target);
+    if (drag.kind === "trigger") {
+      const operations = flow.when.includes(drag.name) ? [] : [{ op: "set", flow: target, when: [...flow.when, drag.name] }];
+      // From another flow: it moves.
+      if (drag.flow && drag.flow !== target) operations.push({ op: "set", flow: drag.flow, when: flowOf(drag.flow).when.filter((name) => name !== drag.name) });
+      return operations;
+    }
+    if (kind !== "steps") return [];
+    const count = flow.steps.length;
+    const position = index ?? count;
+    if (drag.kind === "artifact") {
+      return [{ op: "step", flow: target, what: drag.what, to: freePlace(drag.what) }, ...(position < count ? [{ op: "move", flow: target, at: count + 1, by: position - count }] : [])];
+    }
+    if (drag.kind === "step" && drag.flow === target) {
+      const to = position > drag.at - 1 ? position - 1 : position;
+      return to === drag.at - 1 ? [] : [{ op: "move", flow: target, at: drag.at, by: to - (drag.at - 1) }];
+    }
+    if (drag.kind === "step") {
+      // Into another flow: the step with its place and options, and out of the flow it came from.
+      return [{ op: "step", flow: target, ...flowOf(drag.flow).steps[drag.at - 1] }, ...(position < count ? [{ op: "move", flow: target, at: count + 1, by: position - count }] : []), { op: "unstep", flow: drag.flow, at: drag.at }];
+    }
+    return [];
+  }
+  const boardZone = (event) => {
+    if (!drag) return undefined;
+    const zone = event.target.closest?.("[data-drop]");
+    if (!zone) return event.target.closest?.(".lane[data-lane]") && drag.kind === "trigger" ? $("[data-drop=when]", event.target.closest(".lane")) : undefined;
+    // An artifact or a step dropped on the triggers of a lane goes to the end of its steps.
+    if (zone.dataset.drop === "when" && drag.kind !== "trigger") return $("[data-drop=steps]", zone.closest(".lane"));
+    if (zone.dataset.drop === "steps" && drag.kind === "trigger") return $("[data-drop=when]", zone.closest(".lane"));
+    return zone;
+  };
+  $("#board").addEventListener("dragstart", (event) => {
+    const item = event.target.closest?.("[data-drag]");
+    if (!item) return;
+    drag = { kind: item.dataset.drag, what: item.dataset.what, name: item.dataset.name, flow: item.dataset.flow, at: Number(item.dataset.at) || undefined };
+    // Firefox drags only what carries data.
+    event.dataTransfer.setData("text/plain", item.dataset.what ?? item.dataset.name ?? `${drag.flow} ${drag.at}`);
+    event.dataTransfer.effectAllowed = "copyMove";
+    item.classList.add("dragging");
+    $("#board").classList.toggle("removable", drag.kind === "step" || Boolean(drag.kind === "trigger" && drag.flow));
+  });
+  $("#board").addEventListener("dragover", (event) => {
+    const zone = boardZone(event);
+    if (!zone) return boardMark();
+    event.preventDefault();
+    event.dataTransfer.dropEffect = drag.kind === "artifact" || (drag.kind === "trigger" && !drag.flow) ? "copy" : "move";
+    boardMark(zone, zone.dataset.drop === "steps" ? boardIndex(zone, event) : undefined);
+    return undefined;
+  });
+  $("#board").addEventListener("drop", (event) => {
+    const zone = boardZone(event);
+    if (!zone) return;
+    event.preventDefault();
+    const operations = boardDrop(zone, zone.dataset.drop === "steps" ? boardIndex(zone, event) : undefined);
+    drag = undefined;
+    boardMark();
+    if (operations.length) flowApply(operations);
+  });
+  $("#board").addEventListener("dragend", () => {
+    drag = undefined;
+    boardMark();
+    $("#board").classList.remove("removable");
+    $("#board .dragging")?.classList.remove("dragging");
+  });
+  $("#board").addEventListener("click", (event) => {
+    const step = event.target.closest(".step");
+    if (step) return flowEdit(step.dataset.flow, Number(step.dataset.at));
+    const item = event.target.closest("button");
+    if (!item) return undefined;
+    if (item.dataset.flowAct) return flowClick(item);
+    const act = item.dataset.board;
+    if (act === "close") return boardShow(false);
+    if (act === "flow") return flowEdit(item.dataset.flow);
+    if (act === "add") return flowEdit(item.dataset.flow, "new");
+    if (act === "save") return download("flow-changes.json", `${JSON.stringify({ operations: flowChanges }, null, 2)}\n`, "application/json");
+    if (act === "create") {
+      if (!$("#board-title").value.trim()) return toast("A flow needs a title.");
+      return flowApply([boardNewFlow()]);
+    }
+    return undefined;
+  });
+  $("#board").addEventListener("keydown", (event) => {
+    if (event.key === "Escape") return boardShow(false);
+    // A step is a button for the keyboard too; the forms do what dragging does.
+    if ((event.key === "Enter" || event.key === " ") && event.target.classList?.contains("step")) {
+      event.preventDefault();
+      flowEdit(event.target.dataset.flow, Number(event.target.dataset.at));
+    }
+    if (event.key === "Enter" && event.target.id === "board-title") $('[data-board="create"]').click();
+    return undefined;
+  });
+
   /** Opens the Flow menu on one flow, or on one of its steps: from the card of a node. */
   function flowEdit(flow, step) {
     closeMenu();
@@ -856,20 +1074,27 @@
   /** Sends operations: written to .bca.json in VS Code, kept to save in an exported file. Then back to `next`. */
   async function flowApply(operations, next) {
     if (!operations.length) {
+      if (!openMenu) return undefined;
       flowForm = next;
       return flowRedraw();
     }
     if (!LIVE) {
+      // A snapshot shows the change and keeps it to save; the project gets it with bca flow define --from.
+      flowLocal(operations);
       flowChanges.push(...operations);
-      flowForm = undefined;
-      closeMenu();
-      return toast(`Kept: ${operations.map(describeOperation).join("; ")}. Save the changes from the Flow menu.`);
+      toast(`Kept: ${operations.map(describeOperation).join("; ")}. Save the changes from the Flow menu.`);
+      boardDraw();
+      if (!openMenu) return undefined;
+      flowForm = next?.flow && flowOf(next.flow) ? next : undefined;
+      return flowRedraw();
     }
     try {
       const result = await call("defineFlows", { operations });
       toast(result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed.");
+      const menu = Boolean(openMenu);
       closeMenu();
       await reload("Reading the flows");
+      if (!menu) return undefined;
       // The builder stays open on the flow, so one step follows the other.
       if (next?.flow && flowOf(next.flow)) {
         flowForm = next;
@@ -903,7 +1128,11 @@
       flowForm = undefined;
       return flowRedraw();
     }
-    const id = flowForm.flow;
+    if (act === "board") {
+      closeMenu();
+      return boardShow(true);
+    }
+    const id = item.dataset.flow ?? flowForm?.flow;
     if (act === "step") {
       flowForm = { flow: id, step: item.dataset.at === "new" ? "new" : Number(item.dataset.at) };
       return flowRedraw();
@@ -1122,6 +1351,7 @@
       await load();
       applied = { ...applied, key: undefined };
       await render();
+      boardDraw();
     } catch (error) {
       message(`<b>The analysis failed.</b><span>${esc(error.message)}</span>`);
       $("#sync-text").textContent = "Failed";
@@ -1135,6 +1365,7 @@
         load().then(() => {
           applied = { ...applied, key: undefined };
           toast("The source changed; the graph shows the new analysis.");
+          boardDraw();
           return render();
         }).catch(() => {});
       }

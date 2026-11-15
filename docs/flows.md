@@ -49,13 +49,34 @@ builder:
    trigger does with what was saved (its sync mode).
 4. **Run now** runs the flow at once.
 
+### Drag and drop
+
+**Open the builder** in the Flow menu shows the flows as a board: the triggers
+and the artifacts on the left, one lane per flow on the right.
+
+| Drag | Drop it on | It does |
+| --- | --- | --- |
+| an artifact | the steps of a flow | adds a step that makes it, where you dropped it, saved to a place nothing else saves to (`docs/layers`, then `docs/layers-2`) |
+| an artifact or a trigger | the dashed lane at the bottom | starts a new flow, with the title you typed there or the name of the artifact |
+| a step | another place among the steps | changes the order |
+| a step | another flow | moves it there, with its place and options |
+| a trigger | a flow | the flow runs on it; from another flow, it moves |
+| a step, or a trigger of a flow | the bin | takes it out of the flow |
+
+A click on a step opens its form (where it is saved, its options); a click on
+the title of a flow opens the flow's form (title, triggers, delivery, remove).
+**Run now** and **GitHub Actions** are on every lane. With the keyboard, a
+step is a button and **+** adds one through the form; the forms do everything
+dragging does.
+
 Every change is written to `.bca.json`. The lens **Flows** shows the result as
 a diagram from left to right: the trigger that starts a flow, the artifacts it
 makes, and where each is saved. **Change…** on the card of a flow or an
 artifact opens its form.
 
-An exported view (`bca export`) is a snapshot: its Flow menu collects the
-changes and saves them as `flow-changes.json`, which
+An exported view (`bca export`) is a snapshot: its Flow menu and its builder
+show each change and keep it, and save the changes as `flow-changes.json`,
+which
 `bca flow define --from flow-changes.json` applies to the project.
 
 ## From the terminal

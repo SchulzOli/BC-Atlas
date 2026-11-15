@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createService } from "../src/app/service.js";
+import { renderAppHtml } from "../src/app/page.js";
 import { Workspace } from "../src/app/workspace.js";
 import { createCapabilities, findCommand } from "../src/capabilities.js";
 import { ARTIFACTS, applyFlowOperations, artifactCatalog, defineFlows, exportFlow, flowId, flowOutputs, flowsConfig, flowsFor } from "../src/flows/index.js";
@@ -286,4 +287,16 @@ test("bca flow export writes a GitHub Actions workflow that runs the flow and de
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("the view has the flow builder: a board to drag artifacts, steps, and triggers on", () => {
+  const html = renderAppHtml({ mode: "vscode" });
+  assert.match(html, /<section id="board" class="float" aria-label="Flow builder" hidden><\/section>/u);
+  assert.ok(html.includes('data-flow-act="board"'), "the Flow menu opens it");
+  // What is dragged, and where it can be dropped.
+  for (const kind of ["artifact", "step", "trigger"]) assert.ok(html.includes(`data-drag="${kind}"`), kind);
+  for (const zone of ["steps", "when", "new", "bin"]) assert.ok(html.includes(`data-drop="${zone}"`), zone);
+  for (const event of ["dragstart", "dragover", "drop", "dragend"]) assert.ok(html.includes(`$("#board").addEventListener("${event}"`), event);
+  // A step is reachable without a pointer: it is a button that opens its form.
+  assert.ok(html.includes('class="step" draggable="true"') && html.includes('tabindex="0" role="button"'));
 });

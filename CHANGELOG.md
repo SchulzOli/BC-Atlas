@@ -21,6 +21,11 @@ follows [Semantic Versioning](https://semver.org/).
     order of the steps, the sync mode of each trigger, and **Run now**. In
     VS Code a change is written to `.bca.json`; an exported view saves the
     changes as `flow-changes.json`.
+  - **The flow builder** (**Open the builder** in the Flow menu) is a
+    board to build flows on by drag and drop: drag an artifact into a flow
+    to add a step where you drop it, drag steps into their order or into
+    another flow, drop a trigger on a flow to start it, and drop a step or
+    a trigger on the bin to take it out. A click on a step opens its form.
   - **The lens Flows** shows them as a diagram: the trigger that starts a
     flow, the artifacts it makes, and where each is saved.
   - **`bca flow`** shows the flows and the catalog of artifacts
