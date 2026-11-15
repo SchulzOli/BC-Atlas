@@ -492,6 +492,25 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
     return defineFlows(input, { ...values, operations: operations ?? [], dryRun });
   }));
 
+  server.registerTool("bc_atlas_flow_export", {
+    description: "Export a flow of .bca.json (see bc_atlas_flow_define) as a pipeline of its own: for GitHub Actions, the workflow file .github/workflows/bc-atlas-<flow>.yml. It runs bca run --flow <id> on the events of the flow's triggers (ci: pull requests and pushes to main; schedule: the cron of automation.triggers.schedule; always by hand) and delivers what the flow saves with the sync mode of the trigger (verify, artifact, pull-request, commit; without one, an artifact). Returns the path, the events, the delivery, and the workflow. dryRun writes nothing.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      flow: z.string().min(1).describe("The id of the flow"),
+      to: z.enum(["github"]).default("github"),
+      output: z.string().optional().describe("Another file than .github/workflows/bc-atlas-<flow>.yml"),
+      force: z.boolean().optional().describe("Replace a file that was not written by this export"),
+      dryRun: z.boolean().optional().describe("Return the workflow; write nothing")
+    }),
+    annotations: { readOnlyHint: false, idempotentHint: true }
+  }, tool(async ({ path: input, ...values }) => {
+    const { exportFlow } = await import("./flows/index.js");
+    const { file: _file, ...result } = await exportFlow(input, { ...values, version });
+    return result;
+  }));
+
   server.registerTool("bc_atlas_simulation_define", {
     description: "Define the simulation: the company of the battle test in the simulation section of .bca.json. Send operations to add or change an agent (a person who uses the app, with roles), a role (permission sets, task groups, what it must not do), a task group (process tests), or a requirement, to remove one, or to ground a process test on a recording of Business Central (a fact snapshot of the sync plugin). The changed simulation runs at once and the result comes back: who completes or is blocked where, who can do what they must not, and every finding. Without operations it returns the simulation as it is (derived: true when nothing is defined and the process tests describe the company). dryRun runs the change and writes nothing. A change keeps the fields it does not name; the first change starts from the company the process tests describe.",
     inputSchema: z.object({

@@ -64,7 +64,7 @@ gives the way of that process test.
 | **Check** | Puts a ring on every node with a finding, in the color of the worst one. The number is the errors and warnings. |
 | **Story** | Walks through the graph step by step. See [Stories](#stories). |
 | **Simulate** | Who uses the app: the company of the [battle test](./battle-test.md#define-the-simulation), its agents and roles, and a form to define each. A change runs the simulation again. What stops the simulation is listed at the top, one click from the person it is about. **Run, step by step** plays the [run](./battle-test.md#a-run-step-by-step) of one person on the graph: each step shows where the person is, and the picture is built by it. **Build the bundle** writes [everything as one artifact](./bundle.md) next to the project. There when the project has process tests. |
-| **Flow** | Your own workflows: a builder for [flows](./flows.md). A flow says what to make from the source (its steps, one artifact each), when (the triggers), and where to save each artifact. A change is written to `.bca.json`; **Run now** runs a flow at once. |
+| **Flow** | Your own workflows: a builder for [flows](./flows.md). A flow says what to make from the source (its steps, one artifact each), when (the triggers), and where to save each artifact. A change is written to `.bca.json`; **Run now** runs a flow at once, and **For GitHub Actions** writes it as a workflow of its own. |
 | **View** | Color, size, and grouping of the nodes; arrange again; reset. |
 | **Export** | Saves what you see. See [Export](#export). |
 | **Live** | What the graph is read from, and reading it again. See [In step with the source](#in-step-with-the-source). |

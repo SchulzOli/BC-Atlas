@@ -31,6 +31,13 @@ follows [Semantic Versioning](https://semver.org/).
   - **`bca run`** runs the flows of a trigger after its tasks and delivers
     what they save with the sync mode of the trigger; `--flow <id>` runs
     one by name. The pipeline `bca setup` writes knows their places.
+  - **`bca flow export --flow <id>`** writes a flow as a workflow of its
+    own for GitHub Actions (`.github/workflows/bc-atlas-<flow>.yml`): it
+    runs on the events of the flow's triggers (pull requests and pushes,
+    the schedule, by hand) and delivers what the flow saves as the sync
+    mode of the trigger says (verify, artifact, pull request, commit). The
+    Flow menu has the same as **Export → For GitHub Actions**, and agents
+    the MCP tool `bc_atlas_flow_export`.
   - The MCP tool **`bc_atlas_flow_define`**, and `flows` on `bc_atlas_run`.
   - [Guide](./docs/flows.md).
 

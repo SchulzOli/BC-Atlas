@@ -4,7 +4,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { UsageError } from "../cli/errors.js";
-import { defineFlows, describeFlows, flowsConfig, flowsText } from "../flows/index.js";
+import { defineFlows, describeFlows, exportFlow, flowsConfig, flowsText } from "../flows/index.js";
 import { displayPath } from "../output.js";
 
 const several = (value) => [value ?? []].flat().flatMap((item) => String(item).split(",")).map((item) => item.trim()).filter(Boolean);
@@ -117,4 +117,31 @@ export async function flowDefineCommand(input, values) {
   process.stdout.write(flowsText(flowsConfig({ flows: result.flows }, { pluginTasks: result.artifacts.filter(({ plugin }) => plugin).map(({ id }) => id) }), result));
   console.error([result.written ? `Wrote ${displayPath(result.file)}` : result.changed ? "Dry run: nothing written." : "Nothing changed.", ...hints(result)].join("\n"));
   return undefined;
+}
+
+/** `bca flow export`: a flow as a workflow for GitHub Actions. */
+export async function flowExportCommand(input, values) {
+  const stdout = values.output === "-";
+  let result;
+  try {
+    result = await exportFlow(input, { flow: values.flow, to: values.to, output: stdout ? undefined : values.output, force: Boolean(values.force), dryRun: Boolean(values.dryRun) || stdout, config: values.config, projectRoot: values.projectRoot });
+  } catch (error) {
+    throw usage(error);
+  }
+  if (values.format === "json") {
+    process.stdout.write(`${JSON.stringify({ ...result, file: displayPath(result.file), dryRun: Boolean(values.dryRun) || stdout }, null, 2)}\n`);
+    return;
+  }
+  if (stdout) {
+    process.stdout.write(result.content);
+    return;
+  }
+  const did = result.written ? (result.action === "create" ? "Wrote" : "Updated") : result.action === "unchanged" ? "Up to date:" : "Dry run: would write";
+  console.log([
+    `${did} ${displayPath(result.file)}`,
+    `  runs     bca run --flow ${result.flow}`,
+    `  on       ${result.events.join(", ")}`,
+    ...Object.entries(result.delivery).map(([trigger, sync]) => `  ${trigger.padEnd(8)} ${{ verify: "fails when what the flow saves differs from the commit", artifact: "uploads what the flow saves as an artifact", "pull-request": "opens a pull request with what the flow saves", commit: "commits what the flow saves" }[sync]}`),
+    ...(result.written ? ["Commit the file; GitHub runs it from the next push."] : [])
+  ].join("\n"));
 }

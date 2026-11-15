@@ -254,6 +254,17 @@ export class Workspace {
     return { passed: result.passed, flow, steps: result.flows[0]?.steps ?? [], outputs: result.outputs };
   }
 
+  /**
+   * Writes the workflow of one flow for GitHub Actions (src/flows/export.js).
+   * @returns { path, action, written, events, delivery }
+   */
+  async exportFlow({ flow, to = "github", force = false } = {}) {
+    const { root, config } = await this.configured();
+    const { exportFlow } = await import("../flows/index.js");
+    const { content: _content, file: _file, ...result } = await exportFlow(root, { flow, to, force, config });
+    return result;
+  }
+
   /** Saves a proposal as the configured architecture (and optionally accepts today's violations). */
   async adoptArchitecture(settings = {}, { updateBaseline = true } = {}) {
     const assessment = await this.assessment({ ...settings, propose: true });

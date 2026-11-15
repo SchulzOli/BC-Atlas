@@ -971,6 +971,34 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         ]
       }),
       command({
+        id: "flow.export",
+        area: "integrate",
+        argv: ["bca", "flow", "export", "[app-root]"],
+        purpose: "Export a flow as a pipeline of its own: for GitHub Actions, one workflow file that runs the flow on the events of its triggers and delivers what it saves.",
+        options: {
+          flow: string("The flow to export.", { group: SELECTION, value: "id", required: true }),
+          to: string("What to export it for.", { group: SELECTION, enum: ["github"], default: "github" }),
+          output: string("Write this file instead of .github/workflows/bc-atlas-<flow>.yml; - prints the workflow.", { group: OUTPUT, short: "o", value: "path" }),
+          force: flag("Replace a file that bca flow export did not write.", { group: OUTPUT }),
+          dryRun: flag("Say what would be written; write nothing.", { group: OUTPUT }),
+          format: string("text (default) or json: the file, the events, the delivery, and the workflow.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "file", pathOption: "output", default: ".github/workflows/bc-atlas-<flow>.yml" },
+        rules: [
+          "Events: the trigger ci is pull requests and pushes to main, schedule is the cron of automation.triggers.schedule (default 0 6 * * 1); every workflow can be started by hand. A flow with neither runs by hand only.",
+          "Delivery is the sync mode of the trigger: verify fails the run, artifact uploads what the flow saves, pull-request and commit (schedule) write it back. A trigger without a sync mode uploads an artifact.",
+          "The workflow runs bca run --flow <id>, so the flow stays in .bca.json: change it there and the workflow follows. Export again when its triggers, its places, or the delivery change.",
+          "The workflow of bca setup runs every flow of a trigger; export a flow that should be a workflow of its own, and take that trigger out of its \"when\" or leave bca setup's pipeline off."
+        ],
+        examples: [
+          "bca flow export --flow docs",
+          "bca flow export --flow docs --dry-run",
+          "bca flow export --flow docs -o - > docs.yml"
+        ]
+      }),
+      command({
         id: "plugins.list",
         area: "integrate",
         argv: ["bca", "plugins", "list", "[app-root]"],

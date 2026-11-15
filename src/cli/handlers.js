@@ -23,6 +23,7 @@ const MODULES = {
   run: ["../commands/run.js", "runCommand"],
   flow: ["../commands/flow.js", "flowCommand"],
   "flow.define": ["../commands/flow.js", "flowDefineCommand"],
+  "flow.export": ["../commands/flow.js", "flowExportCommand"],
   update: ["../commands/update.js", "updateCommand"],
   "plugins.list": ["../commands/plugins.js", "pluginsListCommand"],
   "plugins.show": ["../commands/plugins.js", "pluginsShowCommand"],

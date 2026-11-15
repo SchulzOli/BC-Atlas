@@ -69,6 +69,7 @@ export function createService(workspace) {
     // The Flow menu of the view: operations on the flows, and a run of one flow.
     defineFlows: (params = {}) => workspace.defineFlows(params),
     runFlow: (params = {}) => workspace.runFlow(params),
+    exportFlow: (params = {}) => workspace.exportFlow(params),
     updateProposal: (params = {}) => workspace.updateProposal({
       keep: params.keep,
       release: params.release || undefined,

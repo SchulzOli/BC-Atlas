@@ -130,3 +130,44 @@ places.
 
 `bca run --flow <id>` runs flows by name, whatever their triggers, and leaves
 the tasks of the trigger out.
+
+## Export a flow for GitHub Actions
+
+A flow can be a workflow of its own on GitHub:
+
+```sh
+bca flow export --flow docs            # writes .github/workflows/bc-atlas-docs.yml
+bca flow export --flow docs --dry-run  # says what it would write
+bca flow export --flow docs -o -       # prints the workflow
+```
+
+In the view, **Export → For GitHub Actions** in the form of a flow writes the
+same file. Commit it, and GitHub runs the flow.
+
+| The flow runs on | The workflow starts on |
+| --- | --- |
+| `ci` | pull requests and pushes to `main` |
+| `schedule` | the cron of `automation.triggers.schedule` (default `0 6 * * 1`, Mondays at 06:00 UTC) |
+| any, or none | by hand (**Run workflow** on GitHub) |
+
+The workflow checks out the repository, sets up Node.js and the BC Atlas
+cache, installs the AL compiler unless `.bca.json` turns it off, and runs
+`bca run --flow <id>`. What the flow saves is delivered with the sync mode of
+the trigger:
+
+| Sync mode | The workflow |
+| --- | --- |
+| `verify` | fails when what the flow saves differs from the commit |
+| `artifact`, or none | uploads what the flow saves as the artifact `bc-atlas-<flow>` |
+| `pull-request` (schedule) | opens or updates the pull request `bc-atlas/<flow>` |
+| `commit` (schedule) | commits what the flow saves to the branch |
+
+The workflow only calls the flow, so the flow stays in `.bca.json`: change a
+step's options there and the workflow follows. Export again when the triggers,
+the places, or the delivery change. A file that `bca flow export` did not
+write is not replaced without `--force`.
+
+The pipeline `bca setup` writes runs every flow of `ci` and `schedule` too. A
+flow that has a workflow of its own would then run twice: take the trigger out
+of its `when` (the exported workflow keeps its events until you export
+again), or do not use the pipeline of `bca setup`.

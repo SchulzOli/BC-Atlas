@@ -34,7 +34,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Export | `docs automation` | Print a CI pipeline that keeps generated guides in sync. |
 | Export | `docs glossary` | List supported documentation tags and prerequisite types. |
 | Integrate | `run` | Run the features and flows configured for a trigger and sync their output. |
-| | `flow`, `flow define` | Your own workflows: what to make from the source, when, and where to save it. |
+| | `flow`, `flow define`, `flow export` | Your own workflows: what to make from the source, when, and where to save it; a flow as a workflow for GitHub Actions. |
 | Integrate | `update` | Check for a new version, show the release notes, and update BC Atlas and the generated setup files. |
 | Integrate | `mcp` | Start the MCP stdio server for AI agents (also installed as `bca-mcp`). |
 
@@ -56,6 +56,7 @@ bca docs glossary [options]
 bca run [app-root] [options]
 bca flow [app-root] [options]
 bca flow define [app-root] [options]
+bca flow export [app-root] --flow <id> [options]
 bca update [app-root] [options]
 bca mcp
 bca help [<command>] [--format json]
@@ -926,6 +927,29 @@ flows as they are.
 | `--from` | path | Apply the operations of a JSON file: what the Flow menu of an exported view saves. |
 | `--dry-run` | flag | Check the change and show the result; write nothing. |
 | `--format` | `text` or `json` | Output mode. Default: `text`. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
+
+### `flow export`
+
+```text
+bca flow export [app-root] --flow <id> [--to github] [-o <file>] [--dry-run] [--force]
+```
+
+Exports a flow as a pipeline of its own: for GitHub Actions, the workflow
+`.github/workflows/bc-atlas-<flow>.yml`. It runs `bca run --flow <id>` on the
+events of the flow's triggers and delivers what the flow saves with the sync
+mode of the trigger. See
+[Export a flow for GitHub Actions](./flows.md#export-a-flow-for-github-actions).
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--flow` | id | The flow to export. Required. |
+| `--to` | `github` | What to export it for. Default: `github`. |
+| `--output`, `-o` | path | Write this file instead; `-` prints the workflow. |
+| `--force` | flag | Replace a file that `bca flow export` did not write. |
+| `--dry-run` | flag | Say what would be written; write nothing. |
+| `--format` | `text` or `json` | `json`: the file, the events, the delivery, and the workflow. Default: `text`. |
 | `--project-root` | path | Project root. |
 | `--config` | path | Configuration file. |
 

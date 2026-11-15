@@ -7,6 +7,7 @@ import { ARTIFACTS, makeArtifact, stepOutputs } from "./artifacts.js";
 import { applyFlowOperations, FLOW_SCHEMA, flowsConfig, stepJson } from "./config.js";
 
 export { ARTIFACTS } from "./artifacts.js";
+export { exportFlow, FLOW_EXPORT_TARGETS } from "./export.js";
 export { applyFlowOperations, FLOW_SCHEMA, flowId, flowOutputs, flowsConfig, flowsFor, flowsText, stepJson } from "./config.js";
 
 /**
