@@ -144,6 +144,9 @@ test("a process goes to BPMN 2.0 and comes back: lanes, tasks, ways, and what a 
     <sequenceFlow id="f4" sourceRef="c" targetRef="a" name="again"/><sequenceFlow id="f5" sourceRef="c" targetRef="e"/></process></definitions>`;
   const returns = importBpmn(foreign);
   assert.deepEqual([returns.id, returns.steps.map(({ id, lane, after }) => [id, lane, after])], ["returns", [["take-the-return", "Service", undefined], ["check-the-goods", "Warehouse", ["take-the-return"]], ["refund", "Service", [{ step: "check-the-goods", when: "fine" }]]]]);
+  // A task in a comment is no step, however the comment is nested or left open.
+  const commented = foreign.replace('<endEvent id="e"/>', '<endEvent id="e"/><!-<!-- x -->- <task id="z" name="Commented out"/> --><!-- <task id="y" name="Never closed"/>');
+  assert.deepEqual(importBpmn(commented).steps.map(({ id }) => id), ["take-the-return", "check-the-goods", "refund"]);
   assert.throws(() => importBpmn("<svg/>"), /not BPMN 2\.0/u);
 });
 

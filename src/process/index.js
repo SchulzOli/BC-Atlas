@@ -464,7 +464,14 @@ const unescape = (value) => String(value ?? "").replace(/&#10;|&#xA;/giu, " ").r
  * @returns { id, title, steps } as in .bca.json
  */
 export function importBpmn(xml, { id, title } = {}) {
-  const body = String(xml).replace(/<!--[\s\S]*?-->/gu, "");
+  // Comments are no part of the process. Removing one can leave what reads as another, so until none is left.
+  let body = String(xml);
+  for (let before; before !== body;) {
+    before = body;
+    body = body.replace(/<!--[\s\S]*?-->/gu, "");
+  }
+  // What is left of a comment that never closes is cut off: nothing after it is read as BPMN.
+  if (body.includes("<!--")) body = body.slice(0, body.indexOf("<!--"));
   const open = (name) => [...body.matchAll(new RegExp(`<(?:[A-Za-z0-9_]+:)?(${name})\\b([^>]*)>`, "gu"))];
   const processTag = open("process")[0]?.[0];
   if (!processTag) throw new Error("processes: this is not BPMN 2.0: it has no <process>");
