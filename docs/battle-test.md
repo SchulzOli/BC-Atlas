@@ -365,6 +365,9 @@ permission sets it names, and for every step what it needs and why.
   step, on the objects each touches. Whoever is blocked is red, and the
   finding on them says which permission is missing.
 - **German:** `--language de` writes the report and the steps in German.
+- **Processes:** the people of the simulation also run the
+  [processes](./processes.md) you draw in lanes: `bca process run` says where
+  a process stops and where the work waits.
 - **AI agents:** `bc_atlas_simulation_define` changes the company and runs
   it (see [Define the simulation](#define-the-simulation)); the MCP tool
   `bc_atlas_simulate` returns the report. An agent

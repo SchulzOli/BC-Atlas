@@ -4,6 +4,108 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## 0.23.0 - 2026-11-15
+
+### Added
+
+- **Processes: how the company works with the app.** A process is a model
+  in lanes, as in BPMN (`"processes"` in `.bca.json`): every step in the
+  lane of the role that does it, with the process test or recording that
+  shows it works, and what it comes after; a wire with a name is one way
+  of several.
+  - **Telemetry gives the time.** With exported telemetry of Business
+    Central (`processTelemetry.path`, `--telemetry`; or `processTelemetry.appId` and
+    `BCA_TELEMETRY_API_KEY` to ask Application Insights), mining and the
+    run have the cases, how long a case takes, the ways really taken
+    (the variants), per step how often and how long, and per way how
+    long the work waits. Findings from it: where the work waits longest,
+    rework, a step that is far slower than the others, a way that is
+    gone and not in the model, a step that is never seen.
+  - **Loops**: a wire may lead back to an earlier step, in the builder,
+    in `.bca.json`, and from BPMN.
+  - **Process mining**: `bca process --mine` discovers the processes as
+    they are from the process tests and the recordings of Business
+    Central: the order, the role that performs each step, the handovers,
+    and the events of each step (clicks, pages opened, code run, reads,
+    writes). `bca process define --adopt` takes one as a model.
+  - **The run** is the test and the demonstration: `bca process run`
+    walks each process with the people of the simulation and says who
+    performs a step, what stops a lane (the missing permissions), and
+    where the work changes hands. It exits with 1 when a process stops.
+  - **What to improve**: a step that is blocked, done by another role,
+    unstaffed, or unproven; a lane that is no role; work that goes back
+    and forth; steps the tests have and the model has not; an order the
+    app does not allow. Each with what to do.
+  - **The process builder** (**Flow → Open the process builder**): lanes
+    to build on. Take a mined process, drag process tests and recordings
+    into the lanes, drag a step to another lane, pull wires between
+    steps, name the ways, and **Play** the process on the graph.
+  - **The lens Process models**, a story per process, and the findings on
+    its steps.
+  - **BPMN 2.0** out (`bca process export`, **BPMN** in the builder) and
+    in (`bca process define --import`).
+  - The MCP tools `bc_atlas_process` and `bc_atlas_process_define`.
+  - [Guide](./docs/processes.md).
+
+- **Flows: your own workflows.** A flow says what to make from the source,
+  when, and where to save it: an id, the triggers it runs on, and steps,
+  each one artifact with its place and options (`"flows"` in `.bca.json`).
+  The artifacts are everything BC Atlas makes: `layers`, `report`,
+  `handbook`, `catalog`, `docs`, `simulate`, `check`, `view` (any lens or
+  story as a picture, a page, or data), `diagram`, `app`,
+  `knowledge-graph`, and the tasks of plugins. The same artifact can be
+  made more than once, with other options, in other places.
+  - **The Flow menu of the view** is the builder: a flow with its
+    triggers, its steps with a form for the options of each artifact, the
+    order of the steps, the sync mode of each trigger, and **Run now**. In
+    VS Code a change is written to `.bca.json`; an exported view saves the
+    changes as `flow-changes.json`.
+  - **The steps of a flow are a graph.** A step can come after others
+    (`"id"` and `"after"`, or `--id` and `--after`), if each of them
+    passed (the default), failed, or always. `bca run` runs every step
+    after those it waits for and skips one whose condition does not hold:
+    "write the pages only when the health check passed", "save the report
+    when it failed". Steps that wait in a circle are not valid. A flow
+    written as a list is unchanged: every step starts with the flow.
+  - **The flow builder** (**Open the builder** in the Flow menu) opens on a
+    **canvas** to place and wire freely: every trigger, flow, and step is
+    a node with ports. Drag nodes from the palette onto the canvas and pull
+    wires: a trigger into a flow, a flow into the steps it starts with, a
+    step into those that come after it. Wires branch and join, a click on
+    a wire says when it holds (passed, fails, in any case), and a wire
+    that would close a circle is refused. Select a node or a wire and
+    remove it, double-click a node for its form, pan and zoom. A node no
+    wire leads to stays on the canvas, in no flow; steps that leave a flow
+    together keep their wires and come back together. Where
+    the nodes are is kept in `.bca/flow-canvas.json`.
+  - **One rule for a step that is removed**, in a flow and in a process,
+    wherever it is removed (the canvas, a form, `--unstep`, an agent):
+    the way closes around it, and what came after it comes after what it
+    came after, on the condition it had. A step that came after nothing
+    else starts the flow, and BC Atlas names it. Taking a wire away
+    leaves a step in no flow, kept on the canvas with what ran only
+    through it. The earlier lanes board of the builder is gone: its
+    place is taken by the processes.
+  - **The lens Flows** shows them as a diagram: the trigger that starts a
+    flow, the artifacts it makes, and where each is saved.
+  - **`bca flow`** shows the flows and the catalog of artifacts
+    (`--artifacts`); **`bca flow define`** changes them (`--flow`,
+    `--step`, `--to`, `--set`, `--at`, `--up`, `--down`, `--unstep`,
+    `--remove`, `--deliver`, `--from`). A flow that is not valid is never
+    written.
+  - **`bca run`** runs the flows of a trigger after its tasks and delivers
+    what they save with the sync mode of the trigger; `--flow <id>` runs
+    one by name. The pipeline `bca setup` writes knows their places.
+  - **`bca flow export --flow <id>`** writes a flow as a workflow of its
+    own for GitHub Actions (`.github/workflows/bc-atlas-<flow>.yml`): it
+    runs on the events of the flow's triggers (pull requests and pushes,
+    the schedule, by hand) and delivers what the flow saves as the sync
+    mode of the trigger says (verify, artifact, pull request, commit). The
+    Flow menu has the same as **Export → For GitHub Actions**, and agents
+    the MCP tool `bc_atlas_flow_export`.
+  - The MCP tool **`bc_atlas_flow_define`**, and `flows` on `bc_atlas_run`.
+  - [Guide](./docs/flows.md).
+
 ## 0.22.0 - 2026-11-12
 
 ### Added

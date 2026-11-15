@@ -354,7 +354,9 @@ export async function buildLayers(workspace, { pictures = "auto", state, view = 
 
   // The graph itself, without what changes from run to run.
   const { updatedAt: _updatedAt, live: _live, version: _version, ...graph } = atlas;
-  files.set("atlas.json", `${JSON.stringify(graph, null, 1)}\n`);
+  // The graph, without what only the builder of the view needs (its catalog of artifacts, the BPMN of each process).
+  const { flows: _flows, processes: _processes, ...written } = graph;
+  files.set("atlas.json", `${JSON.stringify(written, null, 1)}\n`);
   // The view of this state, to open in a browser. It holds the BC Atlas that wrote it, so it is not compared.
   if (view) files.set("view.html", (await renderSnapshotHtml(workspace, { generatedAt: state?.date })).html);
   const manifest = {

@@ -37,7 +37,7 @@ export const SEVERITIES = Object.freeze(["error", "warning", "info"]);
 export const FAIL_LEVELS = Object.freeze(["error", "warning", "info", "never"]);
 export const REPORT_VIEWS = Object.freeze(["project", "module", "data", "contracts", "events", "ui"]);
 // What the view shows (the lenses of src/app/atlas.js), its forms, and what `bca view` writes.
-export const VIEW_LENSES = Object.freeze(["overview", "system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements", "simulation", "run"]);
+export const VIEW_LENSES = Object.freeze(["overview", "system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements", "simulation", "models", "flows", "run"]);
 export const VIEW_FORMS = Object.freeze(["2d", "diagram", "3d"]);
 export const VIEW_FORMATS = Object.freeze(["text", "json", "md", "csv", "svg", "png", "link"]);
 
@@ -527,6 +527,112 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         ]
       }),
       command({
+        id: "process",
+        area: "analyze",
+        argv: ["bca", "process", "[app-root]"],
+        purpose: "How the company works with the app: processes as models in lanes (BPMN), each step done by a role and shown to work by a process test or a recording. Shows the processes of the project (\"processes\" in .bca.json) and how each runs with the people of the simulation; --mine shows the processes as the process tests and recordings have them.",
+        options: {
+          mine: flag("Process mining: the processes as they are, discovered from the process tests and the recordings of Business Central. Who really does what in which order, and what each step does in the app (its events: clicks, pages opened, code run, reads, writes).", { group: SELECTION }),
+          format: string("text (default) or json: the processes, how each runs, the mined processes, and the roles and tests a step can name.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          tests: string("Folder with the process tests (default: simulation.tests, then docs.tests in .bca.json, then the app itself).", { group: GENERAL, value: "path" }),
+          recordings: string("Folder with recordings of Business Central (fact snapshots as JSON): they are mined and run like process tests (default: simulation.recordings).", { group: GENERAL, value: "path" }),
+          telemetry: string("A file or a folder of exported telemetry of Business Central (Application Insights: JSON or CSV), laid over the processes: how often a step is done, how long it takes, how long the work waits between two steps, and the ways really taken (default: processTelemetry.path in .bca.json).", { group: GENERAL, value: "path" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config,
+          compiler: projectOptions.compiler,
+          compilerLog: projectOptions.compilerLog
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.processes" },
+        rules: [
+          "A process has steps. A step is in the lane of who does it (a role of simulation.roles), names the test that shows it works (a process test by document ID, or a recording), and comes after other steps (after); a wire with a name (when) is one way of several, and a wire may lead back to an earlier step (a loop).",
+          "A step: runs (someone in the lane gets through its test), is blocked (the lane is stopped, with what is missing), is done by another lane, has nobody set to do it, or is unproven (it has no test).",
+          "BC Atlas reads the source and the recordings; it runs neither the app nor the tests.",
+          "Telemetry gives the time: an event belongs to the step whose test touches its object; where several steps touch it, to the step the person is seen doing, else the step the case is in. processTelemetry.case in .bca.json names the field that carries the case (a document number); without it a case is a session. processTelemetry.appId asks Application Insights, with the key in BCA_TELEMETRY_API_KEY."
+        ],
+        examples: ["bca process", "bca process --mine", "bca process ./app --recordings recordings --mine", "bca process --mine --telemetry telemetry", "bca process --format json"]
+      }),
+      command({
+        id: "process.define",
+        area: "analyze",
+        argv: ["bca", "process", "define", "[app-root]"],
+        purpose: "Define the processes: add or change a process and its steps (title, lane, test, what it comes after), take a mined process as a model, or import one from BPMN 2.0. Without options it shows the processes as they are.",
+        options: {
+          process: string("Add this process, or change it.", { group: SELECTION, value: "id" }),
+          title: string("The title of the process; with --at, the new title of that step.", { group: GENERAL, value: "text" }),
+          step: string("Add a step with this title.", { group: SELECTION, value: "title" }),
+          at: string("Change the step with this id instead of adding one: --title, --lane, --test, --after, --id.", { group: SELECTION, value: "step" }),
+          id: string("The id of the step (default: from its title).", { group: GENERAL, value: "name" }),
+          lane: string("Who does the step: a role of the company.", { group: GENERAL, value: "role" }),
+          test: string("What shows that the step works: a process test by document ID, or a recording. An empty value takes it away.", { group: GENERAL, value: "id" }),
+          after: string("The steps this step comes after, by id, comma-separated; <step>:<name> names the way (one of several): approve:approved. An empty value takes the wires away.", { group: GENERAL, value: "list" }),
+          unstep: string("Remove the step with this id: the way closes around it, and what came after it comes after what it came after.", { group: SELECTION, value: "step" }),
+          renameLane: string("Rename a lane of the process, as <lane>=<new name>.", { group: SELECTION, value: "lane=name" }),
+          remove: string("Remove a process. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
+          adopt: string("Take a mined process (bca process --mine) as a model, by its id. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
+          import: string("Take the process of a BPMN 2.0 file as a model: its lanes, its tasks, and the ways between them. --process and --title name it.", { group: SELECTION, value: "path" }),
+          from: string("Apply the operations of a JSON file: a list of { op, process, ... } (set, remove, step, unstep, wire, unwire, lane, adopt). What the builder of the view saves.", { group: SELECTION, value: "path" }),
+          dryRun: flag("Check the change and show the result; write nothing.", { group: OUTPUT }),
+          format: string("text (default) or json: the processes after the change.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          tests: string("Folder with the process tests, for --adopt.", { group: GENERAL, value: "path" }),
+          recordings: string("Folder with recordings of Business Central, for --adopt.", { group: GENERAL, value: "path" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.processes" },
+        rules: [
+          "A change names what it changes and keeps the rest. A process that is not valid never reaches .bca.json: two steps of one name, or a step that comes after a step that is not there. A wire that leads back to an earlier step is a loop.",
+          "From BPMN, events and gateways are not steps: a way through them is one way, named after the sequence flow that leaves the gateway. A way back is a loop of the process."
+        ],
+        examples: [
+          "bca process define --adopt purchase-requests",
+          "bca process define --process orders --title \"Sales orders\"",
+          "bca process define --process orders --step \"Take the order\" --lane \"Order processor\" --test sales-order-create",
+          "bca process define --process orders --step \"Post the order\" --lane Accountant --test sales-order-post --after take-the-order",
+          "bca process define --process orders --at post-the-order --after take-the-order:released",
+          "bca process define --process orders --import orders.bpmn",
+          "bca process define --process orders --unstep post-the-order"
+        ]
+      }),
+      command({
+        id: "process.run",
+        area: "analyze",
+        argv: ["bca", "process", "run", "[app-root]"],
+        purpose: "Test and demonstrate the processes: each one step by step with the people of the simulation. Who performs a step, who is stopped and by what, where the work changes hands, what each step does in the app, and what to improve.",
+        options: {
+          process: string("Only this process. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
+          format: string("text (default), markdown, or json. Inferred from the extension of --output.", { group: OUTPUT, short: "f", enum: ["text", "markdown", "json"] }),
+          output: string("Write to this file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
+          tests: string("Folder with the process tests (default: simulation.tests, then docs.tests in .bca.json, then the app itself).", { group: GENERAL, value: "path" }),
+          recordings: string("Folder with recordings of Business Central the people perform as well (default: simulation.recordings).", { group: GENERAL, value: "path" }),
+          telemetry: string("A file or a folder of exported telemetry of Business Central (Application Insights: JSON or CSV), laid over the processes: how often a step is done, how long it takes, how long the work waits between two steps, and the ways really taken (default: processTelemetry.path in .bca.json).", { group: GENERAL, value: "path" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config,
+          compiler: projectOptions.compiler,
+          compilerLog: projectOptions.compilerLog
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.processes" },
+        rules: [
+          "Exit code 1 when a process stops: a lane cannot perform a step, or a step names a test that is not there. A pipeline gates on it.",
+          "With telemetry, also: where the work waits longest, a step that is done again and again, a step that takes far longer than the others, a way the work really goes that the model has not, and a step that is never seen.",
+          "What to improve: a step nobody can show to work, a step another role does, a lane that is no role, work that goes back and forth between two lanes, steps the process tests have and the model has not, and an order the app does not allow."
+        ],
+        examples: ["bca process run", "bca process run --process purchase-requests", "bca process run --telemetry telemetry", "bca process run -o docs/processes.md", "bca process run --format json"]
+      }),
+      command({
+        id: "process.export",
+        area: "analyze",
+        argv: ["bca", "process", "export", "[app-root]"],
+        purpose: "Write a process as BPMN 2.0, for other tools: a pool with a lane per role, a user task per step, and an exclusive gateway where the way parts, with the diagram.",
+        options: {
+          process: string("The process to export.", { group: SELECTION, value: "id", required: true }),
+          output: string("The file to write (default: <process>.bpmn); - prints it.", { group: OUTPUT, short: "o", value: "path" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "file", pathOption: "output", default: "<process>.bpmn" },
+        examples: ["bca process export --process purchase-requests", "bca process export --process purchase-requests -o docs/purchase-requests.bpmn"]
+      }),
+      command({
         id: "architecture",
         area: "analyze",
         argv: ["bca", "architecture", "[app-root]"],
@@ -885,26 +991,125 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         id: "run",
         area: "integrate",
         argv: ["bca", "run", "[app-root]"],
-        purpose: "Run the features configured for a trigger (Git hook, pipeline, schedule) and sync their output.",
+        purpose: "Run the features and the flows configured for a trigger (Git hook, pipeline, schedule) and sync their output.",
         options: {
           trigger: string("Trigger whose tasks and sync mode are used.", {
             enum: ["pre-commit", "pre-push", "ci", "schedule", "manual"],
             default: "manual"
           }),
           tasks: string("Run these features instead: check, simulate, report, docs, codegraph, handbook, diagrams.", { value: "list" }),
+          flow: string("Run these flows by id instead of the tasks and flows of the trigger (see bca flow). Repeatable, or comma-separated.", { repeatable: true, value: "id" }),
           sync: string("Override the sync mode.", { enum: ["none", "verify", "stage", "artifact", "pull-request", "commit"] }),
           config: projectOptions.config,
           format: string("Output mode.", { enum: ["text", "json"], default: "text" })
         },
         output: { type: "json", when: "--format json", schema: "RunResult" },
         rules: [
-          "Exit code 1 when a task fails, check fails, or verify finds outdated files.",
+          "Exit code 1 when a task or a step of a flow fails, check fails, or verify finds outdated files.",
+          "A trigger runs its tasks, then the flows whose \"when\" names it; what both save is delivered with the sync mode of the trigger.",
           "verify and stage need Git; artifact, pull-request, and commit are performed by the pipeline."
         ],
         examples: [
           "bca run --trigger pre-commit",
           "bca run --trigger ci",
-          "bca run --tasks report,docs --sync verify"
+          "bca run --tasks report,docs --sync verify",
+          "bca run --flow docs"
+        ]
+      }),
+      command({
+        id: "flow",
+        area: "integrate",
+        argv: ["bca", "flow", "[app-root]"],
+        purpose: "Your own workflows: a flow says what to make from the source (the artifacts), when (the triggers), and where to save it. Shows the flows of the project (\"flows\" in .bca.json); bca flow define changes them, bca run runs them.",
+        options: {
+          artifacts: flag("List what a step can make: every artifact with where it saves by default and its options.", { group: SELECTION }),
+          format: string("text (default) or json: the flows, the triggers with their sync modes, and the artifacts.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.flows" },
+        rules: [
+          "A flow has an id, the triggers it runs on (when: pre-commit, pre-push, ci, schedule, manual), and steps. A step makes one artifact (what) and saves it (to), relative to the project.",
+          "Artifacts: layers, report, handbook, catalog, docs, simulate, check, view (any lens or story as a picture, a page, or data), diagram, app, knowledge-graph, and the tasks of plugins.",
+          "The same artifact can be made more than once with different options and places; two steps never save to the same place.",
+          "Steps are a graph: a step can come after others (after), if each passed, failed, or always; bca run skips a step whose condition does not hold."
+        ],
+        examples: ["bca flow", "bca flow --artifacts", "bca flow ./app --format json"]
+      }),
+      command({
+        id: "flow.define",
+        area: "integrate",
+        argv: ["bca", "flow", "define", "[app-root]"],
+        purpose: "Define the flows: add or change a flow, its triggers, and its steps (what to make and where to save it), and say how a trigger delivers what was saved. Without options it shows the flows as they are.",
+        options: {
+          flow: string("Add this flow, or change it: --title, --when, and its steps.", { group: SELECTION, value: "id" }),
+          title: string("The title of the flow.", { group: GENERAL, value: "text" }),
+          when: string("The triggers the flow runs on, comma-separated: pre-commit, pre-push, ci, schedule, manual. An empty value leaves only bca run --flow.", { group: GENERAL, value: "list" }),
+          step: string("Add a step that makes this artifact (see bca flow --artifacts); with --at, make that step this artifact instead.", { group: SELECTION, value: "artifact" }),
+          to: string("Where the step saves: a folder or a file, relative to the project. Without it, the default of the artifact.", { group: GENERAL, value: "path" }),
+          set: string("An option of the step, as <option>=<value>: lens=data, form=diagram, language=de. An empty value takes it away. Repeatable.", { group: GENERAL, repeatable: true, value: "option=value" }),
+          id: string("The name of the step, so that other steps can come after it: lowercase letters, digits, '.', '_', '-'.", { group: GENERAL, value: "name" }),
+          after: string("The steps this step comes after, by name, comma-separated; each can say when: gate (if it passed), gate:failed, gate:always. An empty value takes the wires away, and the step starts with the flow.", { group: GENERAL, value: "list" }),
+          at: string("Change the step with this number (from 1) instead of adding one: --to, --set, --id, --after, --step.", { group: SELECTION, value: "n" }),
+          unstep: string("Remove the step with this number: the way closes around it, and what came after it comes after what it came after, on the condition it had.", { group: SELECTION, value: "n" }),
+          up: string("Move the step with this number one up.", { group: SELECTION, value: "n" }),
+          down: string("Move the step with this number one down.", { group: SELECTION, value: "n" }),
+          remove: string("Remove a flow. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
+          deliver: string("How a trigger delivers what its tasks and flows save, as <trigger>=<sync mode>: none, verify, stage (hooks), artifact, pull-request, commit (pipelines). Repeatable.", { group: SELECTION, repeatable: true, value: "trigger=sync" }),
+          from: string("Apply the operations of a JSON file: a list of { op, flow, ... } (set, remove, step, wire, unwire, unstep, move, deliver). What the Flow menu of the view saves.", { group: SELECTION, value: "path" }),
+          dryRun: flag("Check the change and show the result; write nothing.", { group: OUTPUT }),
+          format: string("text (default) or json: the flows after the change.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.flows" },
+        rules: [
+          "A change names what it changes and keeps the rest. A flow that is not valid never reaches .bca.json.",
+          "Steps are a graph: a step with --after waits for the steps it names and runs if each passed (or failed, or always); without it, it starts with the flow. Steps that wait in a circle are not valid.",
+          "Removing a step is the same in a flow and in a process: the way closes around it. The command names every step that comes after something else now, and every step that came after nothing else and so starts the flow.",
+          "A trigger needs something that calls it: bca setup installs the Git hooks and the pipeline that run bca run --trigger <name>.",
+          "Sync modes: verify fails when what was saved differs from the commit, stage adds it to the commit (hooks); artifact, pull-request, and commit are steps of the pipeline bca setup writes."
+        ],
+        examples: [
+          "bca flow define --flow docs --title \"Documentation in the repository\" --when pre-push,ci",
+          "bca flow define --flow docs --step layers --to docs/system",
+          "bca flow define --flow docs --step view --to docs/pictures/data.svg --set lens=data --set form=diagram",
+          "bca flow define --flow docs --at 2 --set theme=dark",
+          "bca flow define --flow docs --step check --id gate",
+          "bca flow define --flow docs --at 1 --after gate",
+          "bca flow define --flow docs --step check --to docs/health.md --after gate:failed",
+          "bca flow define --flow docs --unstep 2",
+          "bca flow define --deliver ci=verify --deliver pre-push=stage",
+          "bca flow define --remove docs",
+          "bca flow define --from flow-changes.json --format json"
+        ]
+      }),
+      command({
+        id: "flow.export",
+        area: "integrate",
+        argv: ["bca", "flow", "export", "[app-root]"],
+        purpose: "Export a flow as a pipeline of its own: for GitHub Actions, one workflow file that runs the flow on the events of its triggers and delivers what it saves.",
+        options: {
+          flow: string("The flow to export.", { group: SELECTION, value: "id", required: true }),
+          to: string("What to export it for.", { group: SELECTION, enum: ["github"], default: "github" }),
+          output: string("Write this file instead of .github/workflows/bc-atlas-<flow>.yml; - prints the workflow.", { group: OUTPUT, short: "o", value: "path" }),
+          force: flag("Replace a file that bca flow export did not write.", { group: OUTPUT }),
+          dryRun: flag("Say what would be written; write nothing.", { group: OUTPUT }),
+          format: string("text (default) or json: the file, the events, the delivery, and the workflow.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "file", pathOption: "output", default: ".github/workflows/bc-atlas-<flow>.yml" },
+        rules: [
+          "Events: the trigger ci is pull requests and pushes to main, schedule is the cron of automation.triggers.schedule (default 0 6 * * 1); every workflow can be started by hand. A flow with neither runs by hand only.",
+          "Delivery is the sync mode of the trigger: verify fails the run, artifact uploads what the flow saves, pull-request and commit (schedule) write it back. A trigger without a sync mode uploads an artifact.",
+          "The workflow runs bca run --flow <id>, so the flow stays in .bca.json: change it there and the workflow follows. Export again when its triggers, its places, or the delivery change.",
+          "The workflow of bca setup runs every flow of a trigger; export a flow that should be a workflow of its own, and take that trigger out of its \"when\" or leave bca setup's pipeline off."
+        ],
+        examples: [
+          "bca flow export --flow docs",
+          "bca flow export --flow docs --dry-run",
+          "bca flow export --flow docs -o - > docs.yml"
         ]
       }),
       command({

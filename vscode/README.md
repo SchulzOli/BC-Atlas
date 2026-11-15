@@ -116,6 +116,34 @@ graph: the objects it runs through, the tables it changes, and whether it is
 synced into the project or waits for it. Plugins add lenses, findings, and
 stories of their own in the same way.
 
+## Flow: your own workflows, and how the company works
+
+**Flow**, in the toolbar, opens a builder with two sides.
+
+**Flows** is a canvas of nodes to place and wire freely: a trigger (a Git
+hook, the pipeline, a schedule) into a flow, a flow into the steps it starts
+with, a step into those that come after it. A step makes one thing from the
+source (the layered documentation, a picture of a lens, the handbook, the
+health check, ...) and saves it where you say. A click on a wire says when it
+holds: if the step before passed, failed, or in any case. **Run now** runs a
+flow, and **GitHub Actions** writes it as a workflow of its own. See
+[Flows](https://github.com/SchulzOli/BC-Atlas/blob/main/docs/flows.md).
+
+**Processes** is a board of lanes, as in BPMN: every step in the lane of the
+role that does it, with the process test or recording that shows it works.
+Take a process as the process tests have it (process mining), drag tests into
+the lanes, pull wires between the steps, and **Play** it with the people of
+the simulation: the steps turn green where a lane gets through and red where
+the process stops, and **What to improve** says why. With telemetry of
+Business Central, a step shows how often it is done and how long it takes,
+and a wire how long the work waits. **BPMN** saves the process for other
+tools. See
+[Processes](https://github.com/SchulzOli/BC-Atlas/blob/main/docs/processes.md).
+
+Every change is written to `.bca.json`. The same works from a terminal
+(`bca flow`, `bca process`) and for AI agents (the MCP tools
+`bc_atlas_flow_define`, `bc_atlas_process`, `bc_atlas_process_define`).
+
 ## Simulate: define who uses the app
 
 ![The Simulation lens: four people, their roles, the process tests each role does or must not do, requirements, and recordings](marketing/screenshots/simulation.png)

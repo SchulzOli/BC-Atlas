@@ -12,7 +12,8 @@ export const SECTIONS = [
     ["Clean architecture: find, resolve, enforce", "clean-architecture.md"],
     ["Split a monolith into apps", "modularization.md"],
     ["Architecture health checks", "health-checks.md"],
-    ["Battle test: simulate the use in your company", "battle-test.md"]
+    ["Battle test: simulate the use in your company", "battle-test.md"],
+    ["Processes: how the company works with the app", "processes.md"]
   ]],
   ["Export", [
     ["Architecture reports", "reports.md"],
@@ -28,6 +29,7 @@ export const SECTIONS = [
   ["Integrate", [
     ["AL toolchain: compiler, analyzers, AL settings", "al-toolchain.md"],
     ["Automation: hooks, schedules, and pipelines", "automation-and-ci.md"],
+    ["Flows: your own workflows", "flows.md"],
     ["Plugins (and the built-in sync plugin)", "plugins.md"],
     ["Agent integration and MCP", "agent-integration.md"],
     ["MCP JSON example", "examples/mcp.json"]

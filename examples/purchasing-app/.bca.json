@@ -18,6 +18,10 @@
       }
     ]
   },
+  "processTelemetry": {
+    "path": "telemetry",
+    "case": "requestNo"
+  },
   "simulation": {
     "company": "Contoso GmbH",
     "tests": "processes",

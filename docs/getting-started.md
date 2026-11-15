@@ -101,7 +101,7 @@ also fails on new dependencies that point the wrong way. See
 BC Atlas tells you in the terminal when a new version exists:
 
 ```text
-BC Atlas 0.22.0 is available (you have 0.21.0). Run "bca update" to see what's new.
+BC Atlas 0.23.0 is available (you have 0.22.0). Run "bca update" to see what's new.
 ```
 
 `bca update` shows the release notes, asks before installing, and moves your
@@ -120,6 +120,8 @@ let Dependabot propose updates instead. See
 | Keep a diagram file current while coding | `bca export --view module -o modules.svg --watch` | [CLI reference](./cli-reference.md#export) |
 | Feed the model to a script | `bca export --view project --format json > model.json` | [CLI reference](./cli-reference.md#export) |
 | Turn UI tests into user guides | `bca docs generate ./test --output-dir docs/guides` | [AL UI-test documentation](./al-ui-test-documentation.md) |
+| Say what is generated, when, and where it is saved | **Flow** in the BC Atlas view, or `bca flow define` | [Flows](./flows.md) |
+| See how the company works with the app, and where it stops or waits | **Flow → Open the process builder**, or `bca process --mine` and `bca process run` | [Processes](./processes.md) |
 | Let an AI agent use BC Atlas | `bca mcp` | [Agent integration](./agent-integration.md) |
 
 ## Run from a checkout

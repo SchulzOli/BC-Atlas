@@ -18,6 +18,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Get started | `setup agent` | Add a `/bca-setup` command for Claude Code, Copilot, or Cursor. |
 | Analyze | `check` | Score architecture health and fail CI on cycles, policy violations, architecture violations, or diagnostics. |
 | Analyze | `simulate` | Battle-test the app as your company uses it: agents with roles, permission sets, and task groups perform the process tests; fails CI when a role is blocked or can do what it must not, and writes the fit-gap analysis. |
+| Analyze | `process`, `process define`, `process run`, `process export` | How the company works with the app: processes in lanes (BPMN), mined from the process tests and recordings, run with the people of the simulation, with what to improve. |
 | Analyze | `graph query` | Query a saved graph as reusable JSON without analyzing AL. |
 | Export | `graph render` | Render a saved graph selection as SVG, HTML, DOT, or JSON. |
 | Analyze | `architecture` | Find a target architecture, list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
@@ -33,7 +34,8 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Export | `docs unset` | Remove documentation metadata from AL source. |
 | Export | `docs automation` | Print a CI pipeline that keeps generated guides in sync. |
 | Export | `docs glossary` | List supported documentation tags and prerequisite types. |
-| Integrate | `run` | Run the features configured for a trigger and sync their output. |
+| Integrate | `run` | Run the features and flows configured for a trigger and sync their output. |
+| | `flow`, `flow define`, `flow export` | Your own workflows: what to make from the source, when, and where to save it; a flow as a workflow for GitHub Actions. |
 | Integrate | `update` | Check for a new version, show the release notes, and update BC Atlas and the generated setup files. |
 | Integrate | `mcp` | Start the MCP stdio server for AI agents (also installed as `bca-mcp`). |
 
@@ -46,6 +48,10 @@ bca check [app-root] [options]
 bca simulate [app-root] [--tests <path>] [--company <path>] [-o <path>] [options]
 bca graph query <graph.json> [options]
 bca graph render <graph.json> [-o <path>] [options]
+bca process [app-root] [--mine] [options]
+bca process define [app-root] [options]
+bca process run [app-root] [--process <id>] [options]
+bca process export [app-root] --process <id> [-o <file>]
 bca architecture [app-root] [options]
 bca refactor move [app-root] --object <selector> --to <component> [--apply]
 bca refactor surface [app-root] [--component <component>] [--apply]
@@ -53,6 +59,9 @@ bca export [app-root] [--view <what>] [-o <path>] [options]
 bca docs <command> <test-root> [options]
 bca docs glossary [options]
 bca run [app-root] [options]
+bca flow [app-root] [options]
+bca flow define [app-root] [options]
+bca flow export [app-root] --flow <id> [options]
 bca update [app-root] [options]
 bca mcp
 bca help [<command>] [--format json]
@@ -447,6 +456,100 @@ describe. The changed simulation runs before anything is written, so a
 definition that is not valid never reaches `.bca.json`. The exit code is 0
 when the definition was applied, whatever the simulation finds;
 [`simulate`](#simulate) is the gate.
+
+
+### `process`
+
+```text
+bca process [app-root] [--mine] [--recordings <path>] [--format json]
+```
+
+Shows the [processes](./processes.md) of the project: models of how the
+company works with the app, in lanes, and how each runs with the people of the
+simulation. `--mine` shows the processes as the process tests and recordings
+have them.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--mine` | flag | Process mining: the processes as they are, with who does each step and its events (clicks, pages opened, code run, reads, writes). |
+| `--format` | `text` or `json` | `json`: the processes, their runs, the mined processes, and the roles and tests a step can name (`bc-atlas.processes/1`). Default: `text`. |
+| `--tests` | path | Folder with the process tests. |
+| `--recordings` | path | Folder with recordings of Business Central (fact snapshots). |
+| `--telemetry` | path | A file or folder of exported telemetry (Application Insights: JSON or CSV), for the time: how often and how long each step, the waits between steps, and the ways really taken. Default: `processTelemetry.path` in `.bca.json`. See [Its time: telemetry](./processes.md#its-time-telemetry). |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
+| `--compiler`, `--compiler-log` | | As for `check`. |
+
+### `process define`
+
+```text
+bca process define [app-root] --adopt <mined process>
+bca process define [app-root] --process <id> [--title <text>]
+bca process define [app-root] --process <id> --step <title> [--lane <role>] [--test <id>] [--after <steps>]
+bca process define [app-root] --process <id> --at <step> [--title <text>] [--lane <role>] [--test <id>] [--after <steps>]
+bca process define [app-root] --process <id> --import <file.bpmn>
+```
+
+Changes the processes in `.bca.json`. A change names what it changes and keeps
+the rest; a process that is not valid is never written.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--process` | id | Add this process, or change it. |
+| `--title` | text | The title of the process; with `--at`, of that step. |
+| `--step` | title | Add a step with this title. |
+| `--at` | step | Change the step with this id instead of adding one. |
+| `--id` | name | The id of the step (default: from its title). |
+| `--lane` | role | Who does the step: a role of the company. |
+| `--test` | id | What shows that the step works: a process test by document ID, or a recording. An empty value takes it away. |
+| `--after` | list | The steps it comes after, by id; `<step>:<name>` names the way: `approve:approved`. An empty value takes the wires away. |
+| `--unstep` | step | Remove the step: the way closes around it, and what came after it comes after what it came after. |
+| `--rename-lane` | lane=name | Rename a lane of the process. |
+| `--remove` | id | Remove a process. Repeatable. |
+| `--adopt` | id | Take a mined process as a model. Repeatable. |
+| `--import` | path | Take the process of a BPMN 2.0 file as a model. |
+| `--from` | path | Apply the operations of a JSON file: what the builder of an exported view saves. |
+| `--dry-run` | flag | Check the change and show the result; write nothing. |
+| `--format` | `text` or `json` | Output mode. Default: `text`. |
+| `--tests`, `--recordings` | path | Where to mine from, for `--adopt`. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
+
+### `process run`
+
+```text
+bca process run [app-root] [--process <id>] [-o <file>] [--format text|markdown|json]
+```
+
+Tests and demonstrates the processes: each one step by step with the people of
+the simulation, and what to improve. Exits with `1` when a process stops.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--process` | id | Only this process. Repeatable. |
+| `--format` | `text`, `markdown`, `json` | Inferred from the extension of `--output`. Default: `text`. |
+| `--output`, `-o` | path | Write to this file instead of stdout. |
+| `--tests` | path | Folder with the process tests. |
+| `--recordings` | path | Folder with recordings of Business Central. |
+| `--telemetry` | path | A file or folder of exported telemetry, for the time and the findings from it. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
+| `--compiler`, `--compiler-log` | | As for `check`. |
+
+### `process export`
+
+```text
+bca process export [app-root] --process <id> [-o <file.bpmn>]
+```
+
+Writes a process as BPMN 2.0 with its diagram, for other tools.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--process` | id | The process to export. Required. |
+| `--output`, `-o` | path | The file to write (default: `<process>.bpmn`); `-` prints it. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
 
 ## Export
 
@@ -857,9 +960,11 @@ commands, target filename, and pipeline content.
 ```text
 bca run [app-root] --trigger pre-commit|pre-push|ci|schedule|manual
 bca run [app-root] --tasks check,simulate,report [--sync verify]
+bca run [app-root] --flow docs
 ```
 
-Runs the tasks configured for a trigger in `.bca.json` and syncs their output.
+Runs the tasks configured for a trigger in `.bca.json`, then the
+[flows](./flows.md) of that trigger, and syncs their output.
 Git hooks, schedules, pipelines, and the GitHub Action all call this command.
 See [Automation](./automation-and-ci.md).
 
@@ -867,12 +972,87 @@ See [Automation](./automation-and-ci.md).
 | --- | --- | --- |
 | `--trigger` | `pre-commit`, `pre-push`, `ci`, `schedule`, `manual` | Trigger whose tasks and sync mode are used. Default: `manual`. |
 | `--tasks` | list | Run these tasks instead: `check`, `simulate`, `report`, `docs`, `codegraph`, `handbook`, `diagrams`, `sync`. |
+| `--flow` | id | Run these flows by id instead of the tasks and flows of the trigger. Repeatable, or comma-separated. |
 | `--sync` | `none`, `verify`, `stage`, `artifact`, `pull-request`, `commit` | Override the sync mode. |
 | `--config` | path | Configuration file. |
 | `--format` | `text` or `json` | Output mode. Default: `text`. |
 
-Exits with `1` when a task fails, `check` or `simulate` finds blocking issues,
-or `verify` finds outdated generated files.
+Exits with `1` when a task or a step of a flow fails, `check` or `simulate`
+finds blocking issues, or `verify` finds outdated generated files.
+
+### `flow`
+
+```text
+bca flow [app-root] [--artifacts] [--format json]
+```
+
+Shows the [flows](./flows.md) of the project: your own workflows, each with
+the triggers it runs on and its steps (what it makes, and where each artifact
+is saved). `bca run` runs them.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--artifacts` | flag | List what a step can make: every artifact with where it saves by default and its options. |
+| `--format` | `text` or `json` | `json`: the flows, the triggers with their sync modes, and the artifacts (`bc-atlas.flows/1`). Default: `text`. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
+
+### `flow define`
+
+```text
+bca flow define [app-root] --flow <id> [--title <text>] [--when <triggers>]
+bca flow define [app-root] --flow <id> --step <artifact> [--to <path>] [--set <option>=<value>]
+bca flow define [app-root] --flow <id> --at <n> [--to <path>] [--set <option>=<value>]
+bca flow define [app-root] --deliver <trigger>=<sync mode>
+```
+
+Changes the flows in `.bca.json`. A change names what it changes and keeps the
+rest; a flow that is not valid is never written. Without options it shows the
+flows as they are.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--flow` | id | Add this flow, or change it. |
+| `--title` | text | The title of the flow. |
+| `--when` | list | The triggers the flow runs on: `pre-commit`, `pre-push`, `ci`, `schedule`, `manual`. An empty value leaves only `bca run --flow`. |
+| `--step` | artifact | Add a step that makes this artifact; with `--at`, make that step this artifact instead. |
+| `--to` | path | Where the step saves: a folder or a file, relative to the project. Without it, the default of the artifact. |
+| `--set` | option=value | An option of the step, such as `lens=data`. An empty value takes it away. Repeatable. |
+| `--id` | name | The name of the step, so that other steps can come after it. |
+| `--after` | list | The steps this step comes after, by name; each can say when: `gate` (if it passed), `gate:failed`, `gate:always`. An empty value takes the wires away. See [Steps that come after others](./flows.md#steps-that-come-after-others). |
+| `--at` | n | Change the step with this number (from 1) instead of adding one. |
+| `--unstep` | n | Remove the step with this number: the way closes around it, and what came after it comes after what it came after. The command names every step that lost what it waited for. |
+| `--up`, `--down` | n | Move the step with this number one up or down. |
+| `--remove` | id | Remove a flow. Repeatable. |
+| `--deliver` | trigger=sync | How a trigger delivers what its tasks and flows save: its sync mode. Repeatable. |
+| `--from` | path | Apply the operations of a JSON file: what the Flow menu of an exported view saves. |
+| `--dry-run` | flag | Check the change and show the result; write nothing. |
+| `--format` | `text` or `json` | Output mode. Default: `text`. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
+
+### `flow export`
+
+```text
+bca flow export [app-root] --flow <id> [--to github] [-o <file>] [--dry-run] [--force]
+```
+
+Exports a flow as a pipeline of its own: for GitHub Actions, the workflow
+`.github/workflows/bc-atlas-<flow>.yml`. It runs `bca run --flow <id>` on the
+events of the flow's triggers and delivers what the flow saves with the sync
+mode of the trigger. See
+[Export a flow for GitHub Actions](./flows.md#export-a-flow-for-github-actions).
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--flow` | id | The flow to export. Required. |
+| `--to` | `github` | What to export it for. Default: `github`. |
+| `--output`, `-o` | path | Write this file instead; `-` prints the workflow. |
+| `--force` | flag | Replace a file that `bca flow export` did not write. |
+| `--dry-run` | flag | Say what would be written; write nothing. |
+| `--format` | `text` or `json` | `json`: the file, the events, the delivery, and the workflow. Default: `text`. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
 
 ### `plugins list`, `plugins show`, `plugins doctor`, `plugins new`
 

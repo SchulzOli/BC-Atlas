@@ -9,6 +9,7 @@ import { EXPORT_FORMATS } from "../docs/export.js";
 import { loadCorpus } from "../docs/model.js";
 import { loadPlugins } from "../plugins/registry.js";
 import { CI_PROVIDERS, DEFAULTS, HOOK_MANAGERS, outputsFor, parseList, TASKS, validateCron } from "./config.js";
+import { flowOutputs, flowsConfig, flowsFor } from "../flows/config.js";
 import { findGitRoot, git, hostOf, remoteUrl } from "./git.js";
 import {
   azurePipeline, GENERATED_MARKER, githubWorkflow, mergeHook, PIPELINE_FILES, validatePipelineSync
@@ -524,9 +525,11 @@ export async function applySetup(input, rawAnswers = {}, { dryRun = false, force
         if (plugins.pluginForTask(task) && !pluginOutputs[task]) pluginOutputs[task] = await plugins.taskOutputs(task, config);
       }
     }
+    // What the flows of a trigger save is delivered like the output of its tasks.
+    const flows = flowsConfig(config, { pluginTasks: Object.keys(plugins.taskSummaries()) });
     for (const name of ["ci", "schedule"]) {
       const trigger = config.automation.triggers[name];
-      if (trigger) triggers[name] = { ...trigger, outputs: outputsFor(trigger.tasks, config, appPath, pluginOutputs) };
+      if (trigger) triggers[name] = { ...trigger, outputs: [...new Set([...outputsFor(trigger.tasks, config, appPath, pluginOutputs), ...(flowOutputs(flowsFor(flows, name)).map((output) => path.posix.join(appPath.replaceAll("\\", "/") || ".", output)))])] };
     }
     // CI uses the AL compiler like the developer's machine, unless .bca.json turns it off.
     const alTools = (config.al?.compiler ?? "auto") !== "off";

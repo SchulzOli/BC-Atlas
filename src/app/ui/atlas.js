@@ -27,7 +27,7 @@
     ["publisher", "Publisher"], ["version", "Version"], ["access", "Access"], ["obsolete", "Obsolete"], ["status", "Status"], ["severity", "Severity"],
     ["roles", "Roles"], ["permissionSets", "Permission sets"], ["objects", "Objects"], ["steps", "Steps"], ["handovers", "Handovers"],
     ["procedures", "Procedures"], ["lines", "Lines"], ["complexity", "Complexity"], ["uses", "Uses"], ["usedBy", "Used by"],
-    ["wrongWay", "Wrong way"], ["instability", "Instability"], ["canBeApp", "Can be an app"], ["header", "Declaration"]
+    ["runsOn", "Runs on"], ["delivery", "Delivery"], ["saves", "Saves to"], ["options", "Options"], ["wrongWay", "Wrong way"], ["instability", "Instability"], ["canBeApp", "Can be an app"], ["header", "Declaration"]
   ];
 
   async function inflate(base64) {
@@ -70,6 +70,7 @@
     found = S.index(atlas);
     ({ position, findingsOf } = found);
     insides.clear();
+    canvasRead();
   }
   /** One object from the inside (src/app/atlas.js), or nothing when it is not part of an export. */
   async function inside(id) {
@@ -350,6 +351,9 @@
     // Simulate is there when the project has process tests to perform.
     $("#simulate-button").hidden = !atlas.simulation;
     $("#simulate-button").setAttribute("aria-pressed", String(running || (state.lens === "simulation" && !state.inside)));
+    // Flow is there when the flows of the project could be read.
+    $("#flow-button").hidden = !atlas.flows;
+    $("#flow-button").setAttribute("aria-pressed", String(state.lens === "flows" && !state.inside));
     const sync = $("#sync-button");
     sync.className = `tool status menu ${LIVE ? "live" : ""}`;
     $("#sync-text").textContent = LIVE ? "Live" : new Date(SNAPSHOT.generatedAt).toLocaleDateString();
@@ -430,6 +434,7 @@
         <button class="btn" data-act="focus">${state.focus === node.id ? "Show all" : "Neighbors"}</button>
         ${node.file ? `<button class="btn" data-act="source">${LIVE ? "Go to source" : "Source"}</button>` : ""}
         <button class="btn" data-act="link">Link</button>
+        ${atlas.flows && (node.kind === "flow" || node.kind === "artifact") ? '<button class="btn" data-act="flow" title="Change it in the Flow menu">Change…</button>' : ""}
         ${atlas.simulation && SIM_NODES[node.kind] ? `<button class="btn" data-act="define" title="Change it in the simulation">${node.kind === "task" ? "Ground…" : "Define…"}</button>` : ""}
       </div>
       ${sides.length ? `<h3>See in</h3><div class="chips sides">${sides.map((lens) => `<button class="chip" data-side="${esc(lens.id)}" title="${esc(lens.summary)}">${esc(lens.title)}</button>`).join("")}</div>` : ""}
@@ -460,6 +465,11 @@
     if (act === "focus") return set({ focus: state.focus === entry.node.id ? "" : entry.node.id, story: "" });
     if (act === "source") return source(entry.node);
     if (act === "link") return copyLink();
+    if (act === "flow") {
+      // flow::<id>, or artifact::<flow>::<step>.
+      const [, flow, step] = entry.node.id.split("::");
+      return flowEdit(flow, step ? Number(step) : undefined);
+    }
     if (act === "define") {
       // The node of a person, a role, a requirement, or a process test, as the simulation names it.
       const kind = SIM_NODES[entry.node.kind];
@@ -767,6 +777,1332 @@
     return simulateApply(operation);
   }
 
+  // ------------------------------------------------------------------ flows
+  // Flow: your own workflows. The menu builds them: a flow, the triggers it runs on, and its
+  // steps, each an artifact made from the source and the place it is saved to. Every change is
+  // an operation (src/flows/config.js). In VS Code it is written to .bca.json; an exported file
+  // collects the changes to save.
+  let flowForm;
+  const flowChanges = [];
+  const flowOf = (id) => atlas.flows.flows.find((flow) => flow.id === id);
+  const artifactOf = (id) => atlas.flows.artifacts.find((artifact) => artifact.id === id);
+  const flowIdOf = (title) => title.toLowerCase().normalize("NFKD").replace(/[^a-z0-9._]+/gu, "-").replace(/^[-._]+|-+$/gu, "") || "flow";
+  const stepLine = (step) => {
+    const { what, to, id: _id, after: _after, ...options } = step;
+    const detail = Object.entries(options).map(([key, value]) => `${key}=${value}`).join(", ");
+    const waits = [step.after ?? []].flat().map((wire) => (typeof wire === "string" ? wire.replace(":", " if ") : `${wire.step}${wire.if && wire.if !== "passed" ? ` if ${wire.if}` : ""}`)).join(", ");
+    return `${to ? `→ ${to}` : artifactOf(what)?.plugin ? "task of a plugin" : "gate: it only passes or fails"}${detail ? ` · ${detail}` : ""}${waits ? ` · after ${waits}` : ""}`;
+  };
+  const describeOperation = (operation) => [operation.op, operation.flow ?? operation.trigger, operation.what, operation.at ? `step ${operation.at}` : "", operation.to ? `→ ${operation.to}` : "", operation.sync].filter(Boolean).join(" ");
+  const muted = (text) => `<p class="text" style="color:var(--muted);font-size:12.5px">${text}</p>`;
+  function flowStepForm() {
+    const flow = flowOf(flowForm.flow);
+    const existing = typeof flowForm.step === "number" ? flow.steps[flowForm.step - 1] : undefined;
+    const what = flowForm.what ?? existing?.what ?? "layers";
+    const artifact = artifactOf(what);
+    const same = existing?.what === what ? existing : {};
+    const waits = existing ? [existing.after ?? []].flat().map((wire) => (typeof wire === "string" ? wire.replace(":", " if ") : `${wire.step}${wire.if && wire.if !== "passed" ? ` if ${wire.if}` : ""}`)) : [];
+    const field = (option) => {
+      const value = String(same[option.name] ?? "");
+      return `<label class="field wide" title="${esc(option.hint ?? "")}"><span>${esc(option.title)}</span>${option.values
+        ? `<select data-o="${esc(option.name)}"><option value="">Default</option>${option.values.map((item) => `<option ${item === value ? "selected" : ""}>${esc(item)}</option>`).join("")}</select>`
+        : `<input type="text" data-o="${esc(option.name)}" value="${esc(value)}" placeholder="${esc(option.hint ?? "")}" autocomplete="off" spellcheck="false">`}</label>`;
+    };
+    const lensOptions = what === "view" ? `<datalist id="flow-lenses">${atlas.lenses.map((lens) => `<option value="${esc(lens.id)}">${esc(lens.title)}</option>`).join("")}</datalist><datalist id="flow-stories">${atlas.stories.filter(({ kind }) => kind !== "run").map((story) => `<option value="${esc(story.id)}">${esc(story.title)}</option>`).join("")}</datalist>` : "";
+    return `<h3>${existing ? `Step ${flowForm.step} of ${esc(flow.title)}` : `New step of ${esc(flow.title)}`}</h3>
+      <label class="field wide"><span>Make</span><select data-flow-what>${atlas.flows.artifacts.map((item) => `<option value="${esc(item.id)}" ${item.id === what ? "selected" : ""}>${esc(item.title)}</option>`).join("")}</select></label>
+      ${muted(`${esc(artifact.summary)}.${artifact.stable === false ? " It differs on every run, so it is not for a trigger that verifies." : ""}`)}
+      ${artifact.plugin ? muted("A task of a plugin saves where its own section of <code>.bca.json</code> says.") : `<label class="field wide" title="Relative to the project"><span>Save to</span><input type="text" data-f="to" value="${esc(same.to ?? "")}" placeholder="${esc(artifact.to ?? "nowhere: only pass or fail")}" autocomplete="off" spellcheck="false"></label>
+      ${muted(artifact.target === "folder" ? "A folder of the project." : `One file: ${artifact.extensions.map((item) => `.${esc(item)}`).join(", ")}.${artifact.optional ? " Without a place it only passes or fails." : ""}`)}`}
+      ${artifact.options.map(field).join("").replace('data-o="lens"', 'data-o="lens" list="flow-lenses"').replace('data-o="story"', 'data-o="story" list="flow-stories"')}${lensOptions}
+      <label class="field wide" title="Other steps can come after it by this name"><span>Name</span><input type="text" data-f="id" value="${esc(existing?.id ?? "")}" placeholder="none: nothing waits for it" autocomplete="off" spellcheck="false"></label>
+      ${existing ? muted(waits.length ? `Comes after ${esc(waits.join(", "))}. Wire it on the canvas of the builder.` : "Starts with the flow. To let it wait for another step, wire it on the canvas of the builder.") : ""}
+      <hr><div class="actions"><button class="btn primary" data-flow-act="step-apply">Apply</button>${existing ? '<button class="btn" data-flow-act="step-remove">Remove</button>' : ""}<button class="btn" data-flow-act="step-back">Back</button></div>`;
+  }
+  function flowFormHtml() {
+    if (flowForm.step !== undefined) return flowStepForm();
+    const flow = flowForm.flow ? flowOf(flowForm.flow) : undefined;
+    const { triggers, syncModes } = atlas.flows;
+    const chosen = new Set(flow?.when ?? []);
+    return `<h3>${flow ? `Flow ${esc(flow.id)}` : "New flow"}</h3>
+      <label class="field"><span>Title</span><input type="text" data-f="title" value="${esc(flow?.title ?? "")}" placeholder="Documentation in the repository" autocomplete="off"></label>
+      <fieldset class="checks"><legend>When: the triggers it runs on</legend>${Object.entries(triggers).map(([name, trigger]) => `<label title="${esc(trigger.summary)}"><input type="checkbox" data-f="when" value="${esc(name)}" ${chosen.has(name) ? "checked" : ""}>${esc(name)} <small>${esc(trigger.summary)}</small></label>`).join("")}</fieldset>
+      ${flow ? `<h3>What it makes, and where it is saved</h3>${flow.steps.map((step, index) => `<div class="step"><button class="item" role="menuitem" data-flow-act="step" data-at="${index + 1}"><b>${index + 1}. ${esc(artifactOf(step.what)?.title ?? step.what)}</b><small>${esc(stepLine(step))}</small></button><button class="mini" data-flow-act="up" data-at="${index + 1}" title="Earlier" aria-label="Move step ${index + 1} up" ${index ? "" : "disabled"}>↑</button><button class="mini" data-flow-act="down" data-at="${index + 1}" title="Later" aria-label="Move step ${index + 1} down" ${index + 1 < flow.steps.length ? "" : "disabled"}>↓</button></div>`).join("") || muted("No steps yet.")}
+      <div class="actions"><button class="btn" data-flow-act="step" data-at="new">Add a step…</button></div>
+      ${flow.when.length ? `<h3>Delivery: what happens to what was saved</h3>${flow.when.map((name) => `<label class="field wide" title="${esc(syncModes[triggers[name].sync])}"><span>${esc(name)}</span><select data-deliver="${esc(name)}">${triggers[name].modes.map((mode) => `<option value="${esc(mode)}" ${mode === triggers[name].sync ? "selected" : ""} title="${esc(syncModes[mode])}">${esc(mode)}: ${esc(syncModes[mode])}</option>`).join("")}</select></label>`).join("")}
+      ${flow.when.some((name) => name !== "manual" && !triggers[name].configured) ? muted("Nothing calls some of these triggers yet: <code>bca setup</code> installs the Git hook or the pipeline.") : ""}` : ""}` : muted("Apply it, then add its steps.")}
+      <hr><div class="actions"><button class="btn primary" data-flow-act="apply">Apply</button>${flow && LIVE ? `<button class="btn" data-flow-act="run" title="bca run --flow ${esc(flow.id)}">Run now</button>` : ""}${flow ? '<button class="btn" data-flow-act="remove">Remove</button>' : ""}<button class="btn" data-flow-act="back">Back</button></div>
+      ${flow?.steps.length ? `<hr><h3>Export</h3><div class="actions"><button class="btn" data-flow-act="github" title="One workflow file that runs this flow on GitHub and delivers what it saves">For GitHub Actions</button></div>
+      ${muted(LIVE ? `Writes <code>.github/workflows/bc-atlas-${esc(flow.id)}.yml</code>: it runs on ${flow.when.includes("ci") ? "pull requests and pushes" : ""}${flow.when.includes("ci") && flow.when.includes("schedule") ? ", " : ""}${flow.when.includes("schedule") ? "the schedule" : ""}${flow.when.some((name) => name === "ci" || name === "schedule") ? ", or" : ""} by hand.` : "Copies the command that writes the workflow file.")}` : ""}`;
+  }
+  MENUS.flow = () => {
+    if (procForm) return procFormHtml();
+    if (flowForm) return flowFormHtml();
+    const { flows } = atlas.flows;
+    const shown = atlas.lenses.some(({ id }) => id === "flows");
+    return `<p class="text"><b>Your own workflows.</b> A flow says what to make from the source, when, and where to save it.</p>
+      ${flows.length ? `<h3>Flows</h3>${flows.map((flow) => `<button class="item" role="menuitem" data-flow-act="edit" data-flow="${esc(flow.id)}"><b>${esc(flow.title)}</b><span>${plural(flow.steps.length, "step")}</span><small>${flow.when.length ? `on ${esc(flow.when.join(", "))}` : "only by name"}${flow.steps.length ? `: ${esc(flow.steps.map((step) => artifactOf(step.what)?.title ?? step.what).join(", "))}` : ""}</small></button>`).join("")}` : muted("None yet. A first one could write the documentation into the repository before every push.")}
+      <div class="actions"><button class="btn primary" data-flow-act="board" title="A canvas of nodes to place and wire freely">Open the builder</button><button class="btn" data-flow-act="new">New flow…</button></div>
+      ${shown ? `<button class="item" role="menuitem" data-flow-act="show" ${state.lens === "flows" && !state.inside ? 'aria-current="true"' : ""}><b>Show the flows</b><small>From the trigger that starts each to the artifacts it makes and where they are saved</small></button>` : ""}
+      ${atlas.processes ? `<hr><p class="text"><b>Processes.</b> How the company works with the app: steps in lanes, mined from the process tests, run with the people of the simulation.</p>
+      ${atlas.processes.processes.map((model) => { const run = atlas.processes.runs.find(({ id }) => id === model.id); return `<button class="item" role="menuitem" data-flow-act="process" data-process="${esc(model.id)}"><b>${esc(model.title)}</b><span>${run?.passed ? "runs" : "stops"}</span><small>${plural(model.steps.length, "step")}, ${plural(run?.handovers ?? 0, "handover")}, ${run?.findings.length ?? 0} to improve</small></button>`; }).join("")}
+      <div class="actions"><button class="btn" data-flow-act="process" title="Processes in lanes (BPMN): build, mine, play, improve">Open the process builder</button></div>` : ""}
+      ${flowChanges.length ? `<hr><h3>${plural(flowChanges.length, "change")} to save</h3><ul class="pending">${flowChanges.map((operation) => `<li>${esc(describeOperation(operation))}</li>`).join("")}</ul>
+        <div class="actions"><button class="btn primary" data-flow-act="save">Save the changes (JSON)</button><button class="btn" data-flow-act="forget">Forget them</button></div>
+        ${muted("This file is a snapshot. Apply the changes to the project with <code>bca flow define --from flow-changes.json</code>.")}` : ""}
+      <hr>${muted(LIVE ? "A change is written to <code>.bca.json</code>. <code>bca run</code> runs the flows of a trigger; <b>Run now</b> runs one here." : "The same from a terminal or an agent: <code>bca flow define</code>, or the MCP tool <code>bc_atlas_flow_define</code>. <code>bca run --flow &lt;id&gt;</code> runs one.")}`;
+  };
+  /** The wires into a step: [{ step, if }], however .bca.json writes them. */
+  const wiresOf = (step) => [step.after ?? []].flat().map((wire) => (typeof wire === "string" ? { step: wire.split(":")[0], if: wire.split(":")[1] ?? "passed" } : { step: wire.step, if: wire.if ?? "passed" }));
+  /** A name no step of these has: its artifact, then check-2 (as src/flows/config.js names one). */
+  function freeStepId(steps, what, taken = new Set()) {
+    const used = new Set([...steps.map(({ id }) => id).filter(Boolean), ...taken]);
+    for (let count = 1; ; count += 1) {
+      const candidate = count === 1 ? flowIdOf(what) : `${flowIdOf(what)}-${count}`;
+      if (!used.has(candidate)) return candidate;
+    }
+  }
+  /** What operations do to the flows, in a snapshot: the same as src/flows/config.js, without its checks. */
+  function flowLocal(operations) {
+    const { flows, triggers } = atlas.flows;
+    const filled = (entry) => Object.fromEntries(Object.entries(entry).filter(([, value]) => value !== "" && value !== undefined && value !== null && !(Array.isArray(value) && !value.length)));
+    for (const operation of operations) {
+      const flow = flows.find(({ id }) => id === operation.flow);
+      if (operation.op === "set") {
+        if (!flow) flows.push({ id: operation.flow, title: operation.title || operation.flow, when: operation.when ?? [], steps: [] });
+        else Object.assign(flow, operation.title ? { title: operation.title } : {}, operation.when ? { when: operation.when } : {});
+      } else if (operation.op === "deliver") triggers[operation.trigger].sync = operation.sync;
+      else if (!flow) continue;
+      else if (operation.op === "remove") flows.splice(flows.indexOf(flow), 1);
+      else if (operation.op === "unstep") {
+        // The way closes around it, as in src/flows/config.js: what came after it comes after what it came after.
+        const [gone] = flow.steps.splice(operation.at - 1, 1);
+        for (const other of gone.id ? flow.steps : []) {
+          const wires = wiresOf(other);
+          const through = wires.find((wire) => wire.step === gone.id);
+          if (!through) continue;
+          const rest = wires.filter((wire) => wire.step !== gone.id);
+          for (const wire of wiresOf(gone)) if (!rest.some((item) => item.step === wire.step)) rest.push({ step: wire.step, if: through.if });
+          if (rest.length) other.after = rest;
+          else delete other.after;
+        }
+      } else if (operation.op === "detach") {
+        // The step, and every step that waits for nothing but steps that leave.
+        const index = operation.at - 1;
+        const before = flow.steps.map((step) => wiresOf(step).map((wire) => flow.steps.findIndex(({ id }) => id === wire.step)));
+        const out = new Set([index]);
+        for (let grown = true; grown;) {
+          grown = false;
+          before.forEach((others, order) => {
+            if (!out.has(order) && others.length && others.every((other) => out.has(other))) {
+              out.add(order);
+              grown = true;
+            }
+          });
+        }
+        const kept = [...out].sort((a, b) => a - b);
+        // They stay on the canvas, in no flow, with the wires among them.
+        const group = looseKey();
+        for (const order of kept) {
+          const { after: _after, ...step } = flow.steps[order];
+          const wires = order === index ? [] : wiresOf(flow.steps[order]).filter((wire) => kept.includes(flow.steps.findIndex(({ id }) => id === wire.step)));
+          const key = looseKey();
+          canvas.loose.push({ key, step: { ...step, ...(wires.length ? { after: wires } : {}) }, group });
+          if (canvas.positions[stepKey(flow, order)]) canvas.positions[key] = canvas.positions[stepKey(flow, order)];
+        }
+        const names = new Set(kept.map((order) => flow.steps[order].id).filter(Boolean));
+        flow.steps = flow.steps.filter((_, order) => !out.has(order));
+        for (const other of flow.steps) {
+          const left = wiresOf(other).filter((wire) => !names.has(wire.step));
+          if (left.length) other.after = left;
+          else delete other.after;
+        }
+      } else if (operation.op === "move") flow.steps.splice(operation.at - 1 + operation.by, 0, ...flow.steps.splice(operation.at - 1, 1));
+      else if (operation.op === "wire" || operation.op === "unwire") {
+        const from = flow.steps[operation.from - 1];
+        const into = flow.steps[operation.into - 1];
+        from.id ??= freeStepId(flow.steps, from.what);
+        const left = wiresOf(into).filter((wire) => wire.step !== from.id);
+        if (operation.op === "wire") left.push({ step: from.id, if: operation.if ?? "passed" });
+        if (left.length) into.after = left;
+        else delete into.after;
+      } else if (operation.op === "step") {
+        const { op: _op, flow: _flow, at, ...step } = operation;
+        if (!at) flow.steps.push(filled(step));
+        else {
+          const { id, after, ...rest } = flow.steps[at - 1];
+          flow.steps[at - 1] = filled({ ...(step.what && step.what !== rest.what ? {} : rest), ...(id ? { id } : {}), ...(after ? { after } : {}), ...step });
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------- builder
+  // The flows as a board to build on by drag and drop: the triggers and the artifacts on the
+  // left, one lane per flow. An artifact dropped into a lane is a step, where it was dropped; a
+  // step is dragged to its place in the order, or into another flow; a trigger dropped on a lane
+  // starts that flow; what is dropped on the bin is taken away. Every drop is the same
+  // operations the forms send (flowApply). A click on a step opens its form.
+  let boardOpen = false;
+  let drag;
+  const placeOfStep = (step) => step.to ?? artifactOf(step.what)?.to;
+  /** A place nothing saves to yet: docs/layers, then docs/layers-2. */
+  function freePlace(what, taken = []) {
+    const base = artifactOf(what)?.to;
+    if (!base) return undefined;
+    const used = new Set([...atlas.flows.flows.flatMap(({ steps }) => steps.map(placeOfStep)), ...taken]);
+    const dot = base.lastIndexOf(".") > base.lastIndexOf("/") ? base.lastIndexOf(".") : base.length;
+    for (let count = 1; ; count += 1) {
+      const candidate = count === 1 ? base : `${base.slice(0, dot)}-${count}${base.slice(dot)}`;
+      if (!used.has(candidate)) return candidate;
+    }
+  }
+  function boardHtml() {
+    const { triggers, artifacts } = atlas.flows;
+    const chip = (name) => `<span class="trigger" draggable="true" data-drag="trigger" data-name="${esc(name)}" title="${esc(triggers[name].summary)}">${esc(name)}</span>`;
+    const flows = boardMode === "canvas";
+    return `<header class="top"><h2>Builder</h2><div class="segments" role="radiogroup" aria-label="What to build"><button role="radio" data-board-mode="canvas" aria-checked="${flows}" title="Your own workflows: what to make from the source, when, and where to save it">Flows</button><button role="radio" data-board-mode="process" aria-checked="${!flows}" title="How the company works with the app: processes in lanes (BPMN), mined, run, improved">Processes</button></div>
+        <p>${flows ? "Drag nodes onto the canvas and wire them: a trigger into a flow, a flow into the steps it starts with, a step into those that come after it. Click a wire to say when it holds. Double-click a node for its settings." : "A process in lanes: every step in the lane of the role that does it. Drag a process test into a lane, pull a wire from a step into the one that comes after it, and play it with the people of the simulation."}</p><button class="close" data-board="close" aria-label="Close" title="Close (Esc)">×</button></header>
+      <div class="body">${flows ? `
+        <aside class="palette" aria-label="What to drag">
+          <h3>Flow</h3><input type="text" id="board-title" placeholder="Title of a new flow" autocomplete="off" aria-label="Title of a new flow"><div class="flowcard" draggable="true" data-drag="flow" title="Drag it onto the canvas to start a flow"><b>New flow</b><small>drag it onto the canvas</small></div>
+          <h3>When</h3><div class="triggers">${Object.keys(triggers).map((name) => chip(name)).join("")}</div>
+          <h3>Make</h3>${artifacts.map((artifact) => `<div class="artifact" draggable="true" data-drag="artifact" data-what="${esc(artifact.id)}" title="${esc(artifact.summary)}"><b>${esc(artifact.title)}</b><small>${esc(artifact.plugin ? "task of a plugin" : artifact.to ?? "gate")}</small></div>`).join("")}
+        </aside>
+        <div class="canvas" data-drop="canvas" tabindex="0" aria-label="The canvas of the flows">
+          <div class="world"></div>
+          <div class="tools" role="group" aria-label="Canvas">
+            <select data-canvas-if aria-label="When the step after the selected wire runs" title="When the step after this wire runs" hidden>${Object.entries(atlas.flows.conditions ?? { passed: "", failed: "", always: "" }).map(([key, text]) => `<option value="${esc(key)}" title="${esc(text)}">${esc({ passed: "Runs if it passed", failed: "Runs if it fails", always: "Runs in any case" }[key] ?? key)}</option>`).join("")}</select>
+            <button class="btn" data-canvas="remove" title="Remove what is selected: a node, or a wire (Delete)" disabled>Remove</button>
+            <button class="btn" data-canvas="tidy" title="Lay the nodes out again">Tidy up</button>
+            <button class="btn" data-canvas="fit" title="Show everything">Fit</button>
+            <button class="btn" data-canvas="out" aria-label="Zoom out">−</button><button class="btn" data-canvas="in" aria-label="Zoom in">+</button>
+          </div>
+          ${flowChanges.length ? `<p class="kept">${plural(flowChanges.length, "change")} kept in this snapshot. <button class="btn" data-board="save">Save the changes (JSON)</button></p>` : ""}
+        </div>` : procHtml()}
+      </div>`;
+  }
+  function boardDraw() {
+    const element = $("#board");
+    element.hidden = !boardOpen || !atlas?.flows;
+    if (element.hidden) return;
+    const titles = ["#board-title", "#proc-title", "#proc-newlane"].map((id) => [id, $(id)?.value ?? ""]);
+    element.innerHTML = boardHtml();
+    for (const [id, value] of titles) if ($(id)) $(id).value = value;
+    if (boardMode === "canvas") canvasDraw();
+    else procWiresDraw();
+  }
+  function boardShow(open, mode) {
+    boardOpen = open;
+    if (mode) boardMode = mode;
+    boardDraw();
+  }
+  /** The id and title of a flow that starts on the board. */
+  function boardNewFlow(fallback) {
+    const title = $("#board-title").value.trim() || fallback;
+    let id = flowIdOf(title);
+    for (let count = 2; flowOf(id); count += 1) id = `${flowIdOf(title)}-${count}`;
+    $("#board-title").value = "";
+    return { op: "set", flow: id, title };
+  }
+  /** Where something that is dragged may be dropped. */
+  const boardZone = (event) => {
+    const zone = drag ? event.target.closest?.("[data-drop]") : undefined;
+    if (!zone) return undefined;
+    if (zone.dataset.drop === "canvas") return ["artifact", "trigger", "flow"].includes(drag.kind) ? zone : undefined;
+    return ["test", "blank", "role", "pstep"].includes(drag.kind) ? zone : undefined;
+  };
+  const boardOver = (zone) => {
+    for (const marked of $$("#board .over")) marked.classList.remove("over");
+    zone?.classList.add("over");
+  };
+  $("#board").addEventListener("dragstart", (event) => {
+    const item = event.target.closest?.("[data-drag]");
+    if (!item || event.target.closest(".port")) return event.preventDefault();
+    drag = { kind: item.dataset.drag, what: item.dataset.what, name: item.dataset.name, test: item.dataset.test, step: item.dataset.step };
+    // Firefox drags only what carries data.
+    event.dataTransfer.setData("text/plain", item.dataset.what ?? item.dataset.name ?? item.dataset.test ?? item.dataset.step ?? drag.kind);
+    event.dataTransfer.effectAllowed = "copyMove";
+    item.classList.add("dragging");
+    return undefined;
+  });
+  $("#board").addEventListener("dragover", (event) => {
+    const zone = boardZone(event);
+    boardOver(zone);
+    if (!zone) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = drag.kind === "pstep" ? "move" : "copy";
+  });
+  $("#board").addEventListener("drop", (event) => {
+    const zone = boardZone(event);
+    if (!zone) return;
+    event.preventDefault();
+    const dropped = drag;
+    drag = undefined;
+    boardOver();
+    if (zone.dataset.drop === "canvas") canvasDrop(dropped, event);
+    else procDrop(zone, dropped);
+  });
+  $("#board").addEventListener("dragend", () => {
+    drag = undefined;
+    boardOver();
+    $("#board .dragging")?.classList.remove("dragging");
+  });
+  $("#board").addEventListener("click", (event) => {
+    const item = event.target.closest("button");
+    if (!item) {
+      // A step or a wire of a process: selected.
+      const step = event.target.closest(".pstep");
+      const hit = event.target.closest("[data-pwire]");
+      if (step || hit) {
+        procPicked = step ? { step: step.dataset.step } : { wire: hit.dataset.pwire.split("\n") };
+        procWiresDraw();
+      }
+      return undefined;
+    }
+    if (item.dataset.boardMode) {
+      boardMode = item.dataset.boardMode;
+      return boardDraw();
+    }
+    if (item.dataset.canvas) return canvasTool(item.dataset.canvas);
+    if (item.dataset.proc) return procClick(item);
+    if (item.dataset.flowAct) return flowClick(item);
+    const act = item.dataset.board;
+    if (act === "close") return boardShow(false);
+    if (act === "save") return download("flow-changes.json", `${JSON.stringify({ operations: flowChanges }, null, 2)}\n`, "application/json");
+    return undefined;
+  });
+  $("#board").addEventListener("dblclick", (event) => {
+    const step = event.target.closest?.(".pstep");
+    if (step) procEdit(step.dataset.step);
+  });
+  $("#board").addEventListener("keydown", (event) => {
+    if (event.key === "Escape") return boardShow(false);
+    const typing = event.target.matches?.("input, select");
+    if (event.target.classList?.contains("canvas")) {
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        return canvasRemove();
+      }
+      if (event.key === "Enter" && picked?.node) return canvasOpen(picked.node);
+    }
+    if (event.target.closest?.(".proc") && !typing) {
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        return procRemove();
+      }
+      // A step is a button for the keyboard too.
+      if ((event.key === "Enter" || event.key === " ") && event.target.classList.contains("pstep")) {
+        event.preventDefault();
+        return procEdit(event.target.dataset.step);
+      }
+    }
+    if (event.key === "Enter" && event.target.id === "board-title") toast("Drag New flow onto the canvas to start it.");
+    if (event.key === "Enter" && event.target.id === "proc-title") $('[data-proc="create"]').click();
+    return undefined;
+  });
+
+  // ---------------------------------------------------------------- process
+  // The processes of the company as BPMN lanes to build on (src/process): every step in the lane
+  // of the role that does it, bound to the process test or recording that shows it works, wired
+  // to what it comes after. A process test dragged into a lane is a step; a wire pulled from a
+  // step into another says what comes after what; Play walks the process with the people of the
+  // simulation. Every change is an operation: written to .bca.json in VS Code, kept to save in
+  // an exported file.
+  let processId;
+  let procPicked;
+  let procForm;
+  let procWiring;
+  const procChanges = [];
+  const procModels = () => atlas.processes?.processes ?? [];
+  const procModel = () => procModels().find(({ id }) => id === processId) ?? procModels()[0];
+  const procWires = (step) => [step.after ?? []].flat().map((wire) => (typeof wire === "string" ? { step: wire } : { step: wire.step, when: wire.when }));
+  const procRun = (model) => atlas.processes.runs.find(({ id }) => id === model.id);
+  /** How a step ran, as long as it is the step that ran. */
+  const procStatus = (model, step) => procRun(model)?.steps.find((ran) => ran.id === step.id && (ran.test ?? "") === (step.test ?? "") && ran.lane === (step.lane ?? ""))?.status;
+  /** A time span for people, as src/process/telemetry.js writes it. */
+  const procSpan = (ms) => {
+    if (ms === undefined) return "";
+    const round = (value) => (value >= 10 ? String(Math.round(value)) : String(Math.round(value * 10) / 10));
+    return ms < 1000 ? `${Math.round(ms)} ms` : ms < 60000 ? `${round(ms / 1000)} s` : ms < 3600000 ? `${round(ms / 60000)} min` : ms < 86400000 ? `${round(ms / 3600000)} h` : `${round(ms / 86400000)} d`;
+  };
+  const PROC_STATUS = { runs: "runs", blocked: "stopped", "other-lane": "other role", unstaffed: "nobody set", unproven: "no test", unknown: "test missing" };
+  /** The wires of a process that lead back to a step the way already passed: its loops (as src/process/index.js finds them). */
+  function procBack(model) {
+    const at = new Map(model.steps.map((step, index) => [step.id, index]));
+    const next = model.steps.map(() => []);
+    model.steps.forEach((step, index) => {
+      for (const wire of procWires(step)) if (at.has(wire.step)) next[at.get(wire.step)].push(index);
+    });
+    const state = model.steps.map(() => 0);
+    const back = new Set();
+    const visit = (index) => {
+      state[index] = 1;
+      for (const after of [...next[index]].sort((a, b) => b - a)) {
+        if (state[after] === 1) back.add(`${model.steps[index].id}\n${model.steps[after].id}`);
+        else if (state[after] === 0) visit(after);
+      }
+      state[index] = 2;
+    };
+    const starts = model.steps.map((_, index) => index).filter((index) => !procWires(model.steps[index]).length);
+    for (const index of [...[...(starts.length ? starts : model.steps.length ? [0] : [])].reverse(), ...model.steps.keys()]) if (state[index] === 0) visit(index);
+    return back;
+  }
+  /** The lanes of a process in the order its steps name them, and the column of each step: one after the last it comes after, loops aside. */
+  function procLayout(model) {
+    const back = procBack(model);
+    const columns = new Map();
+    const column = (step) => {
+      if (!columns.has(step.id)) {
+        columns.set(step.id, 1);
+        const before = procWires(step).filter((wire) => !back.has(`${wire.step}\n${step.id}`)).map((wire) => model.steps.find(({ id }) => id === wire.step)).filter(Boolean);
+        columns.set(step.id, 1 + Math.max(0, ...before.map(column)));
+      }
+      return columns.get(step.id);
+    };
+    for (const step of model.steps) column(step);
+    return { lanes: [...new Set(model.steps.map(({ lane }) => lane ?? ""))], columns, back, count: Math.max(1, ...columns.values()) };
+  }
+  function procHtml() {
+    if (!atlas.processes) return '<div class="proc"><p class="empty">The processes of <code>.bca.json</code> are not valid; <code>bca process</code> says what is wrong.</p></div>';
+    const { mined, roles, tests, simulated } = atlas.processes;
+    const model = procModel();
+    const test = (id) => tests.find((item) => item.id === id);
+    let board = `<p class="empty">No process yet. ${mined.length ? "Take one as the process tests have it, on the left, or name a new one." : "Name one on the left and create it."}</p>`;
+    if (model) {
+      const layout = procLayout(model);
+      const run = procRun(model);
+      const stale = procChanges.length > 0;
+      const card = (step) => {
+        const status = procStatus(model, step);
+        const timing = stale ? undefined : run?.steps.find(({ id }) => id === step.id)?.timing;
+        return `<div class="pstep ${status ? `st-${status}` : "st-new"} ${procPicked?.step === step.id ? "picked" : ""}" draggable="true" data-drag="pstep" data-step="${esc(step.id)}" tabindex="0" role="button" title="${esc(status ? atlas.processes.statuses[status] : "Not run yet")}. Double-click to change it; drag it to another lane; pull a wire from its right into the step that comes after it"><span class="port in"></span><b>${esc(step.title ?? step.id)}</b><small>${esc(step.test ? test(step.test)?.title ?? step.test : "no test yet")}</small><small class="st">${esc(status ? PROC_STATUS[status] : "not run yet")}</small>${timing ? `<small class="time" title="In the telemetry: how often it is done, and how long it takes on average">${timing.count}× · ${esc(procSpan(timing.duration.avg))}${timing.repeated ? ` · again in ${timing.repeated}` : ""}</small>` : ""}<span class="port out" draggable="false" title="Drag a wire from here"></span></div>`;
+      };
+      const row = (lane) => `<section class="plane" data-drop="lane" data-lane="${esc(lane)}"><header><input type="text" data-proc-lane="${esc(lane)}" value="${esc(lane)}" placeholder="No lane" list="proc-roles" title="The role that does these steps. Change it to rename the lane" aria-label="Lane" autocomplete="off"></header><div class="track">${Array.from({ length: layout.count }, (_, index) => `<div class="cell">${model.steps.filter((step) => (step.lane ?? "") === lane && layout.columns.get(step.id) === index + 1).map(card).join("")}</div>`).join("")}</div></section>`;
+      board = `<div class="ptools"><b>${esc(model.title)}</b>${run && !stale ? `<span class="state ${run.passed ? "ok" : "bad"}">${run.passed ? "Runs" : "Stops"} · ${plural(run.steps.length, "step")} · ${plural(run.handovers, "handover")} · ${run.findings.length} to improve</span>${run.timing ? `<span class="state" title="From the telemetry: ${esc(run.timing.variants.map(({ steps, cases }) => `${cases}× ${steps.join(" > ")}`).join("; "))}">${plural(run.timing.cases, "case")} in the telemetry · a case takes ${esc(procSpan(run.timing.throughput.avg))} · ${plural(run.timing.variants.length, "way")} taken</span>` : ""}` : '<span class="state">changed: it runs again once the changes are in the project</span>'}<span class="spacer"></span>
+          <button class="btn primary" data-proc="play" title="Walk the process step by step with the people of the simulation" ${model.steps.length ? "" : "disabled"}>▶ Play</button>
+          <button class="btn" data-proc="bpmn" title="Save it as BPMN 2.0, for other tools" ${model.steps.length ? "" : "disabled"}>BPMN</button>
+          <button class="btn" data-proc="unpick" title="Remove what is selected: a step, or a wire (Delete)" disabled>Remove</button>
+          <button class="btn" data-proc="remove" title="Remove the whole process">Remove the process</button></div>
+        <div class="swim" style="--columns:${layout.count}"><svg class="pwires" aria-hidden="true"></svg>${layout.lanes.map(row).join("")}
+          <section class="plane new" data-drop="newlane"><header><input type="text" id="proc-newlane" placeholder="New lane: a role" list="proc-roles" autocomplete="off" aria-label="Name of a new lane"></header><div class="track"><span class="hint">Name the lane, then drop a step here; or drop a role.</span></div></section>
+        </div>
+        ${run && !stale && run.findings.length ? `<div class="pfindings"><h3>What to improve</h3>${run.findings.map((finding) => `<button class="finding ${esc(finding.severity)}" data-proc="goto" data-step="${esc(finding.step ?? "")}"><b>${esc(finding.severity)} · ${esc(finding.rule)}</b><p>${rich(finding.message)}</p>${finding.fix ? `<p class="fix">${rich(finding.fix)}</p>` : ""}</button>`).join("")}</div>` : ""}
+        ${simulated ? "" : '<p class="hint">The project has no process tests and no recordings: nothing can show whether a step works.</p>'}
+        ${procChanges.length ? `<p class="kept">${plural(procChanges.length, "change")} kept in this snapshot. <button class="btn" data-proc="save">Save the changes (JSON)</button> and apply them with <code>bca process define --from process-changes.json</code>.</p>` : ""}`;
+    }
+    return `<aside class="palette" aria-label="What to drag">
+        <h3>Process</h3>
+        ${procModels().length ? `<select data-proc-select aria-label="The process to build on">${procModels().map((item) => `<option value="${esc(item.id)}" ${item.id === model?.id ? "selected" : ""}>${esc(item.title ?? item.id)}</option>`).join("")}</select>` : ""}
+        <input type="text" id="proc-title" placeholder="Title of a new process" autocomplete="off" aria-label="Title of a new process"><button class="btn" data-proc="create">Create</button>
+        ${mined.length ? `<h3>As the tests have it</h3>${mined.map((found) => `<button class="mined" data-proc="adopt" data-id="${esc(found.id)}" title="Mined from the ${esc(found.sources.join(" and "))}: who really does what, in which order. Take it as a model to change"><b>${esc(found.title)}</b><small>${plural(found.steps.length, "step")}, ${plural(found.handovers, "handover")} · ${procModels().some(({ id }) => id === found.id) ? "take again" : "take as a model"}</small></button>`).join("")}` : ""}
+        <h3>Steps</h3>
+        <div class="artifact" draggable="true" data-drag="blank" title="Something that is done and has no test yet"><b>Empty step</b><small>no test yet</small></div>
+        ${tests.map((item) => `<div class="artifact" draggable="true" data-drag="test" data-test="${esc(item.id)}" title="${esc(item.recorded ? "A recording of Business Central" : "A process test")}: ${esc(item.id)}"><b>${esc(item.title)}</b><small>${esc(item.recorded ? "recording" : "process test")} · ${esc(item.id)}</small></div>`).join("")}
+        ${roles.length ? `<h3>Roles</h3><div class="triggers">${roles.map((role) => `<span class="trigger role" draggable="true" data-drag="role" data-name="${esc(role.name)}" title="${esc(role.description ?? "A role of the company")}. Drop it on the board for a lane">${esc(role.name)}</span>`).join("")}</div>` : ""}
+        <datalist id="proc-roles">${roles.map((role) => `<option value="${esc(role.name)}"></option>`).join("")}</datalist>
+      </aside>
+      <div class="proc" tabindex="0" aria-label="The lanes of the process">${board}</div>`;
+  }
+  /** The wires of the process, drawn over its lanes from where the steps are. */
+  function procWiresDraw() {
+    const swim = $("#board .swim");
+    const model = procModel();
+    for (const element of $$("#board .pstep")) element.classList.toggle("picked", procPicked?.step === element.dataset.step);
+    const remove = $('#board [data-proc="unpick"]');
+    if (remove) remove.disabled = !procPicked;
+    if (!swim || !model) return;
+    const box = swim.getBoundingClientRect();
+    const port = (id, side) => {
+      const rect = $(`#board .pstep[data-step="${CSS.escape(id)}"]`)?.getBoundingClientRect();
+      return rect ? [(side === "out" ? rect.right : rect.left) - box.left, rect.top + rect.height / 2 - box.top, rect.top - box.top] : undefined;
+    };
+    const paths = [];
+    const loops = procBack(model);
+    // From the telemetry: how many of the cases go a way, and how long the work waits on it.
+    const taken = procChanges.length ? [] : procRun(model)?.timing?.ways ?? [];
+    for (const step of model.steps) {
+      for (const wire of procWires(step)) {
+        const from = port(wire.step, "out");
+        const to = port(step.id, "in");
+        if (!from || !to) continue;
+        const back = loops.has(`${wire.step}\n${step.id}`);
+        // A way back goes around, above the steps it passes.
+        const over = Math.min(from[2], to[2]) - 14;
+        const path = back ? `M${from[0]} ${from[1]} H${from[0] + 16} V${over} H${to[0] - 16} V${to[1]} H${to[0]}` : curve(from, to);
+        const chosen = procPicked?.wire?.[0] === wire.step && procPicked.wire[1] === step.id;
+        paths.push(`<path class="wire ${back ? "back" : ""} ${chosen ? "picked" : ""}" d="${path}"></path>${(() => { const seen = taken.find((way) => way.from === wire.step && way.into === step.id); const label = [wire.when, seen ? `${seen.share}% · waits ${procSpan(seen.wait.avg)}` : ""].filter(Boolean).join(" · "); return label ? `<text class="label" x="${(from[0] + to[0]) / 2}" y="${back ? over - 5 : (from[1] + to[1]) / 2 - 7}" text-anchor="middle">${esc(label)}</text>` : ""; })()}<path class="hit" data-pwire="${esc(`${wire.step}\n${step.id}`)}" d="${path}"><title>Click to select the wire, then Remove; the name of a way is in the form of the step</title></path>`);
+      }
+    }
+    if (procWiring) paths.push(`<path class="wire pending" d="${curve(port(procWiring.from, "out"), procWiring.to)}"></path>`);
+    $("#board .pwires").innerHTML = paths.join("");
+  }
+  /** What operations do to the processes, in a snapshot: the same as src/process/index.js, without its checks. */
+  function procLocal(operations) {
+    const processes = atlas.processes.processes;
+    const filled = (entry) => Object.fromEntries(Object.entries(entry).filter(([, value]) => value !== "" && value !== undefined && value !== null && !(Array.isArray(value) && !value.length)));
+    const write = (wires) => wires.map((wire) => (wire.when ? wire : wire.step));
+    for (const operation of operations) {
+      const model = processes.find(({ id }) => id === operation.process);
+      if (operation.op === "set") {
+        if (!model) processes.push({ id: operation.process, title: operation.title || operation.process, steps: [] });
+        else if (operation.title) model.title = operation.title;
+      } else if (operation.op === "adopt") {
+        const entry = { id: operation.model.id, title: operation.model.title, steps: operation.model.steps.map(({ id, title, lane, test, after }) => filled({ id, title, lane, test, after: procWires({ after }).map((wire) => filled(wire)) })) };
+        const at = processes.findIndex(({ id }) => id === entry.id);
+        if (at >= 0) processes[at] = entry;
+        else processes.push(entry);
+      } else if (!model) continue;
+      else if (operation.op === "remove") processes.splice(processes.indexOf(model), 1);
+      else if (operation.op === "step") {
+        const { op: _op, process: _process, step: name, ...fields } = operation;
+        const step = name ? model.steps.find(({ id }) => id === name) : undefined;
+        if (step) Object.assign(step, fields), Object.keys(step).forEach((key) => (step[key] === "" ? delete step[key] : undefined));
+        else model.steps.push(filled(fields));
+      } else if (operation.op === "unstep") {
+        const gone = model.steps.find(({ id }) => id === operation.step);
+        model.steps.splice(model.steps.indexOf(gone), 1);
+        // The way goes on without it.
+        for (const other of model.steps) {
+          const wires = procWires(other);
+          const through = wires.find((wire) => wire.step === gone.id);
+          if (!through) continue;
+          const rest = wires.filter((wire) => wire.step !== gone.id);
+          for (const before of procWires(gone)) if (!rest.some((wire) => wire.step === before.step)) rest.push(filled({ step: before.step, when: through.when ?? before.when }));
+          if (rest.length) other.after = write(rest);
+          else delete other.after;
+        }
+      } else if (operation.op === "wire" || operation.op === "unwire") {
+        const into = model.steps.find(({ id }) => id === operation.into);
+        const rest = procWires(into).filter((wire) => wire.step !== operation.from);
+        if (operation.op === "wire") rest.push(filled({ step: operation.from, when: operation.when }));
+        if (rest.length) into.after = write(rest);
+        else delete into.after;
+      } else if (operation.op === "lane") {
+        for (const step of model.steps) if ((step.lane ?? "") === (operation.lane ?? "")) step.lane = operation.title;
+      }
+    }
+  }
+  /** Sends operations: written to .bca.json in VS Code, kept to save in an exported file. */
+  async function procApply(operations) {
+    if (!operations.length) return false;
+    if (!LIVE) {
+      procLocal(operations);
+      procChanges.push(...operations);
+      toast(`Kept ${plural(operations.length, "change")}. Save the changes from the builder.`);
+      procForm = undefined;
+      closeMenu();
+      boardDraw();
+      return true;
+    }
+    try {
+      const result = await call("defineProcesses", { operations });
+      toast(result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed.");
+    } catch (error) {
+      // What is not valid was not written.
+      toast(error.message.replace(/^processes: /u, ""));
+      return false;
+    }
+    procForm = undefined;
+    closeMenu();
+    await reload("Running the processes");
+    return true;
+  }
+  /** Whether a step comes, directly or through others, after another. */
+  function procComesAfter(model, step, other, seen = new Set()) {
+    if (seen.has(step)) return false;
+    seen.add(step);
+    return procWires(model.steps.find(({ id }) => id === step) ?? {}).some((wire) => wire.step === other || procComesAfter(model, wire.step, other, seen));
+  }
+  const procFreeId = (model, title) => {
+    for (let count = 1; ; count += 1) {
+      const candidate = count === 1 ? flowIdOf(title) : `${flowIdOf(title)}-${count}`;
+      if (!model.steps.some(({ id }) => id === candidate)) return candidate;
+    }
+  };
+  /** Something dropped on a lane: a new step there, or a step that changes its lane. */
+  function procDrop(zone, dropped) {
+    const model = procModel();
+    if (!model) return toast("Create a process first, on the left.");
+    const lane = dropped.kind === "role" ? dropped.name : zone.dataset.drop === "lane" ? zone.dataset.lane : $("#proc-newlane").value.trim();
+    if (zone.dataset.drop === "newlane" && !lane) return toast("Name the new lane first: a role of the company.");
+    if (dropped.kind === "pstep") {
+      const step = model.steps.find(({ id }) => id === dropped.step);
+      return (step.lane ?? "") === lane ? undefined : procApply([{ op: "step", process: model.id, step: step.id, lane }]);
+    }
+    const found = dropped.kind === "test" ? atlas.processes.tests.find(({ id }) => id === dropped.test) : undefined;
+    const title = found?.title ?? "New step";
+    const id = procFreeId(model, title);
+    // It comes after the step that is selected, so one step follows the other.
+    const before = procPicked?.step && model.steps.some(({ id: own }) => own === procPicked.step) ? procPicked.step : undefined;
+    procPicked = { step: id };
+    if ($("#proc-newlane")) $("#proc-newlane").value = "";
+    return procApply([{ op: "step", process: model.id, id, title, lane, ...(found ? { test: found.id } : {}) }, ...(before ? [{ op: "wire", process: model.id, from: before, into: id }] : [])]);
+  }
+  function procRemove() {
+    const model = procModel();
+    if (!model || !procPicked) return undefined;
+    const chosen = procPicked;
+    procPicked = undefined;
+    return procApply([chosen.wire ? { op: "unwire", process: model.id, from: chosen.wire[0], into: chosen.wire[1] } : { op: "unstep", process: model.id, step: chosen.step }]);
+  }
+  /** The form of a step: its title, its lane, its test, and the names of the ways into it. */
+  function procEdit(step) {
+    closeMenu();
+    procForm = { process: procModel().id, step };
+    showMenu($("#flow-button"));
+  }
+  function procFormHtml() {
+    const model = procModels().find(({ id }) => id === procForm.process);
+    const step = model?.steps.find(({ id }) => id === procForm.step);
+    if (!step) return muted("The step is gone.");
+    const { tests } = atlas.processes;
+    const status = procStatus(model, step);
+    const ran = procRun(model)?.steps.find(({ id }) => id === step.id);
+    return `<h3>Step of ${esc(model.title)}</h3>
+      <label class="field wide"><span>Title</span><input type="text" data-p="title" value="${esc(step.title ?? "")}" autocomplete="off"></label>
+      <label class="field wide" title="The role that does it"><span>Lane</span><input type="text" data-p="lane" value="${esc(step.lane ?? "")}" list="proc-form-roles" placeholder="a role of the company" autocomplete="off"></label>
+      <datalist id="proc-form-roles">${atlas.processes.roles.map((role) => `<option value="${esc(role.name)}"></option>`).join("")}</datalist>
+      <label class="field wide" title="What shows that the step works"><span>Test</span><select data-p="test"><option value="">None yet</option>${tests.map((item) => `<option value="${esc(item.id)}" ${item.id === step.test ? "selected" : ""}>${esc(item.title)}${item.recorded ? " (recording)" : ""}</option>`).join("")}${step.test && !tests.some(({ id }) => id === step.test) ? `<option value="${esc(step.test)}" selected>${esc(step.test)} (not there)</option>` : ""}</select></label>
+      ${procWires(step).map((wire) => `<label class="field wide" title="When the way is one of several, its name: approved, rejected"><span>After ${esc(model.steps.find(({ id }) => id === wire.step)?.title ?? wire.step)}</span><input type="text" data-p-when="${esc(wire.step)}" value="${esc(wire.when ?? "")}" placeholder="always; or the name of the way" autocomplete="off"></label>`).join("") || muted("It starts the process. Pull a wire into it from the step it comes after.")}
+      ${status ? muted(`${esc(atlas.processes.statuses[status])}.${ran?.performers.length ? ` ${status === "runs" || status === "other-lane" ? "Performed" : "Tried"} by ${esc(ran.performers.map(({ agent }) => agent).join(", "))}.` : ""}${ran?.missing.length ? ` Missing: ${ran.missing.map((line) => `<code>${esc(line)}</code>`).join(", ")}.` : ""}${ran?.touches.objects.length ? ` In the app: ${plural(ran.touches.steps, "click")}, opens ${ran.touches.opens}, runs ${ran.touches.runs}, reads ${ran.touches.reads}, writes ${ran.touches.writes}.` : ""}`) : ""}
+      <hr><div class="actions"><button class="btn primary" data-proc="step-apply">Apply</button><button class="btn" data-proc="step-remove">Remove</button><button class="btn" data-proc="step-close">Close</button></div>`;
+  }
+  function procClick(item) {
+    const act = item.dataset.proc;
+    const model = procModel();
+    if (act === "create") {
+      const title = $("#proc-title").value.trim();
+      if (!title) return toast("A process needs a title.");
+      let id = flowIdOf(title);
+      for (let count = 2; procModels().some((other) => other.id === id); count += 1) id = `${flowIdOf(title)}-${count}`;
+      $("#proc-title").value = "";
+      processId = id;
+      return procApply([{ op: "set", process: id, title }]);
+    }
+    if (act === "adopt") {
+      const found = atlas.processes.mined.find(({ id }) => id === item.dataset.id);
+      processId = found.id;
+      return procApply([{ op: "adopt", model: { id: found.id, title: found.title, steps: found.steps.map(({ id, title, lane, test, after }) => ({ id, title, lane, test, after })) } }]);
+    }
+    if (act === "save") return download("process-changes.json", `${JSON.stringify({ operations: procChanges }, null, 2)}\n`, "application/json");
+    if (act === "step-close") return closeMenu();
+    if (act === "step-remove") return procApply([{ op: "unstep", process: procForm.process, step: procForm.step }]);
+    if (act === "step-apply") {
+      const value = (name) => $(`#popover [data-p="${name}"]`).value.trim();
+      const target = procModels().find(({ id }) => id === procForm.process);
+      const step = target.steps.find(({ id }) => id === procForm.step);
+      if (!value("title")) return toast("A step needs a title.");
+      const operations = [{ op: "step", process: target.id, step: step.id, title: value("title"), lane: value("lane"), test: value("test") }];
+      for (const input of $$("#popover [data-p-when]")) {
+        const wire = procWires(step).find((item) => item.step === input.dataset.pWhen);
+        if ((wire.when ?? "") !== input.value.trim()) operations.push({ op: "wire", process: target.id, from: wire.step, into: step.id, when: input.value.trim() });
+      }
+      return procApply(operations);
+    }
+    if (!model) return undefined;
+    if (act === "unpick") return procRemove();
+    if (act === "goto") {
+      procPicked = item.dataset.step ? { step: item.dataset.step } : undefined;
+      procWiresDraw();
+      return $(`#board .pstep[data-step="${CSS.escape(item.dataset.step)}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+    if (act === "remove") {
+      // Asked twice before a process goes.
+      if (item.textContent !== "Remove it for good") {
+        item.textContent = "Remove it for good";
+        item.classList.add("primary");
+        return undefined;
+      }
+      processId = undefined;
+      return procApply([{ op: "remove", process: model.id }]);
+    }
+    if (act === "bpmn") {
+      const xml = atlas.processes.bpmn[model.id];
+      if (!xml || procChanges.length) return toast(`The BPMN is written from the project: apply the changes, then bca process export --process ${model.id}.`);
+      return download(`${model.id}.bpmn`, xml, "application/xml");
+    }
+    if (act === "play") {
+      // The run plays on the lens of the process models, step by step.
+      const story = storyOf(`model:${model.id}`);
+      if (!story || procChanges.length) return toast(`The run is of the project: apply the changes, then play it, or bca process run --process ${model.id}.`);
+      boardShow(false);
+      stop();
+      return set({ story: story.id, step: "0", q: "", form: "diagram", sel: "", hide: "", off: "" }).then(() => play(story));
+    }
+    return undefined;
+  }
+  $("#board").addEventListener("change", (event) => {
+    if (event.target.dataset.procSelect !== undefined) {
+      processId = event.target.value;
+      procPicked = undefined;
+      return boardDraw();
+    }
+    // A lane with another name: every step of it moves.
+    const lane = event.target.dataset.procLane;
+    if (lane !== undefined && event.target.value.trim() && event.target.value.trim() !== lane) return procApply([{ op: "lane", process: procModel().id, lane, title: event.target.value.trim() }]);
+    return undefined;
+  });
+
+  // ----------------------------------------------------------------- canvas
+  // The flows as nodes to place and wire freely. A trigger, a flow, and every step is a node with
+  // ports: a wire from a trigger into a flow starts the flow on it, a wire from a flow into a step
+  // makes that its first step, a wire from a step into another makes that the next. A node that
+  // no wire leads to is on the canvas and in no flow. Wiring, unwiring, and removing send the
+  // operations the forms send; where the nodes are, and what is on the canvas without a flow, is
+  // the canvas (src/flows/canvas.js), kept in .bca/flow-canvas.json.
+  let boardMode = "canvas";
+  let canvas = { positions: {}, loose: [], triggers: [] };
+  const sight = { x: 28, y: 24, k: 1 };
+  let wiring;
+  let picked;
+  let gesture;
+  let removing;
+  let lastClick;
+  const CANVAS_KEY = () => `bca-flow-canvas:${atlas.title}`;
+  /** The canvas of the project: from the atlas, and in a snapshot what this browser kept. */
+  function canvasRead() {
+    canvas = structuredClone(atlas.flows?.canvas ?? { positions: {}, loose: [], triggers: [] });
+    if (LIVE) return;
+    try {
+      // Where the nodes were; what was changed in a snapshot is gone with the page, so nothing else is kept.
+      const kept = JSON.parse(localStorage.getItem(CANVAS_KEY()) ?? "null");
+      if (kept && typeof kept === "object") Object.assign(canvas.positions, kept);
+    } catch { /* optional */ }
+  }
+  /** Keeps the canvas: in the project in VS Code, in this browser for a snapshot. */
+  async function canvasSave() {
+    if (LIVE) return call("saveFlowCanvas", canvas).catch((error) => toast(error.message));
+    try { localStorage.setItem(CANVAS_KEY(), JSON.stringify(canvas.positions)); } catch { /* optional */ }
+    return undefined;
+  }
+  /** The key of a step: the place it saves to, which no other step has; for a gate, its flow and number. */
+  function stepKey(flow, index) {
+    const step = flow.steps[index];
+    const place = placeOfStep(step);
+    if (place) return `step:${place}`;
+    return `gate:${flow.id}:${step.what}:${flow.steps.slice(0, index).filter((other) => other.what === step.what && !placeOfStep(other)).length + 1}`;
+  }
+  /** The nodes and wires of the flows as they are, each node where the canvas has it or where it falls by itself. */
+  function canvasModel() {
+    const { flows, triggers } = atlas.flows;
+    const nodes = new Map();
+    const wires = [];
+    const at = (key, x, y) => canvas.positions[key] ?? [x, y];
+    const tops = [];
+    let top = 36;
+    for (const flow of flows) {
+      const key = `flow:${flow.id}`;
+      tops.push(top);
+      nodes.set(key, { key, kind: "flow", flow, pos: at(key, 250, top) });
+      const index = new Map(flow.steps.flatMap((step, order) => (step.id ? [[step.id, order]] : [])));
+      // By itself a step falls one column after the last step it waits for.
+      const columns = new Map();
+      const column = (order, seen = new Set()) => {
+        if (!columns.has(order)) {
+          const before = seen.has(order) ? [] : wiresOf(flow.steps[order]).map((wire) => index.get(wire.step)).filter((other) => other !== undefined);
+          columns.set(order, 1 + Math.max(0, ...before.map((other) => column(other, new Set([...seen, order])))));
+        }
+        return columns.get(order);
+      };
+      const filled = new Map();
+      flow.steps.forEach((step, order) => {
+        const own = stepKey(flow, order);
+        const lane = filled.get(column(order)) ?? 0;
+        filled.set(column(order), lane + 1);
+        nodes.set(own, { key: own, kind: "step", flow, at: order + 1, step, pos: at(own, 250 + 250 * column(order), top + lane * 84) });
+        const before = wiresOf(step);
+        if (!before.length) wires.push({ from: key, to: own, kind: "then", flow: flow.id, at: order + 1 });
+        for (const wire of before) {
+          if (index.has(wire.step)) wires.push({ from: stepKey(flow, index.get(wire.step)), to: own, kind: "then", cond: wire.if, flow: flow.id, at: order + 1, fromAt: index.get(wire.step) + 1 });
+        }
+      });
+      top += Math.max(150, Math.max(0, ...filled.values()) * 84 + 50);
+    }
+    const named = [...new Set([...flows.flatMap(({ when }) => when), ...canvas.triggers])].filter((name) => triggers[name]);
+    let spare = 0;
+    for (const name of named) {
+      const key = `trigger:${name}`;
+      const first = flows.findIndex(({ when }) => when.includes(name));
+      nodes.set(key, { key, kind: "trigger", name, pos: at(key, 28, first >= 0 ? tops[first] + flows[first].when.indexOf(name) * 50 : top + spare++ * 50) });
+      for (const flow of flows) if (flow.when.includes(name)) wires.push({ from: key, to: `flow:${flow.id}`, kind: "starts", trigger: name, flow: flow.id });
+    }
+    canvas.loose.forEach((entry, order) => {
+      nodes.set(entry.key, { key: entry.key, kind: "loose", step: entry.step, group: entry.group, pos: at(entry.key, 500 + order * 28, top + order * 28) });
+      // What left a flow together keeps its wires, to come back together.
+      for (const wire of wiresOf(entry.step)) {
+        const before = canvas.loose.find((other) => other !== entry && entry.group && other.group === entry.group && other.step.id === wire.step);
+        if (before) wires.push({ from: before.key, to: entry.key, kind: "then", cond: wire.if, loose: true });
+      }
+    });
+    return { nodes, wires };
+  }
+  function canvasNodeHtml(node) {
+    const { triggers } = atlas.flows;
+    const style = `style="left:${node.pos[0]}px;top:${node.pos[1]}px"`;
+    const ports = (into, out) => `${into ? '<span class="port in" data-port="in" title="Drop a wire here"></span>' : ""}${out ? '<span class="port out" data-port="out" title="Drag a wire from here"></span>' : ""}`;
+    if (node.kind === "trigger") return `<div class="node trigger" data-key="${esc(node.key)}" ${style} title="${esc(triggers[node.name].summary)}. Delivery: ${esc(triggers[node.name].sync)}"><small>When</small><b>${esc(node.name)}</b>${ports(false, true)}</div>`;
+    if (node.kind === "flow") {
+      const { flow } = node;
+      return `<div class="node flow" data-key="${esc(node.key)}" ${style} title="Double-click for its title, triggers, and delivery"><small>Flow · ${esc(flow.id)}</small><b>${esc(flow.title)}</b>
+        <span class="acts">${LIVE ? `<button class="btn" data-flow-act="run" data-flow="${esc(flow.id)}" title="bca run --flow ${esc(flow.id)}" ${flow.steps.length ? "" : "disabled"}>Run now</button>` : ""}<button class="btn" data-flow-act="github" data-flow="${esc(flow.id)}" title="Export it as a workflow for GitHub Actions" ${flow.steps.length ? "" : "disabled"}>GitHub Actions</button></span>${ports(true, true)}</div>`;
+    }
+    const { what, to: _to, id: name, after: _after, ...options } = node.step;
+    const artifact = artifactOf(what);
+    const detail = options.lens ?? options.story ?? options.view ?? options.language;
+    const place = placeOfStep(node.step);
+    const loose = node.kind === "loose";
+    return `<div class="node step ${loose ? "loose" : ""}" data-key="${esc(node.key)}" ${style} title="${loose ? "In no flow yet: drag a wire into it from a flow or one of its steps" : "Double-click for where it is saved and its options. Pull a wire from its right into the steps that come after it"}"><small>${loose ? "Not wired" : `Step ${node.at}`}${name ? ` · ${esc(name)}` : ""}</small><b>${esc(artifact?.title ?? what)}${detail ? `: ${esc(detail)}` : ""}</b><small>${esc(place ? `→ ${place}` : artifact?.plugin ? "task of a plugin" : "gate")}</small>${ports(true, !loose)}</div>`;
+  }
+  let model;
+  function canvasDraw() {
+    const world = $("#board .world");
+    if (!world) return;
+    model = canvasModel();
+    world.innerHTML = `<svg class="wires" aria-hidden="true"></svg>${[...model.nodes.values()].map(canvasNodeHtml).join("")}`;
+    world.style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
+    if (picked?.node && !model.nodes.has(picked.node)) picked = undefined;
+    if (picked?.wire && !model.wires.some((wire) => wire.from === picked.wire.from && wire.to === picked.wire.to)) picked = undefined;
+    if (!model.nodes.size) world.insertAdjacentHTML("beforeend", '<p class="empty">Drag <b>New flow</b> here, then an artifact, and pull a wire from the flow into it.</p>');
+    canvasWires();
+  }
+  /** Where the ports of a node are, in the coordinates of the world. */
+  function canvasPort(key, side) {
+    const element = $(`#board .node[data-key="${CSS.escape(key)}"]`);
+    if (!element) return undefined;
+    return [element.offsetLeft + (side === "out" ? element.offsetWidth : 0), element.offsetTop + element.offsetHeight / 2];
+  }
+  const curve = ([x1, y1], [x2, y2]) => {
+    const bend = Math.max(36, Math.abs(x2 - x1) / 2);
+    return `M${x1} ${y1} C${x1 + bend} ${y1} ${x2 - bend} ${y2} ${x2} ${y2}`;
+  };
+  const CONDITION = { passed: "if it passed", failed: "if it fails", always: "in any case" };
+  function canvasWires() {
+    const svg = $("#board .wires");
+    if (!svg) return;
+    const same = (wire) => picked?.wire && picked.wire.from === wire.from && picked.wire.to === wire.to;
+    svg.innerHTML = model.wires.map((wire, index) => {
+      const from = canvasPort(wire.from, "out");
+      const to = canvasPort(wire.to, "in");
+      if (!from || !to) return "";
+      const path = curve(from, to);
+      const label = wire.cond && wire.cond !== "passed" ? `<text class="label ${wire.cond}" x="${(from[0] + to[0]) / 2}" y="${(from[1] + to[1]) / 2 - 7}" text-anchor="middle">${CONDITION[wire.cond]}</text>` : "";
+      return `<path class="wire ${wire.kind} ${wire.cond ?? ""} ${wire.loose ? "idle" : ""} ${same(wire) ? "picked" : ""}" d="${path}"></path>${label}${wire.loose ? "" : `<path class="hit" data-wire="${index}" d="${path}"><title>Click to select the wire${wire.fromAt ? " and say when it holds" : ""}, or to remove it</title></path>`}`;
+    }).join("") + (wiring ? `<path class="wire pending" d="${curve(canvasPort(wiring.from, "out"), wiring.to)}"></path>` : "");
+    for (const element of $$("#board .node")) element.classList.toggle("picked", picked?.node === element.dataset.key);
+    const remove = $('#board [data-canvas="remove"]');
+    if (remove) {
+      remove.disabled = !picked;
+      remove.textContent = removing && picked?.node === removing ? "Remove the flow and its steps" : "Remove";
+    }
+    // A wire between two steps says when the second runs.
+    const chosen = picked?.wire ? model.wires.find(same) : undefined;
+    const condition = $("#board [data-canvas-if]");
+    if (condition) {
+      condition.hidden = !chosen?.fromAt;
+      if (chosen?.fromAt) condition.value = chosen.cond;
+    }
+  }
+  /** A point of the screen in the coordinates of the world. */
+  function canvasPoint(event) {
+    const box = $("#board .canvas").getBoundingClientRect();
+    return [(event.clientX - box.left - sight.x) / sight.k, (event.clientY - box.top - sight.y) / sight.k];
+  }
+  function canvasZoom(factor, anchor) {
+    const element = $("#board .canvas");
+    const [px, py] = anchor ?? [element.clientWidth / 2, element.clientHeight / 2];
+    const k = Math.min(2, Math.max(0.3, sight.k * factor));
+    sight.x = px - (px - sight.x) * (k / sight.k);
+    sight.y = py - (py - sight.y) * (k / sight.k);
+    sight.k = k;
+    $("#board .world").style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
+  }
+  function canvasFit() {
+    const elements = $$("#board .node");
+    const element = $("#board .canvas");
+    if (!elements.length) return;
+    const left = Math.min(...elements.map((node) => node.offsetLeft));
+    const top = Math.min(...elements.map((node) => node.offsetTop));
+    const right = Math.max(...elements.map((node) => node.offsetLeft + node.offsetWidth));
+    const bottom = Math.max(...elements.map((node) => node.offsetTop + node.offsetHeight));
+    sight.k = Math.min(1.25, Math.max(0.3, Math.min((element.clientWidth - 56) / (right - left), (element.clientHeight - 96) / (bottom - top))));
+    sight.x = 28 - left * sight.k;
+    sight.y = 24 - top * sight.k;
+    $("#board .world").style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
+  }
+  function canvasTool(tool) {
+    if (tool === "in") return canvasZoom(1.2);
+    if (tool === "out") return canvasZoom(1 / 1.2);
+    if (tool === "fit") return canvasFit();
+    if (tool === "remove") return canvasRemove();
+    if (tool === "tidy") {
+      canvas.positions = {};
+      canvasSave();
+      canvasDraw();
+      return canvasFit();
+    }
+    return undefined;
+  }
+  let looseCount = 0;
+  const looseKey = () => {
+    do looseCount += 1; while (canvas.loose.some(({ key }) => key === `loose:${looseCount}`));
+    return `loose:${looseCount}`;
+  };
+  /** Something of the palette dropped on the canvas: a node there. */
+  async function canvasDrop(dropped, event) {
+    const [x, y] = canvasPoint(event);
+    const pos = [Math.round(x - 90), Math.round(y - 24)];
+    if (dropped.kind === "trigger") {
+      const key = `trigger:${dropped.name}`;
+      if (!model.nodes.has(key)) canvas.triggers.push(dropped.name);
+      canvas.positions[key] = pos;
+      picked = { node: key };
+      await canvasSave();
+      return canvasDraw();
+    }
+    if (dropped.kind === "artifact") {
+      const key = looseKey();
+      canvas.loose.push({ key, step: { what: dropped.what } });
+      canvas.positions[key] = pos;
+      picked = { node: key };
+      await canvasSave();
+      return canvasDraw();
+    }
+    const start = boardNewFlow(`Flow ${atlas.flows.flows.length + 1}`);
+    picked = { node: `flow:${start.flow}` };
+    return flowApply([start], undefined, () => { canvas.positions[`flow:${start.flow}`] = pos; });
+  }
+  /** Whether a step of a flow waits, directly or through others, for another (both by index). */
+  function waitsFor(flow, step, other, seen = new Set()) {
+    if (seen.has(step)) return false;
+    seen.add(step);
+    return wiresOf(flow.steps[step]).some((wire) => {
+      const before = flow.steps.findIndex(({ id }) => id === wire.step);
+      return before === other || (before >= 0 && waitsFor(flow, before, other, seen));
+    });
+  }
+  /** A wire pulled from one node into another: what it means for the flows. */
+  async function canvasConnect(from, to) {
+    const source = model.nodes.get(from);
+    const target = model.nodes.get(to);
+    if (!source || !target || from === to) return undefined;
+    if (source.kind === "trigger") {
+      if (target.kind !== "flow") return toast("A trigger starts a flow: pull its wire into a flow.");
+      if (target.flow.when.includes(source.name)) return undefined;
+      return flowApply([{ op: "set", flow: target.flow.id, when: [...target.flow.when, source.name] }]);
+    }
+    if (target.kind !== "step" && target.kind !== "loose") return toast(target.kind === "flow" ? "Only a trigger leads into a flow." : "A wire from a flow or a step leads into a step.");
+    const flow = source.flow;
+    const count = flow.steps.length;
+    if (target.kind === "step" && target.flow.id === flow.id) {
+      // From the flow: the step starts with it, and waits for nothing.
+      if (source.kind === "flow") return wiresOf(target.step).length ? flowApply([{ op: "step", flow: flow.id, at: target.at, after: [] }]) : undefined;
+      if (wiresOf(target.step).some((wire) => wire.step === source.step.id)) return undefined;
+      if (waitsFor(flow, source.at - 1, target.at - 1)) return toast("That would be a circle: the step you pull from already comes after this one.");
+      return flowApply([{ op: "wire", flow: flow.id, from: source.at, into: target.at }]);
+    }
+    if (target.kind === "step") {
+      // From another flow: the step itself, with its place and options; what waited for it there no longer does.
+      const { id, after: _after, ...moved } = target.step;
+      const name = id && !flow.steps.some((step) => step.id === id) ? { id } : {};
+      return flowApply([{ op: "step", flow: flow.id, ...moved, ...name }, ...(source.kind === "step" ? [{ op: "wire", flow: flow.id, from: source.at, into: count + 1 }] : []), { op: "unstep", flow: target.flow.id, at: target.at }]);
+    }
+    // A node in no flow, and with it those that left a flow together with it and come after it.
+    const members = [canvas.loose.find(({ key }) => key === to)];
+    for (let grown = true; grown;) {
+      grown = false;
+      for (const entry of canvas.loose) {
+        if (members.includes(entry) || !entry.group || entry.group !== members[0].group) continue;
+        if (wiresOf(entry.step).some((wire) => members.some((member) => member.step.id === wire.step))) {
+          members.push(entry);
+          grown = true;
+        }
+      }
+    }
+    // Names and places that the flow has already are given anew.
+    const names = new Map();
+    const taken = new Set();
+    const places = [];
+    const steps = members.map((entry) => {
+      const { after: _after, ...step } = entry.step;
+      if (step.id) {
+        const name = flow.steps.some(({ id }) => id === step.id) || taken.has(step.id) ? freeStepId(flow.steps, step.what, taken) : step.id;
+        names.set(step.id, name);
+        taken.add(name);
+        step.id = name;
+      }
+      step.to ??= freePlace(step.what, places);
+      if (step.to) places.push(step.to);
+      return step;
+    });
+    const operations = steps.map((step) => ({ op: "step", flow: flow.id, ...step }));
+    if (source.kind === "step") operations.push({ op: "wire", flow: flow.id, from: source.at, into: count + 1 });
+    members.forEach((entry, order) => {
+      if (!order) return;
+      for (const wire of wiresOf(entry.step)) {
+        const before = members.findIndex((member) => member.step.id === wire.step);
+        if (before >= 0) operations.push({ op: "wire", flow: flow.id, from: count + 1 + before, into: count + 1 + order, if: wire.if });
+      }
+    });
+    return flowApply(operations, undefined, () => {
+      canvas.loose = canvas.loose.filter((entry) => !members.includes(entry));
+      // The nodes stay where they are, under the keys they have in a flow.
+      members.forEach((entry, order) => {
+        if (steps[order].to) canvas.positions[`step:${steps[order].to}`] = model.nodes.get(entry.key).pos;
+        delete canvas.positions[entry.key];
+      });
+    });
+  }
+  /**
+   * Takes the only wire into a step away: the step is in no flow any more, and neither are the
+   * steps that run only through it. They stay on the canvas with their wires (src/flows/config.js, detach).
+   */
+  async function canvasDetach(flow, index) {
+    // Where the nodes are, so that those that leave the flow stay where they are.
+    flow.steps.forEach((_, order) => {
+      const node = model.nodes.get(stepKey(flow, order));
+      if (node) canvas.positions[node.key] = node.pos;
+    });
+    await canvasSave();
+    return flowApply([{ op: "detach", flow: flow.id, at: index + 1 }]);
+  }
+  /** Takes what is selected away: a wire, or a node. */
+  async function canvasRemove() {
+    if (!picked) return undefined;
+    if (picked.wire) {
+      const wire = model.wires.find(({ from, to }) => from === picked.wire.from && to === picked.wire.to);
+      picked = undefined;
+      if (!wire || wire.loose) return undefined;
+      const flow = flowOf(wire.flow);
+      if (wire.kind === "starts") {
+        // The trigger stays on the canvas, starting nothing.
+        return flowApply([{ op: "set", flow: flow.id, when: flow.when.filter((name) => name !== wire.trigger) }], undefined, () => {
+          if (!canvas.triggers.includes(wire.trigger)) canvas.triggers.push(wire.trigger);
+        });
+      }
+      // One of several wires into a step: the step waits for one step less.
+      if (wire.fromAt && wiresOf(flow.steps[wire.at - 1]).length > 1) return flowApply([{ op: "unwire", flow: flow.id, from: wire.fromAt, into: wire.at }]);
+      // The only wire into it: the step is in no flow any more.
+      return canvasDetach(flow, wire.at - 1);
+    }
+    const node = model.nodes.get(picked.node);
+    if (!node) return undefined;
+    if (node.kind === "flow" && removing !== node.key) {
+      // Asked twice before a flow goes with its steps.
+      removing = node.key;
+      canvasWires();
+      return toast(`Remove again to take the flow ${node.flow.id} and its ${plural(node.flow.steps.length, "step")} away.`);
+    }
+    removing = undefined;
+    picked = undefined;
+    // A step that is removed: the way closes around it, as in a process and from the terminal.
+    if (node.kind === "step") return flowApply([{ op: "unstep", flow: node.flow.id, at: node.at }], undefined, () => { delete canvas.positions[node.key]; });
+    const gone = () => {
+      delete canvas.positions[node.key];
+      if (node.kind === "loose") canvas.loose = canvas.loose.filter(({ key }) => key !== node.key);
+      if (node.kind === "trigger") canvas.triggers = canvas.triggers.filter((name) => name !== node.name);
+    };
+    const operations = node.kind === "loose" ? []
+      : node.kind === "trigger" ? atlas.flows.flows.filter(({ when }) => when.includes(node.name)).map((flow) => ({ op: "set", flow: flow.id, when: flow.when.filter((name) => name !== node.name) }))
+        : [{ op: "remove", flow: node.flow.id }];
+    if (operations.length) return flowApply(operations, undefined, gone);
+    // Only on the canvas: nothing of the flows changes.
+    gone();
+    await canvasSave();
+    return canvasDraw();
+  }
+  // Pointer: a wire from a port, a node by its body, the canvas by its ground.
+  $("#board").addEventListener("pointerdown", (event) => {
+    // A wire from a step of a process into the step that comes after it.
+    const from = event.button === 0 ? event.target.closest?.(".pstep .port.out")?.closest(".pstep") : undefined;
+    if (from) {
+      const box = $("#board .swim").getBoundingClientRect();
+      gesture = { kind: "pwire", box };
+      procWiring = { from: from.dataset.step, to: [event.clientX - box.left, event.clientY - box.top] };
+      event.preventDefault();
+      try { $("#board").setPointerCapture(event.pointerId); } catch { /* optional */ }
+      return;
+    }
+    const ground = event.target.closest?.(".canvas");
+    if (!ground || event.button !== 0 || event.target.closest("button, select, .tools, .kept")) return;
+    const element = event.target.closest(".node");
+    const hit = event.target.closest("[data-wire]");
+    if (removing) removing = undefined;
+    if (event.target.closest(".port.out")) {
+      gesture = { kind: "wire" };
+      wiring = { from: element.dataset.key, to: canvasPoint(event) };
+    } else if (element) {
+      const node = model.nodes.get(element.dataset.key);
+      gesture = { kind: "node", key: node.key, element, start: [event.clientX, event.clientY], origin: [...node.pos], moved: false };
+    } else if (hit) {
+      const wire = model.wires[Number(hit.dataset.wire)];
+      picked = { wire: { from: wire.from, to: wire.to } };
+      ground.focus({ preventScroll: true });
+      return canvasWires();
+    } else {
+      gesture = { kind: "pan", start: [event.clientX, event.clientY], origin: [sight.x, sight.y], moved: false };
+    }
+    event.preventDefault();
+    ground.focus({ preventScroll: true });
+    try { $("#board").setPointerCapture(event.pointerId); } catch { /* optional */ }
+    return undefined;
+  });
+  $("#board").addEventListener("pointermove", (event) => {
+    if (!gesture) return;
+    if (gesture.kind === "pwire") {
+      procWiring.to = [event.clientX - gesture.box.left, event.clientY - gesture.box.top];
+      const over = document.elementFromPoint(event.clientX, event.clientY)?.closest?.("#board .pstep");
+      for (const element of $$("#board .pstep.aim")) element.classList.remove("aim");
+      if (over && over.dataset.step !== procWiring.from) over.classList.add("aim");
+      return procWiresDraw();
+    }
+    if (gesture.kind === "wire") {
+      wiring.to = canvasPoint(event);
+      const over = document.elementFromPoint(event.clientX, event.clientY)?.closest?.("#board .node");
+      for (const element of $$("#board .node.aim")) element.classList.remove("aim");
+      if (over && over.dataset.key !== wiring.from) over.classList.add("aim");
+      return canvasWires();
+    }
+    const dx = event.clientX - gesture.start[0];
+    const dy = event.clientY - gesture.start[1];
+    if (Math.abs(dx) + Math.abs(dy) > 3) gesture.moved = true;
+    if (!gesture.moved) return;
+    if (gesture.kind === "pan") {
+      sight.x = gesture.origin[0] + dx;
+      sight.y = gesture.origin[1] + dy;
+      $("#board .world").style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
+      return;
+    }
+    const node = model.nodes.get(gesture.key);
+    node.pos = [Math.round(gesture.origin[0] + dx / sight.k), Math.round(gesture.origin[1] + dy / sight.k)];
+    gesture.element.style.left = `${node.pos[0]}px`;
+    gesture.element.style.top = `${node.pos[1]}px`;
+    canvasWires();
+  });
+  const canvasRelease = (event) => {
+    if (!gesture) return undefined;
+    const done = gesture;
+    gesture = undefined;
+    try { $("#board").releasePointerCapture(event.pointerId); } catch { /* optional */ }
+    if (done.kind === "pwire") {
+      const from = procWiring.from;
+      procWiring = undefined;
+      const into = event.type === "pointerup" ? document.elementFromPoint(event.clientX, event.clientY)?.closest?.("#board .pstep")?.dataset.step : undefined;
+      for (const element of $$("#board .pstep.aim")) element.classList.remove("aim");
+      procWiresDraw();
+      const process = procModel();
+      if (!into || into === from || procWires(process.steps.find(({ id }) => id === into)).some((wire) => wire.step === from)) return undefined;
+      // A wire into a step the way already passed is a loop: the work is done again.
+      if (procComesAfter(process, from, into)) toast("A way back: the steps between them are done again. Name the way in the form of the step.");
+      return procApply([{ op: "wire", process: process.id, from, into }]);
+    }
+    if (done.kind === "wire") {
+      const from = wiring.from;
+      wiring = undefined;
+      const over = event.type === "pointerup" ? document.elementFromPoint(event.clientX, event.clientY)?.closest?.("#board .node") : undefined;
+      for (const element of $$("#board .node.aim")) element.classList.remove("aim");
+      canvasWires();
+      return over ? canvasConnect(from, over.dataset.key) : undefined;
+    }
+    if (done.kind === "pan") {
+      if (!done.moved) {
+        picked = undefined;
+        canvasWires();
+      }
+      return undefined;
+    }
+    picked = { node: done.key };
+    canvasWires();
+    if (!done.moved) {
+      // The pointer is held by the board while it is down, so a double click is two clicks on one node.
+      const twice = lastClick?.key === done.key && event.timeStamp - lastClick.time < 450;
+      lastClick = twice ? undefined : { key: done.key, time: event.timeStamp };
+      return twice ? canvasOpen(done.key) : undefined;
+    }
+    canvas.positions[done.key] = model.nodes.get(done.key).pos;
+    return canvasSave();
+  };
+  $("#board").addEventListener("pointerup", canvasRelease);
+  $("#board").addEventListener("pointercancel", canvasRelease);
+  /** A node opened: the form of a flow or of a step. */
+  function canvasOpen(key) {
+    const node = model.nodes.get(key);
+    if (!node) return undefined;
+    if (node.kind === "flow") return flowEdit(node.flow.id);
+    if (node.kind === "step") return flowEdit(node.flow.id, node.at);
+    return toast(node.kind === "loose" ? "It is in no flow yet: pull a wire into it from a flow or one of its steps, then set its place and options." : "A trigger has no settings of its own; how it delivers is in the form of a flow.");
+  }
+  $("#board").addEventListener("change", (event) => {
+    if (event.target.dataset.canvasIf === undefined || !picked?.wire) return undefined;
+    const wire = model.wires.find(({ from, to }) => from === picked.wire.from && to === picked.wire.to);
+    return wire?.fromAt ? flowApply([{ op: "wire", flow: wire.flow, from: wire.fromAt, into: wire.at, if: event.target.value }]) : undefined;
+  });
+  $("#board").addEventListener("wheel", (event) => {
+    const ground = event.target.closest?.(".canvas");
+    if (!ground) return;
+    event.preventDefault();
+    const box = ground.getBoundingClientRect();
+    canvasZoom(event.deltaY < 0 ? 1.1 : 1 / 1.1, [event.clientX - box.left, event.clientY - box.top]);
+  }, { passive: false });
+
+  /** Opens the Flow menu on one flow, or on one of its steps: from the card of a node. */
+  function flowEdit(flow, step) {
+    closeMenu();
+    flowForm = { flow, step };
+    showMenu($("#flow-button"));
+  }
+  const flowRedraw = () => {
+    $("#popover").innerHTML = MENUS.flow();
+    $("#popover").querySelector("input[type=text], select")?.focus({ preventScroll: true });
+  };
+  /** Sends operations: written to .bca.json in VS Code, kept to save in an exported file. Then back to `next`. */
+  /**
+   * @param next the form to go back to, when the menu is open
+   * @param change what the change means for the canvas of the builder: done once the flows changed
+   * @returns whether the flows changed
+   */
+  async function flowApply(operations, next, change) {
+    if (!operations.length) {
+      if (!openMenu) return false;
+      flowForm = next;
+      flowRedraw();
+      return false;
+    }
+    if (!LIVE) {
+      // A snapshot shows the change and keeps it to save; the project gets it with bca flow define --from.
+      flowLocal(operations);
+      flowChanges.push(...operations);
+      if (change) {
+        change();
+        await canvasSave();
+      }
+      toast(`Kept: ${operations.map(describeOperation).join("; ")}. Save the changes from the Flow menu.`);
+      boardDraw();
+      if (!openMenu) return true;
+      flowForm = next?.flow && flowOf(next.flow) ? next : undefined;
+      flowRedraw();
+      return true;
+    }
+    try {
+      const result = await call("defineFlows", { operations });
+      const open = (result.rerouted ?? []).filter(({ after }) => !after.length).map(({ step }) => step);
+      toast(`${result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed."}${open.length ? ` ${open.join(", ")} came after nothing else and now ${open.length === 1 ? "starts" : "start"} the flow.` : ""}`);
+    } catch (error) {
+      // What is not valid was not written: the flows and the canvas are as they were.
+      toast(error.message.replace(/^flows: /u, ""));
+      return false;
+    }
+    if (change) {
+      change();
+      await canvasSave();
+    }
+    const menu = Boolean(openMenu);
+    closeMenu();
+    await reload("Reading the flows");
+    // The builder stays open on the flow, so one step follows the other.
+    if (menu && next?.flow && flowOf(next.flow)) {
+      flowForm = next;
+      showMenu($("#flow-button"));
+    }
+    return true;
+  }
+  function flowClick(item) {
+    const act = item.dataset.flowAct;
+    const value = (name) => $(`#popover [data-f="${name}"]`)?.value.trim() ?? "";
+    if (act === "show") {
+      closeMenu();
+      return set({ lens: "flows", form: "diagram", inside: "", focus: "", story: "", hide: "", off: "" });
+    }
+    if (act === "new" || act === "edit") {
+      flowForm = { flow: item.dataset.flow };
+      return flowRedraw();
+    }
+    if (act === "forget") {
+      flowChanges.length = 0;
+      return flowRedraw();
+    }
+    if (act === "save") {
+      closeMenu();
+      return download("flow-changes.json", `${JSON.stringify({ operations: flowChanges }, null, 2)}\n`, "application/json");
+    }
+    if (act === "back") {
+      flowForm = undefined;
+      return flowRedraw();
+    }
+    if (act === "board") {
+      closeMenu();
+      return boardShow(true, "canvas");
+    }
+    if (act === "process") {
+      closeMenu();
+      if (item.dataset.process) processId = item.dataset.process;
+      return boardShow(true, "process");
+    }
+    const id = item.dataset.flow ?? flowForm?.flow;
+    if (act === "step") {
+      flowForm = { flow: id, step: item.dataset.at === "new" ? "new" : Number(item.dataset.at) };
+      return flowRedraw();
+    }
+    if (act === "step-back") {
+      flowForm = { flow: id };
+      return flowRedraw();
+    }
+    if (act === "up" || act === "down") return flowApply([{ op: "move", flow: id, at: Number(item.dataset.at), by: act === "up" ? -1 : 1 }], { flow: id });
+    if (act === "step-remove") return flowApply([{ op: "unstep", flow: id, at: flowForm.step }], { flow: id });
+    if (act === "step-apply") {
+      const operation = { op: "step", flow: id, what: $("#popover [data-flow-what]").value, ...(typeof flowForm.step === "number" ? { at: flowForm.step } : {}) };
+      if ($('#popover [data-f="to"]')) operation.to = value("to");
+      // A name is kept unless it is changed: taking it away would leave others waiting for nothing.
+      if (value("id")) operation.id = value("id");
+      for (const input of $$("#popover [data-o]")) operation[input.dataset.o] = input.value.trim();
+      return flowApply([operation], { flow: id });
+    }
+    if (act === "remove") {
+      // Asked twice before a flow goes.
+      if (item.textContent !== "Remove the flow") {
+        item.textContent = "Remove the flow";
+        item.classList.add("primary");
+        return undefined;
+      }
+      return flowApply([{ op: "remove", flow: id }], undefined);
+    }
+    if (act === "github") {
+      closeMenu();
+      if (!LIVE) {
+        // A snapshot cannot write into the repository: the command does.
+        const command = `bca flow export --flow ${id}`;
+        return navigator.clipboard?.writeText(command).then(() => toast(`Copied: ${command}. Run it in the project to write the workflow.`), () => toast(`Run in the project: ${command}`)) ?? toast(`Run in the project: ${command}`);
+      }
+      return call("exportFlow", { flow: id }).then((result) => toast(result.action === "unchanged"
+        ? `${result.path} is up to date.`
+        : `Wrote ${result.path}: ${Object.entries(result.delivery).map(([trigger, sync]) => `${trigger} → ${sync}`).join(", ")}. Commit it, and GitHub runs the flow.`), (error) => toast(error.message.replace(/^flows: /u, "")));
+    }
+    if (act === "run") {
+      closeMenu();
+      toast(`Running the flow ${id}…`);
+      return call("runFlow", { flow: id }).then((result) => {
+        const failed = result.steps.filter(({ ok }) => !ok);
+        toast(failed.length ? `${failed.length} of ${plural(result.steps.length, "step")} failed: ${failed.map(({ what, summary }) => `${what} (${summary})`).join("; ")}` : `Made ${plural(result.steps.length, "artifact")}: ${result.outputs.join(", ") || "nothing to save"}.`);
+      }, (error) => toast(error.message));
+    }
+    if (act === "apply") {
+      const title = value("title");
+      const when = $$('#popover [data-f="when"]:checked').map((box) => box.value);
+      const flow = id ? flowOf(id) : undefined;
+      if (!flow && !title) return toast("A flow needs a title.");
+      const target = flow?.id ?? flowIdOf(title);
+      if (!flow && flowOf(target)) return toast(`There is a flow ${target} already.`);
+      const operations = [];
+      if (!flow || title !== flow.title || when.join() !== flow.when.join()) operations.push({ op: "set", flow: target, title, when });
+      for (const select of $$("#popover [data-deliver]")) {
+        const trigger = select.dataset.deliver;
+        if (when.includes(trigger) && select.value !== atlas.flows.triggers[trigger].sync) operations.push({ op: "deliver", trigger, sync: select.value });
+      }
+      return flowApply(operations, { flow: target });
+    }
+    return undefined;
+  }
+
   // What the view may write back: the architecture it proposes, and the baseline of what is accepted.
   function architectureAction() {
     const { mode, violations } = atlas.summary.architecture;
@@ -777,6 +2113,10 @@
   function closeMenu() {
     if (!openMenu) return;
     if (openMenu.dataset.menu === "simulate") simForm = undefined;
+    if (openMenu.dataset.menu === "flow") {
+      flowForm = undefined;
+      procForm = undefined;
+    }
     $("#popover").hidden = true;
     openMenu.setAttribute("aria-expanded", "false");
     openMenu = undefined;
@@ -804,7 +2144,9 @@
   $("#popover").addEventListener("click", async (event) => {
     const item = event.target.closest("button");
     if (!item) return;
-    if (item.dataset.sim || item.dataset.simEdit || item.dataset.simNew || item.dataset.simGo !== undefined || item.dataset.simRun) simulateClick(item);
+    if (item.dataset.proc) procClick(item);
+    else if (item.dataset.flowAct) flowClick(item);
+    else if (item.dataset.sim || item.dataset.simEdit || item.dataset.simNew || item.dataset.simGo !== undefined || item.dataset.simRun) simulateClick(item);
     else if (item.dataset.setLens) {
       closeMenu();
       set({ lens: item.dataset.setLens, inside: "", focus: "", story: "", hide: "", off: "", size: "", color: "", group: "" });
@@ -846,6 +2188,12 @@
   $("#popover").addEventListener("change", (event) => {
     const field = event.target.dataset.view;
     if (field) set({ [field]: event.target.value });
+    // Another artifact has other options and another place.
+    if (event.target.dataset.flowWhat !== undefined && flowForm) {
+      flowForm.what = event.target.value;
+      $("#popover").innerHTML = MENUS.flow();
+      $("#popover [data-flow-what]")?.focus({ preventScroll: true });
+    }
   });
 
   // --------------------------------------------------------------- toolbar
@@ -915,6 +2263,7 @@
       await load();
       applied = { ...applied, key: undefined };
       await render();
+      boardDraw();
     } catch (error) {
       message(`<b>The analysis failed.</b><span>${esc(error.message)}</span>`);
       $("#sync-text").textContent = "Failed";
@@ -928,6 +2277,7 @@
         load().then(() => {
           applied = { ...applied, key: undefined };
           toast("The source changed; the graph shows the new analysis.");
+          boardDraw();
           return render();
         }).catch(() => {});
       }

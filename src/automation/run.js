@@ -18,6 +18,7 @@ import { simulationResultLine } from "../simulation/report.js";
 import { loadPlugins } from "../plugins/registry.js";
 import { automationConfig, DEFAULTS, outputsFor, parseList, SYNC_MODES, TASKS } from "./config.js";
 import { changedPaths, findGitRoot, stagePaths } from "./git.js";
+import { flowsConfig, flowsFor, runFlows } from "../flows/index.js";
 
 /** A task of a plugin: activate it and run its implementation with the trigger of this run. */
 async function runPluginTask(registry, task, log) {
@@ -112,7 +113,8 @@ async function runTask(task, root, config, log, appPath, values = {}, tasks = []
 
 /**
  * @param input project root containing .bca.json
- * @param options { tasks, trigger, sync, config, log }
+ * @param options { tasks, flows, trigger, sync, config, log } flows: ids of flows to run by name,
+ *   instead of the tasks and flows of the trigger
  */
 export async function runAutomation(input, options = {}) {
   const root = path.resolve(input ?? ".");
@@ -123,14 +125,20 @@ export async function runAutomation(input, options = {}) {
   const pluginTasks = Object.keys(plugins.taskSummaries());
   const automation = automationConfig(config, { pluginTasks });
   const configured = automation.triggers[trigger];
-  if (options.trigger && !configured && !options.tasks?.length) {
+  // Flows (src/flows): by name with --flow, else those of the trigger, after its tasks.
+  const defined = flowsConfig(config, { pluginTasks });
+  const named = parseList(options.flows, undefined, "flows");
+  const unknown = (named ?? []).filter((id) => !defined.some((flow) => flow.id === id));
+  if (unknown.length) throw new Error(`there is no flow "${unknown[0]}" in .bca.json; ${defined.length ? `there ${defined.length === 1 ? "is" : "are"} ${defined.map(({ id }) => id).join(", ")}` : "define one with \"bca flow define\""}`);
+  const flows = named?.length ? defined.filter(({ id }) => named.includes(id)) : options.tasks?.length ? [] : flowsFor(defined, trigger);
+  if (options.trigger && !configured && !options.tasks?.length && !flows.length) {
     throw new Error(`trigger "${trigger}" is not configured in .bca.json; run "bca setup" or pass tasks explicitly`);
   }
   const requested = parseList(options.tasks, [...Object.keys(TASKS), ...pluginTasks], "tasks");
   // Core order, with each plugin task placed by its manifest (e.g. sync before docs).
-  const tasks = plugins.taskOrder().filter((task) => (requested?.length ? requested : configured?.tasks ?? []).includes(task));
-  if (!tasks.length) {
-    return { root, trigger, tasks, results: [], sync: "none", outputs: [], changed: [], passed: true };
+  const tasks = plugins.taskOrder().filter((task) => (requested?.length ? requested : named?.length ? [] : configured?.tasks ?? []).includes(task));
+  if (!tasks.length && !flows.length) {
+    return { root, trigger, tasks, results: [], flows: [], sync: "none", outputs: [], changed: [], passed: true };
   }
   const sync = options.sync ?? configured?.sync ?? "none";
   // verify and stage happen here; artifact, pull-request, and commit are
@@ -158,12 +166,17 @@ export async function runAutomation(input, options = {}) {
     results.push(result);
     await plugins.emit("task:after", result);
   }
+  const flowResults = await runFlows(flows, {
+    root, config, values, log, appPath, plugins,
+    runPluginTask: (task) => runPluginTask(plugins, task, () => {})
+  });
 
   if (["verify", "stage"].includes(sync) && !gitRoot) throw new Error(`sync "${sync}" needs a Git repository`);
   const base = gitRoot ? path.relative(gitRoot, root) : "";
   const pluginOutputs = {};
   for (const task of tasks.filter((item) => plugins.pluginForTask(item))) pluginOutputs[task] = await plugins.taskOutputs(task, config);
-  const outputs = outputsFor(tasks, config, base, pluginOutputs);
+  const place = (output) => path.posix.join(base.replaceAll("\\", "/") || ".", output.replaceAll("\\", "/"));
+  const outputs = [...new Set([...outputsFor(tasks, config, base, pluginOutputs), ...flowResults.flatMap(({ steps }) => steps.flatMap((step) => step.outputs)).map(place)])];
   await plugins.emit("run:after", { trigger, results, outputs });
   let changed = [];
   if (sync === "verify") {
@@ -182,6 +195,7 @@ export async function runAutomation(input, options = {}) {
     outputs,
     changed,
     results,
-    passed: results.every(({ ok }) => ok) && changed.length === 0
+    flows: flowResults,
+    passed: results.every(({ ok }) => ok) && flowResults.every(({ ok }) => ok) && changed.length === 0
   };
 }

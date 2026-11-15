@@ -143,6 +143,19 @@
     "analyzers": ["CodeCop", "UICop"],
     "callGraph": true
   },
+  "flows": [
+    {
+      "id": "docs",
+      "title": "Documentation in the repository",
+      "when": ["pre-push", "ci"],
+      "steps": [
+        { "what": "layers", "to": "docs/system" },
+        { "what": "view", "lens": "data", "form": "diagram", "to": "docs/pictures/data.svg" },
+        { "what": "handbook", "to": "docs/handbook", "language": "de" },
+        { "what": "check", "to": "docs/health.md" }
+      ]
+    }
+  ],
   "report": {
     "outputDir": "docs/atlas",
     "views": [

@@ -212,7 +212,91 @@
       }
     },
     "docs": { "type": "object" },
-    "automation": { "type": "object" }
+    "automation": { "type": "object" },
+    "processTelemetry": {
+      "description": "Telemetry of Business Central (Azure Application Insights), laid over the processes for their timing. See docs/processes.md.",
+      "type": "object",
+      "properties": {
+        "path": { "description": "A file or a folder of exports: a query result as JSON, JSON lines, or CSV.", "type": "string" },
+        "case": { "description": "The field (a custom dimension) that says which case an event belongs to, such as a document number. Without it, a case is a session.", "type": "string" },
+        "steps": { "description": "Events that mark a step for certain: the id of a process test or recording, and the event id or a text of the message.", "type": "object", "additionalProperties": { "type": "string" } },
+        "appId": { "description": "The application ID of the Application Insights resource to ask. The API key is read from BCA_TELEMETRY_API_KEY, never from this file.", "type": "string" },
+        "days": { "description": "How many days back to ask for (default 30).", "type": "integer", "minimum": 1 },
+        "endpoint": { "description": "The API to ask (default https://api.applicationinsights.io).", "type": "string" }
+      }
+    },
+    "processes": {
+      "description": "How the company works with the app: processes in lanes (BPMN). bca process mines, runs, and exports them. See docs/processes.md.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "title": { "type": "string" },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id"],
+              "properties": {
+                "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+                "title": { "type": "string" },
+                "lane": { "description": "Who does the step: a role of simulation.roles.", "type": "string" },
+                "test": { "description": "What shows that the step works: a process test by document ID, or a recording.", "type": "string" },
+                "after": {
+                  "description": "The steps this step comes after, by id. A wire with \"when\" is one way of several.",
+                  "type": "array",
+                  "items": { "oneOf": [{ "type": "string" }, { "type": "object", "required": ["step"], "properties": { "step": { "type": "string" }, "when": { "type": "string" } } }] }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "flows": {
+      "description": "Your own workflows: what to make from the source, when, and where to save it. bca run runs the flows of a trigger after its tasks; bca run --flow <id> runs one by name. See docs/flows.md.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "title": { "type": "string" },
+          "when": {
+            "description": "The triggers the flow runs on. Without one it runs only by name.",
+            "type": "array",
+            "items": { "enum": ["pre-commit", "pre-push", "ci", "schedule", "manual"] }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["what"],
+              "properties": {
+                "what": {
+                  "description": "The artifact to make: layers, report, handbook, catalog, docs, simulate, check, view, diagram, app, knowledge-graph, or a task of a plugin. Its options are further properties of the step (bca flow --artifacts).",
+                  "type": "string"
+                },
+                "to": { "description": "Where to save it: a folder or a file, relative to the project. Without it, the default of the artifact.", "type": "string" },
+                "id": { "description": "The name of the step, so that other steps can come after it.", "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+                "after": {
+                  "description": "The steps this step comes after, by id. It runs if each of them passed (the default), failed, or always; else it is skipped. Without it, the step starts with the flow.",
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      { "type": "string" },
+                      { "type": "object", "required": ["step"], "properties": { "step": { "type": "string" }, "if": { "enum": ["passed", "failed", "always"] } } }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   "$defs": {
     "names": {

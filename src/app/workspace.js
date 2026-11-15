@@ -223,6 +223,70 @@ export class Workspace {
     return { file: result.file, written: result.written, derived: result.derived, definition: result.definition, line: simulationResultLine(result.report), passed: result.report.passed };
   }
 
+  /** Where the project and its .bca.json are, as the analysis found them. */
+  async configured() {
+    const { context } = await this.assessment();
+    return { root: context.projectRoot ?? context.options.projectRoot, config: context.config?.path };
+  }
+
+  /**
+   * Changes the flows (src/flows) in .bca.json.
+   * @param change { operations, dryRun }
+   * @returns { file, written, changed, flows }
+   */
+  async defineFlows({ operations = [], dryRun = false } = {}) {
+    const { root, config } = await this.configured();
+    const { defineFlows } = await import("../flows/index.js");
+    const result = await defineFlows(root, { operations, dryRun, config });
+    if (result.written) this.reset();
+    return { file: result.file, written: result.written, changed: result.changed, flows: result.flows, rerouted: result.rerouted };
+  }
+
+  /**
+   * Changes the processes (src/process) in .bca.json.
+   * @returns { file, written, changed, processes }
+   */
+  async defineProcesses({ operations = [], dryRun = false } = {}) {
+    const { root, config } = await this.configured();
+    const { defineProcesses } = await import("../process/index.js");
+    const result = await defineProcesses(root, { operations, dryRun, config });
+    if (result.written) this.reset();
+    return result;
+  }
+
+  /** Keeps how the flow builder lays the flows out (src/flows/canvas.js). It changes no analysis. */
+  async saveFlowCanvas(canvas = {}) {
+    const { root } = await this.configured();
+    const { writeFlowCanvas } = await import("../flows/index.js");
+    const { written } = await writeFlowCanvas(root, canvas);
+    // The atlas holds the canvas: the next one read has this one.
+    if (written) this.memo.delete("atlas");
+    return { written };
+  }
+
+  /**
+   * Runs one flow now, as `bca run --flow <id>` does.
+   * @returns { passed, flow, steps: [{ what, to, ok, summary }], outputs }
+   */
+  async runFlow({ flow } = {}) {
+    if (!flow) throw new Error("say which flow to run");
+    const { root, config } = await this.configured();
+    const { runAutomation } = await import("../automation/run.js");
+    const result = await runAutomation(root, { flows: [flow], config });
+    return { passed: result.passed, flow, steps: result.flows[0]?.steps ?? [], outputs: result.outputs };
+  }
+
+  /**
+   * Writes the workflow of one flow for GitHub Actions (src/flows/export.js).
+   * @returns { path, action, written, events, delivery }
+   */
+  async exportFlow({ flow, to = "github", force = false } = {}) {
+    const { root, config } = await this.configured();
+    const { exportFlow } = await import("../flows/index.js");
+    const { content: _content, file: _file, ...result } = await exportFlow(root, { flow, to, force, config });
+    return result;
+  }
+
   /** Saves a proposal as the configured architecture (and optionally accepts today's violations). */
   async adoptArchitecture(settings = {}, { updateBaseline = true } = {}) {
     const assessment = await this.assessment({ ...settings, propose: true });

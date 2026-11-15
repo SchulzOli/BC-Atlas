@@ -429,7 +429,7 @@ test("the app is one view: a toolbar and the graph", () => {
   // The picture after a step starts from the picture before it.
   assert.match(html, /const before = graph\?\.snapshot\(\);[\s\S]{0,260}from: before,/u);
   assert.deepEqual([...body.matchAll(/data-form="(\w+)"/gu)].map(([, form]) => form), ["2d", "diagram", "3d"], "any part of the graph in three forms");
-  assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "simulate", "view", "export", "sync"]);
+  assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "simulate", "flow", "view", "export", "sync"]);
   // Simulate stands next to Story, and is there when the project has process tests.
   assert.match(body, /id="story-button"[^\n]+\n\s*<button class="tool menu" id="simulate-button" data-menu="simulate"[^>]* hidden>Simulate<\/button>/u);
   assert.match(html, /call\("defineSimulation", \{ operations: \[operation\] \}\)/u, "a change is an operation, applied and run again");

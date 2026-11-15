@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.23.0
+
+- The engine is BC Atlas 0.23.0.
+- **Flow**, new in the toolbar: a builder with two sides.
+  - **Flows**: a canvas of nodes to place and wire freely. A flow says
+    what to make from the source, when, and where to save it. Wires
+    branch and join, a click on a wire says when it holds, **Run now**
+    runs a flow, and **GitHub Actions** writes it as a workflow.
+  - **Processes**: lanes, as in BPMN. Take a process as the process tests
+    have it, drag tests into the lanes of the roles, pull wires (also
+    back, for a loop), and **Play** it with the people of the
+    simulation. Steps show whether their lane gets through, and with
+    telemetry how often they are done and how long they take.
+- The lenses **Flows** and **Process models**, a story per process, and
+  the findings of a process on its steps.
+- Every change is written to `.bca.json`; where the nodes of the flows
+  are is kept in `.bca/flow-canvas.json`.
+
 ## 0.22.0
 
 - The engine is BC Atlas 0.22.0.

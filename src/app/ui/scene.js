@@ -13,7 +13,7 @@
   const RANK = { error: 3, warning: 2, info: 1 };
   // Calm colors that stay apart for people who see colors differently.
   const PALETTE = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#7C3AED", "#4E5D78", "#A23636", "#14766E", "#8B7400", "#A21CAF"];
-  const KIND_NAMES = { object: "Object", app: "App", component: "Component", module: "Namespace", rule: "Rule", process: "Process", task: "Process test", person: "Person", role: "Role", requirement: "Requirement", member: "Member", recording: "Recording", channel: "Channel", area: "Area" };
+  const KIND_NAMES = { object: "Object", app: "App", component: "Component", module: "Namespace", rule: "Rule", process: "Process", task: "Process test", person: "Person", role: "Role", requirement: "Requirement", member: "Member", recording: "Recording", channel: "Channel", area: "Area", model: "Process model", activity: "Step", lane: "Lane", trigger: "Trigger", flow: "Flow", artifact: "Artifact", place: "Saved to" };
   const DEFAULTS = Object.freeze({ lens: "overview", form: "", q: "", sel: "", focus: "", depth: "1", check: "", story: "", step: "0", color: "", size: "", group: "", off: "", hide: "", inside: "" });
   const FORMS = Object.freeze(["2d", "diagram", "3d"]);
   const COLORS = Object.freeze(["type", "component", "namespace", "app", "level", "findings"]);
