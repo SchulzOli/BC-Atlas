@@ -27,7 +27,7 @@
     ["publisher", "Publisher"], ["version", "Version"], ["access", "Access"], ["obsolete", "Obsolete"], ["status", "Status"], ["severity", "Severity"],
     ["roles", "Roles"], ["permissionSets", "Permission sets"], ["objects", "Objects"], ["steps", "Steps"], ["handovers", "Handovers"],
     ["procedures", "Procedures"], ["lines", "Lines"], ["complexity", "Complexity"], ["uses", "Uses"], ["usedBy", "Used by"],
-    ["wrongWay", "Wrong way"], ["instability", "Instability"], ["canBeApp", "Can be an app"], ["header", "Declaration"]
+    ["runsOn", "Runs on"], ["delivery", "Delivery"], ["saves", "Saves to"], ["options", "Options"], ["wrongWay", "Wrong way"], ["instability", "Instability"], ["canBeApp", "Can be an app"], ["header", "Declaration"]
   ];
 
   async function inflate(base64) {
@@ -350,6 +350,9 @@
     // Simulate is there when the project has process tests to perform.
     $("#simulate-button").hidden = !atlas.simulation;
     $("#simulate-button").setAttribute("aria-pressed", String(running || (state.lens === "simulation" && !state.inside)));
+    // Flow is there when the flows of the project could be read.
+    $("#flow-button").hidden = !atlas.flows;
+    $("#flow-button").setAttribute("aria-pressed", String(state.lens === "flows" && !state.inside));
     const sync = $("#sync-button");
     sync.className = `tool status menu ${LIVE ? "live" : ""}`;
     $("#sync-text").textContent = LIVE ? "Live" : new Date(SNAPSHOT.generatedAt).toLocaleDateString();
@@ -430,6 +433,7 @@
         <button class="btn" data-act="focus">${state.focus === node.id ? "Show all" : "Neighbors"}</button>
         ${node.file ? `<button class="btn" data-act="source">${LIVE ? "Go to source" : "Source"}</button>` : ""}
         <button class="btn" data-act="link">Link</button>
+        ${atlas.flows && (node.kind === "flow" || node.kind === "artifact") ? '<button class="btn" data-act="flow" title="Change it in the Flow menu">Change…</button>' : ""}
         ${atlas.simulation && SIM_NODES[node.kind] ? `<button class="btn" data-act="define" title="Change it in the simulation">${node.kind === "task" ? "Ground…" : "Define…"}</button>` : ""}
       </div>
       ${sides.length ? `<h3>See in</h3><div class="chips sides">${sides.map((lens) => `<button class="chip" data-side="${esc(lens.id)}" title="${esc(lens.summary)}">${esc(lens.title)}</button>`).join("")}</div>` : ""}
@@ -460,6 +464,11 @@
     if (act === "focus") return set({ focus: state.focus === entry.node.id ? "" : entry.node.id, story: "" });
     if (act === "source") return source(entry.node);
     if (act === "link") return copyLink();
+    if (act === "flow") {
+      // flow::<id>, or artifact::<flow>::<step>.
+      const [, flow, step] = entry.node.id.split("::");
+      return flowEdit(flow, step ? Number(step) : undefined);
+    }
     if (act === "define") {
       // The node of a person, a role, a requirement, or a process test, as the simulation names it.
       const kind = SIM_NODES[entry.node.kind];
@@ -767,6 +776,183 @@
     return simulateApply(operation);
   }
 
+  // ------------------------------------------------------------------ flows
+  // Flow: your own workflows. The menu builds them: a flow, the triggers it runs on, and its
+  // steps, each an artifact made from the source and the place it is saved to. Every change is
+  // an operation (src/flows/config.js). In VS Code it is written to .bca.json; an exported file
+  // collects the changes to save.
+  let flowForm;
+  const flowChanges = [];
+  const flowOf = (id) => atlas.flows.flows.find((flow) => flow.id === id);
+  const artifactOf = (id) => atlas.flows.artifacts.find((artifact) => artifact.id === id);
+  const flowIdOf = (title) => title.toLowerCase().normalize("NFKD").replace(/[^a-z0-9._]+/gu, "-").replace(/^[-._]+|-+$/gu, "") || "flow";
+  const stepLine = (step) => {
+    const { what, to, ...options } = step;
+    const detail = Object.entries(options).map(([key, value]) => `${key}=${value}`).join(", ");
+    return `${to ? `→ ${to}` : artifactOf(what)?.plugin ? "task of a plugin" : "gate: it only passes or fails"}${detail ? ` · ${detail}` : ""}`;
+  };
+  const describeOperation = (operation) => [operation.op, operation.flow ?? operation.trigger, operation.what, operation.at ? `step ${operation.at}` : "", operation.to ? `→ ${operation.to}` : "", operation.sync].filter(Boolean).join(" ");
+  const muted = (text) => `<p class="text" style="color:var(--muted);font-size:12.5px">${text}</p>`;
+  function flowStepForm() {
+    const flow = flowOf(flowForm.flow);
+    const existing = typeof flowForm.step === "number" ? flow.steps[flowForm.step - 1] : undefined;
+    const what = flowForm.what ?? existing?.what ?? "layers";
+    const artifact = artifactOf(what);
+    const same = existing?.what === what ? existing : {};
+    const field = (option) => {
+      const value = String(same[option.name] ?? "");
+      return `<label class="field wide" title="${esc(option.hint ?? "")}"><span>${esc(option.title)}</span>${option.values
+        ? `<select data-o="${esc(option.name)}"><option value="">Default</option>${option.values.map((item) => `<option ${item === value ? "selected" : ""}>${esc(item)}</option>`).join("")}</select>`
+        : `<input type="text" data-o="${esc(option.name)}" value="${esc(value)}" placeholder="${esc(option.hint ?? "")}" autocomplete="off" spellcheck="false">`}</label>`;
+    };
+    const lensOptions = what === "view" ? `<datalist id="flow-lenses">${atlas.lenses.map((lens) => `<option value="${esc(lens.id)}">${esc(lens.title)}</option>`).join("")}</datalist><datalist id="flow-stories">${atlas.stories.filter(({ kind }) => kind !== "run").map((story) => `<option value="${esc(story.id)}">${esc(story.title)}</option>`).join("")}</datalist>` : "";
+    return `<h3>${existing ? `Step ${flowForm.step} of ${esc(flow.title)}` : `New step of ${esc(flow.title)}`}</h3>
+      <label class="field wide"><span>Make</span><select data-flow-what>${atlas.flows.artifacts.map((item) => `<option value="${esc(item.id)}" ${item.id === what ? "selected" : ""}>${esc(item.title)}</option>`).join("")}</select></label>
+      ${muted(`${esc(artifact.summary)}.${artifact.stable === false ? " It differs on every run, so it is not for a trigger that verifies." : ""}`)}
+      ${artifact.plugin ? muted("A task of a plugin saves where its own section of <code>.bca.json</code> says.") : `<label class="field wide" title="Relative to the project"><span>Save to</span><input type="text" data-f="to" value="${esc(same.to ?? "")}" placeholder="${esc(artifact.to ?? "nowhere: only pass or fail")}" autocomplete="off" spellcheck="false"></label>
+      ${muted(artifact.target === "folder" ? "A folder of the project." : `One file: ${artifact.extensions.map((item) => `.${esc(item)}`).join(", ")}.${artifact.optional ? " Without a place it only passes or fails." : ""}`)}`}
+      ${artifact.options.map(field).join("").replace('data-o="lens"', 'data-o="lens" list="flow-lenses"').replace('data-o="story"', 'data-o="story" list="flow-stories"')}${lensOptions}
+      <hr><div class="actions"><button class="btn primary" data-flow-act="step-apply">Apply</button>${existing ? '<button class="btn" data-flow-act="step-remove">Remove</button>' : ""}<button class="btn" data-flow-act="step-back">Back</button></div>`;
+  }
+  function flowFormHtml() {
+    if (flowForm.step !== undefined) return flowStepForm();
+    const flow = flowForm.flow ? flowOf(flowForm.flow) : undefined;
+    const { triggers, syncModes } = atlas.flows;
+    const chosen = new Set(flow?.when ?? []);
+    return `<h3>${flow ? `Flow ${esc(flow.id)}` : "New flow"}</h3>
+      <label class="field"><span>Title</span><input type="text" data-f="title" value="${esc(flow?.title ?? "")}" placeholder="Documentation in the repository" autocomplete="off"></label>
+      <fieldset class="checks"><legend>When: the triggers it runs on</legend>${Object.entries(triggers).map(([name, trigger]) => `<label title="${esc(trigger.summary)}"><input type="checkbox" data-f="when" value="${esc(name)}" ${chosen.has(name) ? "checked" : ""}>${esc(name)} <small>${esc(trigger.summary)}</small></label>`).join("")}</fieldset>
+      ${flow ? `<h3>What it makes, and where it is saved</h3>${flow.steps.map((step, index) => `<div class="step"><button class="item" role="menuitem" data-flow-act="step" data-at="${index + 1}"><b>${index + 1}. ${esc(artifactOf(step.what)?.title ?? step.what)}</b><small>${esc(stepLine(step))}</small></button><button class="mini" data-flow-act="up" data-at="${index + 1}" title="Earlier" aria-label="Move step ${index + 1} up" ${index ? "" : "disabled"}>↑</button><button class="mini" data-flow-act="down" data-at="${index + 1}" title="Later" aria-label="Move step ${index + 1} down" ${index + 1 < flow.steps.length ? "" : "disabled"}>↓</button></div>`).join("") || muted("No steps yet.")}
+      <div class="actions"><button class="btn" data-flow-act="step" data-at="new">Add a step…</button></div>
+      ${flow.when.length ? `<h3>Delivery: what happens to what was saved</h3>${flow.when.map((name) => `<label class="field wide" title="${esc(syncModes[triggers[name].sync])}"><span>${esc(name)}</span><select data-deliver="${esc(name)}">${triggers[name].modes.map((mode) => `<option value="${esc(mode)}" ${mode === triggers[name].sync ? "selected" : ""} title="${esc(syncModes[mode])}">${esc(mode)}: ${esc(syncModes[mode])}</option>`).join("")}</select></label>`).join("")}
+      ${flow.when.some((name) => name !== "manual" && !triggers[name].configured) ? muted("Nothing calls some of these triggers yet: <code>bca setup</code> installs the Git hook or the pipeline.") : ""}` : ""}` : muted("Apply it, then add its steps.")}
+      <hr><div class="actions"><button class="btn primary" data-flow-act="apply">Apply</button>${flow && LIVE ? `<button class="btn" data-flow-act="run" title="bca run --flow ${esc(flow.id)}">Run now</button>` : ""}${flow ? '<button class="btn" data-flow-act="remove">Remove</button>' : ""}<button class="btn" data-flow-act="back">Back</button></div>`;
+  }
+  MENUS.flow = () => {
+    if (flowForm) return flowFormHtml();
+    const { flows } = atlas.flows;
+    const shown = atlas.lenses.some(({ id }) => id === "flows");
+    return `<p class="text"><b>Your own workflows.</b> A flow says what to make from the source, when, and where to save it.</p>
+      ${flows.length ? `<h3>Flows</h3>${flows.map((flow) => `<button class="item" role="menuitem" data-flow-act="edit" data-flow="${esc(flow.id)}"><b>${esc(flow.title)}</b><span>${plural(flow.steps.length, "step")}</span><small>${flow.when.length ? `on ${esc(flow.when.join(", "))}` : "only by name"}${flow.steps.length ? `: ${esc(flow.steps.map((step) => artifactOf(step.what)?.title ?? step.what).join(", "))}` : ""}</small></button>`).join("")}` : muted("None yet. A first one could write the documentation into the repository before every push.")}
+      <div class="actions"><button class="btn primary" data-flow-act="new">New flow…</button></div>
+      ${shown ? `<button class="item" role="menuitem" data-flow-act="show" ${state.lens === "flows" && !state.inside ? 'aria-current="true"' : ""}><b>Show the flows</b><small>From the trigger that starts each to the artifacts it makes and where they are saved</small></button>` : ""}
+      ${flowChanges.length ? `<hr><h3>${plural(flowChanges.length, "change")} to save</h3><ul class="pending">${flowChanges.map((operation) => `<li>${esc(describeOperation(operation))}</li>`).join("")}</ul>
+        <div class="actions"><button class="btn primary" data-flow-act="save">Save the changes (JSON)</button><button class="btn" data-flow-act="forget">Forget them</button></div>
+        ${muted("This file is a snapshot. Apply the changes to the project with <code>bca flow define --from flow-changes.json</code>.")}` : ""}
+      <hr>${muted(LIVE ? "A change is written to <code>.bca.json</code>. <code>bca run</code> runs the flows of a trigger; <b>Run now</b> runs one here." : "The same from a terminal or an agent: <code>bca flow define</code>, or the MCP tool <code>bc_atlas_flow_define</code>. <code>bca run --flow &lt;id&gt;</code> runs one.")}`;
+  };
+  /** Opens the Flow menu on one flow, or on one of its steps: from the card of a node. */
+  function flowEdit(flow, step) {
+    closeMenu();
+    flowForm = { flow, step };
+    showMenu($("#flow-button"));
+  }
+  const flowRedraw = () => {
+    $("#popover").innerHTML = MENUS.flow();
+    $("#popover").querySelector("input[type=text], select")?.focus({ preventScroll: true });
+  };
+  /** Sends operations: written to .bca.json in VS Code, kept to save in an exported file. Then back to `next`. */
+  async function flowApply(operations, next) {
+    if (!operations.length) {
+      flowForm = next;
+      return flowRedraw();
+    }
+    if (!LIVE) {
+      flowChanges.push(...operations);
+      flowForm = undefined;
+      closeMenu();
+      return toast(`Kept: ${operations.map(describeOperation).join("; ")}. Save the changes from the Flow menu.`);
+    }
+    try {
+      const result = await call("defineFlows", { operations });
+      toast(result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed.");
+      closeMenu();
+      await reload("Reading the flows");
+      // The builder stays open on the flow, so one step follows the other.
+      if (next?.flow && flowOf(next.flow)) {
+        flowForm = next;
+        showMenu($("#flow-button"));
+      }
+    } catch (error) {
+      toast(error.message.replace(/^flows: /u, ""));
+    }
+    return undefined;
+  }
+  function flowClick(item) {
+    const act = item.dataset.flowAct;
+    const value = (name) => $(`#popover [data-f="${name}"]`)?.value.trim() ?? "";
+    if (act === "show") {
+      closeMenu();
+      return set({ lens: "flows", form: "diagram", inside: "", focus: "", story: "", hide: "", off: "" });
+    }
+    if (act === "new" || act === "edit") {
+      flowForm = { flow: item.dataset.flow };
+      return flowRedraw();
+    }
+    if (act === "forget") {
+      flowChanges.length = 0;
+      return flowRedraw();
+    }
+    if (act === "save") {
+      closeMenu();
+      return download("flow-changes.json", `${JSON.stringify({ operations: flowChanges }, null, 2)}\n`, "application/json");
+    }
+    if (act === "back") {
+      flowForm = undefined;
+      return flowRedraw();
+    }
+    const id = flowForm.flow;
+    if (act === "step") {
+      flowForm = { flow: id, step: item.dataset.at === "new" ? "new" : Number(item.dataset.at) };
+      return flowRedraw();
+    }
+    if (act === "step-back") {
+      flowForm = { flow: id };
+      return flowRedraw();
+    }
+    if (act === "up" || act === "down") return flowApply([{ op: "move", flow: id, at: Number(item.dataset.at), by: act === "up" ? -1 : 1 }], { flow: id });
+    if (act === "step-remove") return flowApply([{ op: "unstep", flow: id, at: flowForm.step }], { flow: id });
+    if (act === "step-apply") {
+      const operation = { op: "step", flow: id, what: $("#popover [data-flow-what]").value, ...(typeof flowForm.step === "number" ? { at: flowForm.step } : {}) };
+      if ($('#popover [data-f="to"]')) operation.to = value("to");
+      for (const input of $$("#popover [data-o]")) operation[input.dataset.o] = input.value.trim();
+      return flowApply([operation], { flow: id });
+    }
+    if (act === "remove") {
+      // Asked twice before a flow goes.
+      if (item.textContent !== "Remove the flow") {
+        item.textContent = "Remove the flow";
+        item.classList.add("primary");
+        return undefined;
+      }
+      return flowApply([{ op: "remove", flow: id }], undefined);
+    }
+    if (act === "run") {
+      closeMenu();
+      toast(`Running the flow ${id}…`);
+      return call("runFlow", { flow: id }).then((result) => {
+        const failed = result.steps.filter(({ ok }) => !ok);
+        toast(failed.length ? `${failed.length} of ${plural(result.steps.length, "step")} failed: ${failed.map(({ what, summary }) => `${what} (${summary})`).join("; ")}` : `Made ${plural(result.steps.length, "artifact")}: ${result.outputs.join(", ") || "nothing to save"}.`);
+      }, (error) => toast(error.message));
+    }
+    if (act === "apply") {
+      const title = value("title");
+      const when = $$('#popover [data-f="when"]:checked').map((box) => box.value);
+      const flow = id ? flowOf(id) : undefined;
+      if (!flow && !title) return toast("A flow needs a title.");
+      const target = flow?.id ?? flowIdOf(title);
+      if (!flow && flowOf(target)) return toast(`There is a flow ${target} already.`);
+      const operations = [];
+      if (!flow || title !== flow.title || when.join() !== flow.when.join()) operations.push({ op: "set", flow: target, title, when });
+      for (const select of $$("#popover [data-deliver]")) {
+        const trigger = select.dataset.deliver;
+        if (when.includes(trigger) && select.value !== atlas.flows.triggers[trigger].sync) operations.push({ op: "deliver", trigger, sync: select.value });
+      }
+      return flowApply(operations, { flow: target });
+    }
+    return undefined;
+  }
+
   // What the view may write back: the architecture it proposes, and the baseline of what is accepted.
   function architectureAction() {
     const { mode, violations } = atlas.summary.architecture;
@@ -777,6 +963,7 @@
   function closeMenu() {
     if (!openMenu) return;
     if (openMenu.dataset.menu === "simulate") simForm = undefined;
+    if (openMenu.dataset.menu === "flow") flowForm = undefined;
     $("#popover").hidden = true;
     openMenu.setAttribute("aria-expanded", "false");
     openMenu = undefined;
@@ -804,7 +991,8 @@
   $("#popover").addEventListener("click", async (event) => {
     const item = event.target.closest("button");
     if (!item) return;
-    if (item.dataset.sim || item.dataset.simEdit || item.dataset.simNew || item.dataset.simGo !== undefined || item.dataset.simRun) simulateClick(item);
+    if (item.dataset.flowAct) flowClick(item);
+    else if (item.dataset.sim || item.dataset.simEdit || item.dataset.simNew || item.dataset.simGo !== undefined || item.dataset.simRun) simulateClick(item);
     else if (item.dataset.setLens) {
       closeMenu();
       set({ lens: item.dataset.setLens, inside: "", focus: "", story: "", hide: "", off: "", size: "", color: "", group: "" });
@@ -846,6 +1034,12 @@
   $("#popover").addEventListener("change", (event) => {
     const field = event.target.dataset.view;
     if (field) set({ [field]: event.target.value });
+    // Another artifact has other options and another place.
+    if (event.target.dataset.flowWhat !== undefined && flowForm) {
+      flowForm.what = event.target.value;
+      $("#popover").innerHTML = MENUS.flow();
+      $("#popover [data-flow-what]")?.focus({ preventScroll: true });
+    }
   });
 
   // --------------------------------------------------------------- toolbar

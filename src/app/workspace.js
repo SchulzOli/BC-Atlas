@@ -223,6 +223,37 @@ export class Workspace {
     return { file: result.file, written: result.written, derived: result.derived, definition: result.definition, line: simulationResultLine(result.report), passed: result.report.passed };
   }
 
+  /** Where the project and its .bca.json are, as the analysis found them. */
+  async configured() {
+    const { context } = await this.assessment();
+    return { root: context.projectRoot ?? context.options.projectRoot, config: context.config?.path };
+  }
+
+  /**
+   * Changes the flows (src/flows) in .bca.json.
+   * @param change { operations, dryRun }
+   * @returns { file, written, changed, flows }
+   */
+  async defineFlows({ operations = [], dryRun = false } = {}) {
+    const { root, config } = await this.configured();
+    const { defineFlows } = await import("../flows/index.js");
+    const result = await defineFlows(root, { operations, dryRun, config });
+    if (result.written) this.reset();
+    return { file: result.file, written: result.written, changed: result.changed, flows: result.flows };
+  }
+
+  /**
+   * Runs one flow now, as `bca run --flow <id>` does.
+   * @returns { passed, flow, steps: [{ what, to, ok, summary }], outputs }
+   */
+  async runFlow({ flow } = {}) {
+    if (!flow) throw new Error("say which flow to run");
+    const { root, config } = await this.configured();
+    const { runAutomation } = await import("../automation/run.js");
+    const result = await runAutomation(root, { flows: [flow], config });
+    return { passed: result.passed, flow, steps: result.flows[0]?.steps ?? [], outputs: result.outputs };
+  }
+
   /** Saves a proposal as the configured architecture (and optionally accepts today's violations). */
   async adoptArchitecture(settings = {}, { updateBaseline = true } = {}) {
     const assessment = await this.assessment({ ...settings, propose: true });

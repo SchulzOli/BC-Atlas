@@ -212,7 +212,38 @@
       }
     },
     "docs": { "type": "object" },
-    "automation": { "type": "object" }
+    "automation": { "type": "object" },
+    "flows": {
+      "description": "Your own workflows: what to make from the source, when, and where to save it. bca run runs the flows of a trigger after its tasks; bca run --flow <id> runs one by name. See docs/flows.md.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "title": { "type": "string" },
+          "when": {
+            "description": "The triggers the flow runs on. Without one it runs only by name.",
+            "type": "array",
+            "items": { "enum": ["pre-commit", "pre-push", "ci", "schedule", "manual"] }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["what"],
+              "properties": {
+                "what": {
+                  "description": "The artifact to make: layers, report, handbook, catalog, docs, simulate, check, view, diagram, app, knowledge-graph, or a task of a plugin. Its options are further properties of the step (bca flow --artifacts).",
+                  "type": "string"
+                },
+                "to": { "description": "Where to save it: a folder or a file, relative to the project. Without it, the default of the artifact.", "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
   },
   "$defs": {
     "names": {

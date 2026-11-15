@@ -1,0 +1,132 @@
+# Flows: your own workflows
+
+A **flow** says three things: **what** to make from the source, **when**, and
+**where** to save it. You build flows in the BC Atlas view, from the terminal,
+or through an AI agent; they are stored in `.bca.json`, and `bca run` runs
+them.
+
+```json
+{
+  "flows": [
+    {
+      "id": "docs",
+      "title": "Documentation in the repository",
+      "when": ["pre-push", "ci"],
+      "steps": [
+        { "what": "layers", "to": "docs/system" },
+        { "what": "view", "lens": "data", "form": "diagram", "to": "docs/pictures/data.svg" },
+        { "what": "handbook", "to": "wiki/handbook", "language": "de" },
+        { "what": "check", "to": "docs/health.md" }
+      ]
+    }
+  ]
+}
+```
+
+| Part | Meaning |
+| --- | --- |
+| `id` | The name of the flow: lowercase letters, digits, `.`, `_`, `-`. |
+| `title` | What the view and the terminal call it. |
+| `when` | The triggers it runs on: `pre-commit`, `pre-push`, `ci`, `schedule`, `manual`. Without one, the flow runs only by name. |
+| `steps` | One artifact each: `what` to make, `to` where to save it (a folder or a file, relative to the project), and the options of that artifact as further properties. |
+
+The tasks of a trigger (`automation.triggers`, see
+[Automation](./automation-and-ci.md)) make each feature once, in the place its
+section of `.bca.json` names. A flow is for everything beyond that: the same
+artifact more than once, with other options, in other places, grouped the way
+your team works.
+
+## Build a flow in the view
+
+In VS Code, the **Flow** menu of the [BC Atlas view](./vscode.md) is the
+builder:
+
+1. **New flow…**: give it a title and tick the triggers it runs on.
+2. **Add a step…**: choose what to make, where to save it, and its options.
+   The form shows the options of the chosen artifact; an empty field is the
+   default.
+3. Order the steps with the arrows, and choose under **Delivery** what each
+   trigger does with what was saved (its sync mode).
+4. **Run now** runs the flow at once.
+
+Every change is written to `.bca.json`. The lens **Flows** shows the result as
+a diagram from left to right: the trigger that starts a flow, the artifacts it
+makes, and where each is saved. **Change…** on the card of a flow or an
+artifact opens its form.
+
+An exported view (`bca export`) is a snapshot: its Flow menu collects the
+changes and saves them as `flow-changes.json`, which
+`bca flow define --from flow-changes.json` applies to the project.
+
+## From the terminal
+
+```sh
+bca flow                                   # the flows of the project
+bca flow --artifacts                       # what a step can make, with its options
+bca flow define --flow docs --title "Documentation in the repository" --when pre-push,ci
+bca flow define --flow docs --step layers --to docs/system
+bca flow define --flow docs --step view --to docs/pictures/data.svg --set lens=data --set form=diagram
+bca flow define --flow docs --at 2 --set theme=dark     # change step 2
+bca flow define --flow docs --up 2                      # move step 2 one up
+bca flow define --flow docs --unstep 2                  # remove step 2
+bca flow define --deliver ci=verify --deliver pre-push=stage
+bca flow define --remove docs
+bca run --flow docs                        # run it now
+bca run --trigger ci                       # the tasks of the trigger, then its flows
+```
+
+A change names what it changes and keeps the rest. A flow that is not valid is
+never written: an unknown artifact or option, a place outside the project, the
+wrong kind of file, or two steps that save to the same place. `--dry-run`
+checks a change without writing it, and `--format json` returns the flows, the
+triggers with their sync modes, and the catalog of artifacts.
+
+An AI agent uses the MCP tool `bc_atlas_flow_define` with the same operations,
+and `bc_atlas_run` with `flows` to run one; see
+[Agent integration](./agent-integration.md).
+
+## What a step can make
+
+| `what` | Makes | Saves | Options |
+| --- | --- | --- | --- |
+| `layers` | The [layered documentation](./layers.md): how it works, how it is connected, what to change, down to each procedure | a folder (`docs/layers`) | `pictures` |
+| `report` | The [architecture report](./reports.md) with its diagrams | a folder (`docs/atlas`) | `views`, `format` |
+| `handbook` | The [system handbook](./handbook.md) | a folder (`docs/handbook`) | `language`, `title`, `catalog` |
+| `catalog` | One Markdown page per AL object | a folder (`docs/codegraph`) | |
+| `docs` | [User guides or test cases](./al-ui-test-documentation.md) from the AL UI tests | a folder (`docs/guides`) | `tests`, `as`, `export`, `language`, `title` |
+| `simulate` | The [battle test](./battle-test.md); a gate | a folder (`docs/simulation`) | `tests`, `language` |
+| `check` | The [health check](./health-checks.md); a gate | optionally one file: `.md`, `.json`, `.sarif`, `.txt` | `failOn` |
+| `view` | Any lens or story of the view as a picture, a page, or data (`bca view`) | one file: `.svg`, `.png`, `.md`, `.csv`, `.json`, `.txt` | `lens`, `story`, `step`, `form`, `focus`, `depth`, `inside`, `find`, `hide`, `off`, `check`, `theme`, `color`, `size`, `group`, `rows`, `width`, `height` |
+| `diagram` | One of the [diagram views](./architecture-diagrams.md) | one file: `.svg`, `.png`, `.pdf`, `.d2`, `.json` | `view`, and every option of `bca export` |
+| `app` | The view as one offline HTML file | one file: `.html` | `title` |
+| `knowledge-graph` | The project as [RDF](./knowledge-graph.md) | one file: `.ttl`, `.rdf`, `.owl`, `.nt`, `.jsonld` | `baseIri`, `title` |
+| a task of a plugin, such as `sync` or `ai` | What the plugin makes | where its own section of `.bca.json` says | |
+
+A **gate** can fail the run: `check` on findings, `simulate` when a role is
+blocked or can do what it must not. A step that fails does not stop the
+others, so one run says everything that is wrong.
+
+A drawing that is not D2 or JSON keeps its D2 source next to it. `app` and
+`knowledge-graph` hold the time they were made and so differ on every run:
+deliver them as a pipeline artifact, not with `verify`. The view marks a flow
+that does otherwise with the finding `flow-never-in-sync`.
+
+## When it runs, and what happens to what was saved
+
+`bca run --trigger <name>` runs the tasks of that trigger and then every flow
+whose `when` names it. What both save is delivered with the **sync mode** of
+the trigger: `verify` fails when the files differ from the commit, `stage`
+adds them to the commit, and a pipeline publishes them as an artifact, opens a
+pull request, or commits them. `bca flow define --deliver <trigger>=<mode>`,
+or **Delivery** in the Flow menu, sets it; see
+[Sync modes](./automation-and-ci.md#sync-modes).
+
+A trigger needs something that calls it. [`bca setup`](./setup.md) installs
+the Git hooks and writes the pipeline, which call `bca run --trigger <name>`;
+the pipeline it writes delivers what the flows of `ci` and `schedule` save
+together with the output of the tasks. After adding a flow to a pipeline
+trigger, run `bca setup apply --from-config` so the pipeline knows the new
+places.
+
+`bca run --flow <id>` runs flows by name, whatever their triggers, and leaves
+the tasks of the trigger out.

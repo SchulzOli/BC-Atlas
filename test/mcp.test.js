@@ -71,6 +71,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_docs_validate",
         "bc_atlas_explore",
         "bc_atlas_extraction_plan",
+        "bc_atlas_flow_define",
         "bc_atlas_generate_diagram",
         "bc_atlas_graph_query",
         "bc_atlas_graph_render",

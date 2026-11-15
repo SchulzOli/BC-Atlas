@@ -66,6 +66,9 @@ export function createService(workspace) {
     defineSimulation: (params = {}) => workspace.defineSimulation(params),
     // Build from the Simulate menu: everything the simulation shows, as one artifact.
     bundle: (params = {}) => workspace.bundle(params),
+    // The Flow menu of the view: operations on the flows, and a run of one flow.
+    defineFlows: (params = {}) => workspace.defineFlows(params),
+    runFlow: (params = {}) => workspace.runFlow(params),
     updateProposal: (params = {}) => workspace.updateProposal({
       keep: params.keep,
       release: params.release || undefined,

@@ -466,6 +466,32 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
     return { ...manifest, files: manifest.files.length, output, zip };
   }));
 
+  server.registerTool("bc_atlas_flow_define", {
+    description: "Define the flows of a project: its own workflows in the flows section of .bca.json. A flow says what to make from the source (steps, each one artifact: layers, report, handbook, catalog, docs, simulate, check, view, diagram, app, knowledge-graph, or a task of a plugin), when (the triggers: pre-commit, pre-push, ci, schedule, manual), and where to save each artifact (to, relative to the project). Send operations to add or change a flow (set), remove it, add or change a step (step; with at it changes that step), remove a step (unstep), move one (move), or say how a trigger delivers what was saved (deliver: its sync mode). Without operations it returns the flows as they are, the triggers with their sync modes, and the catalog of artifacts with the options of each. A change that is not valid writes nothing. Run a flow with bc_atlas_run and flows.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      operations: z.array(z.object({
+        op: z.enum(["set", "remove", "step", "unstep", "move", "deliver"]),
+        flow: z.string().optional().describe("The id of the flow: lowercase letters, digits, '.', '_', '-'"),
+        title: z.string().optional().describe("set: the title of the flow"),
+        when: z.array(z.enum(["pre-commit", "pre-push", "ci", "schedule", "manual"])).optional().describe("set: the triggers the flow runs on"),
+        what: z.string().optional().describe("step: the artifact to make"),
+        to: z.string().optional().describe("step: where to save it, relative to the project; without it the default of the artifact"),
+        at: z.number().int().min(1).optional().describe("step: change this step instead of adding one; unstep, move: the step, from 1"),
+        by: z.number().int().optional().describe("move: -1 up, 1 down"),
+        trigger: z.enum(["pre-commit", "pre-push", "ci", "schedule", "manual"]).optional().describe("deliver: the trigger"),
+        sync: z.enum(["none", "verify", "stage", "artifact", "pull-request", "commit"]).optional().describe("deliver: its sync mode")
+      }).catchall(z.union([z.string(), z.number(), z.boolean()])).describe("A step takes the options of its artifact as further fields, such as lens, form, language")).optional().describe("Applied in order; all or nothing"),
+      dryRun: z.boolean().optional().describe("Check the change and return the result; write nothing")
+    }),
+    annotations: { readOnlyHint: false, idempotentHint: true }
+  }, tool(async ({ path: input, operations, dryRun, ...values }) => {
+    const { defineFlows } = await import("./flows/index.js");
+    return defineFlows(input, { ...values, operations: operations ?? [], dryRun });
+  }));
+
   server.registerTool("bc_atlas_simulation_define", {
     description: "Define the simulation: the company of the battle test in the simulation section of .bca.json. Send operations to add or change an agent (a person who uses the app, with roles), a role (permission sets, task groups, what it must not do), a task group (process tests), or a requirement, to remove one, or to ground a process test on a recording of Business Central (a fact snapshot of the sync plugin). The changed simulation runs at once and the result comes back: who completes or is blocked where, who can do what they must not, and every finding. Without operations it returns the simulation as it is (derived: true when nothing is defined and the process tests describe the company). dryRun runs the change and writes nothing. A change keeps the fields it does not name; the first change starts from the company the process tests describe.",
     inputSchema: z.object({
@@ -546,11 +572,12 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
   }, tool(async () => checkForUpdate(version)));
 
   server.registerTool("bc_atlas_run", {
-    description: "Run the BC Atlas tasks configured for a trigger in .bca.json, or explicit tasks, and report sync status.",
+    description: "Run the BC Atlas tasks and flows configured for a trigger in .bca.json, or explicit tasks or flows, and report sync status.",
     inputSchema: z.object({
       path: z.string().min(1),
       trigger: z.enum(["pre-commit", "pre-push", "ci", "schedule", "manual"]).default("manual"),
       tasks: z.array(z.enum(["check", "simulate", "report", "docs", "codegraph", "handbook", "diagrams"])).optional(),
+      flows: z.array(z.string()).optional().describe("Run these flows by id (see bc_atlas_flow_define) instead of the tasks and flows of the trigger"),
       sync: z.enum(["none", "verify", "stage", "artifact", "pull-request", "commit"]).optional()
     })
   }, tool(async ({ path: input, ...options }) => {

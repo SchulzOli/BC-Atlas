@@ -21,6 +21,7 @@ import { dependencyMatrix } from "../blueprint/drilldown.js";
 import { RELATION_STYLES, TYPE_STYLES } from "../d2.js";
 import { pluginAtlas } from "../plugins/atlas.js";
 import { definitionOf } from "../simulation/define.js";
+import { describeFlows } from "../flows/index.js";
 import { analyzeVisibility, LEVEL_COLORS } from "../visibility.js";
 
 const NEUTRAL = "#64748B";
@@ -34,7 +35,11 @@ const KIND_COLORS = {
   task: "#0891B2",
   person: "#7C3AED",
   role: "#4F46E5",
-  requirement: "#A21CAF"
+  requirement: "#A21CAF",
+  trigger: "#B7791F",
+  flow: "#2563EB",
+  artifact: "#0F766E",
+  place: "#64748B"
 };
 // Relations the atlas adds to those of the AL source (src/d2.js).
 const ATLAS_RELATIONS = {
@@ -62,7 +67,10 @@ const ATLAS_RELATIONS = {
   "can, but must not": { color: SEVERITY_COLORS.error, dash: true },
   holds: { color: "#7C3AED" },
   source: { color: "#31783B" },
-  "proven by": { color: "#A21CAF" }
+  "proven by": { color: "#A21CAF" },
+  starts: { color: "#B7791F" },
+  makes: { color: "#2563EB" },
+  "saved to": { color: "#0F766E" }
 };
 
 
@@ -91,6 +99,7 @@ export const LENSES = [
   { id: "people", title: "People", section: "People and rules", hint: "who performs what, and what blocks them", form: "diagram", summary: "Who performs which process test with which permission sets, and what blocks them.", kinds: ["person", "task", "object"], relations: ["performs", "blocked", "must not", "can, but must not", "holds"], connected: true, group: "kind", color: "kind", reads: "the roles and agents of `simulation` in .bca.json, their permission sets, and the process tests" },
   { id: "requirements", title: "Requirements", section: "People and rules", hint: "what the company needs, and its proof", form: "diagram", summary: "What the company needs, and the process tests that prove it.", kinds: ["requirement", "task"], relations: ["proven by"], group: "kind", color: "status", reads: "the `requirements` of `simulation` in .bca.json and the process tests" },
   { id: "simulation", title: "Simulation", section: "People and rules", hint: "the company that uses the app", form: "diagram", summary: "The company that uses the app: its people and roles, the process tests each role does or must not do, the recordings they stand on, and the requirements they prove.", kinds: ["person", "role", "task", "requirement", "recording"], needs: ["person", "role"], relations: ["has role", "does", "forbids", "blocked", "can, but must not", "proven by", "grounds"], group: "kind", color: "status", reads: "the `simulation` section of .bca.json (or the [PERMISSIONS] of the process tests), the process tests, and the recordings of the sync plugin" },
+  { id: "flows", title: "Flows", section: "People and rules", hint: "what is made from the source, when, and where it is saved", form: "diagram", summary: "Your own workflows, from left to right: the trigger that starts a flow, the artifacts it makes from the source, and where each is saved.", kinds: ["trigger", "flow", "artifact", "place"], needs: ["flow"], relations: ["starts", "makes", "saved to"], group: "kind", color: "kind", reads: "the `flows` of .bca.json, and the sync modes of `automation.triggers`" },
   { id: "run", title: "Run", section: "How it works", hint: "the simulation at work", form: "diagram", summary: "The canvas the simulation runs on: who performs which process test, and the objects each step touches.", kinds: ["person", "task", "object"], needs: ["person"], relations: ["performs", "blocked", "can, but must not", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the agents of `simulation` in .bca.json, the process tests, and what each step of a test needs" }
 ];
 
@@ -469,6 +478,53 @@ function grounding(graph, findings, settings = {}) {
       });
     }
   }
+}
+
+/**
+ * The flows of the project (src/flows): the trigger that starts each, the artifacts it makes, and
+ * where each is saved, as nodes of the graph.
+ * @returns what the Flow menu of the view shows and changes: { flows, triggers, syncModes, artifacts }
+ */
+async function flows(graph, findings, assessment) {
+  const root = assessment.context.projectRoot ?? assessment.context.options.projectRoot;
+  let described;
+  try {
+    described = await describeFlows(root, { config: assessment.context.config?.path });
+  } catch (error) {
+    findings.push({ severity: "error", rule: "flows-invalid", message: `The flows of .bca.json are not valid: ${error.message.replace(/^flows: /u, "")}`, fix: "Correct \"flows\" in .bca.json; bca flow says what is wrong.", nodes: [], origin: "flows" });
+    return undefined;
+  }
+  const { file: _file, schema: _schema, ...menu } = described;
+  const catalog = new Map(described.artifacts.map((artifact) => [artifact.id, artifact]));
+  for (const flow of described.flows) {
+    const id = `flow::${flow.id}`;
+    graph.node(compact({ id, kind: "flow", label: flow.title, color: KIND_COLORS.flow, about: `The flow \`${flow.id}\`: ${plural(flow.steps.length, "step")}. ${flow.when.length ? `Runs on ${list(flow.when)}.` : "Runs only by name."} Run it with \`bca run --flow ${flow.id}\`.`, runsOn: flow.when.join(", ") || undefined, steps: flow.steps.length }));
+    for (const trigger of flow.when) {
+      const settings = described.triggers[trigger];
+      graph.node(compact({ id: `trigger::${trigger}`, kind: "trigger", label: trigger, color: KIND_COLORS.trigger, about: `${settings.summary}.${settings.configured || trigger === "manual" ? "" : " Nothing calls it yet: `bca setup` installs the hook or the pipeline."}`, delivery: `${settings.sync}: ${described.syncModes[settings.sync]}`, status: settings.configured || trigger === "manual" ? undefined : "not installed" }));
+      graph.edge(`trigger::${trigger}`, id, "starts");
+    }
+    const unstable = [];
+    flow.steps.forEach((step, index) => {
+      const artifact = catalog.get(step.what);
+      const { what, to, ...options } = step;
+      const detail = options.lens ?? options.story ?? options.view;
+      const node = `artifact::${flow.id}::${index + 1}`;
+      graph.node(compact({ id: node, kind: "artifact", label: `${artifact?.title ?? what}${detail ? `: ${detail}` : ""}`, color: KIND_COLORS.artifact, about: artifact?.summary, type: what, options: Object.entries(options).map(([key, value]) => `${key}=${value}`).join(", ") || undefined, saves: to, status: artifact?.gate ? "gate" : undefined }));
+      graph.edge(id, node, "makes");
+      if (to) {
+        graph.node({ id: `place::${to}`, kind: "place", label: to, color: KIND_COLORS.place, about: artifact?.target === "folder" ? "A folder of the project." : "A file of the project." });
+        graph.edge(node, `place::${to}`, "saved to");
+      }
+      if (artifact?.stable === false) unstable.push(node);
+    });
+    // What holds the time it was made differs on every run: verify would report it every time.
+    const verified = flow.when.filter((trigger) => described.triggers[trigger].sync === "verify");
+    if (unstable.length && verified.length) {
+      findings.push({ severity: "warning", rule: "flow-never-in-sync", message: `The flow ${flow.id} runs on ${list(verified)}, which verifies what was saved, but it makes an artifact that differs on every run.`, fix: "Deliver that trigger as an artifact, or move the step to a flow of its own.", nodes: unstable.map((node) => graph.at(node)), origin: "flows" });
+    }
+  }
+  return menu;
 }
 
 /**
@@ -978,6 +1034,7 @@ export async function createAtlas(workspace) {
   const report = await health(workspace, graph, findings);
   const battle = await processes(workspace, graph, findings);
   const added = await contributions(workspace, graph, findings, assessment);
+  const defined = await flows(graph, findings, assessment);
   const simulationSettings = assessment.context.options?.simulation ?? {};
   if (battle) grounding(graph, findings, simulationSettings);
   const overview = await workspace.overview();
@@ -1027,6 +1084,8 @@ export async function createAtlas(workspace) {
       permissionSets: graph.nodes.filter((node) => node.kind === "object" && node.type === "permissionset").map(({ label }) => label).sort(),
       recordings: graph.nodes.filter((node) => node.kind === "recording").map(({ id, label }) => ({ id: id.split("::").at(-1), label }))
     } } : {}),
+    // The flows as they are defined, and what a step can make: for the Flow menu of the view.
+    ...(defined ? { flows: defined } : {}),
     nodes: graph.nodes,
     relations: graph.relations,
     edges: graph.edges,

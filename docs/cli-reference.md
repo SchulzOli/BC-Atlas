@@ -33,7 +33,8 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Export | `docs unset` | Remove documentation metadata from AL source. |
 | Export | `docs automation` | Print a CI pipeline that keeps generated guides in sync. |
 | Export | `docs glossary` | List supported documentation tags and prerequisite types. |
-| Integrate | `run` | Run the features configured for a trigger and sync their output. |
+| Integrate | `run` | Run the features and flows configured for a trigger and sync their output. |
+| | `flow`, `flow define` | Your own workflows: what to make from the source, when, and where to save it. |
 | Integrate | `update` | Check for a new version, show the release notes, and update BC Atlas and the generated setup files. |
 | Integrate | `mcp` | Start the MCP stdio server for AI agents (also installed as `bca-mcp`). |
 
@@ -53,6 +54,8 @@ bca export [app-root] [--view <what>] [-o <path>] [options]
 bca docs <command> <test-root> [options]
 bca docs glossary [options]
 bca run [app-root] [options]
+bca flow [app-root] [options]
+bca flow define [app-root] [options]
 bca update [app-root] [options]
 bca mcp
 bca help [<command>] [--format json]
@@ -857,9 +860,11 @@ commands, target filename, and pipeline content.
 ```text
 bca run [app-root] --trigger pre-commit|pre-push|ci|schedule|manual
 bca run [app-root] --tasks check,simulate,report [--sync verify]
+bca run [app-root] --flow docs
 ```
 
-Runs the tasks configured for a trigger in `.bca.json` and syncs their output.
+Runs the tasks configured for a trigger in `.bca.json`, then the
+[flows](./flows.md) of that trigger, and syncs their output.
 Git hooks, schedules, pipelines, and the GitHub Action all call this command.
 See [Automation](./automation-and-ci.md).
 
@@ -867,12 +872,62 @@ See [Automation](./automation-and-ci.md).
 | --- | --- | --- |
 | `--trigger` | `pre-commit`, `pre-push`, `ci`, `schedule`, `manual` | Trigger whose tasks and sync mode are used. Default: `manual`. |
 | `--tasks` | list | Run these tasks instead: `check`, `simulate`, `report`, `docs`, `codegraph`, `handbook`, `diagrams`, `sync`. |
+| `--flow` | id | Run these flows by id instead of the tasks and flows of the trigger. Repeatable, or comma-separated. |
 | `--sync` | `none`, `verify`, `stage`, `artifact`, `pull-request`, `commit` | Override the sync mode. |
 | `--config` | path | Configuration file. |
 | `--format` | `text` or `json` | Output mode. Default: `text`. |
 
-Exits with `1` when a task fails, `check` or `simulate` finds blocking issues,
-or `verify` finds outdated generated files.
+Exits with `1` when a task or a step of a flow fails, `check` or `simulate`
+finds blocking issues, or `verify` finds outdated generated files.
+
+### `flow`
+
+```text
+bca flow [app-root] [--artifacts] [--format json]
+```
+
+Shows the [flows](./flows.md) of the project: your own workflows, each with
+the triggers it runs on and its steps (what it makes, and where each artifact
+is saved). `bca run` runs them.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--artifacts` | flag | List what a step can make: every artifact with where it saves by default and its options. |
+| `--format` | `text` or `json` | `json`: the flows, the triggers with their sync modes, and the artifacts (`bc-atlas.flows/1`). Default: `text`. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
+
+### `flow define`
+
+```text
+bca flow define [app-root] --flow <id> [--title <text>] [--when <triggers>]
+bca flow define [app-root] --flow <id> --step <artifact> [--to <path>] [--set <option>=<value>]
+bca flow define [app-root] --flow <id> --at <n> [--to <path>] [--set <option>=<value>]
+bca flow define [app-root] --deliver <trigger>=<sync mode>
+```
+
+Changes the flows in `.bca.json`. A change names what it changes and keeps the
+rest; a flow that is not valid is never written. Without options it shows the
+flows as they are.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--flow` | id | Add this flow, or change it. |
+| `--title` | text | The title of the flow. |
+| `--when` | list | The triggers the flow runs on: `pre-commit`, `pre-push`, `ci`, `schedule`, `manual`. An empty value leaves only `bca run --flow`. |
+| `--step` | artifact | Add a step that makes this artifact; with `--at`, make that step this artifact instead. |
+| `--to` | path | Where the step saves: a folder or a file, relative to the project. Without it, the default of the artifact. |
+| `--set` | option=value | An option of the step, such as `lens=data`. An empty value takes it away. Repeatable. |
+| `--at` | n | Change the step with this number (from 1) instead of adding one. |
+| `--unstep` | n | Remove the step with this number. |
+| `--up`, `--down` | n | Move the step with this number one up or down. |
+| `--remove` | id | Remove a flow. Repeatable. |
+| `--deliver` | trigger=sync | How a trigger delivers what its tasks and flows save: its sync mode. Repeatable. |
+| `--from` | path | Apply the operations of a JSON file: what the Flow menu of an exported view saves. |
+| `--dry-run` | flag | Check the change and show the result; write nothing. |
+| `--format` | `text` or `json` | Output mode. Default: `text`. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
 
 ### `plugins list`, `plugins show`, `plugins doctor`, `plugins new`
 

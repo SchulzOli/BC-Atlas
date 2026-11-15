@@ -4,6 +4,36 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- **Flows: your own workflows.** A flow says what to make from the source,
+  when, and where to save it: an id, the triggers it runs on, and steps,
+  each one artifact with its place and options (`"flows"` in `.bca.json`).
+  The artifacts are everything BC Atlas makes: `layers`, `report`,
+  `handbook`, `catalog`, `docs`, `simulate`, `check`, `view` (any lens or
+  story as a picture, a page, or data), `diagram`, `app`,
+  `knowledge-graph`, and the tasks of plugins. The same artifact can be
+  made more than once, with other options, in other places.
+  - **The Flow menu of the view** is the builder: a flow with its
+    triggers, its steps with a form for the options of each artifact, the
+    order of the steps, the sync mode of each trigger, and **Run now**. In
+    VS Code a change is written to `.bca.json`; an exported view saves the
+    changes as `flow-changes.json`.
+  - **The lens Flows** shows them as a diagram: the trigger that starts a
+    flow, the artifacts it makes, and where each is saved.
+  - **`bca flow`** shows the flows and the catalog of artifacts
+    (`--artifacts`); **`bca flow define`** changes them (`--flow`,
+    `--step`, `--to`, `--set`, `--at`, `--up`, `--down`, `--unstep`,
+    `--remove`, `--deliver`, `--from`). A flow that is not valid is never
+    written.
+  - **`bca run`** runs the flows of a trigger after its tasks and delivers
+    what they save with the sync mode of the trigger; `--flow <id>` runs
+    one by name. The pipeline `bca setup` writes knows their places.
+  - The MCP tool **`bc_atlas_flow_define`**, and `flows` on `bc_atlas_run`.
+  - [Guide](./docs/flows.md).
+
 ## 0.22.0 - 2026-11-12
 
 ### Added

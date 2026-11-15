@@ -37,7 +37,7 @@ export const SEVERITIES = Object.freeze(["error", "warning", "info"]);
 export const FAIL_LEVELS = Object.freeze(["error", "warning", "info", "never"]);
 export const REPORT_VIEWS = Object.freeze(["project", "module", "data", "contracts", "events", "ui"]);
 // What the view shows (the lenses of src/app/atlas.js), its forms, and what `bca view` writes.
-export const VIEW_LENSES = Object.freeze(["overview", "system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements", "simulation", "run"]);
+export const VIEW_LENSES = Object.freeze(["overview", "system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health", "processes", "people", "requirements", "simulation", "flows", "run"]);
 export const VIEW_FORMS = Object.freeze(["2d", "diagram", "3d"]);
 export const VIEW_FORMATS = Object.freeze(["text", "json", "md", "csv", "svg", "png", "link"]);
 
@@ -885,26 +885,89 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         id: "run",
         area: "integrate",
         argv: ["bca", "run", "[app-root]"],
-        purpose: "Run the features configured for a trigger (Git hook, pipeline, schedule) and sync their output.",
+        purpose: "Run the features and the flows configured for a trigger (Git hook, pipeline, schedule) and sync their output.",
         options: {
           trigger: string("Trigger whose tasks and sync mode are used.", {
             enum: ["pre-commit", "pre-push", "ci", "schedule", "manual"],
             default: "manual"
           }),
           tasks: string("Run these features instead: check, simulate, report, docs, codegraph, handbook, diagrams.", { value: "list" }),
+          flow: string("Run these flows by id instead of the tasks and flows of the trigger (see bca flow). Repeatable, or comma-separated.", { repeatable: true, value: "id" }),
           sync: string("Override the sync mode.", { enum: ["none", "verify", "stage", "artifact", "pull-request", "commit"] }),
           config: projectOptions.config,
           format: string("Output mode.", { enum: ["text", "json"], default: "text" })
         },
         output: { type: "json", when: "--format json", schema: "RunResult" },
         rules: [
-          "Exit code 1 when a task fails, check fails, or verify finds outdated files.",
+          "Exit code 1 when a task or a step of a flow fails, check fails, or verify finds outdated files.",
+          "A trigger runs its tasks, then the flows whose \"when\" names it; what both save is delivered with the sync mode of the trigger.",
           "verify and stage need Git; artifact, pull-request, and commit are performed by the pipeline."
         ],
         examples: [
           "bca run --trigger pre-commit",
           "bca run --trigger ci",
-          "bca run --tasks report,docs --sync verify"
+          "bca run --tasks report,docs --sync verify",
+          "bca run --flow docs"
+        ]
+      }),
+      command({
+        id: "flow",
+        area: "integrate",
+        argv: ["bca", "flow", "[app-root]"],
+        purpose: "Your own workflows: a flow says what to make from the source (the artifacts), when (the triggers), and where to save it. Shows the flows of the project (\"flows\" in .bca.json); bca flow define changes them, bca run runs them.",
+        options: {
+          artifacts: flag("List what a step can make: every artifact with where it saves by default and its options.", { group: SELECTION }),
+          format: string("text (default) or json: the flows, the triggers with their sync modes, and the artifacts.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.flows" },
+        rules: [
+          "A flow has an id, the triggers it runs on (when: pre-commit, pre-push, ci, schedule, manual), and steps. A step makes one artifact (what) and saves it (to), relative to the project.",
+          "Artifacts: layers, report, handbook, catalog, docs, simulate, check, view (any lens or story as a picture, a page, or data), diagram, app, knowledge-graph, and the tasks of plugins.",
+          "The same artifact can be made more than once with different options and places; two steps never save to the same place."
+        ],
+        examples: ["bca flow", "bca flow --artifacts", "bca flow ./app --format json"]
+      }),
+      command({
+        id: "flow.define",
+        area: "integrate",
+        argv: ["bca", "flow", "define", "[app-root]"],
+        purpose: "Define the flows: add or change a flow, its triggers, and its steps (what to make and where to save it), and say how a trigger delivers what was saved. Without options it shows the flows as they are.",
+        options: {
+          flow: string("Add this flow, or change it: --title, --when, and its steps.", { group: SELECTION, value: "id" }),
+          title: string("The title of the flow.", { group: GENERAL, value: "text" }),
+          when: string("The triggers the flow runs on, comma-separated: pre-commit, pre-push, ci, schedule, manual. An empty value leaves only bca run --flow.", { group: GENERAL, value: "list" }),
+          step: string("Add a step that makes this artifact (see bca flow --artifacts); with --at, make that step this artifact instead.", { group: SELECTION, value: "artifact" }),
+          to: string("Where the step saves: a folder or a file, relative to the project. Without it, the default of the artifact.", { group: GENERAL, value: "path" }),
+          set: string("An option of the step, as <option>=<value>: lens=data, form=diagram, language=de. An empty value takes it away. Repeatable.", { group: GENERAL, repeatable: true, value: "option=value" }),
+          at: string("Change the step with this number (from 1) instead of adding one: --to, --set, --step.", { group: SELECTION, value: "n" }),
+          unstep: string("Remove the step with this number.", { group: SELECTION, value: "n" }),
+          up: string("Move the step with this number one up.", { group: SELECTION, value: "n" }),
+          down: string("Move the step with this number one down.", { group: SELECTION, value: "n" }),
+          remove: string("Remove a flow. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
+          deliver: string("How a trigger delivers what its tasks and flows save, as <trigger>=<sync mode>: none, verify, stage (hooks), artifact, pull-request, commit (pipelines). Repeatable.", { group: SELECTION, repeatable: true, value: "trigger=sync" }),
+          from: string("Apply the operations of a JSON file: a list of { op, flow, ... } (set, remove, step, unstep, move, deliver). What the Flow menu of the view saves.", { group: SELECTION, value: "path" }),
+          dryRun: flag("Check the change and show the result; write nothing.", { group: OUTPUT }),
+          format: string("text (default) or json: the flows after the change.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.flows" },
+        rules: [
+          "A change names what it changes and keeps the rest. A flow that is not valid never reaches .bca.json.",
+          "A trigger needs something that calls it: bca setup installs the Git hooks and the pipeline that run bca run --trigger <name>.",
+          "Sync modes: verify fails when what was saved differs from the commit, stage adds it to the commit (hooks); artifact, pull-request, and commit are steps of the pipeline bca setup writes."
+        ],
+        examples: [
+          "bca flow define --flow docs --title \"Documentation in the repository\" --when pre-push,ci",
+          "bca flow define --flow docs --step layers --to docs/system",
+          "bca flow define --flow docs --step view --to docs/pictures/data.svg --set lens=data --set form=diagram",
+          "bca flow define --flow docs --at 2 --set theme=dark",
+          "bca flow define --flow docs --unstep 2",
+          "bca flow define --deliver ci=verify --deliver pre-push=stage",
+          "bca flow define --remove docs",
+          "bca flow define --from flow-changes.json --format json"
         ]
       }),
       command({

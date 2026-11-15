@@ -42,6 +42,27 @@ configure it is [`bca setup`](./setup.md).
 | `ai` | `ai.outputDir` (default `docs/narrative`) | `ai`: `endpoint`, `model`, `outputDir`, `language`; the key in `BCA_AI_API_KEY`. Calls a model only for pages whose facts changed; see [BC Atlas AI](../plugins/ai/README.md) |
 | `diagrams` | each `diagrams[].output` | `diagrams`: list of `graph` options, e.g. `{ "view": "data", "output": "docs/data.svg" }` |
 
+## Flows
+
+A task makes one feature once, in the place its section of `.bca.json` names.
+A [flow](./flows.md) is your own workflow on top of that: any artifact, as
+often as you need it, with its own options, saved where you say. A trigger
+runs its tasks and then the flows whose `when` names it, and the sync mode of
+the trigger delivers what both saved.
+
+```json
+{
+  "flows": [
+    { "id": "docs", "when": ["pre-push", "ci"], "steps": [
+      { "what": "layers", "to": "docs/system" },
+      { "what": "view", "lens": "data", "form": "diagram", "to": "docs/pictures/data.svg" }
+    ] }
+  ]
+}
+```
+
+Build them in the **Flow** menu of the view or with `bca flow define`.
+
 ## Sync modes
 
 | Mode | Used by | Effect |

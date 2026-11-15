@@ -64,6 +64,7 @@ gives the way of that process test.
 | **Check** | Puts a ring on every node with a finding, in the color of the worst one. The number is the errors and warnings. |
 | **Story** | Walks through the graph step by step. See [Stories](#stories). |
 | **Simulate** | Who uses the app: the company of the [battle test](./battle-test.md#define-the-simulation), its agents and roles, and a form to define each. A change runs the simulation again. What stops the simulation is listed at the top, one click from the person it is about. **Run, step by step** plays the [run](./battle-test.md#a-run-step-by-step) of one person on the graph: each step shows where the person is, and the picture is built by it. **Build the bundle** writes [everything as one artifact](./bundle.md) next to the project. There when the project has process tests. |
+| **Flow** | Your own workflows: a builder for [flows](./flows.md). A flow says what to make from the source (its steps, one artifact each), when (the triggers), and where to save each artifact. A change is written to `.bca.json`; **Run now** runs a flow at once. |
 | **View** | Color, size, and grouping of the nodes; arrange again; reset. |
 | **Export** | Saves what you see. See [Export](#export). |
 | **Live** | What the graph is read from, and reading it again. See [In step with the source](#in-step-with-the-source). |
@@ -125,6 +126,7 @@ select an object in one, switch, and it is still selected.
 | People | who performs which process test with which permission sets | performs, blocked, must not, holds | `bca simulate` |
 | Requirements | what the company needs and the process tests that prove it | proven by | `bca simulate` |
 | Simulation | the company as one picture: people, their roles, the process tests, requirements, and the recordings the tests stand on | has role, does, forbids, blocked, proven by, grounds | `bca simulate define` |
+| Flows | your own [workflows](./flows.md): the trigger that starts a flow, the artifacts it makes, and where each is saved | starts, makes, saved to | `bca view --lens flows` |
 | Run | the canvas the simulation runs on: who performs which process test, and the objects each step touches | performs, blocked, next, touches | `bca view --story run:<person>` |
 
 | Recordings | what was recorded in Business Central, the channels that sync it, and the objects each recording runs through | syncs, not synced, runs through, changes | `bca sync status` |

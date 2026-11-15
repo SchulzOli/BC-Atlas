@@ -126,7 +126,8 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_handbook` reads the [system handbook](./handbook.md) (one page or all, in English or German): who writes a table, who subscribes to an event, what a permission set grants, which pages users can open, where the code is complex.
 - `bc_atlas_setup_plan` detects the project and returns setup questions with recommendations.
 - `bc_atlas_setup_apply` previews (default) or writes `.bca.json`, Git hooks, and a pipeline.
-- `bc_atlas_run` runs the tasks configured for a trigger and reports sync status.
+- `bc_atlas_run` runs the tasks and flows configured for a trigger, or flows by id (`flows`), and reports sync status.
+- `bc_atlas_flow_define` defines the [flows](./flows.md) of a project: operations add or change a flow, its triggers, and its steps (the artifact to make and where to save it), or set the sync mode of a trigger. Without operations it returns the flows and the catalog of artifacts with their options.
 - `bc_atlas_update_check` reports whether a newer BC Atlas version exists, with release notes.
 - `bc_atlas_generate_diagram` writes D2, JSON, or SVG.
 - `bc_atlas_explore` writes the interactive explorer or the temporal graph document.

@@ -51,8 +51,8 @@ function resolveCommand(capabilities, args) {
     }
     return { id, args: rest };
   }
-  // Commands that also stand alone: bca setup and bca setup plan, bca simulate and bca simulate define.
-  if (["setup", "simulate"].includes(first) && findCommand(capabilities, `${first}.${second}`)) return { id: `${first}.${second}`, args: rest };
+  // Commands that also stand alone: bca setup and bca setup plan, bca simulate and bca simulate define, bca flow and bca flow define.
+  if (["setup", "simulate", "flow"].includes(first) && findCommand(capabilities, `${first}.${second}`)) return { id: `${first}.${second}`, args: rest };
   if (first === "graph") {
     if (findCommand(capabilities, `graph.${second}`)) return { id: `graph.${second}`, args: rest };
     if (!second || ["-h", "--help", "help"].includes(second)) return { id: "graph.query", args: ["--help"] };
