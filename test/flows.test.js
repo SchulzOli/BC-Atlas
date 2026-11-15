@@ -10,7 +10,7 @@ import { createService } from "../src/app/service.js";
 import { renderAppHtml } from "../src/app/page.js";
 import { Workspace } from "../src/app/workspace.js";
 import { createCapabilities, findCommand } from "../src/capabilities.js";
-import { ARTIFACTS, applyFlowOperations, artifactCatalog, CANVAS_FILE, defineFlows, exportFlow, flowId, flowOutputs, flowsConfig, flowsFor, normalizeCanvas, readFlowCanvas, writeFlowCanvas } from "../src/flows/index.js";
+import { ARTIFACTS, applyFlowOperations, artifactCatalog, CANVAS_FILE, defineFlows, exportFlow, flowId, flowOutputs, flowsConfig, flowsFor, normalizeCanvas, readFlowCanvas, stepOrder, writeFlowCanvas } from "../src/flows/index.js";
 
 const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
 const example = fileURLToPath(new URL("../examples/multi-app", import.meta.url));
@@ -334,6 +334,106 @@ test("the canvas of the builder keeps where the nodes are, next to the flows", a
     const html = renderAppHtml({ mode: "vscode" });
     for (const part of ['data-board-mode="canvas"', 'data-drop="canvas"', 'class="port out"', 'class="port in"', 'data-canvas="remove"', 'data-drag="flow"', "function canvasConnect(", 'call("saveFlowCanvas", canvas)']) assert.ok(html.includes(part), part);
     for (const event of ["pointerdown", "pointermove", "pointerup", "wheel"]) assert.ok(html.includes(`$("#board").addEventListener("${event}"`), event);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the steps of a flow are a graph: names, wires with conditions, and no circle", () => {
+  const steps = [
+    { id: "gate", what: "check" },
+    { id: "pages", what: "layers", after: "gate" },
+    { what: "handbook", after: ["pages", { step: "gate", if: "always" }] },
+    { what: "check", to: "docs/health.md", after: ["gate:failed"] }
+  ];
+  const [flow] = flowsConfig({ flows: [{ id: "docs", steps }] });
+  assert.deepEqual(flow.steps.map(({ id, after }) => [id, after]), [
+    ["gate", []],
+    ["pages", [{ step: "gate", if: "passed" }]],
+    [undefined, [{ step: "pages", if: "passed" }, { step: "gate", if: "always" }]],
+    [undefined, [{ step: "gate", if: "failed" }]]
+  ]);
+  // Every step after those it waits for, else as written.
+  assert.deepEqual(stepOrder(flowsConfig({ flows: [{ id: "a", steps: [{ what: "handbook", after: "last" }, { id: "last", what: "layers", after: "first" }, { id: "first", what: "check" }] }] })[0].steps), [2, 1, 0]);
+
+  const invalid = (list, pattern) => assert.throws(() => flowsConfig({ flows: [{ id: "a", steps: list }] }), pattern);
+  invalid([{ what: "check", after: "gate" }], /comes after "gate", which is not a step of this flow/u);
+  invalid([{ id: "gate", what: "check" }, { id: "gate", what: "layers" }], /two steps "gate"/u);
+  invalid([{ id: "Gate", what: "check" }], /has the id "Gate"/u);
+  invalid([{ id: "gate", what: "check", after: "gate" }], /comes after itself/u);
+  invalid([{ id: "gate", what: "check" }, { what: "layers", after: "gate:sometimes" }], /if "sometimes"; use passed, failed, always/u);
+  invalid([{ id: "gate", what: "check" }, { what: "layers", after: ["gate", "gate:failed"] }], /comes after "gate" twice/u);
+  invalid([{ id: "a", what: "check", after: "c" }, { id: "b", what: "layers", after: "a" }, { id: "c", what: "handbook", after: "b" }], /wait for each other in a circle: a > c > b > a/u);
+
+  // Wires by position: the step that is waited for gets a name.
+  let config = applyFlowOperations({}, [
+    { op: "set", flow: "docs" },
+    { op: "step", flow: "docs", what: "check" },
+    { op: "step", flow: "docs", what: "layers", to: "docs/system" },
+    { op: "step", flow: "docs", what: "check", to: "docs/health.md" },
+    { op: "wire", flow: "docs", from: 1, into: 2 },
+    { op: "wire", flow: "docs", from: 1, into: 3, if: "failed" },
+    { op: "wire", flow: "docs", from: 2, into: 3, if: "always" }
+  ]);
+  assert.deepEqual(config.flows[0].steps, [
+    { what: "check", id: "check" },
+    { what: "layers", to: "docs/system", after: ["check"], id: "layers" },
+    { what: "check", to: "docs/health.md", after: [{ step: "check", if: "failed" }, { step: "layers", if: "always" }] }
+  ]);
+  // A wire that is there changes its condition; a rename is followed by those that wait.
+  config = applyFlowOperations(config, [{ op: "wire", flow: "docs", from: 1, into: 3 }, { op: "step", flow: "docs", at: 1, id: "gate" }]);
+  assert.deepEqual(config.flows[0].steps.map(({ after }) => after), [undefined, ["gate"], [{ step: "layers", if: "always" }, "gate"]]);
+  // Another artifact at the same place stays the step it is.
+  assert.deepEqual(applyFlowOperations(config, [{ op: "step", flow: "docs", at: 2, what: "report" }]).flows[0].steps[1], { what: "report", id: "layers", after: ["gate"] });
+  config = applyFlowOperations(config, [{ op: "unwire", flow: "docs", from: 2, into: 3 }, { op: "step", flow: "docs", at: 2, after: [] }]);
+  assert.deepEqual(config.flows[0].steps.map(({ after }) => after), [undefined, undefined, ["gate"]]);
+  // What waited for a step that goes no longer does.
+  assert.deepEqual(applyFlowOperations(config, [{ op: "unstep", flow: "docs", at: 1 }]).flows[0].steps, [{ what: "layers", to: "docs/system", id: "layers" }, { what: "check", to: "docs/health.md" }]);
+  assert.throws(() => applyFlowOperations(config, [{ op: "wire", flow: "docs", from: 3, into: 1 }]), /in a circle/u);
+  assert.throws(() => applyFlowOperations(config, [{ op: "wire", flow: "docs", from: 2, into: 2 }]), /cannot come after itself/u);
+});
+
+test("bca run runs a step if what it waits for passed, failed, or always, and skips it else", async () => {
+  const root = repository();
+  try {
+    const define = (...args) => bca(["flow", "define", root, "--flow", "docs", ...args]);
+    // The example has one error: the gate fails.
+    assert.equal(define("--step", "check", "--id", "gate").status, 0);
+    assert.equal(define("--step", "view", "--to", "docs/data.svg", "--set", "lens=data", "--id", "picture", "--after", "gate").status, 0);
+    assert.equal(define("--step", "view", "--to", "docs/data.md", "--set", "lens=data", "--after", "picture").status, 0);
+    assert.equal(define("--step", "check", "--to", "docs/health.md", "--after", "gate:failed").status, 0);
+    assert.equal(define("--step", "view", "--to", "docs/events.svg", "--set", "lens=events", "--after", "gate:always,picture:always").status, 0);
+    assert.equal(define("--step", "catalog").status, 0);
+    assert.match(bca(["flow", root]).stdout, /4\. check {12}-> docs\/health\.md {2}after gate \(if failed\)/u);
+    let result = bca(["run", root, "--flow", "docs", "--format", "json"]);
+    assert.equal(result.status, 1);
+    let run = JSON.parse(result.stdout);
+    assert.deepEqual(run.flows[0].steps.map(({ status }) => status), ["failed", "skipped", "skipped", "failed", "passed", "passed"]);
+    assert.match(run.flows[0].steps[1].summary, /it comes after gate if that passed, and gate failed/u);
+    assert.match(run.flows[0].steps[2].summary, /and picture was skipped/u);
+    // Only what ran is delivered.
+    assert.deepEqual(run.outputs, ["docs/health.md", "docs/events.svg", "docs/codegraph"]);
+    assert.ok(!existsSync(path.join(root, "docs/data.svg")) && existsSync(path.join(root, "docs/health.md")) && existsSync(path.join(root, "docs/events.svg")));
+    assert.match(bca(["run", root, "--flow", "docs"]).stdout, /skipped {2}view "picture" -> docs\/data\.svg/u);
+
+    // With a gate that passes, what waits for it runs and what waits for its failure does not.
+    assert.equal(define("--at", "1", "--set", "failOn=never").status, 0);
+    result = bca(["run", root, "--flow", "docs", "--format", "json"]);
+    run = JSON.parse(result.stdout);
+    assert.equal(result.status, 0, result.stdout);
+    assert.deepEqual(run.flows[0].steps.map(({ status }) => status), ["passed", "passed", "passed", "skipped", "passed", "passed"]);
+    assert.ok(existsSync(path.join(root, "docs/data.md")));
+
+    // The lens draws which comes after which, and how.
+    const atlas = await createService(new Workspace(root, {}, { live: false })).call("atlas");
+    const kinds = new Set(atlas.edges.map(([, , relation]) => atlas.relations[relation].kind));
+    for (const kind of ["makes", "then", "if it fails", "in any case"]) assert.ok(kinds.has(kind), kind);
+    assert.deepEqual(atlas.flows.flows[0].steps[3].after, [{ step: "gate", if: "failed" }]);
+    assert.deepEqual(Object.keys(atlas.flows.conditions), ["passed", "failed", "always"]);
+
+    // A flow written as a list is what it was: every step starts with the flow.
+    const html = renderAppHtml({ mode: "vscode" });
+    for (const part of ["data-canvas-if", "function canvasDetach(", "function waitsFor(", 'op: "wire"', 'op: "unwire"']) assert.ok(html.includes(part), part);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

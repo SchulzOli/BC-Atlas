@@ -4,39 +4,53 @@ import path from "node:path";
 import { automationConfig, syncModesFor, SYNC_MODES, TRIGGERS } from "../automation/config.js";
 import { loadPlugins } from "../plugins/registry.js";
 import { ARTIFACTS, makeArtifact, stepOutputs } from "./artifacts.js";
-import { applyFlowOperations, FLOW_SCHEMA, flowsConfig, stepJson } from "./config.js";
+import { applyFlowOperations, CONDITIONS, FLOW_SCHEMA, flowsConfig, stepJson, stepOrder } from "./config.js";
 import { readFlowCanvas } from "./canvas.js";
 
 export { ARTIFACTS } from "./artifacts.js";
 export { exportFlow, FLOW_EXPORT_TARGETS } from "./export.js";
 export { CANVAS_FILE, normalizeCanvas, readFlowCanvas, writeFlowCanvas } from "./canvas.js";
-export { applyFlowOperations, FLOW_SCHEMA, flowId, flowOutputs, flowsConfig, flowsFor, flowsText, stepJson } from "./config.js";
+export { applyFlowOperations, CONDITIONS, FLOW_SCHEMA, flowId, flowOutputs, flowsConfig, flowsFor, flowsText, freeStepId, stepJson, stepOrder } from "./config.js";
 
 /**
- * Runs flows, step by step. A step that fails does not stop the others: a
- * run says everything that is wrong at once.
+ * Runs flows. The steps of a flow run each after those it waits for, else as written. A step
+ * whose wires say otherwise is skipped: it comes after a step if that one passed (the default),
+ * failed, or whatever became of it. A step that fails does not stop those that do not wait for
+ * it: a run says everything that is wrong at once.
  * @param flows normalized flows (flowsConfig)
  * @param context { root, config, values, log, appPath, plugins, runPluginTask(task) }
- * @returns [{ flow, title, ok, steps: [{ what, to?, ok, summary, outputs }] }]
+ * @returns [{ flow, title, ok, steps: [{ what, id?, to?, status: "passed" | "failed" | "skipped", ok, summary, outputs }] }] steps as written
  */
 export async function runFlows(flows, context) {
   const log = context.log ?? (() => {});
   const results = [];
   for (const flow of flows) {
     log(`flow ${flow.id}: ${flow.steps.length} step(s)`);
-    const steps = [];
-    for (const step of flow.steps) {
+    const steps = new Array(flow.steps.length);
+    const status = new Map();
+    for (const index of stepOrder(flow.steps, flow.id)) {
+      const step = flow.steps[index];
+      const name = `${step.id && step.id !== step.what ? `${step.what} "${step.id}"` : step.what}${step.to ? ` -> ${step.to}` : ""}`;
+      // Every wire into the step has to hold.
+      const unmet = step.after.find((wire) => wire.if !== "always" && status.get(wire.step) !== wire.if);
       let result;
-      try {
-        result = step.plugin
-          ? await context.runPluginTask(step.what)
-          : await makeArtifact(step, { ...context, flow: flow.id, steps: flow.steps });
-      } catch (error) {
-        result = { ok: false, summary: error.message };
+      let outputs = [];
+      if (unmet) {
+        result = { status: "skipped", summary: `skipped: it comes after ${unmet.step} if that ${unmet.if}, and ${unmet.step} ${status.get(unmet.step) === "skipped" ? "was skipped" : status.get(unmet.step)}` };
+      } else {
+        try {
+          const made = step.plugin
+            ? await context.runPluginTask(step.what)
+            : await makeArtifact(step, { ...context, flow: flow.id, steps: flow.steps });
+          result = { status: made.ok === false ? "failed" : "passed", summary: made.summary };
+        } catch (error) {
+          result = { status: "failed", summary: error.message };
+        }
+        outputs = step.plugin ? await context.plugins.taskOutputs(step.what, context.config) : stepOutputs(step);
       }
-      const outputs = step.plugin ? await context.plugins.taskOutputs(step.what, context.config) : stepOutputs(step);
-      steps.push({ what: step.what, ...(step.to ? { to: step.to } : {}), ok: result.ok !== false, summary: result.summary, outputs });
-      log(`  ${result.ok === false ? "failed" : "ok"}  ${step.what}${step.to ? ` -> ${step.to}` : ""}: ${result.summary}`);
+      if (step.id) status.set(step.id, result.status);
+      steps[index] = { what: step.what, ...(step.id ? { id: step.id } : {}), ...(step.to ? { to: step.to } : {}), status: result.status, ok: result.status !== "failed", summary: result.summary, outputs };
+      log(`  ${{ passed: "ok", failed: "failed", skipped: "skipped" }[result.status]}  ${name}: ${result.summary}`);
     }
     results.push({ flow: flow.id, title: flow.title, ok: steps.every(({ ok }) => ok), steps });
   }
@@ -97,6 +111,7 @@ function description(config, pluginTasks, file) {
       tasks: automation.triggers[name]?.tasks ?? []
     }])),
     syncModes: SYNC_MODES,
+    conditions: CONDITIONS,
     artifacts: artifactCatalog(pluginTasks)
   };
 }

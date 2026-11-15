@@ -127,7 +127,7 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_setup_plan` detects the project and returns setup questions with recommendations.
 - `bc_atlas_setup_apply` previews (default) or writes `.bca.json`, Git hooks, and a pipeline.
 - `bc_atlas_run` runs the tasks and flows configured for a trigger, or flows by id (`flows`), and reports sync status.
-- `bc_atlas_flow_define` defines the [flows](./flows.md) of a project: operations add or change a flow, its triggers, and its steps (the artifact to make and where to save it), or set the sync mode of a trigger. Without operations it returns the flows and the catalog of artifacts with their options.
+- `bc_atlas_flow_define` defines the [flows](./flows.md) of a project: operations add or change a flow, its triggers, and its steps (the artifact to make and where to save it), say which step comes after which and when (`wire`, `unwire`, or `id` and `after` on a step), or set the sync mode of a trigger. Without operations it returns the flows and the catalog of artifacts with their options.
 - `bc_atlas_flow_export` writes a flow as a workflow for GitHub Actions (`.github/workflows/bc-atlas-<flow>.yml`) and returns its events, its delivery, and the workflow; `dryRun` writes nothing.
 - `bc_atlas_update_check` reports whether a newer BC Atlas version exists, with release notes.
 - `bc_atlas_generate_diagram` writes D2, JSON, or SVG.

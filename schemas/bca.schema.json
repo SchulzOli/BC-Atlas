@@ -237,7 +237,18 @@
                   "description": "The artifact to make: layers, report, handbook, catalog, docs, simulate, check, view, diagram, app, knowledge-graph, or a task of a plugin. Its options are further properties of the step (bca flow --artifacts).",
                   "type": "string"
                 },
-                "to": { "description": "Where to save it: a folder or a file, relative to the project. Without it, the default of the artifact.", "type": "string" }
+                "to": { "description": "Where to save it: a folder or a file, relative to the project. Without it, the default of the artifact.", "type": "string" },
+                "id": { "description": "The name of the step, so that other steps can come after it.", "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+                "after": {
+                  "description": "The steps this step comes after, by id. It runs if each of them passed (the default), failed, or always; else it is skipped. Without it, the step starts with the flow.",
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      { "type": "string" },
+                      { "type": "object", "required": ["step"], "properties": { "step": { "type": "string" }, "if": { "enum": ["passed", "failed", "always"] } } }
+                    ]
+                  }
+                }
               }
             }
           }

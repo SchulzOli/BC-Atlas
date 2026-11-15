@@ -70,6 +70,9 @@ const ATLAS_RELATIONS = {
   "proven by": { color: "#A21CAF" },
   starts: { color: "#B7791F" },
   makes: { color: "#2563EB" },
+  then: { color: "#2563EB" },
+  "if it fails": { color: "#C0392B", dash: true },
+  "in any case": { color: "#64748B", dash: true },
   "saved to": { color: "#0F766E" }
 };
 
@@ -99,7 +102,7 @@ export const LENSES = [
   { id: "people", title: "People", section: "People and rules", hint: "who performs what, and what blocks them", form: "diagram", summary: "Who performs which process test with which permission sets, and what blocks them.", kinds: ["person", "task", "object"], relations: ["performs", "blocked", "must not", "can, but must not", "holds"], connected: true, group: "kind", color: "kind", reads: "the roles and agents of `simulation` in .bca.json, their permission sets, and the process tests" },
   { id: "requirements", title: "Requirements", section: "People and rules", hint: "what the company needs, and its proof", form: "diagram", summary: "What the company needs, and the process tests that prove it.", kinds: ["requirement", "task"], relations: ["proven by"], group: "kind", color: "status", reads: "the `requirements` of `simulation` in .bca.json and the process tests" },
   { id: "simulation", title: "Simulation", section: "People and rules", hint: "the company that uses the app", form: "diagram", summary: "The company that uses the app: its people and roles, the process tests each role does or must not do, the recordings they stand on, and the requirements they prove.", kinds: ["person", "role", "task", "requirement", "recording"], needs: ["person", "role"], relations: ["has role", "does", "forbids", "blocked", "can, but must not", "proven by", "grounds"], group: "kind", color: "status", reads: "the `simulation` section of .bca.json (or the [PERMISSIONS] of the process tests), the process tests, and the recordings of the sync plugin" },
-  { id: "flows", title: "Flows", section: "People and rules", hint: "what is made from the source, when, and where it is saved", form: "diagram", summary: "Your own workflows, from left to right: the trigger that starts a flow, the artifacts it makes from the source, and where each is saved.", kinds: ["trigger", "flow", "artifact", "place"], needs: ["flow"], relations: ["starts", "makes", "saved to"], group: "kind", color: "kind", reads: "the `flows` of .bca.json, and the sync modes of `automation.triggers`" },
+  { id: "flows", title: "Flows", section: "People and rules", hint: "what is made from the source, when, and where it is saved", form: "diagram", summary: "Your own workflows, from left to right: the trigger that starts a flow, the artifacts it makes from the source, which comes after which, and where each is saved.", kinds: ["trigger", "flow", "artifact", "place"], needs: ["flow"], relations: ["starts", "makes", "then", "if it fails", "in any case", "saved to"], group: "kind", color: "kind", reads: "the `flows` of .bca.json, and the sync modes of `automation.triggers`" },
   { id: "run", title: "Run", section: "How it works", hint: "the simulation at work", form: "diagram", summary: "The canvas the simulation runs on: who performs which process test, and the objects each step touches.", kinds: ["person", "task", "object"], needs: ["person"], relations: ["performs", "blocked", "can, but must not", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the agents of `simulation` in .bca.json, the process tests, and what each step of a test needs" }
 ];
 
@@ -507,16 +510,23 @@ async function flows(graph, findings, assessment) {
     const unstable = [];
     flow.steps.forEach((step, index) => {
       const artifact = catalog.get(step.what);
-      const { what, to, ...options } = step;
+      const { what, to, id: name, after = [], ...options } = step;
       const detail = options.lens ?? options.story ?? options.view;
       const node = `artifact::${flow.id}::${index + 1}`;
       graph.node(compact({ id: node, kind: "artifact", label: `${artifact?.title ?? what}${detail ? `: ${detail}` : ""}`, color: KIND_COLORS.artifact, about: artifact?.summary, type: what, options: Object.entries(options).map(([key, value]) => `${key}=${value}`).join(", ") || undefined, saves: to, status: artifact?.gate ? "gate" : undefined }));
-      graph.edge(id, node, "makes");
+      // A step starts with the flow, or comes after others: if they passed, failed, or in any case.
+      if (!after.length) graph.edge(id, node, "makes");
       if (to) {
         graph.node({ id: `place::${to}`, kind: "place", label: to, color: KIND_COLORS.place, about: artifact?.target === "folder" ? "A folder of the project." : "A file of the project." });
         graph.edge(node, `place::${to}`, "saved to");
       }
       if (artifact?.stable === false) unstable.push(node);
+    });
+    flow.steps.forEach((step, index) => {
+      for (const wire of step.after ?? []) {
+        const before = flow.steps.findIndex((other) => other.id === (wire.step ?? wire));
+        graph.edge(`artifact::${flow.id}::${before + 1}`, `artifact::${flow.id}::${index + 1}`, { failed: "if it fails", always: "in any case" }[wire.if] ?? "then");
+      }
     });
     // What holds the time it was made differs on every run: verify would report it every time.
     const verified = flow.when.filter((trigger) => described.triggers[trigger].sync === "verify");

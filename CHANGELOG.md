@@ -21,13 +21,23 @@ follows [Semantic Versioning](https://semver.org/).
     order of the steps, the sync mode of each trigger, and **Run now**. In
     VS Code a change is written to `.bca.json`; an exported view saves the
     changes as `flow-changes.json`.
+  - **The steps of a flow are a graph.** A step can come after others
+    (`"id"` and `"after"`, or `--id` and `--after`), if each of them
+    passed (the default), failed, or always. `bca run` runs every step
+    after those it waits for and skips one whose condition does not hold:
+    "write the pages only when the health check passed", "save the report
+    when it failed". Steps that wait in a circle are not valid. A flow
+    written as a list is unchanged: every step starts with the flow.
   - **The flow builder** (**Open the builder** in the Flow menu) opens on a
     **canvas** to place and wire freely: every trigger, flow, and step is
     a node with ports. Drag nodes from the palette onto the canvas and pull
-    wires: a trigger into a flow, a flow into its first step, a step into
-    the next. Rewire to reorder or to move a step to another flow, select a
-    node or a wire and remove it, double-click a node for its form, pan and
-    zoom. A node no wire leads to stays on the canvas, in no flow. Where
+    wires: a trigger into a flow, a flow into the steps it starts with, a
+    step into those that come after it. Wires branch and join, a click on
+    a wire says when it holds (passed, fails, in any case), and a wire
+    that would close a circle is refused. Select a node or a wire and
+    remove it, double-click a node for its form, pan and zoom. A node no
+    wire leads to stays on the canvas, in no flow; steps that leave a flow
+    together keep their wires and come back together. Where
     the nodes are is kept in `.bca/flow-canvas.json`.
   - **Lanes** in the builder is the same as a board to build on by drag
     and drop: drag an artifact into a flow

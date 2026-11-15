@@ -919,6 +919,8 @@ flows as they are.
 | `--step` | artifact | Add a step that makes this artifact; with `--at`, make that step this artifact instead. |
 | `--to` | path | Where the step saves: a folder or a file, relative to the project. Without it, the default of the artifact. |
 | `--set` | option=value | An option of the step, such as `lens=data`. An empty value takes it away. Repeatable. |
+| `--id` | name | The name of the step, so that other steps can come after it. |
+| `--after` | list | The steps this step comes after, by name; each can say when: `gate` (if it passed), `gate:failed`, `gate:always`. An empty value takes the wires away. See [Steps that come after others](./flows.md#steps-that-come-after-others). |
 | `--at` | n | Change the step with this number (from 1) instead of adding one. |
 | `--unstep` | n | Remove the step with this number. |
 | `--up`, `--down` | n | Move the step with this number one up or down. |

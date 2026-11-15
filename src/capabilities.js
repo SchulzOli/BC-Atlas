@@ -925,7 +925,8 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         rules: [
           "A flow has an id, the triggers it runs on (when: pre-commit, pre-push, ci, schedule, manual), and steps. A step makes one artifact (what) and saves it (to), relative to the project.",
           "Artifacts: layers, report, handbook, catalog, docs, simulate, check, view (any lens or story as a picture, a page, or data), diagram, app, knowledge-graph, and the tasks of plugins.",
-          "The same artifact can be made more than once with different options and places; two steps never save to the same place."
+          "The same artifact can be made more than once with different options and places; two steps never save to the same place.",
+          "Steps are a graph: a step can come after others (after), if each passed, failed, or always; bca run skips a step whose condition does not hold."
         ],
         examples: ["bca flow", "bca flow --artifacts", "bca flow ./app --format json"]
       }),
@@ -941,13 +942,15 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           step: string("Add a step that makes this artifact (see bca flow --artifacts); with --at, make that step this artifact instead.", { group: SELECTION, value: "artifact" }),
           to: string("Where the step saves: a folder or a file, relative to the project. Without it, the default of the artifact.", { group: GENERAL, value: "path" }),
           set: string("An option of the step, as <option>=<value>: lens=data, form=diagram, language=de. An empty value takes it away. Repeatable.", { group: GENERAL, repeatable: true, value: "option=value" }),
-          at: string("Change the step with this number (from 1) instead of adding one: --to, --set, --step.", { group: SELECTION, value: "n" }),
+          id: string("The name of the step, so that other steps can come after it: lowercase letters, digits, '.', '_', '-'.", { group: GENERAL, value: "name" }),
+          after: string("The steps this step comes after, by name, comma-separated; each can say when: gate (if it passed), gate:failed, gate:always. An empty value takes the wires away, and the step starts with the flow.", { group: GENERAL, value: "list" }),
+          at: string("Change the step with this number (from 1) instead of adding one: --to, --set, --id, --after, --step.", { group: SELECTION, value: "n" }),
           unstep: string("Remove the step with this number.", { group: SELECTION, value: "n" }),
           up: string("Move the step with this number one up.", { group: SELECTION, value: "n" }),
           down: string("Move the step with this number one down.", { group: SELECTION, value: "n" }),
           remove: string("Remove a flow. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
           deliver: string("How a trigger delivers what its tasks and flows save, as <trigger>=<sync mode>: none, verify, stage (hooks), artifact, pull-request, commit (pipelines). Repeatable.", { group: SELECTION, repeatable: true, value: "trigger=sync" }),
-          from: string("Apply the operations of a JSON file: a list of { op, flow, ... } (set, remove, step, unstep, move, deliver). What the Flow menu of the view saves.", { group: SELECTION, value: "path" }),
+          from: string("Apply the operations of a JSON file: a list of { op, flow, ... } (set, remove, step, wire, unwire, unstep, move, deliver). What the Flow menu of the view saves.", { group: SELECTION, value: "path" }),
           dryRun: flag("Check the change and show the result; write nothing.", { group: OUTPUT }),
           format: string("text (default) or json: the flows after the change.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
           projectRoot: projectOptions.projectRoot,
@@ -956,6 +959,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         output: { type: "json", when: "--format json", schema: "bc-atlas.flows" },
         rules: [
           "A change names what it changes and keeps the rest. A flow that is not valid never reaches .bca.json.",
+          "Steps are a graph: a step with --after waits for the steps it names and runs if each passed (or failed, or always); without it, it starts with the flow. Steps that wait in a circle are not valid. Removing a step takes the wires to it away.",
           "A trigger needs something that calls it: bca setup installs the Git hooks and the pipeline that run bca run --trigger <name>.",
           "Sync modes: verify fails when what was saved differs from the commit, stage adds it to the commit (hooks); artifact, pull-request, and commit are steps of the pipeline bca setup writes."
         ],
@@ -964,6 +968,9 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           "bca flow define --flow docs --step layers --to docs/system",
           "bca flow define --flow docs --step view --to docs/pictures/data.svg --set lens=data --set form=diagram",
           "bca flow define --flow docs --at 2 --set theme=dark",
+          "bca flow define --flow docs --step check --id gate",
+          "bca flow define --flow docs --at 1 --after gate",
+          "bca flow define --flow docs --step check --to docs/health.md --after gate:failed",
           "bca flow define --flow docs --unstep 2",
           "bca flow define --deliver ci=verify --deliver pre-push=stage",
           "bca flow define --remove docs",

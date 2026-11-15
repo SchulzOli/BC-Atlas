@@ -28,13 +28,56 @@ them.
 | `id` | The name of the flow: lowercase letters, digits, `.`, `_`, `-`. |
 | `title` | What the view and the terminal call it. |
 | `when` | The triggers it runs on: `pre-commit`, `pre-push`, `ci`, `schedule`, `manual`. Without one, the flow runs only by name. |
-| `steps` | One artifact each: `what` to make, `to` where to save it (a folder or a file, relative to the project), and the options of that artifact as further properties. |
+| `steps` | One artifact each: `what` to make, `to` where to save it (a folder or a file, relative to the project), and the options of that artifact as further properties. A step can [come after others](#steps-that-come-after-others) (`id`, `after`). |
 
 The tasks of a trigger (`automation.triggers`, see
 [Automation](./automation-and-ci.md)) make each feature once, in the place its
 section of `.bca.json` names. A flow is for everything beyond that: the same
 artifact more than once, with other options, in other places, grouped the way
 your team works.
+
+## Steps that come after others
+
+The steps of a flow are a graph. A step with an `id` can be waited for, and
+`after` names the steps a step comes after, each with a condition:
+
+```json
+"steps": [
+  { "id": "gate", "what": "check" },
+  { "id": "pages", "what": "layers", "to": "docs/system", "after": ["gate"] },
+  { "what": "view", "lens": "data", "to": "docs/pictures/data.svg", "after": ["gate"] },
+  { "what": "handbook", "after": ["pages"] },
+  { "what": "check", "to": "docs/health.md", "after": [{ "step": "gate", "if": "failed" }] }
+]
+```
+
+| `if` | The step runs |
+| --- | --- |
+| `passed` (the default) | when the step it comes after passed |
+| `failed` | when it failed: for what should happen then, such as saving the report |
+| `always` | whatever became of it, also when it was skipped |
+
+- A step without `after` starts with the flow. A flow written as a plain list
+  is what it always was: every step starts with the flow, and none waits.
+- A step with several entries in `after` runs when every one of them holds;
+  else it is **skipped**. A skipped step fails nothing, and what waits for it
+  to pass is skipped too.
+- `bca run` runs every step after those it waits for, and otherwise in the
+  order they are written. Steps do not hand anything to each other: each
+  reads the source. Use `after` for conditions ("only when the health check
+  passed") and for order ("the handbook after the catalog it links to").
+- Steps that wait for each other in a circle are not valid, and neither is an
+  `after` that names no step of the flow.
+
+On the canvas a wire is an `after`; from the terminal it is `--id` and
+`--after`:
+
+```sh
+bca flow define --flow docs --step check --id gate
+bca flow define --flow docs --step layers --to docs/system --after gate
+bca flow define --flow docs --step check --to docs/health.md --after gate:failed
+bca flow define --flow docs --at 2 --after ""        # it starts with the flow again
+```
 
 ## Build a flow in the view
 
@@ -58,20 +101,29 @@ it, and wires say what belongs together:
 | Wire from | into | It means |
 | --- | --- | --- |
 | a trigger | a flow | the flow runs on that trigger |
-| a flow | a step | that step is the first of the flow |
-| a step | a step | that step comes next |
+| a flow | a step | that step starts with the flow |
+| a step | a step | the second comes after the first |
 
 To build a flow: drag **New flow** from the left onto the canvas (type its
 title first, or rename it later), drag the artifacts you want onto the canvas,
-and pull a wire from the dot on the right of the flow into the first artifact,
-then from each step into the next. Drag a trigger onto the canvas and pull its
-wire into the flow.
+and pull a wire from the dot on the right of the flow into every artifact it
+should start with, and from a step into those that come after it. Drag a
+trigger onto the canvas and pull its wire into the flow.
 
+- **Branch and join.** Pull as many wires out of a node as you like, and as
+  many into a step as it should wait for. A wire that would close a circle is
+  refused.
+- **Say when a wire holds.** Click a wire between two steps and choose
+  **Runs if it passed**, **Runs if it fails**, or **Runs in any case**. A wire
+  for a failure is red and dashed, one for any case grey and dotted.
 - **A node that no wire leads to is in no flow.** It stays on the canvas,
-  dashed, until you wire it. Removing the wire into a step takes that step and
-  those after it out of the flow and leaves them on the canvas.
-- **Rewire to reorder.** Pull a wire from a flow or a step into a step that is
-  already wired, and that step moves there, also from another flow.
+  dashed, until you wire it. Removing the only wire into a step takes it out
+  of the flow, together with the steps that run only through it: they keep
+  their wires among each other, and one wire from a flow or a step brings them
+  all back. Removing one of several wires into a step only makes it wait for
+  one step less.
+- **Wire a step of another flow** and it moves, with its place and options;
+  what waited for it there no longer does.
 - **Select and remove.** Click a node or a wire and press **Delete**, or use
   **Remove**. A flow goes with its steps and asks twice.
 - **Double-click** a flow or a step for its form (title, triggers, delivery;
@@ -84,8 +136,7 @@ Where the nodes are, and the nodes that are in no flow yet, is kept in
 `.bca/flow-canvas.json` next to `.bca.json`. Commit it and the canvas looks
 the same for everyone; delete it and the builder lays the flows out itself.
 The flows themselves are only in `.bca.json`, so `bca run` never reads the
-canvas. Steps of a flow are a row, one after the other: a wire cannot branch
-or join, and there are no conditions.
+canvas.
 
 ### Lanes: drag and drop
 
@@ -104,8 +155,8 @@ triggers and the artifacts on the left, one lane per flow on the right.
 A click on a step opens its form (where it is saved, its options); a click on
 the title of a flow opens the flow's form (title, triggers, delivery, remove).
 **Run now** and **GitHub Actions** are on every lane. With the keyboard, a
-step is a button and **+** adds one through the form; the forms do everything
-dragging does.
+step is a button and **+** adds one through the form. The lanes show what a
+step comes after but do not wire: that is the canvas, or `--after`.
 
 Every change is written to `.bca.json`. The lens **Flows** shows the result as
 a diagram from left to right: the trigger that starts a flow, the artifacts it
@@ -163,8 +214,9 @@ and `bc_atlas_run` with `flows` to run one; see
 | a task of a plugin, such as `sync` or `ai` | What the plugin makes | where its own section of `.bca.json` says | |
 
 A **gate** can fail the run: `check` on findings, `simulate` when a role is
-blocked or can do what it must not. A step that fails does not stop the
-others, so one run says everything that is wrong.
+blocked or can do what it must not. A step that fails does not stop the steps
+that do not wait for it, so one run says everything that is wrong; to hold
+steps back until a gate passed, let them [come after it](#steps-that-come-after-others).
 
 A drawing that is not D2 or JSON keeps its D2 source next to it. `app` and
 `knowledge-graph` hold the time they were made and so differ on every run:

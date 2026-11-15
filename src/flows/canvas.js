@@ -10,7 +10,7 @@
 //
 // positions: a node by its key (flow:<id>, trigger:<name>, step:<the place it saves to>,
 // gate:<flow>:<artifact>:<n> for a step that saves nothing, loose:<n>) and its x and y.
-// loose: steps on the canvas that no flow makes yet. triggers: triggers on the canvas that start no flow yet.
+// loose: steps on the canvas that no flow makes yet; those that left a flow together share a group and keep their wires. triggers: triggers on the canvas that start no flow yet.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { TRIGGERS } from "../automation/config.js";
@@ -33,7 +33,13 @@ export function normalizeCanvas(canvas = {}) {
     const step = entry?.step;
     if (typeof entry?.key !== "string" || seen.has(entry.key) || !step || typeof step !== "object" || Array.isArray(step) || typeof step.what !== "string") continue;
     seen.add(entry.key);
-    loose.push({ key: entry.key, step: Object.fromEntries(Object.entries(step).filter(([, value]) => ["string", "number", "boolean"].includes(typeof value) && value !== "")) });
+    // The wires of a step that left a flow with others come along, to wire them back together.
+    const after = (Array.isArray(step.after) ? step.after : []).flatMap((wire) => (typeof wire === "string" ? [wire] : typeof wire?.step === "string" ? [{ step: wire.step, ...(typeof wire.if === "string" ? { if: wire.if } : {}) }] : []));
+    loose.push({
+      key: entry.key,
+      step: { ...Object.fromEntries(Object.entries(step).filter(([, value]) => ["string", "number", "boolean"].includes(typeof value) && value !== "")), ...(after.length ? { after } : {}) },
+      ...(typeof entry.group === "string" ? { group: entry.group } : {})
+    });
   }
   const triggers = [...new Set((Array.isArray(canvas.triggers) ? canvas.triggers : []).filter((name) => Object.hasOwn(TRIGGERS, name)))];
   return { positions: Object.fromEntries(Object.entries(positions).sort(([a], [b]) => a.localeCompare(b))), loose, triggers };

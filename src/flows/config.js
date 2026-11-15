@@ -15,6 +15,14 @@
 //     }
 //   ]
 //
+// Steps are a graph. A step with an "id" can be waited for: "after" names the steps a step comes
+// after, each with a condition ("if": passed, the default; failed; always). A step without
+// "after" starts with the flow.
+//
+//   { "id": "gate", "what": "check" },
+//   { "what": "layers", "to": "docs/system", "after": ["gate"] },
+//   { "what": "check", "to": "docs/health.md", "after": [{ "step": "gate", "if": "failed" }] }
+//
 // `bca run --trigger <name>` runs the flows of that trigger after its tasks;
 // what they save is delivered with the sync mode of the trigger, like the
 // output of a task. `bca run --flow <id>` runs one by name.
@@ -23,7 +31,12 @@ import { syncModesFor, TRIGGERS } from "../automation/config.js";
 import { ARTIFACTS, stepOutputs } from "./artifacts.js";
 
 export const FLOW_SCHEMA = "bc-atlas.flows/1";
-const RESERVED = new Set(["what", "to"]);
+const RESERVED = new Set(["what", "to", "id", "after"]);
+export const CONDITIONS = Object.freeze({
+  passed: "when that step passed",
+  failed: "when that step failed",
+  always: "whatever became of that step"
+});
 const ID = /^[a-z0-9][a-z0-9._-]*$/u;
 const several = (value) => [value ?? []].flat().flatMap((item) => String(item).split(",")).map((item) => item.trim()).filter(Boolean);
 const posix = (value) => String(value).trim().replaceAll("\\", "/").replace(/^\.\//u, "").replace(/\/+$/u, "");
@@ -46,7 +59,7 @@ function normalizeStep(step, where, pluginTasks) {
     // A task of a plugin saves where its own section of .bca.json says.
     if (step.to) throw new Error(`flows: ${where} runs the task "${what}" of a plugin, which saves where its own settings say; remove "to"`);
     if (Object.keys(options).length) throw new Error(`flows: ${where} runs the task "${what}" of a plugin, which takes its settings from its own section of .bca.json; remove ${Object.keys(options).join(", ")}`);
-    return { what, plugin: true, options: {} };
+    return { what, plugin: true, options: {}, ...wiring(step, where) };
   }
   if (!artifact.open) {
     const unknown = Object.keys(options).filter((key) => !artifact.options[key]);
@@ -66,7 +79,44 @@ function normalizeStep(step, where, pluginTasks) {
   } else if (!artifact.optional) {
     throw new Error(`flows: ${where} (${what}) needs "to": where to save it`);
   }
-  return { what, ...(to ? { to } : {}), options };
+  return { what, ...(to ? { to } : {}), options, ...wiring(step, where) };
+}
+
+/** The name of a step and the steps it comes after: { id?, after: [{ step, if }] }. */
+function wiring(step, where) {
+  const id = step.id === undefined || step.id === null || step.id === "" ? undefined : String(step.id).trim();
+  if (id !== undefined && !ID.test(id)) throw new Error(`flows: ${where} has the id "${step.id}"; an id is lowercase letters, digits, ".", "_", or "-"`);
+  const after = [];
+  for (const entry of [step.after ?? []].flat().flatMap((item) => (typeof item === "string" ? item.split(",").map((part) => part.trim()).filter(Boolean) : [item]))) {
+    const wire = typeof entry === "string" ? Object.fromEntries(entry.split(":").map((part, index) => [index ? "if" : "step", part.trim()])) : entry;
+    if (!wire || typeof wire !== "object" || !wire.step) throw new Error(`flows: ${where} has an "after" that names no step; use "after": ["gate"] or [{ "step": "gate", "if": "failed" }]`);
+    const condition = wire.if ?? "passed";
+    if (!Object.hasOwn(CONDITIONS, condition)) throw new Error(`flows: ${where} comes after "${wire.step}" if "${condition}"; use ${Object.keys(CONDITIONS).join(", ")}`);
+    if (after.some((other) => other.step === String(wire.step))) throw new Error(`flows: ${where} comes after "${wire.step}" twice`);
+    after.push({ step: String(wire.step), if: condition });
+  }
+  return { ...(id ? { id } : {}), after };
+}
+
+/**
+ * The order to run the steps of a flow in: every step after those it waits for, else as written.
+ * @param steps normalized steps
+ * @returns indexes into steps; throws when the wires go in a circle
+ */
+export function stepOrder(steps, flow = "") {
+  const at = new Map(steps.flatMap((step, index) => (step.id ? [[step.id, index]] : [])));
+  const order = [];
+  const state = new Array(steps.length).fill(0);
+  const visit = (index, path) => {
+    if (state[index] === 2) return;
+    if (state[index] === 1) throw new Error(`flows: the steps of flow "${flow}" wait for each other in a circle: ${[...path, steps[index].id].join(" > ")}`);
+    state[index] = 1;
+    for (const wire of steps[index].after) visit(at.get(wire.step), [...path, steps[index].id ?? `step ${index + 1}`]);
+    state[index] = 2;
+    order.push(index);
+  };
+  steps.forEach((_, index) => visit(index, []));
+  return order;
 }
 
 /**
@@ -90,6 +140,20 @@ export function flowsConfig(config = {}, { pluginTasks = [] } = {}) {
     for (const trigger of when) if (!TRIGGERS[trigger]) throw new Error(`flows: flow "${id}" runs on "${trigger}", which is not a trigger; use ${Object.keys(TRIGGERS).join(", ")}`);
     if (!Array.isArray(flow.steps ?? [])) throw new Error(`flows: "steps" of flow "${id}" must be a list`);
     const steps = (flow.steps ?? []).map((step, at) => normalizeStep(step, `step ${at + 1} of flow "${id}"`, pluginTasks));
+    // The wires: every name once, every "after" a step of this flow, and no circle.
+    const names = new Set();
+    steps.forEach((step, at) => {
+      if (!step.id) return;
+      if (names.has(step.id)) throw new Error(`flows: flow "${id}" has two steps "${step.id}"`);
+      names.add(step.id);
+    });
+    steps.forEach((step, at) => {
+      for (const wire of step.after) {
+        if (!names.has(wire.step)) throw new Error(`flows: step ${at + 1} of flow "${id}" comes after "${wire.step}", which is not a step of this flow${names.size ? `; it has ${[...names].join(", ")}` : "; give the step it waits for an \"id\""}`);
+        if (wire.step === step.id) throw new Error(`flows: step ${at + 1} of flow "${id}" comes after itself`);
+      }
+    });
+    stepOrder(steps, id);
     for (const step of steps) {
       for (const output of stepOutputs(step)) {
         // Two steps that save to one place would overwrite each other, whatever their order.
@@ -102,7 +166,23 @@ export function flowsConfig(config = {}, { pluginTasks = [] } = {}) {
 }
 
 /** A normalized step as it is written in .bca.json. */
-export const stepJson = (step) => ({ what: step.what, ...(step.to ? { to: step.to } : {}), ...step.options });
+export const stepJson = (step) => ({
+  ...(step.id ? { id: step.id } : {}),
+  what: step.what,
+  ...(step.to ? { to: step.to } : {}),
+  ...step.options,
+  ...(step.after?.length ? { after: step.after.map((wire) => (wire.if === "passed" ? wire.step : { step: wire.step, if: wire.if })) } : {})
+});
+
+/** A name for a step that no step of the flow has: its artifact, then check-2, check-3. */
+export function freeStepId(steps, what) {
+  const taken = new Set(steps.map(({ id }) => id).filter(Boolean));
+  const base = flowId(what);
+  for (let count = 1; ; count += 1) {
+    const candidate = count === 1 ? base : `${base}-${count}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
 
 /** What the flows save, relative to the project. */
 export function flowOutputs(flows) {
@@ -120,7 +200,9 @@ export const flowsFor = (flows, trigger) => flows.filter(({ when }) => when.incl
 //   { op: "set", flow, title?, when? }                 add a flow, or change its title or triggers
 //   { op: "remove", flow }                             remove a flow
 //   { op: "step", flow, what, to?, at?, ...options }   add a step; with at (1-based) change that step
-//   { op: "unstep", flow, at }                         remove a step
+//   { op: "wire", flow, from, into, if? }              step `into` comes after step `from` (numbers from 1), if passed, failed, or always
+//   { op: "unwire", flow, from, into }                 it no longer does
+//   { op: "unstep", flow, at }                         remove a step; steps that waited for it no longer do
 //   { op: "move", flow, at, by }                       move a step up (-1) or down (1)
 //   { op: "deliver", trigger, sync }                   how a trigger delivers what was saved (its sync mode)
 
@@ -164,16 +246,41 @@ export function applyFlowOperations(config = {}, operations = [], { pluginTasks 
       const flow = need(operation);
       const { op: _op, flow: _flow, at, ...step } = operation;
       flow.steps ??= [];
-      const filled = (entry) => Object.fromEntries(Object.entries(entry).filter(([, value]) => value !== "" && value !== null && value !== undefined));
+      const filled = (entry) => Object.fromEntries(Object.entries(entry).filter(([, value]) => value !== "" && value !== null && value !== undefined && !(Array.isArray(value) && !value.length)));
       if (at === undefined || at === null || at === "") flow.steps.push(filled(step));
       else {
         // A change names what it changes and keeps the rest; an empty value takes an option away.
+        // Another artifact starts anew, but stays the step it is: its name, and what it waits for.
         const index = position(flow, at, flow.id);
-        flow.steps[index] = filled({ ...(step.what && step.what !== flow.steps[index].what ? {} : flow.steps[index]), ...step });
+        const { id, after, ...rest } = flow.steps[index];
+        flow.steps[index] = filled({ ...(step.what && step.what !== rest.what ? {} : rest), ...(id ? { id } : {}), ...(after ? { after } : {}), ...step });
+        // A step that is renamed is still the one the others wait for.
+        if (id && step.id && step.id !== id) {
+          for (const other of flow.steps) if (other.after) other.after = [other.after].flat().map((wire) => (typeof wire === "string" ? (wire.split(":")[0] === id ? [step.id, ...wire.split(":").slice(1)].join(":") : wire) : wire?.step === id ? { ...wire, step: step.id } : wire));
+        }
       }
+    } else if (op === "wire" || op === "unwire") {
+      const flow = need(operation);
+      const from = flow.steps[position(flow, operation.from, flow.id)];
+      const into = flow.steps[position(flow, operation.into, flow.id)];
+      if (from === into) throw new Error(`flows: step ${operation.into} of flow "${flow.id}" cannot come after itself`);
+      // A step that is waited for needs a name.
+      if (!from.id) from.id = freeStepId(flow.steps, from.what);
+      const others = [into.after ?? []].flat().filter((wire) => (typeof wire === "string" ? wire.split(":")[0] : wire?.step) !== from.id);
+      if (op === "wire") others.push(!operation.if || operation.if === "passed" ? from.id : { step: from.id, if: operation.if });
+      if (others.length) into.after = others;
+      else delete into.after;
     } else if (op === "unstep") {
       const flow = need(operation);
-      flow.steps.splice(position(flow, operation.at, flow.id), 1);
+      const [gone] = flow.steps.splice(position(flow, operation.at, flow.id), 1);
+      // What waited for it no longer does.
+      if (gone.id) {
+        for (const other of flow.steps) {
+          if (!other.after) continue;
+          other.after = [other.after].flat().filter((wire) => (typeof wire === "string" ? wire.split(":")[0] : wire?.step) !== gone.id);
+          if (!other.after.length) delete other.after;
+        }
+      }
     } else if (op === "move") {
       const flow = need(operation);
       const from = position(flow, operation.at, flow.id);
@@ -188,7 +295,7 @@ export function applyFlowOperations(config = {}, operations = [], { pluginTasks 
       next.automation.triggers ??= {};
       next.automation.triggers[trigger] = { tasks: [], ...(next.automation.triggers[trigger] ?? {}), sync };
     } else {
-      throw new Error(`flows: unknown operation "${op ?? ""}"; use set, remove, step, unstep, move, or deliver`);
+      throw new Error(`flows: unknown operation "${op ?? ""}"; use set, remove, step, wire, unwire, unstep, move, or deliver`);
     }
   }
   if (flows.length) next.flows = flows;
@@ -207,7 +314,8 @@ export function flowsText(flows, { triggers = {} } = {}) {
     lines.push(`  when   ${flow.when.length ? flow.when.map((trigger) => `${trigger}${triggers[trigger]?.sync && triggers[trigger].sync !== "none" ? ` (${triggers[trigger].sync})` : ""}`).join(", ") : "only by name: bca run --flow " + flow.id}`);
     flow.steps.forEach((step, index) => {
       const options = Object.entries(step.options).map(([key, value]) => `${key}=${value}`).join(" ");
-      lines.push(`  ${String(index + 1).padStart(2)}. ${step.what.padEnd(16)} ${step.to ? `-> ${step.to}` : step.plugin ? "(plugin task)" : "(gate)"}${options ? `  ${options}` : ""}`);
+      const after = step.after.map((wire) => `${wire.step}${wire.if === "passed" ? "" : ` (if ${wire.if})`}`).join(", ");
+      lines.push(`  ${String(index + 1).padStart(2)}. ${(step.id && step.id !== step.what ? `${step.what} "${step.id}"` : step.what).padEnd(16)} ${step.to ? `-> ${step.to}` : step.plugin ? "(plugin task)" : "(gate)"}${options ? `  ${options}` : ""}${after ? `  after ${after}` : ""}`);
     });
     if (!flow.steps.length) lines.push("  no steps yet");
     lines.push("");

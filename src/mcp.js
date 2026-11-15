@@ -467,13 +467,13 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
   }));
 
   server.registerTool("bc_atlas_flow_define", {
-    description: "Define the flows of a project: its own workflows in the flows section of .bca.json. A flow says what to make from the source (steps, each one artifact: layers, report, handbook, catalog, docs, simulate, check, view, diagram, app, knowledge-graph, or a task of a plugin), when (the triggers: pre-commit, pre-push, ci, schedule, manual), and where to save each artifact (to, relative to the project). Send operations to add or change a flow (set), remove it, add or change a step (step; with at it changes that step), remove a step (unstep), move one (move), or say how a trigger delivers what was saved (deliver: its sync mode). Without operations it returns the flows as they are, the triggers with their sync modes, and the catalog of artifacts with the options of each. A change that is not valid writes nothing. Run a flow with bc_atlas_run and flows.",
+    description: "Define the flows of a project: its own workflows in the flows section of .bca.json. A flow says what to make from the source (steps, each one artifact: layers, report, handbook, catalog, docs, simulate, check, view, diagram, app, knowledge-graph, or a task of a plugin), when (the triggers: pre-commit, pre-push, ci, schedule, manual), and where to save each artifact (to, relative to the project). Send operations to add or change a flow (set), remove it, add or change a step (step; with at it changes that step), remove a step (unstep), move one (move), say that a step comes after another if that one passed, failed, or always (wire, unwire, or id and after on a step: the steps are a graph, and a run skips a step whose condition does not hold), or say how a trigger delivers what was saved (deliver: its sync mode). Without operations it returns the flows as they are, the triggers with their sync modes, and the catalog of artifacts with the options of each. A change that is not valid writes nothing. Run a flow with bc_atlas_run and flows.",
     inputSchema: z.object({
       path: architectureFields.path,
       projectRoot: architectureFields.projectRoot,
       config: architectureFields.config,
       operations: z.array(z.object({
-        op: z.enum(["set", "remove", "step", "unstep", "move", "deliver"]),
+        op: z.enum(["set", "remove", "step", "wire", "unwire", "unstep", "move", "deliver"]),
         flow: z.string().optional().describe("The id of the flow: lowercase letters, digits, '.', '_', '-'"),
         title: z.string().optional().describe("set: the title of the flow"),
         when: z.array(z.enum(["pre-commit", "pre-push", "ci", "schedule", "manual"])).optional().describe("set: the triggers the flow runs on"),
@@ -481,6 +481,11 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
         to: z.string().optional().describe("step: where to save it, relative to the project; without it the default of the artifact"),
         at: z.number().int().min(1).optional().describe("step: change this step instead of adding one; unstep, move: the step, from 1"),
         by: z.number().int().optional().describe("move: -1 up, 1 down"),
+        id: z.string().optional().describe("step: the name of the step, so that others can come after it"),
+        after: z.array(z.union([z.string(), z.object({ step: z.string(), if: z.enum(["passed", "failed", "always"]).optional() })])).optional().describe("step: the steps it comes after, by name; each runs it if that step passed (default), failed, or always. Empty: it starts with the flow"),
+        from: z.number().int().min(1).optional().describe("wire, unwire: the step that comes first, from 1; it gets a name when it has none"),
+        into: z.number().int().min(1).optional().describe("wire, unwire: the step that comes after it"),
+        if: z.enum(["passed", "failed", "always"]).optional().describe("wire: when the step runs; default passed"),
         trigger: z.enum(["pre-commit", "pre-push", "ci", "schedule", "manual"]).optional().describe("deliver: the trigger"),
         sync: z.enum(["none", "verify", "stage", "artifact", "pull-request", "commit"]).optional().describe("deliver: its sync mode")
       }).catchall(z.union([z.string(), z.number(), z.boolean()])).describe("A step takes the options of its artifact as further fields, such as lens, form, language")).optional().describe("Applied in order; all or nothing"),

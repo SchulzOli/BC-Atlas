@@ -18,7 +18,7 @@ function pair(item, option, example) {
 
 /**
  * The operations a set of options asks for (see src/flows/config.js).
- * @param values { flow, title, when, step, to, at, set, unstep, up, down, remove, deliver, from }
+ * @param values { flow, title, when, step, to, at, set, id, after, unstep, up, down, remove, deliver, from }
  */
 export async function flowOperations(values = {}) {
   const operations = [];
@@ -34,17 +34,22 @@ export async function flowOperations(values = {}) {
     operations.push(...list);
   }
   for (const id of each(values.remove)) operations.push({ op: "remove", flow: id });
-  const stepOptions = ["step", "to", "at", "set", "unstep", "up", "down"].filter((name) => values[name] !== undefined);
+  const stepOptions = ["step", "to", "at", "set", "id", "after", "unstep", "up", "down"].filter((name) => values[name] !== undefined);
   if (values.flow) {
     // A flow that is not there yet starts with its first step.
     operations.push({ op: "set", flow: values.flow, ...(values.title !== undefined ? { title: values.title } : {}), ...(values.when !== undefined ? { when: several(values.when) } : {}) });
     if (values.unstep !== undefined) operations.push({ op: "unstep", flow: values.flow, at: values.unstep });
     if (values.up !== undefined) operations.push({ op: "move", flow: values.flow, at: values.up, by: -1 });
     if (values.down !== undefined) operations.push({ op: "move", flow: values.flow, at: values.down, by: 1 });
-    if (values.step !== undefined || values.to !== undefined || values.set !== undefined || values.at !== undefined) {
-      if (values.step === undefined && values.at === undefined) throw new UsageError("--to and --set belong to a step: add --step <artifact> for a new one, or --at <n> to change one");
+    if (["step", "to", "set", "at", "id", "after"].some((name) => values[name] !== undefined)) {
+      if (values.step === undefined && values.at === undefined) throw new UsageError("--to, --set, --id, and --after belong to a step: add --step <artifact> for a new one, or --at <n> to change one");
       const options = Object.fromEntries(each(values.set).map((item) => pair(item, "--set", "<option>=<value>, such as lens=data")));
-      operations.push({ op: "step", flow: values.flow, ...(values.step !== undefined ? { what: values.step } : {}), ...(values.to !== undefined ? { to: values.to } : {}), ...(values.at !== undefined ? { at: values.at } : {}), ...options });
+      operations.push({
+        op: "step", flow: values.flow, ...(values.step !== undefined ? { what: values.step } : {}), ...(values.to !== undefined ? { to: values.to } : {}), ...(values.at !== undefined ? { at: values.at } : {}), ...options,
+        ...(values.id !== undefined ? { id: values.id } : {}),
+        // gate, or gate:failed; an empty value takes the wires away.
+        ...(values.after !== undefined ? { after: several(values.after) } : {})
+      });
     }
   } else if (stepOptions.length || values.title !== undefined || values.when !== undefined) {
     throw new UsageError("say which flow with --flow <id>");
