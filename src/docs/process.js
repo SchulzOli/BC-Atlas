@@ -211,7 +211,8 @@ export function useCaseProcess(useCase, catalog) {
 function ranks(process) {
   const incoming = new Map(process.nodes.map(({ id }) => [id, 0]));
   const outgoing = new Map(process.nodes.map(({ id }) => [id, []]));
-  for (const flow of process.flows) {
+  // A way back (a loop) does not push a node further to the right.
+  for (const flow of process.flows.filter(({ back }) => !back)) {
     incoming.set(flow.to, incoming.get(flow.to) + 1);
     outgoing.get(flow.from).push(flow.to);
   }

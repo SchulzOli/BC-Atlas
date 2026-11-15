@@ -8,13 +8,14 @@ import { CheckFailedError, UsageError } from "../cli/errors.js";
 import { renderBpmn } from "../docs/render/bpmn.js";
 import { displayPath } from "../output.js";
 import { bpmnProcess, defineProcesses, importBpmn, processesConfig, runText, STEP_STATUS } from "../process/index.js";
+import { span } from "../process/telemetry.js";
 import { describeProcesses } from "../process/project.js";
 import { terminalProgress } from "./check.js";
 
 const several = (value) => [value ?? []].flat().flatMap((item) => String(item).split(",")).map((item) => item.trim()).filter(Boolean);
 const each = (value) => [value ?? []].flat().map((item) => String(item).trim()).filter(Boolean);
 const usage = (error) => (/^processes:/u.test(error.message) ? new UsageError(error.message.replace(/^processes: /u, "")) : error);
-const analysis = (values) => Object.fromEntries(["projectRoot", "config", "compiler", "compilerLog", "tests", "recordings", "language"].filter((key) => values[key] !== undefined).map((key) => [key, values[key]]));
+const analysis = (values) => Object.fromEntries(["projectRoot", "config", "compiler", "compilerLog", "tests", "recordings", "telemetry", "language"].filter((key) => values[key] !== undefined).map((key) => [key, values[key]]));
 
 async function described(input, values) {
   try {
@@ -30,6 +31,16 @@ function modelText(process, { mined = false } = {}) {
     const after = [step.after ?? []].flat().map((wire) => (typeof wire === "string" ? wire : `${wire.step}${wire.when ? ` (${wire.when})` : ""}`)).join(", ");
     lines.push(`  ${(step.lane || "no lane").padEnd(16)} ${step.id.padEnd(14)} ${step.title}${step.test ? `  [${step.test}]` : ""}${after ? `  after ${after}` : ""}`);
     if (mined) lines.push(`  ${" ".repeat(31)} ${step.events.steps} click(s): opens ${step.events.opens}, runs ${step.events.runs}, reads ${step.events.reads}, writes ${step.events.writes}; ${step.events.objects.length} object(s)${step.recorded ? "; recorded in Business Central" : ""}`);
+    const timing = process.timing?.steps[step.id];
+    if (mined && timing) lines.push(`  ${" ".repeat(31)} telemetry: ${timing.count} time(s) in ${timing.cases} case(s), ${span(timing.duration.avg)} on average${timing.repeated ? `, done again in ${timing.repeated} case(s)` : ""}`);
+  }
+  if (mined && process.timing) {
+    const { timing } = process;
+    lines.push("", `  Telemetry: ${timing.cases} case(s), ${timing.events} event(s), ${timing.from.slice(0, 10)} to ${timing.to.slice(0, 10)}. A case takes ${span(timing.throughput.avg)} on average, ${span(timing.throughput.p95)} for the slowest.`);
+    lines.push("  The ways really taken:");
+    for (const variant of timing.variants) lines.push(`    ${String(variant.cases).padStart(4)} case(s)  ${variant.steps.join(" > ")}`);
+    lines.push("  Between the steps:");
+    for (const way of timing.ways) lines.push(`    ${way.from} > ${way.into}: ${way.count} time(s), in ${way.share}% of the cases, waiting ${span(way.wait.avg)} on average (${span(way.wait.p95)} for the slowest)`);
   }
   return lines.join("\n");
 }
@@ -55,6 +66,7 @@ export async function processCommand(input, values) {
     for (const step of [...run.steps].sort((a, b) => a.order - b.order)) console.log(`  ${String(step.order).padStart(2)}. ${(step.lane || "no lane").padEnd(16)} ${step.title}: ${STEP_STATUS[step.status]}`);
   }
   if (!result.simulated) console.error("The project has no process tests and no recordings: nothing can show whether a step works.");
+  if (result.telemetry) console.error(`Telemetry: ${result.telemetry.events} event(s) from ${result.telemetry.source}, a case by ${result.telemetry.case}.`);
   console.error("Step by step: bca process run. Change them: bca process define, or the Process mode of the builder in the view.");
 }
 

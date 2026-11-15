@@ -1,0 +1,974 @@
+{
+ "_note": "Made up for the example, in the shape Application Insights answers a query with (docs/processes.md). requestNo is a custom dimension the app would send with Session.LogMessage.",
+ "tables": [
+  {
+   "name": "PrimaryResult",
+   "columns": [
+    {
+     "name": "timestamp",
+     "type": "datetime"
+    },
+    {
+     "name": "itemType",
+     "type": "string"
+    },
+    {
+     "name": "name",
+     "type": "string"
+    },
+    {
+     "name": "message",
+     "type": "string"
+    },
+    {
+     "name": "duration",
+     "type": "real"
+    },
+    {
+     "name": "session_Id",
+     "type": "string"
+    },
+    {
+     "name": "user_Id",
+     "type": "string"
+    },
+    {
+     "name": "customDimensions",
+     "type": "dynamic"
+    }
+   ],
+   "rows": [
+    [
+     "2026-10-05T08:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     820,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1001\"}"
+    ],
+    [
+     "2026-10-05T08:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1001\"}"
+    ],
+    [
+     "2026-10-05T08:06:00.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1001\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-05T13:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     835,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1002\"}"
+    ],
+    [
+     "2026-10-05T13:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1002\"}"
+    ],
+    [
+     "2026-10-05T13:06:20.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1002\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-05T18:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     850,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1003\"}"
+    ],
+    [
+     "2026-10-05T18:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1003\"}"
+    ],
+    [
+     "2026-10-05T18:06:40.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1003\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-05T23:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     865,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1004\"}"
+    ],
+    [
+     "2026-10-05T23:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1004\"}"
+    ],
+    [
+     "2026-10-05T23:07:00.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-05",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1004\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-06T04:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     880,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1005\"}"
+    ],
+    [
+     "2026-10-06T04:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1005\"}"
+    ],
+    [
+     "2026-10-06T04:07:20.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1005\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-06T08:06:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-06",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1001\"}"
+    ],
+    [
+     "2026-10-06T08:08:00.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     2400,
+     "ben-session-2026-10-06",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1001\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-06T09:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     895,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1006\"}"
+    ],
+    [
+     "2026-10-06T09:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1006\"}"
+    ],
+    [
+     "2026-10-06T09:07:40.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1006\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-06T13:06:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-06",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1001\"}"
+    ],
+    [
+     "2026-10-06T13:07:30.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-06",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1001\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-06T14:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     910,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1007\"}"
+    ],
+    [
+     "2026-10-06T14:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1007\"}"
+    ],
+    [
+     "2026-10-06T14:08:00.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1007\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-06T19:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     925,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1008\"}"
+    ],
+    [
+     "2026-10-06T19:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1008\"}"
+    ],
+    [
+     "2026-10-06T19:08:20.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-06",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1008\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-06T22:06:20.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-06",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1002\"}"
+    ],
+    [
+     "2026-10-07T00:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     940,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1009\"}"
+    ],
+    [
+     "2026-10-07T00:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1009\"}"
+    ],
+    [
+     "2026-10-07T00:08:40.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1009\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-07T05:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     955,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1010\"}"
+    ],
+    [
+     "2026-10-07T05:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1010\"}"
+    ],
+    [
+     "2026-10-07T05:09:00.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1010\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-07T09:07:40.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-07",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1006\"}"
+    ],
+    [
+     "2026-10-07T10:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     970,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1011\"}"
+    ],
+    [
+     "2026-10-07T10:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1011\"}"
+    ],
+    [
+     "2026-10-07T10:09:20.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1011\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-07T12:06:40.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-07",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1003\"}"
+    ],
+    [
+     "2026-10-07T12:08:40.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     4200,
+     "ben-session-2026-10-07",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1003\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-07T15:00:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     985,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1012\"}"
+    ],
+    [
+     "2026-10-07T15:03:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     640,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1012\"}"
+    ],
+    [
+     "2026-10-07T15:09:40.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     310,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1012\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-07T18:06:20.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     760,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1002\"}"
+    ],
+    [
+     "2026-10-07T18:10:20.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     290,
+     "anna-session-2026-10-07",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1002\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-07T23:08:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-07",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1007\"}"
+    ],
+    [
+     "2026-10-07T23:10:00.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     2400,
+     "ben-session-2026-10-07",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1007\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T01:06:20.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     690,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1002\"}"
+    ],
+    [
+     "2026-10-08T01:08:20.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     3300,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1002\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T02:07:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1004\"}"
+    ],
+    [
+     "2026-10-08T02:09:00.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     2400,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1004\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T04:08:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-08",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1007\"}"
+    ],
+    [
+     "2026-10-08T04:09:30.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-08",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1007\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T05:07:40.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     760,
+     "anna-session-2026-10-08",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1006\"}"
+    ],
+    [
+     "2026-10-08T05:11:40.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     290,
+     "anna-session-2026-10-08",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1006\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T07:07:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-08",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1004\"}"
+    ],
+    [
+     "2026-10-08T07:08:30.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-08",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1004\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T09:06:40.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-08",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1003\"}"
+    ],
+    [
+     "2026-10-08T09:08:10.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-08",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1003\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T10:09:20.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1011\"}"
+    ],
+    [
+     "2026-10-08T10:11:20.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     3300,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1011\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T12:07:40.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     690,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1006\"}"
+    ],
+    [
+     "2026-10-08T12:09:40.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     4200,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1006\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T13:08:20.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1008\"}"
+    ],
+    [
+     "2026-10-08T13:10:20.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     3300,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1008\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T14:06:20.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-08",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1002\"}"
+    ],
+    [
+     "2026-10-08T14:07:50.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-08",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1002\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T16:07:20.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1005\"}"
+    ],
+    [
+     "2026-10-08T16:09:20.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     3300,
+     "ben-session-2026-10-08",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1005\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-08T23:09:20.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-08",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1011\"}"
+    ],
+    [
+     "2026-10-08T23:10:50.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-08",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1011\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-09T00:09:40.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-09",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1012\"}"
+    ],
+    [
+     "2026-10-09T00:11:40.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     4200,
+     "ben-session-2026-10-09",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1012\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-09T02:08:20.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-09",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1008\"}"
+    ],
+    [
+     "2026-10-09T02:09:50.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-09",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1008\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-09T03:08:40.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-09",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1009\"}"
+    ],
+    [
+     "2026-10-09T03:10:40.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     4200,
+     "ben-session-2026-10-09",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1009\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-09T05:07:20.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-09",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1005\"}"
+    ],
+    [
+     "2026-10-09T05:08:50.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-09",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1005\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-09T09:07:40.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-09",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1006\"}"
+    ],
+    [
+     "2026-10-09T09:09:10.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-09",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1006\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-09T17:09:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     700,
+     "ben-session-2026-10-09",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1010\"}"
+    ],
+    [
+     "2026-10-09T21:09:40.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-09",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1012\"}"
+    ],
+    [
+     "2026-10-09T21:11:10.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-09",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1012\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-10T00:08:40.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-10",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1009\"}"
+    ],
+    [
+     "2026-10-10T00:10:10.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-10",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1009\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-10T13:09:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     760,
+     "anna-session-2026-10-10",
+     "anna",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1010\"}"
+    ],
+    [
+     "2026-10-10T13:13:00.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     290,
+     "anna-session-2026-10-10",
+     "anna",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50220\",\"alObjectName\":\"Purchase Request Mgt.\",\"requestNo\":\"PR-1010\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-10T20:09:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     690,
+     "ben-session-2026-10-10",
+     "ben",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1010\"}"
+    ],
+    [
+     "2026-10-10T20:11:00.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     2400,
+     "ben-session-2026-10-10",
+     "ben",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50222\",\"alObjectName\":\"Request Notifications\",\"requestNo\":\"PR-1010\",\"eventId\":\"RT0018\"}"
+    ],
+    [
+     "2026-10-11T01:09:00.000Z",
+     "pageView",
+     "Purchase Requests",
+     "",
+     650,
+     "carla-session-2026-10-11",
+     "carla",
+     "{\"alObjectType\":\"Page\",\"alObjectId\":\"50210\",\"alObjectName\":\"Purchase Requests\",\"requestNo\":\"PR-1010\"}"
+    ],
+    [
+     "2026-10-11T01:10:30.000Z",
+     "trace",
+     "Operation completed",
+     "Operation completed",
+     1250,
+     "carla-session-2026-10-11",
+     "carla",
+     "{\"alObjectType\":\"CodeUnit\",\"alObjectId\":\"50221\",\"alObjectName\":\"Purchase Order Creation\",\"requestNo\":\"PR-1010\",\"eventId\":\"RT0018\"}"
+    ]
+   ]
+  }
+ ]
+}

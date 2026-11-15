@@ -475,6 +475,7 @@ have them.
 | `--format` | `text` or `json` | `json`: the processes, their runs, the mined processes, and the roles and tests a step can name (`bc-atlas.processes/1`). Default: `text`. |
 | `--tests` | path | Folder with the process tests. |
 | `--recordings` | path | Folder with recordings of Business Central (fact snapshots). |
+| `--telemetry` | path | A file or folder of exported telemetry (Application Insights: JSON or CSV), for the time: how often and how long each step, the waits between steps, and the ways really taken. Default: `processTelemetry.path` in `.bca.json`. See [Its time: telemetry](./processes.md#its-time-telemetry). |
 | `--project-root` | path | Project root. |
 | `--config` | path | Configuration file. |
 | `--compiler`, `--compiler-log` | | As for `check`. |
@@ -502,7 +503,7 @@ the rest; a process that is not valid is never written.
 | `--lane` | role | Who does the step: a role of the company. |
 | `--test` | id | What shows that the step works: a process test by document ID, or a recording. An empty value takes it away. |
 | `--after` | list | The steps it comes after, by id; `<step>:<name>` names the way: `approve:approved`. An empty value takes the wires away. |
-| `--unstep` | step | Remove the step; what came after it comes after what it came after. |
+| `--unstep` | step | Remove the step: the way closes around it, and what came after it comes after what it came after. |
 | `--rename-lane` | lane=name | Rename a lane of the process. |
 | `--remove` | id | Remove a process. Repeatable. |
 | `--adopt` | id | Take a mined process as a model. Repeatable. |
@@ -530,6 +531,7 @@ the simulation, and what to improve. Exits with `1` when a process stops.
 | `--output`, `-o` | path | Write to this file instead of stdout. |
 | `--tests` | path | Folder with the process tests. |
 | `--recordings` | path | Folder with recordings of Business Central. |
+| `--telemetry` | path | A file or folder of exported telemetry, for the time and the findings from it. |
 | `--project-root` | path | Project root. |
 | `--config` | path | Configuration file. |
 | `--compiler`, `--compiler-log` | | As for `check`. |
@@ -1019,7 +1021,7 @@ flows as they are.
 | `--id` | name | The name of the step, so that other steps can come after it. |
 | `--after` | list | The steps this step comes after, by name; each can say when: `gate` (if it passed), `gate:failed`, `gate:always`. An empty value takes the wires away. See [Steps that come after others](./flows.md#steps-that-come-after-others). |
 | `--at` | n | Change the step with this number (from 1) instead of adding one. |
-| `--unstep` | n | Remove the step with this number. |
+| `--unstep` | n | Remove the step with this number: the way closes around it, and what came after it comes after what it came after. The command names every step that lost what it waited for. |
 | `--up`, `--down` | n | Move the step with this number one up or down. |
 | `--remove` | id | Remove a flow. Repeatable. |
 | `--deliver` | trigger=sync | How a trigger delivers what its tasks and flows save: its sync mode. Repeatable. |

@@ -71,17 +71,22 @@ The steps of a flow are a graph. A step with an `id` can be waited for, and
 
 ### Removing a step
 
-A step that runs only through another would, without it, run whatever became
-of it: remove a gate, and what it guarded would run unguarded. So there is one
-rule, wherever a step is removed (the canvas, a form, `--unstep`, an agent):
+Removing a step is the same wherever it is done (the canvas, a form,
+`--unstep`, an agent), and the same as for [a step of a process](./processes.md):
+**the way closes around it.**
 
-- the step goes, **and the steps that wait for nothing but it leave the flow
-  with it**, and so do the steps that wait only for those;
-- a step that also waits for a step that stays, stays, and waits for that one;
-- what leaves without being removed is not lost: it is on the canvas of the
-  builder, in no flow, with the wires among those that left together. One wire
-  from a flow or a step brings them back. `bca flow define` names them, and
-  `--dry-run` shows them without changing anything.
+- What came after the step comes after what the step came after, on the
+  condition it had: with `pages` after `gate` and `handbook` after `pages`,
+  removing `pages` leaves `handbook` after `gate`.
+- A step that came after nothing but a step that started the flow starts the
+  flow itself. That step is no longer held back, and BC Atlas says so: the
+  terminal and the view name every step that lost what it waited for.
+- Nothing else leaves the flow, and nothing is lost.
+
+Taking a **wire** away is something else: a step no wire leads to is in no
+flow. It leaves the flow together with the steps that run only through it;
+they stay on the canvas, in no flow, with the wires among them, and one wire
+brings them back.
 
 On the canvas a wire is an `after`; from the terminal it is `--id` and
 `--after`:
@@ -136,7 +141,8 @@ trigger onto the canvas and pull its wire into the flow.
   of the flow, together with the steps that run only through it: they keep
   their wires among each other, and one wire from a flow or a step brings them
   all back. Removing one of several wires into a step only makes it wait for
-  one step less. [Removing a step](#removing-a-step) follows the same rule.
+  one step less. [Removing a step](#removing-a-step) closes the way around
+  it instead.
 - **Wire a step of another flow** and it moves, with its place and options;
   what waited for it there no longer does.
 - **Select and remove.** Click a node or a wire and press **Delete**, or use

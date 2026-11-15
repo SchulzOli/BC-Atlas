@@ -16,7 +16,8 @@
 // A step is something a person does. Its `lane` is who does it: a role of the company
 // (simulation.roles). Its `test` is what shows that it works: a process test (an AL UI test, by
 // document ID) or a recording of Business Central. `after` says what it comes after; a wire with
-// a `when` is one way of several (an exclusive gateway in BPMN).
+// a `when` is one way of several (an exclusive gateway in BPMN). A wire may lead back to an earlier
+// step: a loop, as when a request that was rejected is changed and released again.
 //
 // From this, three things:
 //   mine      the processes as they are, from the process tests and the recordings: who really
@@ -26,7 +27,8 @@
 //   improve   what the run and the comparison with the mined process say should change
 import fs from "node:fs/promises";
 import path from "node:path";
-import { flowId, stepOrder } from "../flows/config.js";
+import { flowId } from "../flows/config.js";
+import { span } from "./telemetry.js";
 
 export const PROCESS_SCHEMA = "bc-atlas.processes/1";
 const ID = /^[a-z0-9][a-z0-9._-]*$/u;
@@ -74,14 +76,46 @@ export function processesConfig(config = {}) {
         if (wire.step === step.id) throw new Error(`processes: step "${step.id}" of process "${id}" comes after itself`);
       }
     }
-    try {
-      stepOrder(steps, id);
-    } catch (error) {
-      // A process that goes in a circle cannot be walked from a start to an end.
-      throw new Error(error.message.replace(/^flows: the steps of flow/u, "processes: the steps of process"));
-    }
+    // A wire that leads back to a step the way already passed is a loop: it is walked once.
+    const { back } = processOrder(steps);
+    for (const step of steps) for (const wire of step.after) if (back.has(`${wire.step}\n${step.id}`)) wire.back = true;
     return { id, title: text(process.title) || id, steps };
   });
+}
+
+/**
+ * The order to walk the steps of a process in, from its starts, and the wires that lead back.
+ * A start is a step that comes after nothing; a process that is one circle starts at its first step.
+ * @param steps [{ id, after: [{ step }] }]
+ * @returns { order: [index], back: Set("<from>\n<into>") }
+ */
+export function processOrder(steps) {
+  const at = new Map(steps.map((step, index) => [step.id, index]));
+  const next = steps.map(() => []);
+  steps.forEach((step, index) => {
+    for (const wire of step.after) if (at.has(wire.step)) next[at.get(wire.step)].push(index);
+  });
+  const state = steps.map(() => 0);
+  const back = new Set();
+  const visit = (index, done) => {
+    state[index] = 1;
+    // The later steps first, so that the earlier come first in the order.
+    for (const after of [...next[index]].sort((a, b) => b - a)) {
+      if (state[after] === 1) back.add(`${steps[index].id}\n${steps[after].id}`);
+      else if (state[after] === 0) visit(after, done);
+    }
+    state[index] = 2;
+    done.push(index);
+  };
+  // From the starts; then what no start leads to (a circle of its own), each from its first step.
+  const starts = steps.map((_, index) => index).filter((index) => !steps[index].after.length);
+  const order = [];
+  for (const group of [[...(starts.length ? starts : steps.length ? [0] : [])].reverse(), ...steps.keys()].map((entry) => [entry].flat())) {
+    const done = [];
+    for (const index of group) if (state[index] === 0) visit(index, done);
+    order.push(...done.reverse());
+  }
+  return { order, back };
 }
 
 /** A normalized step, and a process, as they are written in .bca.json. */
@@ -314,7 +348,7 @@ export function runProcesses(processes, report) {
   return processes.map((process) => {
     const findings = [];
     const finding = (severity, rule, message, fix, step) => findings.push({ severity, rule, message, fix, ...(step ? { step } : {}) });
-    const order = stepOrder(process.steps, process.id);
+    const { order } = processOrder(process.steps);
     const position = new Map(order.map((index, at) => [process.steps[index].id, at + 1]));
     const steps = process.steps.map((step) => {
       const task = step.test ? tasks.get(step.test) : undefined;
@@ -360,6 +394,13 @@ export function runProcesses(processes, report) {
         }
       }
     }
+    // A loop: the way leads back, and the work is done again.
+    for (const step of steps) {
+      for (const wire of step.after.filter(({ back }) => back)) {
+        const from = steps.find(({ id }) => id === wire.step);
+        finding("info", "process-loop", `In the process ${process.title} the way leads back from ${named(from)} to ${named(step)}${wire.when ? ` when ${wire.when}` : ""}: the steps between them are done again.`, "That is rework. See what makes it necessary, and whether an earlier step can prevent it.", step.id);
+      }
+    }
     // Against the process as it is: what the tests and recordings have and the model has not, and an order that differs.
     const tests = new Set(steps.map(({ test }) => test).filter(Boolean));
     const real = mined.filter((other) => other.steps.some(({ test }) => tests.has(test)));
@@ -394,17 +435,26 @@ export const STEP_STATUS = STATUS;
 /** A run as text or Markdown: the process step by step, then what to improve. */
 export function runText(run, { markdown = false } = {}) {
   const lines = markdown ? [`# ${run.title}`, ""] : [run.title];
-  lines.push(`${run.passed ? "Runs" : "Stops"}: ${run.steps.length} step(s) in ${run.lanes.length} lane(s), ${run.handovers} handover(s).`, "");
+  lines.push(`${run.passed ? "Runs" : "Stops"}: ${run.steps.length} step(s) in ${run.lanes.length} lane(s), ${run.handovers} handover(s).`);
+  if (run.timing) {
+    lines.push(`Telemetry: ${run.timing.cases} case(s) from ${run.timing.from.slice(0, 10)} to ${run.timing.to.slice(0, 10)}; a case takes ${span(run.timing.throughput.avg)} on average, ${span(run.timing.throughput.p95)} for the slowest.`);
+    lines.push(`The ways really taken: ${run.timing.variants.slice(0, 4).map(({ steps: way, cases }) => `${way.join(" > ")} (${cases})`).join("; ")}.`);
+  }
+  lines.push("");
   const mark = { runs: "ok", blocked: "STOPPED", "other-lane": "other lane", unstaffed: "nobody", unproven: "unproven", unknown: "no test" };
   for (const step of [...run.steps].sort((a, b) => a.order - b.order)) {
     const who = step.performers.length ? step.performers.map(({ agent }) => agent).join(", ") : "nobody";
-    const after = step.after.map((wire) => `${wire.step}${wire.when ? ` (${wire.when})` : ""}`).join(", ");
+    const after = step.after.filter(({ back }) => !back).map((wire) => `${wire.step}${wire.when ? ` (${wire.when})` : ""}`).join(", ");
+    const loops = step.after.filter(({ back }) => back).map((wire) => `${wire.step}${wire.when ? ` (${wire.when})` : ""}`).join(", ");
     const head = `${step.order}. [${mark[step.status]}] ${step.lane || "no lane"}: ${step.title}`;
     lines.push(markdown ? `${step.order}. **${step.title}** — ${step.lane || "no lane"}, ${STATUS[step.status]}` : head);
     const detail = [
       after ? `after ${after}${step.handover ? ": the work changes hands" : ""}` : "starts the process",
       step.test ? `${step.status === "runs" || step.status === "other-lane" ? "performed by" : "tried by"} ${who} (${step.test})` : "",
       step.touches.objects.length ? `${step.touches.steps} click(s): opens ${step.touches.opens}, runs ${step.touches.runs}, reads ${step.touches.reads}, writes ${step.touches.writes}` : "",
+      loops ? `the way leads back here from ${loops}` : "",
+      step.timing ? `in the telemetry ${step.timing.count} time(s) in ${step.timing.cases} case(s): takes ${span(step.timing.duration.avg)} on average, ${span(step.timing.duration.p95)} for the slowest${step.timing.repeated ? `; done again in ${step.timing.repeated} case(s)` : ""}` : "",
+      ...(run.timing?.ways ?? []).filter((way) => way.into === step.id && way.from !== step.id).map((way) => `after ${way.from} in ${way.share}% of the cases, waiting ${span(way.wait.avg)} on average`),
       step.missing.length ? `missing: ${step.missing.join(", ")}` : ""
     ].filter(Boolean);
     for (const item of detail) lines.push(`${markdown ? "   - " : "     "}${item}`);
@@ -428,17 +478,22 @@ export function bpmnProcess(process) {
   const nodes = [{ id: `Start_${xml(process.id)}`, kind: "start", name: "" }];
   const flows = [];
   let count = 0;
-  const flow = (from, to, name) => flows.push({ id: `Flow_${xml(process.id)}_${++count}`, from, to, ...(name ? { name } : {}) });
+  const flow = (from, to, name, back) => flows.push({ id: `Flow_${xml(process.id)}_${++count}`, from, to, ...(name ? { name } : {}), ...(back ? { back: true } : {}) });
   const taskId = (id) => `Activity_${xml(process.id)}_${xml(id)}`;
   for (const step of process.steps) nodes.push({ id: taskId(step.id), kind: "task", user: true, name: step.title, lane: lane(step), ...(step.test ? { documentation: `Test: ${step.test}` } : {}) });
   const end = { id: `End_${xml(process.id)}`, kind: "end", name: "" };
   nodes.push(end);
   const outgoing = new Map();
   for (const step of process.steps) {
-    if (!step.after.length) (outgoing.get("") ?? outgoing.set("", []).get("")).push({ to: taskId(step.id) });
-    for (const wire of step.after) (outgoing.get(wire.step) ?? outgoing.set(wire.step, []).get(wire.step)).push({ to: taskId(step.id), name: wire.when });
+    // A start: a step that comes after nothing, ways back aside.
+    if (!step.after.some(({ back }) => !back)) (outgoing.get("") ?? outgoing.set("", []).get("")).push({ to: taskId(step.id) });
+    for (const wire of step.after) (outgoing.get(wire.step) ?? outgoing.set(wire.step, []).get(wire.step)).push({ to: taskId(step.id), name: wire.when, back: wire.back });
   }
-  for (const step of process.steps) if (!outgoing.has(step.id)) outgoing.set(step.id, [{ to: end.id }]);
+  // A step from which no way leads on, but for ways back, ends the process.
+  for (const step of process.steps) {
+    const ways = outgoing.get(step.id) ?? outgoing.set(step.id, []).get(step.id);
+    if (ways.every(({ back }) => back)) ways.push({ to: end.id });
+  }
   for (const [from, targets] of outgoing) {
     const source = from ? taskId(from) : nodes[0].id;
     // One way of several: an exclusive gateway, its ways named.
@@ -446,9 +501,9 @@ export function bpmnProcess(process) {
       const gateway = { id: `Gateway_${xml(process.id)}_${xml(from || "start")}`, kind: "gateway", name: "", lane: from ? lane(process.steps.find(({ id }) => id === from)) : undefined };
       nodes.splice(nodes.length - 1, 0, gateway);
       flow(source, gateway.id);
-      for (const target of targets) flow(gateway.id, target.to, target.name);
+      for (const target of targets) flow(gateway.id, target.to, target.name, target.back);
     } else {
-      for (const target of targets) flow(source, target.to, target.name);
+      for (const target of targets) flow(source, target.to, target.name, target.back);
     }
   }
   return { id: `Process_${xml(process.id)}`, name: process.title, participant: `Participant_${xml(process.id)}`, lanes, nodes, flows };
@@ -459,8 +514,8 @@ const unescape = (value) => String(value ?? "").replace(/&#10;|&#xA;/giu, " ").r
 
 /**
  * Reads a process from BPMN 2.0 XML, as other tools write it: its lanes, its tasks, and the ways
- * between them. Events and gateways are not steps: a way through them is one way, and it keeps
- * the name of the sequence flow that leaves a gateway.
+ * between them, loops too. Events and gateways are not steps: a way through them is one way, and
+ * it keeps the name of the sequence flow that leaves a gateway.
  * @returns { id, title, steps } as in .bca.json
  */
 export function importBpmn(xml, { id, title } = {}) {
@@ -522,21 +577,7 @@ export function importBpmn(xml, { id, title } = {}) {
     title: name,
     steps: [...tasks.values()].map((task) => filled({ id: names.get(task.key), title: task.title, lane: laneOfTask.get(task.key), test: task.test, after: after.get(task.key).map((wire) => (wire.when ? wire : wire.step)) }))
   };
-  // A circle in the drawing (a way back) cannot be walked: the way back is left out.
-  for (;;) {
-    try {
-      processesConfig({ processes: [model] });
-      return model;
-    } catch (error) {
-      const circle = /in a circle: (.+)$/u.exec(error.message)?.[1].split(" > ");
-      if (!circle) throw error;
-      // "a > c > b > a": a comes after c, c after b, b after a. The way back is the one from a later step to an earlier.
-      const order = (name) => model.steps.findIndex(({ id: own }) => own === name);
-      const wires = circle.slice(0, -1).map((into, index) => ({ into, from: circle[index + 1] }));
-      const back = wires.find(({ from, into }) => order(from) > order(into)) ?? wires.at(-1);
-      const step = model.steps.find(({ id: own }) => own === back.into);
-      step.after = wiresOf(step).filter((wire) => wire.step !== back.from).map((wire) => (wire.when ? wire : wire.step));
-      if (!step.after.length) delete step.after;
-    }
-  }
+  // A way back in the drawing is a loop of the process.
+  processesConfig({ processes: [model] });
+  return model;
 }

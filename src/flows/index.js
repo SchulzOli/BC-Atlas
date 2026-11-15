@@ -139,7 +139,8 @@ export async function defineFlows(input, { operations = [], dryRun = false, conf
   const pluginTasks = plugins.taskSummaries();
   // What is not valid never reaches the file.
   const freed = [];
-  const next = applyFlowOperations(config, operations, { pluginTasks: Object.keys(pluginTasks), freed });
+  const rerouted = [];
+  const next = applyFlowOperations(config, operations, { pluginTasks: Object.keys(pluginTasks), freed, rerouted });
   const changed = JSON.stringify(next) !== JSON.stringify(config);
   const written = changed && !dryRun;
   if (written) {
@@ -166,6 +167,8 @@ export async function defineFlows(input, { operations = [], dryRun = false, conf
     written,
     changed,
     // What left a flow without being removed: [{ flow, steps: [json] }].
-    freed: freed.map(({ flow, steps }) => ({ flow, steps: steps.map(({ step }) => step) }))
+    freed: freed.map(({ flow, steps }) => ({ flow, steps: steps.map(({ step }) => step) })),
+    // The steps that came after a step that was removed, and what they come after now: [{ flow, step, after }].
+    rerouted
   };
 }

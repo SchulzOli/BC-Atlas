@@ -5,13 +5,15 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } 
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import http from "node:http";
 
 import { renderAppHtml } from "../src/app/page.js";
 import { createService } from "../src/app/service.js";
 import { Workspace } from "../src/app/workspace.js";
 import { renderBpmn } from "../src/docs/render/bpmn.js";
-import { applyProcessOperations, bpmnProcess, importBpmn, mineProcesses, processesConfig, runProcesses } from "../src/process/index.js";
+import { applyProcessOperations, bpmnProcess, importBpmn, mineProcesses, processesConfig, processOrder, runProcesses } from "../src/process/index.js";
 import { describeProcesses } from "../src/process/project.js";
+import { fetchTelemetry, readTelemetry, span, telemetryEvent, telemetryRows, timeProcess, timingFindings } from "../src/process/telemetry.js";
 
 const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
 const example = fileURLToPath(new URL("../examples/purchasing-app", import.meta.url));
@@ -40,7 +42,10 @@ test("processes are normalized: steps in lanes, wires with the names of their wa
   invalid([{ id: "a" }, { id: "a" }], /two steps "a"/u);
   invalid([{ id: "a", after: "b" }], /comes after "b", which is not a step of this process/u);
   invalid([{ id: "a", after: "a" }], /comes after itself/u);
-  invalid([{ id: "a", after: "b" }, { id: "b", after: "a" }], /the steps of process "a" wait for each other in a circle/u);
+  // A wire that leads back is a loop, not a mistake: the process is walked from its start, once around.
+  const [loop] = processesConfig({ processes: [{ id: "requests", steps: [{ id: "create", after: [{ step: "change", when: "changed" }] }, { id: "decide", after: "create" }, { id: "change", after: [{ step: "decide", when: "rejected" }] }, { id: "order", after: [{ step: "decide", when: "approved" }] }] }] });
+  assert.deepEqual(loop.steps.flatMap(({ id, after }) => after.map((wire) => [wire.step, id, Boolean(wire.back)])), [["change", "create", true], ["create", "decide", false], ["decide", "change", false], ["decide", "order", false]]);
+  assert.deepEqual(processOrder(loop.steps).order.map((index) => loop.steps[index].id), ["create", "decide", "change", "order"]);
   assert.throws(() => processesConfig({ processes: [{ id: "a" }, { id: "a" }] }), /two processes "a"/u);
 });
 
@@ -68,7 +73,8 @@ test("operations change the processes: steps, wires, lanes, and a step that goes
   // The step in the middle goes: the last comes after the first, by the way it had.
   assert.deepEqual(applyProcessOperations(config, [{ op: "unstep", process: "orders", step: "check-the-credit" }]).processes[0].steps.at(-1).after, [{ step: "take-the-order", when: "within the limit" }]);
   assert.deepEqual(applyProcessOperations(config, [{ op: "unwire", process: "orders", from: "check-the-credit", into: "post" }]).processes[0].steps.at(-1).after, undefined);
-  assert.throws(() => applyProcessOperations(config, [{ op: "wire", process: "orders", from: "post", into: "take-the-order" }]), /in a circle/u);
+  // A wire back to the start is a loop.
+  assert.deepEqual(applyProcessOperations(config, [{ op: "wire", process: "orders", from: "post", into: "take-the-order", when: "sent back" }]).processes[0].steps[0].after, [{ step: "post", when: "sent back" }]);
   assert.throws(() => applyProcessOperations(config, [{ op: "step", process: "nope", title: "x" }]), /there is no process "nope"/u);
   assert.throws(() => applyProcessOperations(config, [{ op: "unstep", process: "orders", step: "nope" }]), /has no step "nope"/u);
   assert.equal(applyProcessOperations(config, [{ op: "remove", process: "orders" }]).processes, undefined);
@@ -136,14 +142,18 @@ test("a process goes to BPMN 2.0 and comes back: lanes, tasks, ways, and what a 
     { id: "post-it", title: "Post it", lane: "Accountant", after: [{ step: "take-the-order", when: "released" }] },
     { id: "cancel-it", title: "Cancel it", lane: "Order processor", after: [{ step: "take-the-order", when: "withdrawn" }] }
   ] });
-  // As another tool writes it: other prefixes, a way back that cannot be walked.
+  // As another tool writes it: other prefixes, and a way back, which is a loop.
   const foreign = `<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"><process id="p" name="Returns">
     <laneSet><lane id="l1" name="Service"><flowNodeRef>a</flowNodeRef><flowNodeRef>c</flowNodeRef></lane><lane id="l2" name="Warehouse"><flowNodeRef>b</flowNodeRef></lane></laneSet>
     <startEvent id="s"/><task id="a" name="Take the return"/><serviceTask id="b" name="Check the goods"/><userTask id="c" name="Refund"/><endEvent id="e"/>
     <sequenceFlow id="f1" sourceRef="s" targetRef="a"/><sequenceFlow id="f2" sourceRef="a" targetRef="b"/><sequenceFlow id="f3" sourceRef="b" targetRef="c" name="fine"/>
     <sequenceFlow id="f4" sourceRef="c" targetRef="a" name="again"/><sequenceFlow id="f5" sourceRef="c" targetRef="e"/></process></definitions>`;
   const returns = importBpmn(foreign);
-  assert.deepEqual([returns.id, returns.steps.map(({ id, lane, after }) => [id, lane, after])], ["returns", [["take-the-return", "Service", undefined], ["check-the-goods", "Warehouse", ["take-the-return"]], ["refund", "Service", [{ step: "check-the-goods", when: "fine" }]]]]);
+  assert.deepEqual([returns.id, returns.steps.map(({ id, lane, after }) => [id, lane, after])], ["returns", [["take-the-return", "Service", [{ step: "refund", when: "again" }]], ["check-the-goods", "Warehouse", ["take-the-return"]], ["refund", "Service", [{ step: "check-the-goods", when: "fine" }]]]]);
+  // The loop goes out again as BPMN, and the run names it.
+  const [looped] = processesConfig({ processes: [returns] });
+  assert.match(renderBpmn(bpmnProcess(looped)), /<bpmn:sequenceFlow id="Flow_returns_\d+" name="again" sourceRef="Gateway_returns_refund" targetRef="Activity_returns_take_the_return" \/>/u);
+  assert.ok(runProcesses([looped], undefined)[0].findings.some(({ rule, message }) => rule === "process-loop" && /leads back from "Refund" to "Take the return" when again/u.test(message)));
   // A task in a comment is no step, however the comment is nested or left open.
   const commented = foreign.replace('<endEvent id="e"/>', '<endEvent id="e"/><!-<!-- x -->- <task id="z" name="Commented out"/> --><!-- <task id="y" name="Never closed"/>');
   assert.deepEqual(importBpmn(commented).steps.map(({ id }) => id), ["take-the-return", "check-the-goods", "refund"]);
@@ -161,9 +171,13 @@ test("bca process mines, defines, runs, and exports, and the view builds on the 
     const define = (...args) => bca(["process", "define", root, "--process", "purchase-requests", ...args]);
     assert.equal(define("--step", "Receive the goods", "--lane", "Warehouse", "--after", "order:delivered").status, 0);
     assert.equal(define("--at", "receive-the-goods", "--title", "Receive what was ordered").status, 0);
-    result = define("--at", "create", "--after", "order");
+    // A way back is a loop, and a step that is not there is not.
+    result = define("--at", "create", "--after", "order:again", "--dry-run");
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /create {9}Create a new Purchase Request {2}\[purchase-request-create\] {2}after order \(again\)/u);
+    result = define("--at", "create", "--after", "nowhere");
     assert.equal(result.status, 2);
-    assert.match(result.stderr, /in a circle/u);
+    assert.match(result.stderr, /has no step "nowhere"/u);
     const steps = JSON.parse(readFileSync(path.join(root, ".bca.json"), "utf8")).processes[0].steps;
     assert.deepEqual(steps.at(-1), { id: "receive-the-goods", title: "Receive what was ordered", lane: "Warehouse", after: [{ step: "order", when: "delivered" }] });
     assert.deepEqual(steps[2], { id: "approve", title: "Approve a released purchase request", lane: "Team lead", test: "purchase-request-approve", after: ["release"] });
@@ -207,7 +221,7 @@ test("bca process mines, defines, runs, and exports, and the view builds on the 
     assert.equal(changed.written, true);
     atlas = await service.call("atlas");
     assert.equal(atlas.processes.runs[0].steps.at(-1).status, "runs");
-    await assert.rejects(service.call("defineProcesses", { operations: [{ op: "wire", process: "purchase-requests", from: "order", into: "create" }] }), /in a circle/u);
+    await assert.rejects(service.call("defineProcesses", { operations: [{ op: "wire", process: "purchase-requests", from: "order", into: "nowhere" }] }), /has no step "nowhere"/u);
 
     const html = renderAppHtml({ mode: "vscode" });
     for (const part of ['data-board-mode="process"', 'data-drop="lane"', 'data-drop="newlane"', 'data-drag="test"', 'data-drag="pstep"', 'data-proc="play"', 'data-proc="bpmn"', 'data-proc="adopt"', 'call("defineProcesses", { operations })', "function procLocal("]) assert.ok(html.includes(part), part);
@@ -220,5 +234,141 @@ test("bca process mines, defines, runs, and exports, and the view builds on the 
     assert.ok(!existsSync(path.join(root, "no-such-file")));
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("telemetry is read from what Application Insights exports: a query result, a list, lines, or CSV", async () => {
+  const result = { tables: [{ name: "PrimaryResult", columns: [{ name: "timestamp" }, { name: "itemType" }, { name: "name" }, { name: "duration" }, { name: "session_Id" }, { name: "user_Id" }, { name: "customDimensions" }], rows: [
+    ["2026-10-05T08:00:00Z", "pageView", "Purchase Requests", 820, "s1", "anna", JSON.stringify({ alObjectType: "Page", alObjectId: "50210", alObjectName: "Purchase Requests", requestNo: "PR-1" })],
+    ["2026-10-05T08:05:00Z", "trace", "Operation completed", null, "s1", "anna", { alObjectType: "CodeUnit", alObjectId: 50220, eventId: "RT0018", executionTimeInMs: "310", requestNo: "PR-1" }]
+  ] }] };
+  const rows = telemetryRows(JSON.stringify(result));
+  assert.deepEqual(rows.map((row) => telemetryEvent(row, { caseField: "requestNo" })), [
+    { time: Date.parse("2026-10-05T08:00:00Z"), duration: 820, case: "PR-1", user: "anna", type: "page", id: "50210", name: "Purchase Requests", text: "Purchase Requests" },
+    { time: Date.parse("2026-10-05T08:05:00Z"), duration: 310, case: "PR-1", user: "anna", type: "codeunit", id: "50220", event: "RT0018", text: "Operation completed" }
+  ]);
+  // Without a case field a case is a session; a time span is as Business Central writes it; a row without a time is no event.
+  assert.equal(telemetryEvent(rows[0]).case, "s1");
+  assert.equal(telemetryEvent({ timestamp: "2026-10-05T08:00:00Z", customDimensions: { serverExecutionTime: "00:00:01.2500000" } }).duration, 1250);
+  assert.equal(telemetryEvent({ name: "no time" }), undefined);
+  const list = [{ timestamp: "2026-10-05T08:00:00Z", user_Id: "ben", customDimensions: { alObjectType: "Report", alObjectId: "50000" } }];
+  assert.equal(telemetryRows(JSON.stringify(list)).length, 1);
+  assert.equal(telemetryRows(list.map((row) => JSON.stringify(row)).join("\n") + "\nnot json").length, 1);
+  const csv = 'timestamp,user_Id,duration,customDimensions\r\n2026-10-05T08:00:00Z,carla,650,"{""alObjectType"":""Page"",""alObjectId"":""50210""}"\n';
+  assert.deepEqual(telemetryEvent(telemetryRows(csv, "export.csv")[0]), { time: Date.parse("2026-10-05T08:00:00Z"), duration: 650, case: "carla", user: "carla", type: "page", id: "50210", text: "" });
+  assert.deepEqual([span(850), span(12_000), span(190_000), span(9_000_000), span(130_000_000)], ["850 ms", "12 s", "3.2 min", "2.5 h", "1.5 d"]);
+  const events = await readTelemetry(path.join(example, "telemetry"), { caseField: "requestNo" });
+  assert.deepEqual([events.length, events[0].case, events.every((event, index) => !index || event.time >= events[index - 1].time)], [93, "PR-1001", true]);
+  await assert.rejects(readTelemetry(path.join(example, "no-telemetry")), /does not exist/u);
+});
+
+test("telemetry gives the processes their time: how often, how long, the waits, the ways really taken, and what to improve", async () => {
+  // The example names where its telemetry is and what carries the case.
+  const described = await describeProcesses(example);
+  assert.deepEqual(described.telemetry, { source: "telemetry", events: 93, from: "2026-10-05T08:00:00.000Z", to: "2026-10-11T01:10:30.000Z", case: "requestNo" });
+  const { timing } = described.mined[0];
+  assert.deepEqual([timing.cases, timing.events, span(timing.throughput.avg)], [12, 93, "2.5 d"]);
+  // Every fourth request is sent back: the way goes around again.
+  assert.deepEqual(timing.variants, [
+    { steps: ["create", "release", "approve", "order"], cases: 9 },
+    { steps: ["create", "release", "approve", "create", "release", "approve", "order"], cases: 3 }
+  ]);
+  assert.deepEqual(timing.steps.approve, { count: 15, cases: 12, repeated: 3, duration: timing.steps.approve.duration, work: timing.steps.approve.work });
+  assert.deepEqual(timing.ways.map(({ from, into, count, share }) => [from, into, count, share]), [["create", "release", 15, 100], ["release", "approve", 15, 100], ["approve", "order", 12, 100], ["approve", "create", 3, 25]]);
+  assert.equal(span(timing.ways[1].wait.avg), "1.4 d");
+  // A page every step opens belongs to the step the person is seen doing: nobody but Ben approves.
+  assert.ok(timing.steps.release.duration.avg < 1000, "the release does not swallow the wait for the approval");
+
+  // On a model: the run has the timing, each step its own, and what the time says to improve.
+  const { simulate } = await import("../src/simulation/index.js");
+  const report = await simulate(example, {});
+  const tasks = new Map(report.tasks.map((task) => [task.id, task]));
+  const [model] = processesConfig({ processes: [{ id: "purchase-requests", title: "Purchase requests", steps: [...described.mined[0].steps.map(({ id, title, lane, test: shown, after }) => ({ id, title, lane, test: shown, after })), { id: "setup", title: "Set the limit", lane: "Administrator", test: "purchase-request-setup" }] }] });
+  const [run] = runProcesses([model], report);
+  const events = await readTelemetry(path.join(example, "telemetry"), { caseField: "requestNo" });
+  const findings = timingFindings(run, timeProcess(run.steps, events, tasks));
+  assert.deepEqual(findings.map(({ rule }) => rule).sort(), ["process-rework", "process-rework", "process-rework", "process-step-not-seen", "process-wait", "process-way-not-in-model"]);
+  assert.match(findings.find(({ rule }) => rule === "process-wait").message, /the work waits 1\.4 d on average between "Release a purchase request so that it can be approved" and "Approve a released purchase request" \(from Employee to Team lead\): the longest wait, of 2\.5 d a case takes/u);
+  assert.match(findings.find(({ rule }) => rule === "process-way-not-in-model").message, /In 3 of 12 cases "Create a new Purchase Request" follows "Approve a released purchase request"/u);
+  assert.match(findings.find(({ rule }) => rule === "process-step-not-seen").message, /"Set the limit".* is not in the telemetry of 12 cases/u);
+  // The loop in the model, and the finding is gone; an event that marks a step makes it certain.
+  const [looped] = runProcesses(processesConfig({ processes: [{ ...model, steps: model.steps.map((step) => (step.id === "create" ? { ...step, after: [{ step: "approve", when: "rejected" }] } : { ...step, after: step.after.map((wire) => (wire.when ? wire : wire.step)) })) }] }), report);
+  assert.ok(!timingFindings(looped, timeProcess(looped.steps, events, tasks)).some(({ rule }) => rule === "process-way-not-in-model"));
+  assert.equal(timeProcess(run.steps, [{ time: 1, duration: 5, case: "a", event: "PR0009", text: "" }], tasks, { "purchase-request-setup": "PR0009" }).steps.setup.count, 1);
+  assert.equal(timeProcess(run.steps, [{ time: 1, duration: 5, case: "a", type: "page", id: "1", text: "" }], tasks), undefined);
+  // Without people in the telemetry, what several steps could have goes to the next step from the longest pause on.
+  const anonymous = events.map(({ user: _user, ...event }) => event);
+  assert.deepEqual(timeProcess(run.steps, anonymous, tasks).variants[0].steps, ["create", "release", "approve", "order"]);
+
+  // The terminal: mined with its time, and the run with its findings.
+  const mined = bca(["process", example, "--mine"]).stdout;
+  assert.match(mined, /Telemetry: 12 case\(s\), 93 event\(s\), 2026-10-05 to 2026-10-11\. A case takes 2\.5 d on average/u);
+  assert.match(mined, / {7}3 case\(s\) {2}create > release > approve > create > release > approve > order/u);
+  assert.match(mined, /release > approve: 15 time\(s\), in 100% of the cases, waiting 1\.4 d on average/u);
+  const root = project();
+  try {
+    assert.equal(bca(["process", "define", root, "--adopt", "purchase-requests"]).status, 0);
+    const result = bca(["process", "run", root]);
+    assert.match(result.stdout, /Telemetry: 12 case\(s\) from 2026-10-05 to 2026-10-11; a case takes 2\.5 d on average/u);
+    assert.match(result.stdout, /in the telemetry 15 time\(s\) in 12 case\(s\): takes .* on average, .* for the slowest; done again in 3 case\(s\)/u);
+    assert.match(result.stdout, /warning process-wait: .*waits 1\.4 d/u);
+    // The view has the same, from the file; and no folder named, no telemetry.
+    const atlas = await createService(new Workspace(root, {}, { live: false })).call("atlas");
+    assert.equal(atlas.processes.runs[0].timing.cases, 12);
+    assert.ok(atlas.findings.some(({ rule, origin }) => rule === "process-rework" && origin === "process"));
+    assert.match(atlas.nodes.find(({ id }) => id === "activity::purchase-requests::approve").about, /In the telemetry 15 times in 12 cases/u);
+    const config = JSON.parse(readFileSync(path.join(root, ".bca.json"), "utf8"));
+    delete config.processTelemetry;
+    writeFileSync(path.join(root, ".bca.json"), JSON.stringify(config));
+    assert.equal((await describeProcesses(root)).telemetry, undefined);
+    assert.equal((await describeProcesses(root, { telemetry: path.join(root, "telemetry") })).mined[0].timing.cases, 15, "without a case field a case is a session");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("telemetry can be asked from Application Insights, with a key that is never in .bca.json", async () => {
+  const asked = [];
+  const server = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => { body += chunk; });
+    request.on("end", () => {
+      asked.push({ url: request.url, key: request.headers["x-api-key"], query: JSON.parse(body).query });
+      if (request.headers["x-api-key"] !== "secret") {
+        response.writeHead(403);
+        return response.end("forbidden");
+      }
+      response.writeHead(200, { "content-type": "application/json" });
+      return response.end(JSON.stringify({ tables: [{ columns: [{ name: "timestamp" }, { name: "user_Id" }, { name: "customDimensions" }], rows: [["2026-10-05T08:00:00Z", "anna", { alObjectType: "Page", alObjectId: "50210", requestNo: "PR-1" }]] }] }));
+    });
+  });
+  await new Promise((resolve) => { server.listen(0, "127.0.0.1", resolve); });
+  const endpoint = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const events = await fetchTelemetry({ appId: "app-1", days: 7, endpoint }, { key: "secret", caseField: "requestNo" });
+    assert.deepEqual(events.map(({ case: own, type, id }) => [own, type, id]), [["PR-1", "page", "50210"]]);
+    assert.deepEqual([asked[0].url, asked[0].key], ["/v1/apps/app-1/query", "secret"]);
+    assert.match(asked[0].query, /where timestamp > ago\(7d\)/u);
+    await assert.rejects(fetchTelemetry({ appId: "app-1", endpoint }, { key: "wrong" }), /answered 403: the key is not accepted/u);
+    await assert.rejects(fetchTelemetry({ appId: "app-1", endpoint }, { key: "" }), /set BCA_TELEMETRY_API_KEY/u);
+    await assert.rejects(fetchTelemetry({ endpoint }, { key: "secret" }), /needs "appId"/u);
+    await assert.rejects(fetchTelemetry({ appId: "app-1", endpoint: "http://127.0.0.1:1" }, { key: "secret" }), /could not be reached/u);
+    // The project asks only when the key is set, and what is generated from the source never asks.
+    const root = project();
+    try {
+      const config = JSON.parse(readFileSync(path.join(root, ".bca.json"), "utf8"));
+      writeFileSync(path.join(root, ".bca.json"), JSON.stringify({ ...config, processTelemetry: { appId: "app-1", endpoint, case: "requestNo" } }));
+      assert.equal((await describeProcesses(root)).telemetry, undefined);
+      process.env.BCA_TELEMETRY_API_KEY = "secret";
+      assert.deepEqual((await describeProcesses(root)).telemetry, { source: "Application Insights", events: 1, from: "2026-10-05T08:00:00.000Z", to: "2026-10-05T08:00:00.000Z", case: "requestNo" });
+      const before = asked.length;
+      assert.equal((await describeProcesses(root, {}, { live: false })).telemetry, undefined);
+      assert.equal(asked.length, before);
+    } finally {
+      delete process.env.BCA_TELEMETRY_API_KEY;
+      rmSync(root, { recursive: true, force: true });
+    }
+  } finally {
+    server.close();
   }
 });

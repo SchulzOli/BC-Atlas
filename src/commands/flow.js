@@ -123,7 +123,9 @@ export async function flowDefineCommand(input, values) {
   const freed = result.freed.flatMap(({ steps }) => steps);
   console.error([
     result.written ? `Wrote ${displayPath(result.file)}` : result.changed ? "Dry run: nothing written." : "Nothing changed.",
-    ...(freed.length ? [`${freed.length} step(s) ran only through what was taken out and left the flow with it: ${freed.map((step) => step.id ?? step.what).join(", ")}. ${result.written ? "They are on the canvas of the builder, in no flow, to be wired again." : ""}`.trim()] : []),
+    ...(freed.length ? [`${freed.length} step(s) left the flow: ${freed.map((step) => step.id ?? step.what).join(", ")}. ${result.written ? "They are on the canvas of the builder, in no flow, to be wired again." : ""}`.trim()] : []),
+    // The way closed around a step that was removed: who comes after what now, and who lost its gate.
+    ...result.rerouted.map(({ step, after }) => (after.length ? `${step} now comes after ${after.join(", ")}.` : `${step} came after nothing else and now starts the flow: nothing holds it back.`)),
     ...hints(result)
   ].join("\n"));
   return undefined;

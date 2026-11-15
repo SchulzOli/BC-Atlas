@@ -239,7 +239,7 @@ export class Workspace {
     const { defineFlows } = await import("../flows/index.js");
     const result = await defineFlows(root, { operations, dryRun, config });
     if (result.written) this.reset();
-    return { file: result.file, written: result.written, changed: result.changed, flows: result.flows };
+    return { file: result.file, written: result.written, changed: result.changed, flows: result.flows, rerouted: result.rerouted };
   }
 
   /**

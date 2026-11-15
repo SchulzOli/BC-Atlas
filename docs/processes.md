@@ -28,7 +28,7 @@ the people of the [simulation](./battle-test.md), and says what to improve.
 | `id`, `title` | Its name for the wires, and what people call it. |
 | `lane` | Who does it: a role of the company (`simulation.roles`). |
 | `test` | What shows that it works: a process test (an AL UI test with `[SCENARIO]`, by its document ID) or a recording of Business Central. Without one the step is **unproven**. |
-| `after` | The steps it comes after. A wire with a `when` is one way of several (an exclusive gateway in BPMN); without one, the steps simply follow. |
+| `after` | The steps it comes after. A wire with a `when` is one way of several (an exclusive gateway in BPMN); without one, the steps simply follow. A wire may lead back to an earlier step: a **loop**, as when a request that was rejected is changed and released again. |
 
 BC Atlas reads the source and the recordings. It runs neither the app nor the
 tests: what a step needs comes from what its test does in the code, and who
@@ -57,6 +57,84 @@ reads them, or `simulation.recordings`):
 A mined process is what the app does today. Take it as a model and change it
 into what the company should do: that difference is what the run reports.
 
+## Its time: telemetry
+
+The source and a recording have no time. Business Central has: it sends
+telemetry to Azure Application Insights (page views, and traces of what ran,
+with the AL object and how long it took). BC Atlas reads that as an event log
+and lays it over the processes.
+
+```json
+{
+  "processTelemetry": {
+    "path": "telemetry",
+    "case": "requestNo"
+  }
+}
+```
+
+```sh
+bca process --mine                         # with processTelemetry.path in .bca.json
+bca process --mine --telemetry telemetry   # or a file or folder named here
+bca process run --telemetry telemetry
+```
+
+```text
+Telemetry: 12 case(s), 93 event(s), 2026-10-05 to 2026-10-11. A case takes 2.5 d on average, 3.8 d for the slowest.
+The ways really taken:
+     9 case(s)  create > release > approve > order
+     3 case(s)  create > release > approve > create > release > approve > order
+Between the steps:
+  release > approve: 15 time(s), in 100% of the cases, waiting 1.4 d on average (2.5 d for the slowest)
+  approve > create: 3 time(s), in 25% of the cases, waiting 20 h on average
+```
+
+| It gives | Meaning |
+| --- | --- |
+| cases, and how long a case takes | from the first event of a case to its last: average, median, and the slowest (95%) |
+| the ways really taken | every order of steps the cases went through, with how many went it (the variants) |
+| per step | how often it is done, in how many cases, how long it takes, and in how many cases it is done again |
+| per way between two steps | how often it is gone, in what share of the cases, and how long the work waits on it |
+
+**Where the telemetry comes from.** `processTelemetry.path` (or `--telemetry`) is a
+file or a folder of exports: the result of a query as JSON, a list of rows,
+JSON lines, or CSV. In Application Insights, run this in **Logs** and export
+the result:
+
+```kusto
+union pageViews, traces
+| where timestamp > ago(30d)
+| where isnotempty(customDimensions.alObjectId) or isnotempty(customDimensions.eventId)
+| project timestamp, itemType, name, message, duration, session_Id, user_Id, customDimensions
+```
+
+Or let BC Atlas ask: with `"appId"` (the application ID of the resource) and,
+optionally, `"days"` in `processTelemetry`, and an API key with the right to read
+telemetry in the environment variable `BCA_TELEMETRY_API_KEY`, `bca process`
+and the MCP tool ask Application Insights themselves. The key is never read
+from `.bca.json`. The view and everything that is generated from the source
+read telemetry from a file only, so they stay the same for the same files.
+
+**Which event belongs to which step.** An event names an AL object. It belongs
+to the step whose test touches that object. Where several steps touch it (the
+same page for creating and approving):
+
+1. an event named in `processTelemetry.steps` marks its step for certain:
+   `"steps": { "purchase-request-approve": "PR0003" }` (an event id, or a text
+   of the message, as the app sends it with `Session.LogMessage`);
+2. else the step this person is seen doing, from the events only one step can
+   have: who approves is who runs what only the approval runs;
+3. else the step the case is in, else the next one on the way.
+
+**What a case is.** `processTelemetry.case` names the field that says which case an
+event belongs to: a custom dimension with the document number. Without it a
+case is a session, and since a handover is another person in another session,
+the wait between two roles is not seen. Standard telemetry has no such field:
+the app has to send one.
+
+The example in `examples/purchasing-app/telemetry` is made up, in the shape
+Application Insights answers with.
+
 ## Build it in lanes
 
 In the view, **Flow → Open the process builder** opens the builder on
@@ -70,12 +148,15 @@ In the view, **Flow → Open the process builder** opens the builder on
   lane. Change the name at the head of a lane to rename it.
 - **Drag a step** into another lane to say that another role does it.
 - **Pull a wire** from the dot on the right of a step into the step that comes
-  after it. A wire that would close a circle is refused.
+  after it. A wire into a step the way already passed is a way back: a loop,
+  drawn dashed above the steps.
 - **Double-click a step** for its title, lane, test, and the names of the ways
   into it (`approved`, `rejected`).
 - Select a step or a wire and **Remove** it (or press Delete). When a step
-  goes, what came after it comes after what it came after: the way stays
-  whole.
+  goes, the way closes around it: what came after it comes after what it came
+  after. That is the same rule as for [a step of a flow](./flows.md#removing-a-step).
+- With telemetry, a step shows how often it is done and how long it takes,
+  and a wire the share of the cases that go it and how long the work waits.
 
 Every step shows how it ran: green when its lane gets through it, red where
 the process stops, amber when another role does it, nobody is set to do it, or
@@ -143,6 +224,17 @@ The run compares the model with the simulation and with the mined process:
 | `process-back-and-forth` | the work goes from one lane to another and back | let one lane finish first |
 | `process-step-not-in-model` | the tests have a step the model has not | add it, or decide it is not part |
 | `process-order-differs` | the model has an order the app does not allow | wire the steps as the tests require |
+| `process-loop` | the way leads back to an earlier step | see what makes the rework necessary |
+
+With [telemetry](#its-time-telemetry), also:
+
+| Finding | Says | To do |
+| --- | --- | --- |
+| `process-wait` | where the work waits longest, and between which roles | see how the next role learns that there is work |
+| `process-rework` | a step is done more than once in a fifth of the cases or more | see which earlier step lets through what has to be done again |
+| `process-step-slow` | a step takes more than twice as long as any other | see what it does in the app |
+| `process-way-not-in-model` | the work really goes a way the model has not | wire it, with its name, or see why it is gone |
+| `process-step-not-seen` | a step is in no case of the telemetry | nobody does it, or it cannot be told apart: name an event that marks it |
 
 The findings are on the steps in the view (**Check**), in the story of the
 process, and in `bca process run`.
@@ -161,9 +253,8 @@ Modeler, bpmn.io, and other tools.
 The import reads a process another tool wrote: its lanes, its tasks (also
 service tasks, sub-processes, and call activities), and the ways between them.
 Events and gateways are not steps: a way through them is one way, named after
-the sequence flow that leaves the gateway. A way back (a loop) cannot be
-walked from a start to an end and is left out. An imported step has no test
-until you set one.
+the sequence flow that leaves the gateway. A way back is a loop of the
+process. An imported step has no test until you set one.
 
 ## From the terminal and for agents
 
@@ -185,11 +276,16 @@ roles, and reads the run again.
 
 ## What it does not do
 
-- It does not time anything: there are no durations, waiting times, or
-  frequencies, because the source and a single recording of a process have
-  none. Mining is about order, roles, events, and handovers.
-- A process is walked from its starts to its ends: no loops, and no
-  conditions that are evaluated. The name of a way is a name.
-- It does not run the app. A step that runs here is one whose test the role
-  has every permission for; whether the test itself passes in Business
+- **The name of a way is a name, not a condition that is evaluated.** BC Atlas
+  does not run the app, so it has nothing to evaluate `amount > 1000` against.
+  What it can say is what really happened: with telemetry, the share of the
+  cases that went each way.
+- **A loop is walked once.** The run goes from the starts to the ends and
+  names a way back; how often it is really gone around is in the telemetry.
+- **It does not run the app.** A step that runs here is one whose test the
+  role has every permission for; whether the test itself passes in Business
   Central is for the test run.
+- **Telemetry is only as good as what tells the steps apart.** Two steps that
+  use the same objects and are done by the same person cannot be told apart
+  without an event that marks one of them, and without a case field the wait
+  between two people is not seen.

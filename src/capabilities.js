@@ -536,6 +536,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           format: string("text (default) or json: the processes, how each runs, the mined processes, and the roles and tests a step can name.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
           tests: string("Folder with the process tests (default: simulation.tests, then docs.tests in .bca.json, then the app itself).", { group: GENERAL, value: "path" }),
           recordings: string("Folder with recordings of Business Central (fact snapshots as JSON): they are mined and run like process tests (default: simulation.recordings).", { group: GENERAL, value: "path" }),
+          telemetry: string("A file or a folder of exported telemetry of Business Central (Application Insights: JSON or CSV), laid over the processes: how often a step is done, how long it takes, how long the work waits between two steps, and the ways really taken (default: processTelemetry.path in .bca.json).", { group: GENERAL, value: "path" }),
           projectRoot: projectOptions.projectRoot,
           config: projectOptions.config,
           compiler: projectOptions.compiler,
@@ -543,11 +544,12 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         },
         output: { type: "json", when: "--format json", schema: "bc-atlas.processes" },
         rules: [
-          "A process has steps. A step is in the lane of who does it (a role of simulation.roles), names the test that shows it works (a process test by document ID, or a recording), and comes after other steps (after); a wire with a name (when) is one way of several.",
+          "A process has steps. A step is in the lane of who does it (a role of simulation.roles), names the test that shows it works (a process test by document ID, or a recording), and comes after other steps (after); a wire with a name (when) is one way of several, and a wire may lead back to an earlier step (a loop).",
           "A step: runs (someone in the lane gets through its test), is blocked (the lane is stopped, with what is missing), is done by another lane, has nobody set to do it, or is unproven (it has no test).",
-          "BC Atlas reads the source and the recordings; it runs neither the app nor the tests."
+          "BC Atlas reads the source and the recordings; it runs neither the app nor the tests.",
+          "Telemetry gives the time: an event belongs to the step whose test touches its object; where several steps touch it, to the step the person is seen doing, else the step the case is in. processTelemetry.case in .bca.json names the field that carries the case (a document number); without it a case is a session. processTelemetry.appId asks Application Insights, with the key in BCA_TELEMETRY_API_KEY."
         ],
-        examples: ["bca process", "bca process --mine", "bca process ./app --recordings recordings --mine", "bca process --format json"]
+        examples: ["bca process", "bca process --mine", "bca process ./app --recordings recordings --mine", "bca process --mine --telemetry telemetry", "bca process --format json"]
       }),
       command({
         id: "process.define",
@@ -563,7 +565,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           lane: string("Who does the step: a role of the company.", { group: GENERAL, value: "role" }),
           test: string("What shows that the step works: a process test by document ID, or a recording. An empty value takes it away.", { group: GENERAL, value: "id" }),
           after: string("The steps this step comes after, by id, comma-separated; <step>:<name> names the way (one of several): approve:approved. An empty value takes the wires away.", { group: GENERAL, value: "list" }),
-          unstep: string("Remove the step with this id; what came after it comes after what it came after.", { group: SELECTION, value: "step" }),
+          unstep: string("Remove the step with this id: the way closes around it, and what came after it comes after what it came after.", { group: SELECTION, value: "step" }),
           renameLane: string("Rename a lane of the process, as <lane>=<new name>.", { group: SELECTION, value: "lane=name" }),
           remove: string("Remove a process. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
           adopt: string("Take a mined process (bca process --mine) as a model, by its id. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
@@ -578,8 +580,8 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         },
         output: { type: "json", when: "--format json", schema: "bc-atlas.processes" },
         rules: [
-          "A change names what it changes and keeps the rest. A process that is not valid never reaches .bca.json: a step that comes after a step that is not there, or steps that come after each other in a circle.",
-          "From BPMN, events and gateways are not steps: a way through them is one way, named after the sequence flow that leaves the gateway. A way back (a loop) is left out."
+          "A change names what it changes and keeps the rest. A process that is not valid never reaches .bca.json: two steps of one name, or a step that comes after a step that is not there. A wire that leads back to an earlier step is a loop.",
+          "From BPMN, events and gateways are not steps: a way through them is one way, named after the sequence flow that leaves the gateway. A way back is a loop of the process."
         ],
         examples: [
           "bca process define --adopt purchase-requests",
@@ -602,6 +604,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           output: string("Write to this file instead of stdout.", { group: OUTPUT, short: "o", value: "path" }),
           tests: string("Folder with the process tests (default: simulation.tests, then docs.tests in .bca.json, then the app itself).", { group: GENERAL, value: "path" }),
           recordings: string("Folder with recordings of Business Central the people perform as well (default: simulation.recordings).", { group: GENERAL, value: "path" }),
+          telemetry: string("A file or a folder of exported telemetry of Business Central (Application Insights: JSON or CSV), laid over the processes: how often a step is done, how long it takes, how long the work waits between two steps, and the ways really taken (default: processTelemetry.path in .bca.json).", { group: GENERAL, value: "path" }),
           projectRoot: projectOptions.projectRoot,
           config: projectOptions.config,
           compiler: projectOptions.compiler,
@@ -610,9 +613,10 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         output: { type: "json", when: "--format json", schema: "bc-atlas.processes" },
         rules: [
           "Exit code 1 when a process stops: a lane cannot perform a step, or a step names a test that is not there. A pipeline gates on it.",
+          "With telemetry, also: where the work waits longest, a step that is done again and again, a step that takes far longer than the others, a way the work really goes that the model has not, and a step that is never seen.",
           "What to improve: a step nobody can show to work, a step another role does, a lane that is no role, work that goes back and forth between two lanes, steps the process tests have and the model has not, and an order the app does not allow."
         ],
-        examples: ["bca process run", "bca process run --process purchase-requests", "bca process run -o docs/processes.md", "bca process run --format json"]
+        examples: ["bca process run", "bca process run --process purchase-requests", "bca process run --telemetry telemetry", "bca process run -o docs/processes.md", "bca process run --format json"]
       }),
       command({
         id: "process.export",
@@ -1047,7 +1051,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           id: string("The name of the step, so that other steps can come after it: lowercase letters, digits, '.', '_', '-'.", { group: GENERAL, value: "name" }),
           after: string("The steps this step comes after, by name, comma-separated; each can say when: gate (if it passed), gate:failed, gate:always. An empty value takes the wires away, and the step starts with the flow.", { group: GENERAL, value: "list" }),
           at: string("Change the step with this number (from 1) instead of adding one: --to, --set, --id, --after, --step.", { group: SELECTION, value: "n" }),
-          unstep: string("Remove the step with this number.", { group: SELECTION, value: "n" }),
+          unstep: string("Remove the step with this number: the way closes around it, and what came after it comes after what it came after, on the condition it had.", { group: SELECTION, value: "n" }),
           up: string("Move the step with this number one up.", { group: SELECTION, value: "n" }),
           down: string("Move the step with this number one down.", { group: SELECTION, value: "n" }),
           remove: string("Remove a flow. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
@@ -1061,7 +1065,8 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         output: { type: "json", when: "--format json", schema: "bc-atlas.flows" },
         rules: [
           "A change names what it changes and keeps the rest. A flow that is not valid never reaches .bca.json.",
-          "Steps are a graph: a step with --after waits for the steps it names and runs if each passed (or failed, or always); without it, it starts with the flow. Steps that wait in a circle are not valid. Removing a step takes the wires to it away.",
+          "Steps are a graph: a step with --after waits for the steps it names and runs if each passed (or failed, or always); without it, it starts with the flow. Steps that wait in a circle are not valid.",
+          "Removing a step is the same in a flow and in a process: the way closes around it. The command names every step that comes after something else now, and every step that came after nothing else and so starts the flow.",
           "A trigger needs something that calls it: bca setup installs the Git hooks and the pipeline that run bca run --trigger <name>.",
           "Sync modes: verify fails when what was saved differs from the commit, stage adds it to the commit (hooks); artifact, pull-request, and commit are steps of the pipeline bca setup writes."
         ],

@@ -874,8 +874,20 @@
       } else if (operation.op === "deliver") triggers[operation.trigger].sync = operation.sync;
       else if (!flow) continue;
       else if (operation.op === "remove") flows.splice(flows.indexOf(flow), 1);
-      else if (operation.op === "unstep" || operation.op === "detach") {
-        // The step, and every step that waits for nothing but steps that leave: as src/flows/config.js.
+      else if (operation.op === "unstep") {
+        // The way closes around it, as in src/flows/config.js: what came after it comes after what it came after.
+        const [gone] = flow.steps.splice(operation.at - 1, 1);
+        for (const other of gone.id ? flow.steps : []) {
+          const wires = wiresOf(other);
+          const through = wires.find((wire) => wire.step === gone.id);
+          if (!through) continue;
+          const rest = wires.filter((wire) => wire.step !== gone.id);
+          for (const wire of wiresOf(gone)) if (!rest.some((item) => item.step === wire.step)) rest.push({ step: wire.step, if: through.if });
+          if (rest.length) other.after = rest;
+          else delete other.after;
+        }
+      } else if (operation.op === "detach") {
+        // The step, and every step that waits for nothing but steps that leave.
         const index = operation.at - 1;
         const before = flow.steps.map((step) => wiresOf(step).map((wire) => flow.steps.findIndex(({ id }) => id === wire.step)));
         const out = new Set([index]);
@@ -888,9 +900,9 @@
             }
           });
         }
-        const kept = [...out].filter((order) => operation.op === "detach" || order !== index).sort((a, b) => a - b);
+        const kept = [...out].sort((a, b) => a - b);
         // They stay on the canvas, in no flow, with the wires among them.
-        const group = kept.length ? looseKey() : undefined;
+        const group = looseKey();
         for (const order of kept) {
           const { after: _after, ...step } = flow.steps[order];
           const wires = order === index ? [] : wiresOf(flow.steps[order]).filter((wire) => kept.includes(flow.steps.findIndex(({ id }) => id === wire.step)));
@@ -898,7 +910,7 @@
           canvas.loose.push({ key, step: { ...step, ...(wires.length ? { after: wires } : {}) }, group });
           if (canvas.positions[stepKey(flow, order)]) canvas.positions[key] = canvas.positions[stepKey(flow, order)];
         }
-        const names = new Set([...out].map((order) => flow.steps[order].id).filter(Boolean));
+        const names = new Set(kept.map((order) => flow.steps[order].id).filter(Boolean));
         flow.steps = flow.steps.filter((_, order) => !out.has(order));
         for (const other of flow.steps) {
           const left = wiresOf(other).filter((wire) => !names.has(wire.step));
@@ -1108,19 +1120,48 @@
   const procRun = (model) => atlas.processes.runs.find(({ id }) => id === model.id);
   /** How a step ran, as long as it is the step that ran. */
   const procStatus = (model, step) => procRun(model)?.steps.find((ran) => ran.id === step.id && (ran.test ?? "") === (step.test ?? "") && ran.lane === (step.lane ?? ""))?.status;
+  /** A time span for people, as src/process/telemetry.js writes it. */
+  const procSpan = (ms) => {
+    if (ms === undefined) return "";
+    const round = (value) => (value >= 10 ? String(Math.round(value)) : String(Math.round(value * 10) / 10));
+    return ms < 1000 ? `${Math.round(ms)} ms` : ms < 60000 ? `${round(ms / 1000)} s` : ms < 3600000 ? `${round(ms / 60000)} min` : ms < 86400000 ? `${round(ms / 3600000)} h` : `${round(ms / 86400000)} d`;
+  };
   const PROC_STATUS = { runs: "runs", blocked: "stopped", "other-lane": "other role", unstaffed: "nobody set", unproven: "no test", unknown: "test missing" };
-  /** The lanes of a process in the order its steps name them, and the column of each step: one after the last it comes after. */
+  /** The wires of a process that lead back to a step the way already passed: its loops (as src/process/index.js finds them). */
+  function procBack(model) {
+    const at = new Map(model.steps.map((step, index) => [step.id, index]));
+    const next = model.steps.map(() => []);
+    model.steps.forEach((step, index) => {
+      for (const wire of procWires(step)) if (at.has(wire.step)) next[at.get(wire.step)].push(index);
+    });
+    const state = model.steps.map(() => 0);
+    const back = new Set();
+    const visit = (index) => {
+      state[index] = 1;
+      for (const after of [...next[index]].sort((a, b) => b - a)) {
+        if (state[after] === 1) back.add(`${model.steps[index].id}\n${model.steps[after].id}`);
+        else if (state[after] === 0) visit(after);
+      }
+      state[index] = 2;
+    };
+    const starts = model.steps.map((_, index) => index).filter((index) => !procWires(model.steps[index]).length);
+    for (const index of [...[...(starts.length ? starts : model.steps.length ? [0] : [])].reverse(), ...model.steps.keys()]) if (state[index] === 0) visit(index);
+    return back;
+  }
+  /** The lanes of a process in the order its steps name them, and the column of each step: one after the last it comes after, loops aside. */
   function procLayout(model) {
+    const back = procBack(model);
     const columns = new Map();
-    const column = (step, seen = new Set()) => {
+    const column = (step) => {
       if (!columns.has(step.id)) {
-        const before = seen.has(step.id) ? [] : procWires(step).map((wire) => model.steps.find(({ id }) => id === wire.step)).filter(Boolean);
-        columns.set(step.id, 1 + Math.max(0, ...before.map((other) => column(other, new Set([...seen, step.id])))));
+        columns.set(step.id, 1);
+        const before = procWires(step).filter((wire) => !back.has(`${wire.step}\n${step.id}`)).map((wire) => model.steps.find(({ id }) => id === wire.step)).filter(Boolean);
+        columns.set(step.id, 1 + Math.max(0, ...before.map(column)));
       }
       return columns.get(step.id);
     };
     for (const step of model.steps) column(step);
-    return { lanes: [...new Set(model.steps.map(({ lane }) => lane ?? ""))], columns, count: Math.max(1, ...columns.values()) };
+    return { lanes: [...new Set(model.steps.map(({ lane }) => lane ?? ""))], columns, back, count: Math.max(1, ...columns.values()) };
   }
   function procHtml() {
     if (!atlas.processes) return '<div class="proc"><p class="empty">The processes of <code>.bca.json</code> are not valid; <code>bca process</code> says what is wrong.</p></div>';
@@ -1134,10 +1175,11 @@
       const stale = procChanges.length > 0;
       const card = (step) => {
         const status = procStatus(model, step);
-        return `<div class="pstep ${status ? `st-${status}` : "st-new"} ${procPicked?.step === step.id ? "picked" : ""}" draggable="true" data-drag="pstep" data-step="${esc(step.id)}" tabindex="0" role="button" title="${esc(status ? atlas.processes.statuses[status] : "Not run yet")}. Double-click to change it; drag it to another lane; pull a wire from its right into the step that comes after it"><span class="port in"></span><b>${esc(step.title ?? step.id)}</b><small>${esc(step.test ? test(step.test)?.title ?? step.test : "no test yet")}</small><small class="st">${esc(status ? PROC_STATUS[status] : "not run yet")}</small><span class="port out" draggable="false" title="Drag a wire from here"></span></div>`;
+        const timing = stale ? undefined : run?.steps.find(({ id }) => id === step.id)?.timing;
+        return `<div class="pstep ${status ? `st-${status}` : "st-new"} ${procPicked?.step === step.id ? "picked" : ""}" draggable="true" data-drag="pstep" data-step="${esc(step.id)}" tabindex="0" role="button" title="${esc(status ? atlas.processes.statuses[status] : "Not run yet")}. Double-click to change it; drag it to another lane; pull a wire from its right into the step that comes after it"><span class="port in"></span><b>${esc(step.title ?? step.id)}</b><small>${esc(step.test ? test(step.test)?.title ?? step.test : "no test yet")}</small><small class="st">${esc(status ? PROC_STATUS[status] : "not run yet")}</small>${timing ? `<small class="time" title="In the telemetry: how often it is done, and how long it takes on average">${timing.count}× · ${esc(procSpan(timing.duration.avg))}${timing.repeated ? ` · again in ${timing.repeated}` : ""}</small>` : ""}<span class="port out" draggable="false" title="Drag a wire from here"></span></div>`;
       };
       const row = (lane) => `<section class="plane" data-drop="lane" data-lane="${esc(lane)}"><header><input type="text" data-proc-lane="${esc(lane)}" value="${esc(lane)}" placeholder="No lane" list="proc-roles" title="The role that does these steps. Change it to rename the lane" aria-label="Lane" autocomplete="off"></header><div class="track">${Array.from({ length: layout.count }, (_, index) => `<div class="cell">${model.steps.filter((step) => (step.lane ?? "") === lane && layout.columns.get(step.id) === index + 1).map(card).join("")}</div>`).join("")}</div></section>`;
-      board = `<div class="ptools"><b>${esc(model.title)}</b>${run && !stale ? `<span class="state ${run.passed ? "ok" : "bad"}">${run.passed ? "Runs" : "Stops"} · ${plural(run.steps.length, "step")} · ${plural(run.handovers, "handover")} · ${run.findings.length} to improve</span>` : '<span class="state">changed: it runs again once the changes are in the project</span>'}<span class="spacer"></span>
+      board = `<div class="ptools"><b>${esc(model.title)}</b>${run && !stale ? `<span class="state ${run.passed ? "ok" : "bad"}">${run.passed ? "Runs" : "Stops"} · ${plural(run.steps.length, "step")} · ${plural(run.handovers, "handover")} · ${run.findings.length} to improve</span>${run.timing ? `<span class="state" title="From the telemetry: ${esc(run.timing.variants.map(({ steps, cases }) => `${cases}× ${steps.join(" > ")}`).join("; "))}">${plural(run.timing.cases, "case")} in the telemetry · a case takes ${esc(procSpan(run.timing.throughput.avg))} · ${plural(run.timing.variants.length, "way")} taken</span>` : ""}` : '<span class="state">changed: it runs again once the changes are in the project</span>'}<span class="spacer"></span>
           <button class="btn primary" data-proc="play" title="Walk the process step by step with the people of the simulation" ${model.steps.length ? "" : "disabled"}>▶ Play</button>
           <button class="btn" data-proc="bpmn" title="Save it as BPMN 2.0, for other tools" ${model.steps.length ? "" : "disabled"}>BPMN</button>
           <button class="btn" data-proc="unpick" title="Remove what is selected: a step, or a wire (Delete)" disabled>Remove</button>
@@ -1173,17 +1215,23 @@
     const box = swim.getBoundingClientRect();
     const port = (id, side) => {
       const rect = $(`#board .pstep[data-step="${CSS.escape(id)}"]`)?.getBoundingClientRect();
-      return rect ? [(side === "out" ? rect.right : rect.left) - box.left, rect.top + rect.height / 2 - box.top] : undefined;
+      return rect ? [(side === "out" ? rect.right : rect.left) - box.left, rect.top + rect.height / 2 - box.top, rect.top - box.top] : undefined;
     };
     const paths = [];
+    const loops = procBack(model);
+    // From the telemetry: how many of the cases go a way, and how long the work waits on it.
+    const taken = procChanges.length ? [] : procRun(model)?.timing?.ways ?? [];
     for (const step of model.steps) {
       for (const wire of procWires(step)) {
         const from = port(wire.step, "out");
         const to = port(step.id, "in");
         if (!from || !to) continue;
-        const path = curve(from, to);
+        const back = loops.has(`${wire.step}\n${step.id}`);
+        // A way back goes around, above the steps it passes.
+        const over = Math.min(from[2], to[2]) - 14;
+        const path = back ? `M${from[0]} ${from[1]} H${from[0] + 16} V${over} H${to[0] - 16} V${to[1]} H${to[0]}` : curve(from, to);
         const chosen = procPicked?.wire?.[0] === wire.step && procPicked.wire[1] === step.id;
-        paths.push(`<path class="wire ${chosen ? "picked" : ""}" d="${path}"></path>${wire.when ? `<text class="label" x="${(from[0] + to[0]) / 2}" y="${(from[1] + to[1]) / 2 - 7}" text-anchor="middle">${esc(wire.when)}</text>` : ""}<path class="hit" data-pwire="${esc(`${wire.step}\n${step.id}`)}" d="${path}"><title>Click to select the wire, then Remove; the name of a way is in the form of the step</title></path>`);
+        paths.push(`<path class="wire ${back ? "back" : ""} ${chosen ? "picked" : ""}" d="${path}"></path>${(() => { const seen = taken.find((way) => way.from === wire.step && way.into === step.id); const label = [wire.when, seen ? `${seen.share}% · waits ${procSpan(seen.wait.avg)}` : ""].filter(Boolean).join(" · "); return label ? `<text class="label" x="${(from[0] + to[0]) / 2}" y="${back ? over - 5 : (from[1] + to[1]) / 2 - 7}" text-anchor="middle">${esc(label)}</text>` : ""; })()}<path class="hit" data-pwire="${esc(`${wire.step}\n${step.id}`)}" d="${path}"><title>Click to select the wire, then Remove; the name of a way is in the form of the step</title></path>`);
       }
     }
     if (procWiring) paths.push(`<path class="wire pending" d="${curve(port(procWiring.from, "out"), procWiring.to)}"></path>`);
@@ -1706,19 +1754,17 @@
     });
   }
   /**
-   * Takes a step out of its flow, and with it the steps that run only through it: they would
-   * otherwise run whatever became of it. That is one rule, in src/flows/config.js, for the canvas,
-   * the forms, and the terminal alike; what leaves without being removed stays on the canvas.
-   * @param gone the step itself is removed, not kept on the canvas
+   * Takes the only wire into a step away: the step is in no flow any more, and neither are the
+   * steps that run only through it. They stay on the canvas with their wires (src/flows/config.js, detach).
    */
-  async function canvasDetach(flow, index, gone) {
+  async function canvasDetach(flow, index) {
     // Where the nodes are, so that those that leave the flow stay where they are.
     flow.steps.forEach((_, order) => {
       const node = model.nodes.get(stepKey(flow, order));
       if (node) canvas.positions[node.key] = node.pos;
     });
     await canvasSave();
-    return flowApply([{ op: gone ? "unstep" : "detach", flow: flow.id, at: index + 1 }]);
+    return flowApply([{ op: "detach", flow: flow.id, at: index + 1 }]);
   }
   /** Takes what is selected away: a wire, or a node. */
   async function canvasRemove() {
@@ -1737,7 +1783,7 @@
       // One of several wires into a step: the step waits for one step less.
       if (wire.fromAt && wiresOf(flow.steps[wire.at - 1]).length > 1) return flowApply([{ op: "unwire", flow: flow.id, from: wire.fromAt, into: wire.at }]);
       // The only wire into it: the step is in no flow any more.
-      return canvasDetach(flow, wire.at - 1, false);
+      return canvasDetach(flow, wire.at - 1);
     }
     const node = model.nodes.get(picked.node);
     if (!node) return undefined;
@@ -1749,7 +1795,8 @@
     }
     removing = undefined;
     picked = undefined;
-    if (node.kind === "step") return canvasDetach(node.flow, node.at - 1, true);
+    // A step that is removed: the way closes around it, as in a process and from the terminal.
+    if (node.kind === "step") return flowApply([{ op: "unstep", flow: node.flow.id, at: node.at }], undefined, () => { delete canvas.positions[node.key]; });
     const gone = () => {
       delete canvas.positions[node.key];
       if (node.kind === "loose") canvas.loose = canvas.loose.filter(({ key }) => key !== node.key);
@@ -1845,7 +1892,8 @@
       procWiresDraw();
       const process = procModel();
       if (!into || into === from || procWires(process.steps.find(({ id }) => id === into)).some((wire) => wire.step === from)) return undefined;
-      if (procComesAfter(process, from, into)) return toast("That would be a circle: the step you pull from already comes after this one.");
+      // A wire into a step the way already passed is a loop: the work is done again.
+      if (procComesAfter(process, from, into)) toast("A way back: the steps between them are done again. Name the way in the form of the step.");
       return procApply([{ op: "wire", process: process.id, from, into }]);
     }
     if (done.kind === "wire") {
@@ -1937,7 +1985,8 @@
     }
     try {
       const result = await call("defineFlows", { operations });
-      toast(result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed.");
+      const open = (result.rerouted ?? []).filter(({ after }) => !after.length).map(({ step }) => step);
+      toast(`${result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed."}${open.length ? ` ${open.join(", ")} came after nothing else and now ${open.length === 1 ? "starts" : "start"} the flow.` : ""}`);
     } catch (error) {
       // What is not valid was not written: the flows and the canvas are as they were.
       toast(error.message.replace(/^flows: /u, ""));

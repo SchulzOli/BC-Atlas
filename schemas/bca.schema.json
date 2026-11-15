@@ -213,6 +213,18 @@
     },
     "docs": { "type": "object" },
     "automation": { "type": "object" },
+    "processTelemetry": {
+      "description": "Telemetry of Business Central (Azure Application Insights), laid over the processes for their timing. See docs/processes.md.",
+      "type": "object",
+      "properties": {
+        "path": { "description": "A file or a folder of exports: a query result as JSON, JSON lines, or CSV.", "type": "string" },
+        "case": { "description": "The field (a custom dimension) that says which case an event belongs to, such as a document number. Without it, a case is a session.", "type": "string" },
+        "steps": { "description": "Events that mark a step for certain: the id of a process test or recording, and the event id or a text of the message.", "type": "object", "additionalProperties": { "type": "string" } },
+        "appId": { "description": "The application ID of the Application Insights resource to ask. The API key is read from BCA_TELEMETRY_API_KEY, never from this file.", "type": "string" },
+        "days": { "description": "How many days back to ask for (default 30).", "type": "integer", "minimum": 1 },
+        "endpoint": { "description": "The API to ask (default https://api.applicationinsights.io).", "type": "string" }
+      }
+    },
     "processes": {
       "description": "How the company works with the app: processes in lanes (BPMN). bca process mines, runs, and exports them. See docs/processes.md.",
       "type": "array",

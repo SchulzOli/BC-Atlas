@@ -475,6 +475,7 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
       compiler: projectFields.compiler,
       tests: z.string().optional().describe("Folder with the process tests (default: simulation.tests, docs.tests, or the app)"),
       recordings: z.string().optional().describe("Folder with recordings of Business Central (fact snapshots), mined and run like process tests"),
+      telemetry: z.string().optional().describe("A file or folder of exported telemetry (Application Insights: JSON or CSV). With it every run and mined process has timing: cases, how long a case takes, the ways really taken, per step how often and how long, per way how often and how long the work waits; and findings from it (default: processTelemetry.path in .bca.json)"),
       process: z.string().optional().describe("Only this process: its run and its findings")
     }),
     annotations: { readOnlyHint: true, idempotentHint: true }

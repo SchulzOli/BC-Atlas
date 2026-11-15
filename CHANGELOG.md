@@ -13,6 +13,16 @@ follows [Semantic Versioning](https://semver.org/).
   lane of the role that does it, with the process test or recording that
   shows it works, and what it comes after; a wire with a name is one way
   of several.
+  - **Telemetry gives the time.** With exported telemetry of Business
+    Central (`processTelemetry.path`, `--telemetry`; or `processTelemetry.appId` and
+    `BCA_TELEMETRY_API_KEY` to ask Application Insights), mining and the
+    run have the cases, how long a case takes, the ways really taken
+    (the variants), per step how often and how long, and per way how
+    long the work waits. Findings from it: where the work waits longest,
+    rework, a step that is far slower than the others, a way that is
+    gone and not in the model, a step that is never seen.
+  - **Loops**: a wire may lead back to an earlier step, in the builder,
+    in `.bca.json`, and from BPMN.
   - **Process mining**: `bca process --mine` discovers the processes as
     they are from the process tests and the recordings of Business
     Central: the order, the role that performs each step, the handovers,
@@ -68,13 +78,14 @@ follows [Semantic Versioning](https://semver.org/).
     wire leads to stays on the canvas, in no flow; steps that leave a flow
     together keep their wires and come back together. Where
     the nodes are is kept in `.bca/flow-canvas.json`.
-  - **One rule for a step that is removed**, wherever it is removed (the
-    canvas, a form, `bca flow define --unstep`, an agent): the steps that
-    wait for nothing but it leave the flow with it, so that a gate that
-    goes does not open what it guarded. They stay on the canvas of the
-    builder, in no flow, with their wires, to be wired again. The earlier
-    lanes board of the builder is gone: its place is taken by the
-    processes.
+  - **One rule for a step that is removed**, in a flow and in a process,
+    wherever it is removed (the canvas, a form, `--unstep`, an agent):
+    the way closes around it, and what came after it comes after what it
+    came after, on the condition it had. A step that came after nothing
+    else starts the flow, and BC Atlas names it. Taking a wire away
+    leaves a step in no flow, kept on the canvas with what ran only
+    through it. The earlier lanes board of the builder is gone: its
+    place is taken by the processes.
   - **The lens Flows** shows them as a diagram: the trigger that starts a
     flow, the artifacts it makes, and where each is saved.
   - **`bca flow`** shows the flows and the catalog of artifacts

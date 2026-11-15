@@ -25,6 +25,7 @@ import { describeFlows } from "../flows/index.js";
 import { renderBpmn } from "../docs/render/bpmn.js";
 import { bpmnProcess, processesConfig, STEP_STATUS } from "../process/index.js";
 import { describeProcesses } from "../process/project.js";
+import { span } from "../process/telemetry.js";
 import { analyzeVisibility, LEVEL_COLORS } from "../visibility.js";
 
 const NEUTRAL = "#64748B";
@@ -77,6 +78,7 @@ const ATLAS_RELATIONS = {
   "in lane": { color: "#4F46E5" },
   "begins with": { color: "#15803D" },
   "leads to": { color: "#0891B2" },
+  "leads back to": { color: "#B7791F", dash: true },
   "shown by": { color: "#A21CAF", dash: true },
   starts: { color: "#B7791F" },
   makes: { color: "#2563EB" },
@@ -112,7 +114,7 @@ export const LENSES = [
   { id: "people", title: "People", section: "People and rules", hint: "who performs what, and what blocks them", form: "diagram", summary: "Who performs which process test with which permission sets, and what blocks them.", kinds: ["person", "task", "object"], relations: ["performs", "blocked", "must not", "can, but must not", "holds"], connected: true, group: "kind", color: "kind", reads: "the roles and agents of `simulation` in .bca.json, their permission sets, and the process tests" },
   { id: "requirements", title: "Requirements", section: "People and rules", hint: "what the company needs, and its proof", form: "diagram", summary: "What the company needs, and the process tests that prove it.", kinds: ["requirement", "task"], relations: ["proven by"], group: "kind", color: "status", reads: "the `requirements` of `simulation` in .bca.json and the process tests" },
   { id: "simulation", title: "Simulation", section: "People and rules", hint: "the company that uses the app", form: "diagram", summary: "The company that uses the app: its people and roles, the process tests each role does or must not do, the recordings they stand on, and the requirements they prove.", kinds: ["person", "role", "task", "requirement", "recording"], needs: ["person", "role"], relations: ["has role", "does", "forbids", "blocked", "can, but must not", "proven by", "grounds"], group: "kind", color: "status", reads: "the `simulation` section of .bca.json (or the [PERMISSIONS] of the process tests), the process tests, and the recordings of the sync plugin" },
-  { id: "models", title: "Process models", section: "People and rules", hint: "how the company works, lane by lane", form: "diagram", summary: "The processes as they are drawn: every step in the lane of the role that does it, what it comes after, and the process test or recording that shows it works. A step is green when its lane gets through it, red where the process stops.", kinds: ["model", "lane", "role", "activity", "task"], needs: ["model"], relations: ["in lane", "begins with", "leads to", "shown by"], connected: true, group: "kind", color: "status", reads: "the `processes` of .bca.json, run with the roles and agents of `simulation`, the process tests, and the recordings" },
+  { id: "models", title: "Process models", section: "People and rules", hint: "how the company works, lane by lane", form: "diagram", summary: "The processes as they are drawn: every step in the lane of the role that does it, what it comes after, and the process test or recording that shows it works. A step is green when its lane gets through it, red where the process stops.", kinds: ["model", "lane", "role", "activity", "task"], needs: ["model"], relations: ["in lane", "begins with", "leads to", "leads back to", "shown by"], connected: true, group: "kind", color: "status", reads: "the `processes` of .bca.json, run with the roles and agents of `simulation`, the process tests, and the recordings" },
   { id: "flows", title: "Flows", section: "People and rules", hint: "what is made from the source, when, and where it is saved", form: "diagram", summary: "Your own workflows, from left to right: the trigger that starts a flow, the artifacts it makes from the source, which comes after which, and where each is saved.", kinds: ["trigger", "flow", "artifact", "place"], needs: ["flow"], relations: ["starts", "makes", "then", "if it fails", "in any case", "saved to"], group: "kind", color: "kind", reads: "the `flows` of .bca.json, and the sync modes of `automation.triggers`" },
   { id: "run", title: "Run", section: "How it works", hint: "the simulation at work", form: "diagram", summary: "The canvas the simulation runs on: who performs which process test, and the objects each step touches.", kinds: ["person", "task", "object"], needs: ["person"], relations: ["performs", "blocked", "can, but must not", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the agents of `simulation` in .bca.json, the process tests, and what each step of a test needs" }
 ];
@@ -503,7 +505,8 @@ async function models(workspace, graph, findings, assessment, battle) {
   const root = assessment.context.projectRoot ?? assessment.context.options.projectRoot;
   let described;
   try {
-    described = await describeProcesses(root, { config: assessment.context.config?.path }, { report: battle ?? null });
+    // What is generated from the source asks nobody: telemetry from a file, never from Application Insights.
+    described = await describeProcesses(root, { config: assessment.context.config?.path }, { report: battle ?? null, live: false });
   } catch (error) {
     findings.push({ severity: "error", rule: "processes-invalid", message: `The processes of .bca.json are not valid: ${error.message.replace(/^processes: /u, "")}`, fix: "Correct \"processes\" in .bca.json; bca process says what is wrong.", nodes: [], origin: "process" });
     return { stories: [] };
@@ -527,14 +530,14 @@ async function models(workspace, graph, findings, assessment, battle) {
         label: step.title,
         color: COLORS[step.status],
         status: step.status,
-        about: `${step.lane || "Nobody"}: ${STEP_STATUS[step.status]}.${step.performers.length ? ` ${step.status === "runs" || step.status === "other-lane" ? "Performed" : "Tried"} by ${list(step.performers.map(({ agent }) => agent))}.` : ""}${step.missing.length ? ` Missing: ${list(step.missing)}.` : ""}`,
+        about: `${step.lane || "Nobody"}: ${STEP_STATUS[step.status]}.${step.performers.length ? ` ${step.status === "runs" || step.status === "other-lane" ? "Performed" : "Tried"} by ${list(step.performers.map(({ agent }) => agent))}.` : ""}${step.missing.length ? ` Missing: ${list(step.missing)}.` : ""}${step.timing ? ` In the telemetry ${plural(step.timing.count, "time")} in ${plural(step.timing.cases, "case")}, ${span(step.timing.duration.avg)} on average.` : ""}`,
         roles: step.lane || undefined
       }));
       graph.edge(laneNode(step.lane), node(step), "in lane");
       if (!step.after.length) graph.edge(id, node(step), "begins with");
       if (step.test && graph.has(`task::${step.test}`)) graph.edge(node(step), `task::${step.test}`, "shown by");
     }
-    for (const step of run.steps) for (const wire of step.after) graph.edge(`activity::${run.id}::${wire.step}`, node(step), "leads to");
+    for (const step of run.steps) for (const wire of step.after) graph.edge(`activity::${run.id}::${wire.step}`, node(step), wire.back ? "leads back to" : "leads to");
     for (const finding of run.findings) {
       findings.push(compact({ severity: finding.severity, rule: finding.rule, message: finding.message, fix: finding.fix, nodes: [graph.at(finding.step ? `activity::${run.id}::${finding.step}` : id)].filter((index) => index !== undefined), origin: "process" }));
     }
@@ -550,10 +553,12 @@ async function models(workspace, graph, findings, assessment, battle) {
           title: step.title,
           text: [
             `**${step.lane || "Nobody"}**: ${STEP_STATUS[step.status]}.`,
-            step.after.length ? `Comes after ${list(step.after.map((wire) => `${run.steps.find(({ id: own }) => own === wire.step).title}${wire.when ? ` (${wire.when})` : ""}`))}${step.handover ? ": the work changes hands" : ""}.` : "It starts the process.",
+            step.after.some(({ back }) => !back) ? `Comes after ${list(step.after.filter(({ back }) => !back).map((wire) => `${run.steps.find(({ id: own }) => own === wire.step).title}${wire.when ? ` (${wire.when})` : ""}`))}${step.handover ? ": the work changes hands" : ""}.` : "It starts the process.",
             step.performers.length ? `${step.status === "runs" || step.status === "other-lane" ? "Performed" : "Tried"} by ${list(step.performers.map(({ agent, roles }) => `${agent} (${roles.join(", ")})`))}.` : "",
             step.touches.objects.length ? `In the app: ${plural(step.touches.steps, "click")}, opens ${step.touches.opens}, runs ${step.touches.runs}, reads ${step.touches.reads}, writes ${step.touches.writes}.` : "",
-            step.missing.length ? `Missing: ${step.missing.map((line) => `\`${line}\``).join(", ")}.` : ""
+            step.missing.length ? `Missing: ${step.missing.map((line) => `\`${line}\``).join(", ")}.` : "",
+            step.timing ? `In the telemetry it is done ${plural(step.timing.count, "time")} in ${plural(step.timing.cases, "case")} and takes ${span(step.timing.duration.avg)} on average${step.timing.repeated ? `; in ${plural(step.timing.repeated, "case")} it is done again` : ""}.` : "",
+            ...(run.timing?.ways ?? []).filter((way) => way.into === step.id && way.from !== step.id).map((way) => `After ${run.steps.find(({ id: own }) => own === way.from)?.title ?? way.from} the work waits ${span(way.wait.avg)} on average.`)
           ].filter(Boolean).join(" "),
           lens: "models",
           nodes: at([node(step), laneNode(step.lane), ...(step.test ? [`task::${step.test}`] : [])]),
