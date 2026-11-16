@@ -254,7 +254,7 @@ Symbols, rule set, and analyzers otherwise come from the AL settings in
 | `titles` | | A heading in English, and what to call it; `object.Used by` for one kind of page, `README` for the title of the first page |
 | `language` | `en` | `de`: the fixed headings, table headers, labels, and the footer in German |
 | `names` | | The file of a kind of page, with `{name}`, `{type}`, `{id}`, `{app}`, `{component}`, `{namespace}`; links and pictures follow |
-| `templates` | | Folder with `<kind>.md` templates: `{{title}}`, `{{summary}}`, `{{picture}}`, `{{section "Uses"}}`, `{{body "Uses"}}`, `{{sections}}`, `{{footer}}`, and facts such as `{{name}}` |
+| `templates` | | Folder with `<kind>.md` templates: <code v-pre>{{title}}</code>, <code v-pre>{{summary}}</code>, <code v-pre>{{picture}}</code>, <code v-pre>{{section "Uses"}}</code>, <code v-pre>{{body "Uses"}}</code>, <code v-pre>{{sections}}</code>, <code v-pre>{{footer}}</code>, and facts such as <code v-pre>{{name}}</code> |
 | `profiles` | | Named sets of the keys above for `bca layers --profile <name>`; each writes to its `outputDir`, or to `<outputDir>-<name>` |
 
 A setting that is not valid writes nothing: the error names the key and

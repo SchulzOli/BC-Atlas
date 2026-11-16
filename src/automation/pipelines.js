@@ -37,7 +37,12 @@ export function hookCommand(manager, hook, { appPath, version, trigger = hook })
 export function mergeHook(existing, manager, hook, options) {
   const command = hookCommand(manager, hook, options);
   const lines = existing ? existing.replace(/\s+$/u, "").split("\n") : (manager === "git" ? ["#!/bin/sh"] : []);
-  const index = lines.findIndex((line) => line.includes("bca") && new RegExp(`--trigger ${(options.trigger ?? hook).replace(/[.]/gu, "\\.")}(?![\\w.-])`, "u").test(line));
+  // The line of this trigger, and of no trigger whose name only starts like it.
+  const flag = `--trigger ${options.trigger ?? hook}`;
+  const index = lines.findIndex((line) => {
+    const at = line.includes("bca") ? line.indexOf(flag) : -1;
+    return at >= 0 && !/[\w.-]/u.test(line[at + flag.length] ?? "");
+  });
   if (index >= 0) {
     lines[index] = command;
   } else {

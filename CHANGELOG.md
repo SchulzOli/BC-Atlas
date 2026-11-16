@@ -26,7 +26,8 @@ follows [Semantic Versioning](https://semver.org/).
   page, in which order), `titles` and `language` (`de`: the headings,
   tables, and fixed texts in German), `names` (file and folder names by
   pattern; every link follows), and `templates` (a Markdown file per kind
-  of page with placeholders such as `{{section "Uses"}}`). Named
+  of page with placeholders for the title, the summary, the picture, and
+  each section). Named
   `profiles` write several documentations from one source, each to a folder
   of its own: `bca layers --profile <name>`, the `profile` argument of
   `bc_atlas_layers`, and the option `profile` of a `layers` step in a flow.

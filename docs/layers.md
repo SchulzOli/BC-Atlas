@@ -277,14 +277,14 @@ Ask the team before you change it.
 
 | Placeholder | Becomes |
 | --- | --- |
-| `{{title}}` | The title of the page, without the `#` |
-| `{{summary}}` | What stands between the title and the first section: the way up, the sentence, the facts, and the picture, unless the template has `{{picture}}` |
-| `{{picture}}` | The picture of the page |
-| `{{section "Uses"}}` | A section with its heading; nothing when the page does not have it |
-| `{{body "Uses"}}` | The same without the heading |
-| `{{sections}}` | Every section the template does not place by name, in the order of `sections` |
-| `{{footer}}` | The line that says the page is generated; on the first page also where the graph is |
-| `{{name}}`, `{{type}}`, `{{id}}`, `{{app}}`, `{{component}}`, `{{namespace}}`, `{{system}}` | Facts about what the page is of; empty when it has none |
+| <code v-pre>{{title}}</code> | The title of the page, without the `#` |
+| <code v-pre>{{summary}}</code> | What stands between the title and the first section: the way up, the sentence, the facts, and the picture, unless the template has <code v-pre>{{picture}}</code> |
+| <code v-pre>{{picture}}</code> | The picture of the page |
+| <code v-pre>{{section "Uses"}}</code> | A section with its heading; nothing when the page does not have it |
+| <code v-pre>{{body "Uses"}}</code> | The same without the heading |
+| <code v-pre>{{sections}}</code> | Every section the template does not place by name, in the order of `sections` |
+| <code v-pre>{{footer}}</code> | The line that says the page is generated; on the first page also where the graph is |
+| <code v-pre>{{name}}</code>, <code v-pre>{{type}}</code>, <code v-pre>{{id}}</code>, <code v-pre>{{app}}</code>, <code v-pre>{{component}}</code>, <code v-pre>{{namespace}}</code>, <code v-pre>{{system}}</code> | Facts about what the page is of; empty when it has none |
 
 A line that holds only placeholders with nothing to say is left out. A
 section that `sections` leaves out is empty in a template too. A placeholder
