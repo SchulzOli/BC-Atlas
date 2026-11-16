@@ -18,6 +18,7 @@ import { azurePipeline, FLOW_MARKER, githubWorkflow } from "../automation/pipeli
 import { loadPlugins } from "../plugins/registry.js";
 import { flowsConfig } from "./config.js";
 import { stepOutputs } from "./artifacts.js";
+import { azureFlowPipeline, flowStarts, githubFlowWorkflow, startEvents } from "./pipeline.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 export const FLOW_EXPORT_TARGETS = Object.freeze(["github", "azure-devops"]);
@@ -70,7 +71,12 @@ export async function exportFlow(input, { flow: id, to = "github", output, force
   // With a package.json that declares bc-atlas, the workflow uses that version.
   const packageJson = await fs.readFile(path.join(gitRoot, "package.json"), "utf8").then(JSON.parse, () => undefined);
   const local = Boolean(packageJson?.devDependencies?.["bc-atlas"] || packageJson?.dependencies?.["bc-atlas"]);
-  const content = (to === "github" ? githubWorkflow : azurePipeline)({ appPath, version, triggers, local, alTools: (config.al?.compiler ?? "auto") !== "off", flow: { id: flow.id, title: flow.title } });
+  const alTools = (config.al?.compiler ?? "auto") !== "off";
+  // A flow on triggers of your own gets a pipeline that tells them apart (pipeline.js).
+  const own = flow.when.some((name) => automation[name]?.custom) ? flowStarts(flow.when, automation, { to, defaultCron: DEFAULT_CRON }) : undefined;
+  const content = own
+    ? (to === "github" ? githubFlowWorkflow : azureFlowPipeline)({ appPath, version, starts: own.starts, outputs: placed, local, alTools, flow: { id: flow.id, title: flow.title } })
+    : (to === "github" ? githubWorkflow : azurePipeline)({ appPath, version, triggers, local, alTools, flow: { id: flow.id, title: flow.title } });
 
   const target = output ? path.resolve(output) : to === "github" ? path.join(gitRoot, ".github", "workflows", `bc-atlas-${flow.id}.yml`) : path.join(gitRoot, `azure-pipelines.bc-atlas-${flow.id}.yml`);
   const current = await fs.readFile(target, "utf8").catch(() => undefined);
@@ -91,9 +97,11 @@ export async function exportFlow(input, { flow: id, to = "github", output, force
     content,
     action,
     written,
-    events: to === "github"
+    // The triggers of the flow that no pipeline starts, and why: [{ name, why }].
+    skipped: own?.skipped ?? [],
+    events: own ? startEvents(own.starts) : to === "github"
       ? [...(triggers.ci ? ["pull_request", "push"] : []), ...(triggers.schedule ? [`schedule (${triggers.schedule.cron})`] : []), "workflow_dispatch"]
       : [...(triggers.ci ? ["pull requests", "pushes to main"] : []), ...(triggers.schedule ? [`schedule (${triggers.schedule.cron})`] : []), "by hand"],
-    delivery: Object.fromEntries(Object.entries(triggers).map(([name, { sync }]) => [name, sync]))
+    delivery: own ? Object.fromEntries(own.starts.filter(({ implied }) => !implied).map(({ name, sync }) => [name, sync])) : Object.fromEntries(Object.entries(triggers).map(([name, { sync }]) => [name, sync]))
   };
 }

@@ -13,7 +13,6 @@
 // loose: steps on the canvas that no flow makes yet; those that left a flow together share a group and keep their wires. triggers: triggers on the canvas that start no flow yet.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { TRIGGERS } from "../automation/config.js";
 
 export const CANVAS_FILE = ".bca/flow-canvas.json";
 const MOST = 500;
@@ -41,7 +40,7 @@ export function normalizeCanvas(canvas = {}) {
       ...(typeof entry.group === "string" ? { group: entry.group } : {})
     });
   }
-  const triggers = [...new Set((Array.isArray(canvas.triggers) ? canvas.triggers : []).filter((name) => Object.hasOwn(TRIGGERS, name)))];
+  const triggers = [...new Set((Array.isArray(canvas.triggers) ? canvas.triggers : []).filter((name) => typeof name === "string" && /^[a-z0-9][a-z0-9._-]*$/u.test(name)))];
   return { positions: Object.fromEntries(Object.entries(positions).sort(([a], [b]) => a.localeCompare(b))), loose, triggers };
 }
 

@@ -27,8 +27,8 @@ function yamlList(items, indent) {
 }
 
 /** One line per hook, so existing hook files keep their other commands. */
-export function hookCommand(manager, hook, { appPath, version }) {
-  const args = `run ${shellQuote(appPath)} --trigger ${hook}`;
+export function hookCommand(manager, hook, { appPath, version, trigger = hook }) {
+  const args = `run ${shellQuote(appPath)} --trigger ${trigger}`;
   if (manager === "husky") return `npx --no-install bca ${args} || exit 1`;
   return `if command -v bca >/dev/null 2>&1; then bca ${args} || exit 1; else npx --yes bc-atlas@${version} ${args} || exit 1; fi`;
 }
@@ -37,7 +37,7 @@ export function hookCommand(manager, hook, { appPath, version }) {
 export function mergeHook(existing, manager, hook, options) {
   const command = hookCommand(manager, hook, options);
   const lines = existing ? existing.replace(/\s+$/u, "").split("\n") : (manager === "git" ? ["#!/bin/sh"] : []);
-  const index = lines.findIndex((line) => line.includes("bca") && line.includes(`--trigger ${hook}`));
+  const index = lines.findIndex((line) => line.includes("bca") && new RegExp(`--trigger ${(options.trigger ?? hook).replace(/[.]/gu, "\\.")}(?![\\w.-])`, "u").test(line));
   if (index >= 0) {
     lines[index] = command;
   } else {

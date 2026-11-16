@@ -212,7 +212,30 @@
       }
     },
     "docs": { "type": "object" },
-    "automation": { "type": "object" },
+    "automation": {
+      "type": "object",
+      "properties": {
+        "triggers": {
+          "description": "What runs when. pre-commit, pre-push, ci, schedule, and manual are built in; any other name is a trigger of your own, started by its events, its cron, its Git hook, or by name only (bca run --trigger <name>). See docs/flows.md.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "tasks": { "type": "array", "items": { "type": "string" } },
+              "sync": { "enum": ["none", "verify", "stage", "artifact", "pull-request", "commit"] },
+              "cron": { "description": "A five-field cron expression: the built-in schedule, or a trigger of your own.", "type": "string" },
+              "title": { "description": "A trigger of your own: what it is, in words.", "type": "string" },
+              "on": { "description": "A trigger of your own: the events that start it in a pipeline.", "type": "array", "items": { "enum": ["push", "pull-request", "tag", "release", "manual"] } },
+              "branches": { "description": "Only pushes to, and pull requests into, these branches.", "type": "array", "items": { "type": "string" } },
+              "paths": { "description": "Only when files under these paths changed.", "type": "array", "items": { "type": "string" } },
+              "tags": { "description": "Only these tags, such as v*.", "type": "array", "items": { "type": "string" } },
+              "hook": { "description": "A trigger of your own that is a Git hook.", "enum": ["post-commit", "post-merge", "post-checkout", "post-rewrite", "pre-rebase", "pre-merge-commit", "prepare-commit-msg", "commit-msg"] }
+            }
+          }
+        }
+      }
+    },
     "processTelemetry": {
       "description": "Telemetry of Business Central (Azure Application Insights), laid over the processes for their timing. See docs/processes.md.",
       "type": "object",
@@ -267,7 +290,7 @@
           "when": {
             "description": "The triggers the flow runs on. Without one it runs only by name.",
             "type": "array",
-            "items": { "enum": ["pre-commit", "pre-push", "ci", "schedule", "manual"] }
+            "items": { "description": "pre-commit, pre-push, ci, schedule, manual, or a trigger of your own (automation.triggers).", "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" }
           },
           "steps": {
             "type": "array",

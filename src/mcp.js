@@ -516,16 +516,16 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
   }));
 
   server.registerTool("bc_atlas_flow_define", {
-    description: "Define the flows of a project: its own workflows in the flows section of .bca.json. A flow says what to make from the source (steps, each one artifact: layers, report, handbook, catalog, docs, simulate, check, view, diagram, app, knowledge-graph, or a task of a plugin), when (the triggers: pre-commit, pre-push, ci, schedule, manual), and where to save each artifact (to, relative to the project). Send operations to add or change a flow (set), remove it, add or change a step (step; with at it changes that step), remove a step (unstep), move one (move), say that a step comes after another if that one passed, failed, or always (wire, unwire, or id and after on a step: the steps are a graph, and a run skips a step whose condition does not hold), or say how a trigger delivers what was saved (deliver: its sync mode). Without operations it returns the flows as they are, the triggers with their sync modes, and the catalog of artifacts with the options of each. A change that is not valid writes nothing. Run a flow with bc_atlas_run and flows.",
+    description: "Define the flows of a project: its own workflows in the flows section of .bca.json. A flow says what to make from the source (steps, each one artifact: layers, report, handbook, catalog, docs, simulate, check, view, diagram, app, knowledge-graph, or a task of a plugin), when (the triggers: pre-commit, pre-push, ci, schedule, manual), and where to save each artifact (to, relative to the project). Send operations to add or change a flow (set), remove it, add or change a step (step; with at it changes that step), remove a step (unstep), move one (move), say that a step comes after another if that one passed, failed, or always (wire, unwire, or id and after on a step: the steps are a graph, and a run skips a step whose condition does not hold), say how a trigger delivers what was saved (deliver: its sync mode), or define a trigger of your own (trigger: a name with the events on, their branches, paths, and tags, a cron, or a Git hook; with none of them only bca run --trigger <name> starts it; untrigger removes it). Without operations it returns the flows as they are, the triggers with their sync modes, and the catalog of artifacts with the options of each. A change that is not valid writes nothing. Run a flow with bc_atlas_run and flows.",
     inputSchema: z.object({
       path: architectureFields.path,
       projectRoot: architectureFields.projectRoot,
       config: architectureFields.config,
       operations: z.array(z.object({
-        op: z.enum(["set", "remove", "step", "wire", "unwire", "unstep", "detach", "move", "deliver"]),
+        op: z.enum(["set", "remove", "step", "wire", "unwire", "unstep", "detach", "move", "deliver", "trigger", "untrigger"]),
         flow: z.string().optional().describe("The id of the flow: lowercase letters, digits, '.', '_', '-'"),
         title: z.string().optional().describe("set: the title of the flow"),
-        when: z.array(z.enum(["pre-commit", "pre-push", "ci", "schedule", "manual"])).optional().describe("set: the triggers the flow runs on"),
+        when: z.array(z.string()).optional().describe("set: the triggers the flow runs on: pre-commit, pre-push, ci, schedule, manual, or a trigger of your own"),
         what: z.string().optional().describe("step: the artifact to make"),
         to: z.string().optional().describe("step: where to save it, relative to the project; without it the default of the artifact"),
         at: z.number().int().min(1).optional().describe("step: change this step instead of adding one; unstep, move: the step, from 1"),
@@ -535,7 +535,14 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
         from: z.number().int().min(1).optional().describe("wire, unwire: the step that comes first, from 1; it gets a name when it has none"),
         into: z.number().int().min(1).optional().describe("wire, unwire: the step that comes after it"),
         if: z.enum(["passed", "failed", "always"]).optional().describe("wire: when the step runs; default passed"),
-        trigger: z.enum(["pre-commit", "pre-push", "ci", "schedule", "manual"]).optional().describe("deliver: the trigger"),
+        trigger: z.string().optional().describe("deliver: the trigger, built in or your own"),
+        name: z.string().optional().describe("trigger, untrigger: the name of a trigger of your own (lowercase letters, digits, '.', '_', '-'); trigger with the name schedule and a cron sets the built-in schedule"),
+        on: z.array(z.enum(["push", "pull-request", "tag", "release", "manual"])).optional().describe("trigger: the events that start it in a pipeline"),
+        branches: z.array(z.string()).optional().describe("trigger: only pushes to, and pull requests into, these branches"),
+        paths: z.array(z.string()).optional().describe("trigger: only when files under these paths changed, such as src/**/*.al"),
+        tags: z.array(z.string()).optional().describe("trigger: only these tags, such as v*"),
+        cron: z.string().optional().describe("trigger: a five-field cron expression that starts it on a schedule"),
+        hook: z.enum(["post-commit", "post-merge", "post-checkout", "post-rewrite", "pre-rebase", "pre-merge-commit", "prepare-commit-msg", "commit-msg"]).optional().describe("trigger: the Git hook it is"),
         sync: z.enum(["none", "verify", "stage", "artifact", "pull-request", "commit"]).optional().describe("deliver: its sync mode")
       }).catchall(z.union([z.string(), z.number(), z.boolean()])).describe("A step takes the options of its artifact as further fields, such as lens, form, language")).optional().describe("Applied in order; all or nothing"),
       dryRun: z.boolean().optional().describe("Check the change and return the result; write nothing")
@@ -648,7 +655,7 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
     description: "Run the BC Atlas tasks and flows configured for a trigger in .bca.json, or explicit tasks or flows, and report sync status.",
     inputSchema: z.object({
       path: z.string().min(1),
-      trigger: z.enum(["pre-commit", "pre-push", "ci", "schedule", "manual"]).default("manual"),
+      trigger: z.string().default("manual").describe("pre-commit, pre-push, ci, schedule, manual, or a trigger of your own (automation.triggers)"),
       tasks: z.array(z.enum(["check", "simulate", "report", "docs", "codegraph", "handbook", "diagrams"])).optional(),
       flows: z.array(z.string()).optional().describe("Run these flows by id (see bc_atlas_flow_define) instead of the tasks and flows of the trigger"),
       sync: z.enum(["none", "verify", "stage", "artifact", "pull-request", "commit"]).optional()
