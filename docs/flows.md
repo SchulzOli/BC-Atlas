@@ -113,6 +113,15 @@ builder:
 
 ### The canvas: place and wire
 
+The canvas is [React Flow](https://reactflow.dev), the library that Langflow
+and many other flow builders are made with; BC Atlas adds its own nodes
+(triggers, flows, artifacts) and keeps its own engine: what you wire is
+written to `.bca.json` and run by `bca run`. So the canvas has what you know
+from such builders: a minimap, zoom and fit buttons, dragging with the
+pointer or by touch, Shift-drag to select several nodes, and Delete to remove
+what is selected. The library is part of BC Atlas; nothing is loaded from the
+internet.
+
 **Open the builder** in the Flow menu opens the builder on **Flows**: a
 canvas. (Its other side, **Processes**, builds [how the company works with
 the app](./processes.md) in lanes.) Every trigger, flow, and step is a node you place where you want
@@ -151,8 +160,9 @@ trigger onto the canvas and pull its wire into the flow.
   place and options). **Enter** opens the selected node.
 - **Undo** (or Ctrl+Z) takes the last change back, on both sides of the
   builder: the flows, or the processes, as they were.
-- **Move around.** Drag the ground to pan, turn the wheel to zoom; **Fit**
-  shows everything, **Tidy up** lays the nodes out again.
+- **Move around.** Drag the ground to pan, turn the wheel to zoom; the
+  buttons at the lower right zoom and show everything, the minimap at the
+  lower left shows where you are, and **Tidy up** lays the nodes out again.
 - **Run now** and **GitHub Actions** are on every flow node.
 
 Where the nodes are, and the nodes that are in no flow yet, is kept in
@@ -203,7 +213,7 @@ and `bc_atlas_run` with `flows` to run one; see
 
 | `what` | Makes | Saves | Options |
 | --- | --- | --- | --- |
-| `layers` | The [layered documentation](./layers.md): how it works, how it is connected, what to change, down to each procedure | a folder (`docs/layers`) | `pictures` |
+| `layers` | The [layered documentation](./layers.md): how it works, how it is connected, what to change, down to each procedure | a folder (`docs/layers`) | `pictures`, `profile` (a [documentation profile](./layers.md#what-is-written-and-how-the-documentation-profile): which pages and sections, for which part of the system, in which language, under which names, from which templates) |
 | `report` | The [architecture report](./reports.md) with its diagrams | a folder (`docs/atlas`) | `views`, `format` |
 | `handbook` | The [system handbook](./handbook.md) | a folder (`docs/handbook`) | `language`, `title`, `catalog` |
 | `catalog` | One Markdown page per AL object | a folder (`docs/codegraph`) | |
@@ -246,6 +256,60 @@ places.
 `bca run --flow <id>` runs flows by name, whatever their triggers, and leaves
 the tasks of the trigger out.
 
+## Triggers of your own
+
+Five triggers are built in: `pre-commit`, `pre-push`, `ci`, `schedule`, and
+`manual`. Any other name under `automation.triggers` is a trigger of your
+own. It says what starts it:
+
+```json
+"automation": {
+  "triggers": {
+    "release":    { "title": "A release tag", "on": ["tag"], "tags": ["v*"], "sync": "artifact" },
+    "al-changed": { "on": ["push", "pull-request"], "branches": ["main"], "paths": ["src/**/*.al"], "sync": "verify" },
+    "nightly":    { "cron": "0 2 * * *", "sync": "pull-request" },
+    "merged":     { "hook": "post-merge" },
+    "deployed":   {}
+  }
+}
+```
+
+| Key | What it says |
+| --- | --- |
+| `on` | The events that start it in a pipeline: `push`, `pull-request`, `tag`, `release` (a release is published, GitHub), `manual` (by hand in the pipeline). |
+| `branches`, `paths` | Only pushes to, and pull requests into, these branches; only when files under these paths changed. |
+| `tags` | Only these tags. |
+| `cron` | It starts on a schedule. |
+| `hook` | It is a Git hook on the machine of each developer: `post-commit`, `post-merge`, `post-checkout`, `post-rewrite`, `pre-rebase`, `pre-merge-commit`, `prepare-commit-msg`, `commit-msg`. |
+| `title` | What it is, in words. |
+| `sync` | How it delivers what was saved. A hook delivers with `none`, `verify`, or `stage`; a pipeline with `none`, `verify`, `artifact`, `pull-request`, or `commit`. |
+| `tasks` | Tasks to run before the flows, as for a built-in trigger. |
+
+A trigger with none of `on`, `cron`, and `hook` (`deployed` above) is started
+by its name only: `bca run --trigger deployed`, from a script or a pipeline
+of yours.
+
+```sh
+bca flow define --trigger release --title "A release tag" --on tag --tags "v*" --deliver release=artifact
+bca flow define --trigger al-changed --on push,pull-request --branches main --paths "src/**/*.al"
+bca flow define --trigger merged --hook post-merge
+bca flow define --flow docs --when ci,release      # the flow runs on both
+bca flow define --untrigger merged                 # the flows that ran on it no longer do
+```
+
+In the builder, **New trigger…** under **When** opens the same as a form, and
+a double click on any trigger node opens its form: what starts it, and how it
+delivers. For the built-in `schedule` the form sets its cron.
+
+What calls a trigger of your own:
+
+- **A Git hook** is installed by `bca setup apply --from-config`, next to the
+  built-in hooks. `bca setup` keeps your triggers; it decides the built-in
+  ones only.
+- **A pipeline event or a cron** is in the file `bca flow export` writes for
+  each flow that runs on the trigger (below).
+- **A name** is called by you: `bca run --trigger <name>`.
+
 ## Export a flow for GitHub Actions or Azure Pipelines
 
 A flow can be a workflow of its own on GitHub, or a pipeline of its own in
@@ -269,6 +333,22 @@ one publishes what the flow saved as an artifact instead.
 | `ci` | pull requests and pushes to `main` |
 | `schedule` | the cron of `automation.triggers.schedule` (default `0 6 * * 1`, Mondays at 06:00 UTC) |
 | any, or none | by hand (**Run workflow** on GitHub) |
+
+A flow that runs on triggers of your own starts on what they say: their
+events with the branches, paths, and tags, and their crons. The file finds
+out which trigger it was (a tag, a pull request, which cron), runs the flow as
+that trigger, and delivers the way that trigger says. Three things to know:
+
+- GitHub and Azure Pipelines filter by path for the whole file, not for one
+  trigger. When two triggers of a flow start on a push and only one names
+  paths, the file starts on every push.
+- A run that a pull request, a tag, or a release started has no branch to
+  write to: where the trigger asks for `pull-request` or `commit`, the file
+  uploads an artifact instead, and the command says so.
+- A trigger that is a Git hook, or that only its name starts, is not in the
+  file. Azure Pipelines has no event for a published release, and does not
+  say which of several schedules started a run: the first one of the flow
+  is taken.
 
 The workflow checks out the repository, sets up Node.js and the BC Atlas
 cache, installs the AL compiler unless `.bca.json` turns it off, and runs

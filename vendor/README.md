@@ -25,6 +25,16 @@ three.js. Built from the versions in `package.json` (`3d-force-graph`,
 It is vendored so the explorer works offline in every exported HTML file
 without a build step at install time.
 
+## flow-canvas.js, flow-canvas.css
+
+The canvas of the flow builder: [React Flow](https://reactflow.dev)
+(`@xyflow/react`) with React and React DOM (all MIT), behind the small
+interface of `scripts/flow-canvas-entry.js`. The view inlines both files, so
+the builder works offline in VS Code and in every exported HTML file.
+
+- Update command: `npm run update:flow-vendor` (after updating one of the
+  packages or the entry)
+
 ## fonts/
 
 Liberation Sans Regular and Bold (SIL Open Font License 1.1, see

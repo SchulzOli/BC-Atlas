@@ -7,6 +7,7 @@ import { ARTIFACTS, makeArtifact, stepOutputs } from "./artifacts.js";
 import { applyFlowOperations, CONDITIONS, FLOW_SCHEMA, flowsConfig, stepJson, stepOrder } from "./config.js";
 import { readFlowCanvas, writeFlowCanvas } from "./canvas.js";
 import { DEFAULT_CRON } from "./export.js";
+import { layersProfiles } from "../app/layers-profile.js";
 
 export { ARTIFACTS } from "./artifacts.js";
 export { DEFAULT_CRON, exportFlow, FLOW_EXPORT_TARGETS } from "./export.js";
@@ -126,6 +127,8 @@ function description(config, pluginTasks, file) {
         ...trigger.custom
       }])
     ]),
+    // The documentation profiles a layers step can name (layers.profiles).
+    profiles: safely(() => layersProfiles(config.layers ?? {})),
     // What a trigger of your own can start on.
     events: EVENTS,
     hooks: HOOKS,
@@ -133,6 +136,14 @@ function description(config, pluginTasks, file) {
     conditions: CONDITIONS,
     artifacts: artifactCatalog(pluginTasks)
   };
+}
+
+function safely(read) {
+  try {
+    return read();
+  } catch {
+    return [];
+  }
 }
 
 async function readConfig(file) {

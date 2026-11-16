@@ -216,6 +216,53 @@ Symbols, rule set, and analyzers otherwise come from the AL settings in
 `.vscode/settings.json` and the `.code-workspace` file. See
 [AL toolchain](./al-toolchain.md).
 
+## Shape the generated documentation
+
+[`bca layers`](./layers.md) writes every page and section in English unless
+`layers` says otherwise:
+
+```json
+{
+  "layers": {
+    "outputDir": "docs/layers",
+    "pictures": "auto",
+    "history": "none",
+    "view": false,
+    "pages": { "stories": false, "lenses": ["data", "events"] },
+    "scope": { "apps": ["Contoso Sales"], "types": ["table", "codeunit", "page"], "exclude": ["*Test*"] },
+    "sections": { "object": ["Inside", "Uses", "Used by"] },
+    "titles": { "Used by": "Who uses it", "README": "Our system" },
+    "language": "de",
+    "names": { "objects": "objekte/{type}/{name}.md", "readme": "index.md" },
+    "templates": "docs/templates",
+    "profiles": {
+      "management": { "outputDir": "docs/overview", "pages": { "objects": false } }
+    }
+  }
+}
+```
+
+| Key | Default | Does |
+| --- | --- | --- |
+| `outputDir` | `docs/layers` | The folder of the pages |
+| `pictures` | `auto` | Pictures of single objects: `auto` (up to 400 objects), `all`, or `none` |
+| `history` | `none` | `releases`: every run also records each release (Git tag) not recorded yet |
+| `view` | `false` | Also write `view.html`, the view as one offline file |
+| `pages` | every page | Per kind (`readme`, `architecture`, `changes`, `findings`, `apps`, `components`, `namespaces`, `objects`, `lenses`, `stories`): `false` leaves it out, a list of names, IDs, or patterns with `*` keeps those |
+| `scope` | the whole system | Only objects that match `apps`, `components`, `namespaces`, `types`, and no entry of `exclude` are documented |
+| `sections` | every section | Per kind of page (`readme`, `architecture`, `changes`, `findings`, `app`, `component`, `namespace`, `object`, `lens`, `story`): the sections to write, in that order |
+| `titles` | | A heading in English, and what to call it; `object.Used by` for one kind of page, `README` for the title of the first page |
+| `language` | `en` | `de`: the fixed headings, table headers, labels, and the footer in German |
+| `names` | | The file of a kind of page, with `{name}`, `{type}`, `{id}`, `{app}`, `{component}`, `{namespace}`; links and pictures follow |
+| `templates` | | Folder with `<kind>.md` templates: `{{title}}`, `{{summary}}`, `{{picture}}`, `{{section "Uses"}}`, `{{body "Uses"}}`, `{{sections}}`, `{{footer}}`, and facts such as `{{name}}` |
+| `profiles` | | Named sets of the keys above for `bca layers --profile <name>`; each writes to its `outputDir`, or to `<outputDir>-<name>` |
+
+A setting that is not valid writes nothing: the error names the key and
+lists what can be chosen. See
+[the documentation profile](./layers.md#what-is-written-and-how-the-documentation-profile)
+for each key, the sections of each kind of page, and what `language`
+translates.
+
 ## Automate it
 
 `bca setup` adds an `automation` section that says which features run on Git

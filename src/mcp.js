@@ -427,15 +427,17 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
       compiler: projectFields.compiler,
       output: z.string().min(1).optional().describe("Folder of the pages (default: layers.outputDir in .bca.json, else docs/layers)"),
       check: z.boolean().optional().describe("Write nothing; report whether the pages are in sync with the source"),
-      pictures: z.enum(["auto", "all", "none"]).optional().describe("Pictures of single objects: auto (up to 400 objects), all, or none")
+      pictures: z.enum(["auto", "all", "none"]).optional().describe("Pictures of single objects: auto (up to 400 objects), all, or none"),
+      profile: z.string().min(1).optional().describe("A documentation profile of layers.profiles in .bca.json: which pages and sections are written, for which part of the system, in which language, under which file names, from which templates. Without it, the settings of layers itself")
     }),
     annotations: { readOnlyHint: false, idempotentHint: true }
   }, tool(async ({ path: input, ...values }) => {
     const { syncLayers } = await import("./commands/layers.js");
-    const { output, check, inSync, current } = await syncLayers(input, values);
+    const { output, check, inSync, current, profile } = await syncLayers(input, values);
     return {
       output,
-      start: `${output}/README.md`,
+      ...(profile ? { profile } : {}),
+      start: current && !current.fixed.readme ? undefined : `${output}/${current?.fixed.readme ?? "README.md"}`,
       check,
       inSync,
       counts: current?.manifest.counts,

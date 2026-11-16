@@ -126,7 +126,162 @@
         "outputDir": { "type": "string", "default": "docs/layers" },
         "pictures": { "description": "Pictures of single objects: auto (up to 400 objects), all, or none (no pictures at all).", "enum": ["auto", "all", "none"], "default": "auto" },
         "history": { "description": "releases: every run also records each release (Git tag) that is not recorded yet below <outputDir>/history.", "enum": ["none", "releases"], "default": "none" },
-        "view": { "description": "Also write view.html, the BC Atlas view of the working tree as one offline file.", "type": "boolean", "default": false }
+        "view": { "description": "Also write view.html, the BC Atlas view of the working tree as one offline file.", "type": "boolean", "default": false },
+        "pages": {
+          "description": "Which pages are written. false leaves a kind of page out; a list keeps the pages of a kind whose name, id, or file name matches one of its entries (* and ? are wildcards). Default: every page.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "readme": { "type": "boolean", "default": true },
+            "architecture": { "type": "boolean", "default": true },
+            "changes": { "type": "boolean", "default": true },
+            "findings": { "type": "boolean", "default": true },
+            "apps": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
+            "components": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
+            "namespaces": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
+            "objects": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
+            "lenses": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
+            "stories": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true }
+          }
+        },
+        "scope": {
+          "description": "The part of the system that is documented: only the objects that match every list that is not empty get a page, and an app, component, or namespace gets one when it holds such an object. * and ? are wildcards; case does not matter.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "apps": { "description": "Names of apps.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "components": { "description": "Names of components of the architecture.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "namespaces": { "description": "Namespaces; Contoso.Sales* also takes the ones below it.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "types": { "description": "Object types, such as table, codeunit, page.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "exclude": { "description": "Objects to leave out, by name (CON Item) or by type, ID, and name (table 50000 CON Item).", "type": "array", "items": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "sections": {
+          "description": "The sections (the headings of the second level) of each kind of page, in the order to write them. A section that is not named is left out; one a page does not have is skipped. Default: every section. Sections are named in English, whatever the language.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "readme": { "type": "array", "uniqueItems": true, "items": { "enum": ["Start here", "Layers", "Apps", "Components", "Namespaces", "Lenses", "Stories", "Findings", "Read from", "History"] } },
+            "architecture": { "type": "array", "uniqueItems": true, "items": { "enum": ["Apps", "Components", "Shared data", "What to change"] } },
+            "changes": { "type": "array", "uniqueItems": true, "items": { "enum": ["Changes", "Options"] } },
+            "findings": { "type": "array", "uniqueItems": true, "items": { "enum": ["Error", "Warning", "Info"] } },
+            "app": { "type": "array", "uniqueItems": true, "items": { "enum": ["Components", "Namespaces", "Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
+            "component": { "type": "array", "uniqueItems": true, "items": { "enum": ["Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
+            "namespace": { "type": "array", "uniqueItems": true, "items": { "enum": ["Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
+            "object": { "type": "array", "uniqueItems": true, "items": { "enum": ["Inside", "Uses", "Used by", "What to change here", "Findings"] } },
+            "lens": { "type": "array", "uniqueItems": true, "items": { "enum": ["Findings"] } },
+            "story": { "description": "The sections of a story are its steps (1. <title>); [] leaves only what stands above them.", "type": "array", "items": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "titles": {
+          "description": "Other headings: the heading as BC Atlas writes it in English, and what to call it. \"object.Used by\" names the heading of one kind of page; README is the title of the first page.",
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        },
+        "language": { "description": "de: the fixed headings, table headers, labels, and the footer in German. What is made from the source stays as it is.", "enum": ["en", "de"], "default": "en" },
+        "names": {
+          "description": "The file of each kind of page, relative to outputDir, ending with .md. Placeholders: {name}; for objects also {type}, {id}, {app}, {component}, {namespace}; for namespaces {app}; for lenses and stories {id}. Links and pictures follow.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "readme": { "type": "string", "pattern": "\\.md$", "default": "README.md" },
+            "architecture": { "type": "string", "pattern": "\\.md$", "default": "architecture.md" },
+            "changes": { "type": "string", "pattern": "\\.md$", "default": "changes.md" },
+            "findings": { "type": "string", "pattern": "\\.md$", "default": "findings.md" },
+            "apps": { "type": "string", "pattern": "\\.md$", "default": "apps/{name}.md" },
+            "components": { "type": "string", "pattern": "\\.md$", "default": "components/{name}.md" },
+            "namespaces": { "type": "string", "pattern": "\\.md$", "default": "namespaces/{name}.md" },
+            "objects": { "type": "string", "pattern": "\\.md$", "default": "objects/{type}-{id}-{name}.md" },
+            "lenses": { "type": "string", "pattern": "\\.md$", "default": "lenses/{id}.md" },
+            "stories": { "type": "string", "pattern": "\\.md$", "default": "stories/{id}.md" }
+          }
+        },
+        "templates": { "description": "Folder, relative to the project, with a Markdown template per kind of page: readme.md, architecture.md, changes.md, findings.md, app.md, component.md, namespace.md, object.md, lens.md, story.md. Placeholders: {{title}}, {{summary}}, {{picture}}, {{section \"Uses\"}}, {{body \"Uses\"}}, {{sections}}, {{footer}}, {{name}}, {{type}}, {{id}}, {{app}}, {{component}}, {{namespace}}, {{system}}.", "type": "string" },
+        "profiles": {
+          "description": "Named sets of the settings of layers (bca layers --profile <name>): the keys of a profile go over the ones here, each as a whole. Every profile writes to a folder of its own: its outputDir, or <outputDir>-<name>.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "outputDir": { "type": "string" },
+              "pictures": { "description": "Pictures of single objects: auto (up to 400 objects), all, or none (no pictures at all).", "enum": ["auto", "all", "none"], "default": "auto" },
+              "history": { "description": "releases: every run also records each release (Git tag) that is not recorded yet below <outputDir>/history.", "enum": ["none", "releases"], "default": "none" },
+              "view": { "description": "Also write view.html, the BC Atlas view of the working tree as one offline file.", "type": "boolean", "default": false },
+              "pages": {
+                "description": "Which pages are written. false leaves a kind of page out; a list keeps the pages of a kind whose name, id, or file name matches one of its entries (* and ? are wildcards). Default: every page.",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "readme": { "type": "boolean", "default": true },
+                  "architecture": { "type": "boolean", "default": true },
+                  "changes": { "type": "boolean", "default": true },
+                  "findings": { "type": "boolean", "default": true },
+                  "apps": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
+                  "components": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
+                  "namespaces": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
+                  "objects": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
+                  "lenses": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
+                  "stories": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true }
+                }
+              },
+              "scope": {
+                "description": "The part of the system that is documented: only the objects that match every list that is not empty get a page, and an app, component, or namespace gets one when it holds such an object. * and ? are wildcards; case does not matter.",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "apps": { "description": "Names of apps.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "components": { "description": "Names of components of the architecture.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "namespaces": { "description": "Namespaces; Contoso.Sales* also takes the ones below it.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "types": { "description": "Object types, such as table, codeunit, page.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "exclude": { "description": "Objects to leave out, by name (CON Item) or by type, ID, and name (table 50000 CON Item).", "type": "array", "items": { "type": "string", "minLength": 1 } }
+                }
+              },
+              "sections": {
+                "description": "The sections (the headings of the second level) of each kind of page, in the order to write them. A section that is not named is left out; one a page does not have is skipped. Default: every section. Sections are named in English, whatever the language.",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "readme": { "type": "array", "uniqueItems": true, "items": { "enum": ["Start here", "Layers", "Apps", "Components", "Namespaces", "Lenses", "Stories", "Findings", "Read from", "History"] } },
+                  "architecture": { "type": "array", "uniqueItems": true, "items": { "enum": ["Apps", "Components", "Shared data", "What to change"] } },
+                  "changes": { "type": "array", "uniqueItems": true, "items": { "enum": ["Changes", "Options"] } },
+                  "findings": { "type": "array", "uniqueItems": true, "items": { "enum": ["Error", "Warning", "Info"] } },
+                  "app": { "type": "array", "uniqueItems": true, "items": { "enum": ["Components", "Namespaces", "Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
+                  "component": { "type": "array", "uniqueItems": true, "items": { "enum": ["Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
+                  "namespace": { "type": "array", "uniqueItems": true, "items": { "enum": ["Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
+                  "object": { "type": "array", "uniqueItems": true, "items": { "enum": ["Inside", "Uses", "Used by", "What to change here", "Findings"] } },
+                  "lens": { "type": "array", "uniqueItems": true, "items": { "enum": ["Findings"] } },
+                  "story": { "description": "The sections of a story are its steps (1. <title>); [] leaves only what stands above them.", "type": "array", "items": { "type": "string", "minLength": 1 } }
+                }
+              },
+              "titles": {
+                "description": "Other headings: the heading as BC Atlas writes it in English, and what to call it. \"object.Used by\" names the heading of one kind of page; README is the title of the first page.",
+                "type": "object",
+                "additionalProperties": { "type": "string", "minLength": 1 }
+              },
+              "language": { "description": "de: the fixed headings, table headers, labels, and the footer in German. What is made from the source stays as it is.", "enum": ["en", "de"], "default": "en" },
+              "names": {
+                "description": "The file of each kind of page, relative to outputDir, ending with .md. Placeholders: {name}; for objects also {type}, {id}, {app}, {component}, {namespace}; for namespaces {app}; for lenses and stories {id}. Links and pictures follow.",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "readme": { "type": "string", "pattern": "\\.md$", "default": "README.md" },
+                  "architecture": { "type": "string", "pattern": "\\.md$", "default": "architecture.md" },
+                  "changes": { "type": "string", "pattern": "\\.md$", "default": "changes.md" },
+                  "findings": { "type": "string", "pattern": "\\.md$", "default": "findings.md" },
+                  "apps": { "type": "string", "pattern": "\\.md$", "default": "apps/{name}.md" },
+                  "components": { "type": "string", "pattern": "\\.md$", "default": "components/{name}.md" },
+                  "namespaces": { "type": "string", "pattern": "\\.md$", "default": "namespaces/{name}.md" },
+                  "objects": { "type": "string", "pattern": "\\.md$", "default": "objects/{type}-{id}-{name}.md" },
+                  "lenses": { "type": "string", "pattern": "\\.md$", "default": "lenses/{id}.md" },
+                  "stories": { "type": "string", "pattern": "\\.md$", "default": "stories/{id}.md" }
+                }
+              },
+              "templates": { "description": "Folder, relative to the project, with a Markdown template per kind of page: readme.md, architecture.md, changes.md, findings.md, app.md, component.md, namespace.md, object.md, lens.md, story.md. Placeholders: {{title}}, {{summary}}, {{picture}}, {{section \"Uses\"}}, {{body \"Uses\"}}, {{sections}}, {{footer}}, {{name}}, {{type}}, {{id}}, {{app}}, {{component}}, {{namespace}}, {{system}}.", "type": "string" }
+            }
+          }
+        }
       }
     },
     "simulation": {

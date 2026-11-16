@@ -49,6 +49,20 @@ A browser bundle of 3d-force-graph and three.js (including its bloom pass),
 `vendor/graph-viewer.js`, is embedded in the explorer HTML files written by
 `bca export` and shown by the VS Code extension.
 
+## React Flow, React, and zustand
+
+React Flow (`@xyflow/react`, `@xyflow/system`): Copyright webkid GmbH. React
+and React DOM: Copyright Meta Platforms, Inc. and affiliates. zustand:
+Copyright Paul Henschel. d3-drag, d3-zoom, d3-selection, and the d3 modules
+they use: Copyright Mike Bostock (ISC License). The others are licensed under
+the MIT License. Sources: <https://github.com/xyflow/xyflow>,
+<https://github.com/facebook/react>, <https://github.com/pmndrs/zustand>,
+<https://github.com/d3>
+
+A browser bundle of them, `vendor/flow-canvas.js` with `vendor/flow-canvas.css`,
+is the canvas of the flow builder: it is embedded in the BC Atlas view shown
+by the VS Code extension and in the HTML files written by `bca export --view app`.
+
 ## graphology
 
 Copyright Guillaume Plique (Yomguithereal). Licensed under the MIT License.

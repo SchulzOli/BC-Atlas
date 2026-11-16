@@ -800,6 +800,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           refresh: flag("Write a state that is already recorded again, for example after an update of BC Atlas.", { group: SELECTION }),
           check: flag("Write nothing; fail (exit code 1) when the pages are not in sync with the source, or an asked state is not recorded.", { group: OUTPUT }),
           pictures: string("Pictures of single objects: auto (up to 400 objects), all, or none (no pictures at all). The system, apps, components, namespaces, and lenses always get one unless none.", { group: OUTPUT, enum: ["auto", "all", "none"], default: "auto" }),
+          profile: string("A documentation profile of layers.profiles in .bca.json: which pages and sections are written, for which part of the system, in which language, under which file names, and from which templates. Without it, the settings of layers itself.", { group: SELECTION, value: "name" }),
           view: flag("Also write view.html: the BC Atlas view of the working tree as one offline file, next to the pages. A state of the past always has it.", { group: OUTPUT }),
           format: string("What the command reports: text (default) or json.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
           projectRoot: projectOptions.projectRoot,
@@ -814,10 +815,12 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           "The same source gives the same files, byte for byte: a run changes only what changed, and removes what it wrote before and no longer writes.",
           "A recorded state never changes; its pages are written once. history/README.md lists every state and what changed from each to the next.",
           "A state of the past is read with the BC Atlas of today from a temporary checkout (git worktree); the working tree is not touched.",
-          "As a task of bca run (layers), the pages follow the sync mode of the trigger: verify, stage, commit, or pull request."
+          "As a task of bca run (layers), the pages follow the sync mode of the trigger: verify, stage, commit, or pull request.",
+          "A profile (layers in .bca.json: pages, scope, sections, titles, language, names, templates) says what is written and how; each profile writes to a folder of its own. A step of a flow names one with its option profile."
         ],
         examples: [
           "bca layers ./app",
+          "bca layers ./app --profile management",
           "bca layers ./app -o docs/system",
           "bca layers ./app --check",
           "bca layers ./app --at v1.4.0",

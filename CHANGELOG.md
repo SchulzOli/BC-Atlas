@@ -8,6 +8,30 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Triggers of your own.** A flow no longer runs on one of five triggers
+  only: any other name under `automation.triggers` is a trigger of your own,
+  started by pipeline events (`push`, `pull-request`, `tag`, `release`,
+  `manual`, with `branches`, `paths`, and `tags`), by a `cron`, by a Git
+  `hook` (`post-merge`, `post-commit`, ...), or by its name only
+  (`bca run --trigger <name>` from a script of yours).
+  `bca flow define --trigger/--untrigger` defines them, the builder has
+  **New trigger…** and a form on every trigger node, `bca setup` keeps them
+  and installs those that are a hook, and `bca flow export` writes a
+  pipeline that starts on them, finds out which trigger it was, and delivers
+  the way that trigger says.
+- **Documentation profiles.** What the layered documentation writes, and
+  how, is set under `layers` in `.bca.json`: `pages` (which kinds of page,
+  which lenses and stories), `scope` (apps, components, namespaces, object
+  types, names to leave out), `sections` (which sections of each kind of
+  page, in which order), `titles` and `language` (`de`: the headings,
+  tables, and fixed texts in German), `names` (file and folder names by
+  pattern; every link follows), and `templates` (a Markdown file per kind
+  of page with placeholders such as `{{section "Uses"}}`). Named
+  `profiles` write several documentations from one source, each to a folder
+  of its own: `bca layers --profile <name>`, the `profile` argument of
+  `bc_atlas_layers`, and the option `profile` of a `layers` step in a flow.
+  Without any of these keys the pages are byte for byte what they were.
+
 - **Undo in the builder** (the button, or Ctrl+Z), for flows and for
   processes: the last change is taken back as one checked operation.
 - **`bca flow export --to azure-devops`** writes a flow as a pipeline of
@@ -20,6 +44,17 @@ follows [Semantic Versioning](https://semver.org/).
   estimate. The guide has a sketch in AL for sending one event per step.
 
 ### Changed
+
+- **The canvas of the flow builder is React Flow** (`@xyflow/react`, MIT,
+  vendored: nothing is loaded from the internet) instead of a canvas of our
+  own, with BC Atlas' nodes for triggers, flows, and artifacts on it. New
+  with it: a minimap, zoom and fit controls, touch, Shift-drag to select and
+  remove several nodes at once, and wires that show while they are pulled
+  whether they may end where they are. The flows, `.bca.json`, and `bca run`
+  are as before. An exported view (`bca export --view app`) is about 410 KB
+  larger for it.
+- `bca run --trigger` and the MCP tools take any trigger name, not only the
+  five built-in ones.
 
 - **A change to the flows or the processes no longer reads the project
   again.** In VS Code the graph is read again on the analysis that is

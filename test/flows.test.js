@@ -373,8 +373,9 @@ test("the canvas of the builder keeps where the nodes are, next to the flows", a
 
     // What the page wires with.
     const html = renderAppHtml({ mode: "vscode" });
-    for (const part of ['data-board-mode="canvas"', 'data-drop="canvas"', 'class="port out"', 'class="port in"', 'data-canvas="remove"', 'data-drag="flow"', "function canvasConnect(", 'call("saveFlowCanvas", canvas)']) assert.ok(html.includes(part), part);
-    for (const event of ["pointerdown", "pointermove", "pointerup", "wheel"]) assert.ok(html.includes(`$("#board").addEventListener("${event}"`), event);
+    for (const part of ['data-board-mode="canvas"', 'data-drop="canvas"', 'data-canvas="remove"', 'data-drag="flow"', 'data-flow-act="trigger-new"', "function canvasConnect(", "function triggerFormHtml(", 'call("saveFlowCanvas", canvas)', "window.BCAFlowCanvas.mount(", "react-flow__node"]) assert.ok(html.includes(part), part);
+    // The canvas is a library: React Flow, vendored, with nothing loaded from elsewhere.
+    assert.ok(html.includes("window.BCAFlowCanvas") && !/<script[^>]+src=/u.test(html));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

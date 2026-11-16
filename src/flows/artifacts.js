@@ -25,10 +25,10 @@ const choice = (title, values, hint) => ({ title, values, hint });
 export const ARTIFACTS = Object.freeze({
   layers: {
     title: "Layered documentation",
-    summary: "How it works, how it is connected, and what to change, from the whole down to each procedure: one page per app, component, namespace, and object",
+    summary: "How it works, how it is connected, and what to change, from the whole down to each procedure: one page per app, component, namespace, and object. A profile says which pages and sections, for which part of the system, in which language, and from which templates",
     target: "folder",
     to: "docs/layers",
-    options: { pictures: choice("Pictures of single objects", ["auto", "all", "none"]) }
+    options: { pictures: choice("Pictures of single objects", ["auto", "all", "none"]), profile: text("Documentation profile", "a name of layers.profiles in .bca.json: which pages, sections, scope, language, names, and templates") }
   },
   report: {
     title: "Architecture report",
