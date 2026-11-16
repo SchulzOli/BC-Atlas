@@ -49,8 +49,9 @@ follows [Semantic Versioning](https://semver.org/).
   vendored: nothing is loaded from the internet) instead of a canvas of our
   own, with BC Atlas' nodes for triggers, flows, and artifacts on it. New
   with it: a minimap, zoom and fit controls, touch, Shift-drag to select and
-  remove several nodes at once, and wires that show while they are pulled
-  whether they may end where they are. The flows, `.bca.json`, and `bca run`
+  remove several nodes at once, wires that show while they are pulled
+  whether they may end where they are, and the buttons of a node and the
+  choice on a wire as the library's own toolbars on what is selected. The flows, `.bca.json`, and `bca run`
   are as before. An exported view (`bca export --view app`) is about 410 KB
   larger for it.
 - `bca run --trigger` and the MCP tools take any trigger name, not only the

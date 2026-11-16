@@ -565,3 +565,8 @@ code { font-family: var(--mono); font-size: 0.92em; padding: 1px 4px; border-rad
 }
 #board .palette .trigger.own { border-style: dashed; }
 #board .palette > .btn { justify-self: start; margin-top: 6px; }
+#board .nodetools, #board .wiretools, #board .canvastools { display: flex; gap: 5px; }
+#board .nodetools .btn, #board .canvastools .btn { height: 26px; padding: 0 9px; font-size: 12px; background: var(--panel-solid, var(--surface)); box-shadow: var(--shadow); }
+#board .wiretools select { height: 26px; padding: 0 6px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel-solid, var(--surface)); color: var(--text); font: inherit; font-size: 12px; }
+#board .canvashint { max-width: 320px; color: var(--muted); }
+#board .react-flow__controls { margin-bottom: 15px; }

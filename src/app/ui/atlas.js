@@ -1037,12 +1037,6 @@
           <h3>Make</h3>${artifacts.map((artifact) => `<div class="artifact" draggable="true" data-drag="artifact" data-what="${esc(artifact.id)}" title="${esc(artifact.summary)}"><b>${esc(artifact.title)}</b><small>${esc(artifact.plugin ? "task of a plugin" : artifact.to ?? "gate")}</small></div>`).join("")}
         </aside>
         <div class="canvas" data-drop="canvas" tabindex="0" aria-label="The canvas of the flows">
-          <div class="tools" role="group" aria-label="Canvas">
-            <select data-canvas-if aria-label="When the step after the selected wire runs" title="When the step after this wire runs" hidden>${Object.entries(atlas.flows.conditions ?? { passed: "", failed: "", always: "" }).map(([key, text]) => `<option value="${esc(key)}" title="${esc(text)}">${esc({ passed: "Runs if it passed", failed: "Runs if it fails", always: "Runs in any case" }[key] ?? key)}</option>`).join("")}</select>
-            <button class="btn" data-canvas="remove" title="Remove what is selected: nodes, or wires (Delete)" disabled>Remove</button>
-            <button class="btn" data-canvas="tidy" title="Lay the nodes out again">Tidy up</button>
-          </div>
-          ${flowChanges.length ? `<p class="kept">${plural(flowChanges.length, "change")} kept in this snapshot. <button class="btn" data-board="save">Save the changes (JSON)</button></p>` : ""}
         </div>` : procHtml()}
       </div>`;
   }
@@ -1681,21 +1675,27 @@
     });
     return { nodes, wires };
   }
-  /** The inside of the card of a node; the library draws the card and its ports around it. */
-  function canvasNodeHtml(node) {
+  /** What the card of a node says, and what its buttons do; the library draws the card (scripts/flow-canvas-entry.js). */
+  function canvasNodeData(node) {
     const { triggers } = atlas.flows;
-    if (node.kind === "trigger") return `<small>When${triggers[node.name].custom ? " · your own" : ""}</small><b>${esc(node.name)}</b><small>${esc(triggers[node.name].summary)}</small>`;
+    const remove = { id: "remove", label: "Remove", tip: "Remove it (Delete)" };
+    const settings = { id: "open", label: "Settings…", tip: "Its settings (double-click, or Enter)" };
+    if (node.kind === "trigger") return { over: `When${triggers[node.name].custom ? " · your own" : ""}`, title: node.name, under: triggers[node.name].summary, actions: [settings, remove] };
     if (node.kind === "flow") {
       const { flow } = node;
-      return `<small>Flow · ${esc(flow.id)}</small><b>${esc(flow.title)}</b>
-        <span class="acts nodrag nopan">${LIVE ? `<button class="btn" data-flow-act="run" data-flow="${esc(flow.id)}" title="bca run --flow ${esc(flow.id)}" ${flow.steps.length ? "" : "disabled"}>Run now</button>` : ""}<button class="btn" data-flow-act="github" data-flow="${esc(flow.id)}" title="Export it as a workflow for GitHub Actions" ${flow.steps.length ? "" : "disabled"}>GitHub Actions</button></span>`;
+      const none = !flow.steps.length;
+      return { over: `Flow · ${flow.id}`, title: flow.title, under: flow.when.length ? `on ${flow.when.join(", ")}` : "only by name", actions: [settings,
+        ...(LIVE ? [{ id: "run", label: "Run now", tip: `bca run --flow ${flow.id}`, disabled: none }] : []),
+        { id: "github", label: "GitHub Actions", tip: "Export it as a workflow for GitHub Actions", disabled: none },
+        { id: "azure", label: "Azure Pipelines", tip: "Export it as a pipeline for Azure Pipelines", disabled: none },
+        remove] };
     }
     const { what, to: _to, id: name, after: _after, ...options } = node.step;
     const artifact = artifactOf(what);
     const detail = options.lens ?? options.story ?? options.view ?? options.profile ?? options.language;
     const place = placeOfStep(node.step);
     const loose = node.kind === "loose";
-    return `<small>${loose ? "Not wired" : `Step ${node.at}`}${name ? ` · ${esc(name)}` : ""}</small><b>${esc(artifact?.title ?? what)}${detail ? `: ${esc(detail)}` : ""}</b><small>${esc(place ? `→ ${place}` : artifact?.plugin ? "task of a plugin" : "gate")}</small>`;
+    return { over: `${loose ? "Not wired" : `Step ${node.at}`}${name ? ` · ${name}` : ""}`, title: `${artifact?.title ?? what}${detail ? `: ${detail}` : ""}`, under: place ? `→ ${place}` : artifact?.plugin ? "task of a plugin" : "gate", actions: loose ? [remove] : [settings, remove] };
   }
   const NODE_TITLE = {
     trigger: "Double-click for what starts it and how it delivers. Pull a wire from its right into a flow",
@@ -1735,6 +1735,22 @@
         canvasPicked();
       },
       opened: (key) => canvasOpen(key),
+      action: (key, id) => {
+        const node = model.nodes.get(key);
+        if (!node) return undefined;
+        if (id === "open") return canvasOpen(key);
+        if (id === "remove") {
+          picked = { node: key };
+          return canvasRemove();
+        }
+        return flowClick({ dataset: { flowAct: id === "run" ? "run" : "github", flow: node.flow.id, ...(id === "azure" ? { to: "azure-devops" } : {}) } });
+      },
+      // A wire between two steps says when the second runs.
+      chosen: (id, value) => {
+        const wire = model.wires.find((other) => wireId(other) === id);
+        return wire?.fromAt ? flowApply([{ op: "wire", flow: wire.flow, from: wire.fromAt, into: wire.at, if: value }]) : undefined;
+      },
+      tool: (id) => (id === "save" ? download("flow-changes.json", `${JSON.stringify({ operations: flowChanges }, null, 2)}\n`, "application/json") : canvasTool(id)),
       dark: () => document.documentElement.dataset.theme === "dark"
     });
     flowCanvas.element = element;
@@ -1757,34 +1773,25 @@
     if (picked?.node && !model.nodes.has(picked.node)) picked = undefined;
     if (picked?.wire && !model.wires.some((wire) => wire.from === picked.wire.from && wire.to === picked.wire.to)) picked = undefined;
     if (picked?.many) picked = undefined;
+    const conditions = Object.keys(atlas.flows.conditions ?? { passed: "", failed: "", always: "" }).map((value) => ({ value, label: { passed: "Runs if it passed", failed: "Runs if it fails", always: "Runs in any case" }[value] ?? value }));
     host.set({
-      nodes: [...model.nodes.values()].map((node) => ({ key: node.key, kind: node.kind, html: canvasNodeHtml(node), title: NODE_TITLE[node.kind], pos: node.pos, into: node.kind !== "trigger", out: node.kind !== "loose" })),
-      wires: model.wires.map((wire) => ({ id: wireId(wire), from: wire.from, to: wire.to, kind: `${wire.kind} ${wire.cond ?? ""} ${wire.loose ? "idle" : ""}`, label: wire.cond && wire.cond !== "passed" ? CONDITION[wire.cond] : undefined, fixed: Boolean(wire.loose) }))
+      nodes: [...model.nodes.values()].map((node) => ({ key: node.key, kind: node.kind, ...canvasNodeData(node), tip: NODE_TITLE[node.kind], pos: node.pos, into: node.kind !== "trigger", out: node.kind !== "loose" })),
+      wires: model.wires.map((wire) => ({ id: wireId(wire), from: wire.from, to: wire.to, kind: `${wire.kind} ${wire.cond ?? ""} ${wire.loose ? "idle" : ""}`, label: wire.cond && wire.cond !== "passed" ? CONDITION[wire.cond] : undefined, fixed: Boolean(wire.loose), ...(wire.fromAt ? { choice: { value: wire.cond, options: conditions } } : {}) })),
+      tools: [
+        ...(flowChanges.length ? [{ id: "save", label: `Save ${plural(flowChanges.length, "change")} (JSON)`, tip: "The changes kept in this snapshot, for bca flow define --from" }] : []),
+        { id: "remove", label: "Remove", tip: "Remove what is selected: nodes, or wires (Delete)", needsPicked: true },
+        { id: "tidy", label: "Tidy up", tip: "Lay the nodes out again" }
+      ],
+      hint: model.nodes.size ? undefined : "Drag New flow here, then an artifact, and pull a wire from the flow into it."
     }, { picked: { nodes: picked?.node ? [picked.node] : [], wires: picked?.wire ? [wireId(picked.wire)] : [] } });
-    $("#board .canvas .empty")?.remove();
-    if (!model.nodes.size) ground.insertAdjacentHTML("beforeend", '<p class="empty">Drag <b>New flow</b> here, then an artifact, and pull a wire from the flow into it.</p>');
-    canvasPicked();
     // Shown for the first time: everything in sight.
     if (!canvasFitted && model.nodes.size) {
       canvasFitted = true;
       setTimeout(() => host.fit(), 60);
     }
   }
-  /** What the tools say about what is selected. */
-  function canvasPicked() {
-    const remove = $('#board [data-canvas="remove"]');
-    if (remove) {
-      remove.disabled = !picked;
-      remove.textContent = removing && picked?.node === removing ? "Remove the flow and its steps" : "Remove";
-    }
-    // A wire between two steps says when the second runs.
-    const chosen = picked?.wire ? model.wires.find((wire) => wire.from === picked.wire.from && wire.to === picked.wire.to) : undefined;
-    const condition = $("#board [data-canvas-if]");
-    if (condition) {
-      condition.hidden = !chosen?.fromAt;
-      if (chosen?.fromAt) condition.value = chosen.cond;
-    }
-  }
+  /** What is selected changed; the library shows its buttons. */
+  function canvasPicked() {}
   /** A point of the screen in the coordinates of the canvas. */
   function canvasPoint(event) {
     return canvasHost().point(event.clientX, event.clientY);
@@ -2040,11 +2047,6 @@
     if (node.kind === "trigger") return triggerEdit(node.name);
     return toast("It is in no flow yet: pull a wire into it from a flow or one of its steps, then set its place and options.");
   }
-  $("#board").addEventListener("change", (event) => {
-    if (event.target.dataset.canvasIf === undefined || !picked?.wire) return undefined;
-    const wire = model.wires.find(({ from, to }) => from === picked.wire.from && to === picked.wire.to);
-    return wire?.fromAt ? flowApply([{ op: "wire", flow: wire.flow, from: wire.fromAt, into: wire.at, if: event.target.value }]) : undefined;
-  });
 
   /** Opens the Flow menu on one trigger: from its node. */
   function triggerEdit(name) {

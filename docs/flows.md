@@ -119,7 +119,9 @@ and many other flow builders are made with; BC Atlas adds its own nodes
 written to `.bca.json` and run by `bca run`. So the canvas has what you know
 from such builders: a minimap, zoom and fit buttons, dragging with the
 pointer or by touch, Shift-drag to select several nodes, and Delete to remove
-what is selected. The library is part of BC Atlas; nothing is loaded from the
+what is selected. A selected node shows its buttons above it (**Settings…**,
+**Remove**, and for a flow **Run now** and the exports); a selected wire
+between two steps shows the choice of when the second runs. The library is part of BC Atlas; nothing is loaded from the
 internet.
 
 **Open the builder** in the Flow menu opens the builder on **Flows**: a
