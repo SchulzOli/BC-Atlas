@@ -122,6 +122,7 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_architecture_explain` says why the architecture is what it is: for an object, the step that placed it in its component with its numbers; for a component, what it is named after, how its objects came to it, what they agree on, and the thresholds that applied.
 - `bc_atlas_architecture_compare` returns the [current and the target state](./target-architecture.md) side by side: both scored with the same weighted goals, how the components map, the objects that have to move with the command for each, and the steps in order. `to: "best"` scores several proposals and lists them all.
 - `bc_atlas_architecture_templates` lists the presets and the project's templates with the goals and their weights, and saves, uses, or removes a template; `bc_atlas_architecture_adopt` writes a target to `.bca.json`. Both are `dryRun` by default.
+- `bc_atlas_app` shows the BC Atlas view itself inside the chat, in clients that render MCP Apps; see [The view in the chat](#the-view-in-the-chat-mcp-app).
 - `bc_atlas_extraction_plan` plans extracting one component as an app: blockers, `app.json`, data moves, and steps.
 - `bc_atlas_refactor_surface` sets `Access = Internal` on objects no other component uses and writes `exposes` to `.bca.json`; `dryRun` by default.
 - `bc_atlas_refactor_move` moves an object to another component with namespace and using fixes; `dryRun` (default) returns the diff, `dryRun: false` writes it. See [Split a monolith into apps](./modularization.md).
@@ -147,6 +148,40 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_docs_glossary` reads supported documentation tags.
 
 `bc_atlas_docs_edit` uses preview mode by default. A real write requires `dryRun: false` and the latest `expectedFileHash`.
+
+### The view in the chat: MCP App
+
+The MCP server also brings the [BC Atlas view](./vscode.md#the-bc-atlas-view)
+itself: in a chat client that renders
+[MCP Apps](https://github.com/modelcontextprotocol/ext-apps) (Claude,
+ChatGPT, VS Code, Goose, and others) the tool `bc_atlas_app` shows the
+interactive graph inside the conversation. It is the same page the VS Code
+extension shows: every lens, the findings, the stories, the builders for
+flows and processes, and the Architecture menu.
+
+- `bc_atlas_app` takes the project and what to open on: `lens`, `story`,
+  `inside` (an object, an app, `component::Sales`, a namespace), `select`.
+  The model gets a summary of the project back, and is told which lens or
+  story the user looks at when the client supports that.
+- The page asks the MCP server for everything else through
+  `bc_atlas_app_call`, a tool only the page can call. It answers with the
+  service the VS Code extension uses, on one analysis per project, so the
+  view can also change things: flows, processes, the simulation, the
+  architecture and its templates. They are written to `.bca.json`, as in
+  VS Code.
+- Two things differ from the editor: what the view exports is saved to
+  `.bca/exports/` in the project, because a chat client has no save dialog;
+  and **Source** shows the file and line instead of opening it.
+- The page is one HTML resource, `ui://bc-atlas/view.html`, about 1.4 MB,
+  with everything inside: it loads nothing from the internet and needs no
+  extra allowance from the client.
+
+A client without MCP Apps ignores the page and shows the summary;
+`bc_atlas_view` gives the same content there as text, data, or a picture.
+
+The view is released for both hosts together: a version of BC Atlas has one
+page, shown by the VS Code extension and by the MCP server. A test keeps
+them in step: every request the page makes is answered by both.
 
 ### Saved graph tools
 

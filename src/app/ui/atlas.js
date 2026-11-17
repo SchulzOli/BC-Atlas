@@ -8,8 +8,11 @@
   "use strict";
 
   const BOOT = window.BCA_APP ?? { mode: "static" };
-  const LIVE = BOOT.mode === "vscode";
-  const vscode = LIVE ? acquireVsCodeApi() : undefined;
+  // Live: something answers the requests of the view. In VS Code the extension, as an MCP App
+  // the MCP server (vendor/mcp-app.js); both take { type: "request", id, method, params }.
+  const MCP = BOOT.mode === "mcp";
+  const LIVE = BOOT.mode === "vscode" || MCP;
+  const vscode = MCP ? window.BCA_MCP_HOST : LIVE ? acquireVsCodeApi() : undefined;
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const esc = (value) => String(value ?? "").replace(/[&<>"']/gu, (character) =>
@@ -154,7 +157,8 @@
     if (LIVE) {
       const binary = content instanceof Uint8Array;
       const text = binary ? btoa(Array.from(content, (byte) => String.fromCharCode(byte)).join("")) : content;
-      return call("saveFile", { name, content: text, encoding: binary ? "base64" : undefined }).catch((error) => toast(error.message));
+      // The extension asks where to save; the MCP server saves into the project and says where.
+      return call("saveFile", { name, content: text, encoding: binary ? "base64" : undefined }).then((saved) => (saved?.path ? toast(`Saved ${saved.path}`) : undefined), (error) => toast(error.message));
     }
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([content], { type }));
@@ -315,6 +319,8 @@
 
   function source(node) {
     if (!node.file) return toast("This node has no place in the source.");
+    // A chat client has no editor to open the file in: the place is shown, and the model is told.
+    if (MCP) return toast(`${node.file}${node.line ? `:${node.line}` : ""}`);
     if (LIVE) return call("openFile", { file: node.file, line: node.line }).catch((error) => toast(error.message));
     if (node.url) return window.open(node.url, "_blank", "noopener");
     return toast(`${node.file}${node.line ? `:${node.line}` : ""}`);
@@ -2590,6 +2596,7 @@
           return render();
         }).catch(() => {});
       }
+      if (data?.type === "host-missing") message("<b>This page is the BC Atlas view as an MCP App.</b><span>It shows a project inside a chat client that renders MCP Apps. Open it from there, or use <code>bca export --view app</code> for a file that stands alone.</span>");
       if (data?.type === "navigate" && typeof data.hash === "string") {
         location.hash = data.hash;
         state = readState();

@@ -6,6 +6,18 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- **The BC Atlas view as an MCP App.** In a chat client that renders MCP
+  Apps (Claude, ChatGPT, VS Code, Goose, ...) the MCP tool `bc_atlas_app`
+  shows the interactive view inside the conversation: the graph with every
+  lens, the findings, the stories, the builders for flows and processes,
+  and the Architecture menu. It is the page the VS Code extension shows,
+  answered by the same service, so it also changes flows, processes, the
+  simulation, and the architecture. What the view exports is saved to
+  `.bca/exports/`. From now on the view is released for both hosts
+  together; a test keeps every request of the page answered by both.
+
 ### Fixed
 
 - **A proposal for a large app no longer falls into one component.** Groups

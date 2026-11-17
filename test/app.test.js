@@ -543,3 +543,26 @@ test("the view has the architecture: why, the goals, the templates, and current 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("the view is the same page in VS Code, as an MCP App, and as a file: every request it makes is answered in each", () => {
+  const vscodePage = renderAppHtml({ mode: "vscode" });
+  const mcpPage = renderAppHtml({ mode: "mcp" });
+  // One page: the MCP App is the page of the extension with the adapter for its host in front.
+  assert.ok(mcpPage.includes('data-host="mcp"') && mcpPage.includes("window.BCA_MCP_HOST"));
+  assert.ok(!vscodePage.includes("window.BCA_MCP_HOST ="), "the adapter is only in the MCP App");
+  const body = (html) => html.slice(html.indexOf('<div id="app">'), html.indexOf("</main>"));
+  assert.equal(body(mcpPage), body(vscodePage));
+  // Every method the page calls is one the service has, or one the host answers itself.
+  const service = createService(new Workspace(fileURLToPath(new URL("../examples/warehouse-app", import.meta.url)), {}, { live: true }));
+  const called = [...new Set([...readFileSync(new URL("../src/app/ui/atlas.js", import.meta.url), "utf8").matchAll(/\bcall\("(\w+)"/gu)].map(([, method]) => method))];
+  const hostOnly = ["openFile", "saveFile"];
+  assert.ok(called.length > 10);
+  for (const method of called) assert.ok(service.methods.includes(method) || hostOnly.includes(method), `the view calls ${method}, which no host answers`);
+  // Both hosts answer the two that are theirs.
+  const extension = readFileSync(new URL("../vscode/src/extension.js", import.meta.url), "utf8");
+  const server = readFileSync(new URL("../src/mcp.js", import.meta.url), "utf8");
+  for (const method of hostOnly) {
+    assert.ok(extension.includes(`async ${method}(`), `the extension answers ${method}`);
+    assert.ok(server.includes(`method === "${method}"`), `the MCP server answers ${method}`);
+  }
+});

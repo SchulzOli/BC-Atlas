@@ -63,6 +63,19 @@ A browser bundle of them, `vendor/flow-canvas.js` with `vendor/flow-canvas.css`,
 is the canvas of the flow builder: it is embedded in the BC Atlas view shown
 by the VS Code extension and in the HTML files written by `bca export --view app`.
 
+## MCP Apps SDK
+
+`@modelcontextprotocol/ext-apps` and the parts of the Model Context Protocol
+SDK it uses: Copyright Anthropic, PBC and contributors; licensed under the MIT
+License (the project is moving to the Apache License 2.0). zod: Copyright
+Colin McDonnell, MIT License. Sources:
+<https://github.com/modelcontextprotocol/ext-apps>,
+<https://github.com/modelcontextprotocol/typescript-sdk>,
+<https://github.com/colinhacks/zod>
+
+A browser bundle of them, `vendor/mcp-app.js`, is embedded in the page the
+MCP server serves as an MCP App.
+
 ## graphology
 
 Copyright Guillaume Plique (Yomguithereal). Licensed under the MIT License.

@@ -59,6 +59,8 @@ test("serves BC Atlas tools over MCP stdio", async () => {
       [
         "bc_atlas_ai_context",
         "bc_atlas_ai_write",
+        "bc_atlas_app",
+        "bc_atlas_app_call",
         "bc_atlas_architecture",
         "bc_atlas_architecture_adopt",
         "bc_atlas_architecture_compare",
@@ -132,6 +134,46 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     assert.deepEqual(simulation.agents[0].attempts.find(({ outcome }) => outcome === "blocked").missingPermissions, ['codeunit "Request Notifications" = X']);
     assert.ok(simulation.tasks.every(({ steps }) => steps === undefined), "process tests are listed; their steps come with task");
     // The view without a window: what there is to see, a lens, an opened object, a story, a picture.
+    // The view as an MCP App: a tool that shows it, the page as a ui:// resource, and the requests of the page.
+    {
+      const shows = tools.find(({ name }) => name === "bc_atlas_app");
+      assert.deepEqual(shows._meta.ui, { resourceUri: "ui://bc-atlas/view.html" });
+      assert.equal(shows._meta["ui/resourceUri"], "ui://bc-atlas/view.html", "hosts of the first version read this key");
+      assert.deepEqual(tools.find(({ name }) => name === "bc_atlas_app_call")._meta.ui.visibility, ["app"], "only the page calls it");
+      const { resources } = await client.listResources();
+      assert.equal(resources.find(({ uri }) => uri === "ui://bc-atlas/view.html").mimeType, "text/html;profile=mcp-app");
+      const page = (await client.readResource({ uri: "ui://bc-atlas/view.html" })).contents[0];
+      assert.equal(page.mimeType, "text/html;profile=mcp-app");
+      assert.ok(page.text.includes('data-host="mcp"') && page.text.includes("window.BCA_MCP_HOST") && page.text.includes('"mode":"mcp"'));
+      assert.ok(!/<script[^>]+src=|<link[^>]+href="http/u.test(page.text), "the page loads nothing from elsewhere");
+
+      const copy = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-mcp-app-"));
+      try {
+        cpSync(path.join(root, "examples", "purchasing-app"), copy, { recursive: true });
+        const opened = await client.callTool({ name: "bc_atlas_app", arguments: { path: copy, lens: "components", inside: "component::Purchase" } });
+        assert.equal(opened.structuredContent.title, "BC Atlas Purchasing Example");
+        assert.equal(opened.structuredContent.address, "#lens=components&inside=component%3A%3APurchase");
+        assert.match(opened.content[0].text, /is shown to the user/u);
+        // What the page asks: the same service the VS Code extension answers with.
+        const ask = async (method, params) => {
+          const answer = await client.callTool({ name: "bc_atlas_app_call", arguments: { path: opened.structuredContent.path, method, ...(params ? { params } : {}) } });
+          return answer.isError ? { error: answer.content[0].text } : JSON.parse(answer.content[0].text);
+        };
+        const atlas = await ask("atlas");
+        assert.ok(atlas.live && atlas.nodes.length && atlas.architecture.score.total > 0);
+        assert.ok((await ask("compareArchitecture", { to: "proposal" })).criteria.length);
+        assert.equal((await ask("defineFlows", { operations: [{ op: "set", flow: "docs", title: "Docs" }, { op: "step", flow: "docs", what: "catalog" }] })).written, true);
+        assert.deepEqual(JSON.parse(readFileSync(path.join(copy, ".bca.json"), "utf8")).flows.map(({ id }) => id), ["docs"]);
+        // What the view exports is saved into the project; a chat client has no editor to open a file in.
+        assert.deepEqual(await ask("saveFile", { name: "../../picture.svg", content: "<svg/>" }), { path: ".bca/exports/picture.svg" });
+        assert.equal(readFileSync(path.join(copy, ".bca", "exports", "picture.svg"), "utf8"), "<svg/>");
+        assert.equal((await ask("openFile", { file: "src/A.al", line: 3 })).error, "src/A.al:3");
+        assert.match((await ask("nope")).error, /unknown|method/iu);
+      } finally {
+        rmSync(copy, { recursive: true, force: true });
+      }
+    }
+
     // The architecture for an agent: why it is what it is, the current and the target state, and the templates.
     {
       const copy = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-mcp-architecture-"));

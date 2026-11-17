@@ -587,3 +587,5 @@ code { font-family: var(--mono); font-size: 0.92em; padding: 1px 4px; border-rad
 #popover .command:hover { background: var(--hover); }
 #inspector .why { margin: 4px 0 8px; padding-left: 18px; font-size: 12.5px; }
 #inspector .why li { margin: 2px 0; }
+/* As an MCP App the view is a frame inside a chat: it says how tall it wants to be. */
+html[data-host="mcp"], html[data-host="mcp"] body { height: 760px; min-height: 760px; }
