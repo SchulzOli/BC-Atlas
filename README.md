@@ -95,7 +95,7 @@ documentation, test, and demonstration. [Guide](./docs/vscode.md)
 | | `bca graph render` | Render saved graph selections as SVG, static HTML, DOT, or JSON through the CLI or MCP, locally and without Graphviz. |
 | **Integrate** | `bca run` | One entry point for Git hooks, schedules, and pipelines; verifies, stages, or publishes generated files. Also available as a [GitHub Action](./docs/automation-and-ci.md#github-actions). |
 | | `bca flow` | Your own workflows: a flow says what to make from the source (any artifact, as often as you need it), when (the triggers), and where to save it. Build flows in the **Flow** menu of the view, with `bca flow define`, or through an agent; `bca run` runs them and keeps what they save in sync, and `bca flow export` writes a flow as a workflow for GitHub Actions. [Guide](./docs/flows.md) |
-| | `bca update` | "BC Atlas 0.23.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
+| | `bca update` | "BC Atlas 0.24.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
 | | `bca mcp` | A Model Context Protocol server for AI agents; `bca help --format json` is the versioned command contract. |
 
 Run `bca` for the same overview in your terminal and `bca help <command>` for

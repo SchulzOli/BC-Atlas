@@ -6,6 +6,8 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 0.24.0 - 2026-11-17
+
 ### Added
 
 - **Triggers of your own.** A flow no longer runs on one of five triggers
