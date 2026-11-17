@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.25.0
+
+- The engine of the extension has the new architecture commands and MCP
+  tools: why a component is what it is (`bca architecture --explain`), the
+  current and the target architecture side by side
+  (`bca architecture compare`), goals with weights, and templates
+  (`bca architecture templates`). The view does not show them yet.
+- Names of proposed components no longer clash: they are compared without
+  case and told apart by what they are.
 ## 0.24.0
 
 - **The canvas of the flow builder is React Flow**, with BC Atlas' nodes on

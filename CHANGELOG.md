@@ -6,6 +6,8 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 0.25.0 - 2026-11-17
+
 ### Added
 
 - **Why a component is what it is.** A proposal remembers for every object
