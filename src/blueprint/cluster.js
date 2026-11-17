@@ -305,15 +305,20 @@ function clusterFresh(nodes, edges, { startFrom, granularity, appGranularity, sh
     for (const key of cluster.values()) if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
     return counts;
   };
-  const minimum = Math.max(THRESHOLDS.smallGroup.objects, Math.ceil(nodes.length * THRESHOLDS.smallGroup.share));
+  // A share of the objects, so that a large app has no dust; but never so many that a real
+  // module of a large app counts as dust (1% of 5,000 objects would be 50).
+  const minimum = Math.max(THRESHOLDS.smallGroup.objects, Math.min(THRESHOLDS.smallGroup.most, Math.ceil(nodes.length * THRESHOLDS.smallGroup.share)));
   // Why each object is where it is; an object keeps the first reason that moved it.
   const reasons = new Map();
   for (let pass = 0; pass < 3; pass++) {
     const counts = sizes();
     const small = [...counts].filter(([key, size]) => key !== "shared" && size < minimum).sort((a, b) => a[1] - b[1]);
     if (!small.length) break;
-    for (const [key, size] of small) {
+    for (const [key] of small) {
+      // As it is now: a group that took others in on the way is no longer small, and stays.
       const members = [...cluster].filter(([, value]) => value === key).map(([id]) => id);
+      const size = members.length;
+      if (!size || size >= minimum) continue;
       const pull = new Map();
       for (const id of members) {
         for (const [other, weight] of coupled.get(id) ?? []) {

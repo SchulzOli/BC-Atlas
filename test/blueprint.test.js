@@ -904,3 +904,28 @@ test("clustering the same objects twice reuses the result under each caller's pr
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("in a large app a real module is not dust: finer granularity gives more components, never one", async () => {
+  const { clusterByRelations } = await import("../src/blueprint/cluster.js");
+  const { COUPLING_WEIGHTS } = await import("../src/graph/coupling.js");
+  // 150 modules of 12 objects: tightly related inside, one call from each module to the next.
+  const app = "a";
+  const nodes = [];
+  const edges = [];
+  const edge = (source, target, kinds) => edges.push({ id: `${source}->${target}`, source, target, sourceApp: app, targetApp: app, sourceModule: app, targetModule: app, kinds, weight: 1 });
+  for (let module = 0; module < 150; module++) {
+    const ids = Array.from({ length: 12 }, (_, index) => `${app}::M${module}::codeunit::${50000 + module * 20 + index}`);
+    ids.forEach((id, index) => nodes.push({ id, label: `Thing ${module} ${index}`, type: "codeunit", objectId: String(50000 + module * 20 + index), app, module: app, file: `src/c${module}.al`, origin: "workspace" }));
+    for (let index = 1; index < ids.length; index++) edge(ids[index], ids[0], { writes: 2, calls: 2 });
+    for (let index = 2; index < ids.length; index++) edge(ids[index], ids[index - 1], { calls: 1 });
+    if (module) edge(ids[0], `${app}::M${module - 1}::codeunit::${50000 + (module - 1) * 20}`, { calls: 1 });
+  }
+  const levels = { object: { nodes, edges } };
+  const count = (granularity) => new Set([...clusterByRelations(nodes, levels, COUPLING_WEIGHTS, { granularity, startFrom: [] }).values()].map(({ key }) => key)).size;
+  const normal = count(1);
+  const finer = count(2);
+  // 1% of 1,800 objects is 18: more than a module. A module must not join its neighbour for that.
+  assert.ok(normal > 20, `${normal} components`);
+  assert.ok(finer >= normal, `finer gives ${finer} components, normal ${normal}`);
+  assert.ok(finer >= 100, `${finer} components`);
+});

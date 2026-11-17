@@ -6,6 +6,16 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- **A proposal for a large app no longer falls into one component.** Groups
+  smaller than 1% of the app joined a neighbour, so in an app of 1,500
+  objects or more a real module of a dozen objects counted as dust; with a
+  finer `granularity` every group was that small, all of them joined each
+  other, and one component was left. The limit is now at most 10 objects,
+  and a group that took others in and is no longer small stays. Large apps
+  get more and smaller components from the default settings too.
+
 ## 0.26.0 - 2026-11-17
 
 ### Added

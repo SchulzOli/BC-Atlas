@@ -97,7 +97,7 @@ already):
 | --- | --- |
 | Communities | Weighted modularity on the relations: several Louvain runs, each refined by moving single objects, and the best one wins. Today's namespaces and functional folders compete as candidates too, so they survive exactly where the relations confirm them. |
 | Shared core | Objects that at least three communities use heavily but none owns (setup tables, master data, utility codeunits) form the **shared core** instead of gluing the communities together; the rest is clustered again without them. |
-| Small groups | Communities with fewer than 3 objects (or 1% of the app) join the one they are most coupled to. |
+| Small groups | Communities with fewer than 3 objects (or 1% of the app, at most 10) join the one they are most coupled to. |
 | Loose objects | Objects without any relation (besides permission grants) join the component of their namespace, functional folder, or nearest object ID (within 50); otherwise they are listed as *Unconnected* to place by hand. |
 | App candidates | The same relations at a coarser resolution; each component goes to the app candidate most of its objects land in, so an app candidate always holds whole components. One with fewer than 10 objects (or 5% of the app) joins the candidate it is most coupled to. |
 | Names | The deepest namespace most of a component's objects share (below what the whole app shares), else the folder, else the words their names share most. Two components never share a name; see [Names](#names). |
@@ -218,7 +218,7 @@ of the app, the value that applied is part of each component's rationale.
 | --- | --- | --- |
 | Smallest app or module that is split | 6 objects | With fewer, the app or module stays one component. |
 | Shared core | used from 3 other groups; incoming coupling at the 90th percentile of the app (at least 4); less than 40% of it from its own group | Which objects go to the shared core. |
-| Small group | fewer than 3 objects, or 1% of the app | Which groups join another one. |
+| Small group | fewer than 3 objects, or 1% of the app, at most 10 | Which groups join another one. A group that took others in and is no longer small stays. |
 | App candidate | fewer than 10 objects, or 5% of the app | Which app candidates join another one. |
 | Nearest object ID | within 50 | How far an object without relations may be from the object it follows. |
 | Selector | 80% of the objects | When a namespace or folder becomes the selector of one component. |
