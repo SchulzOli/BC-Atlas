@@ -16,6 +16,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { buildLayers, historyIndex, LAYERS_SCHEMA } from "../app/layers.js";
+import { loadLayersProfile } from "../app/layers-profile.js";
 import { Workspace } from "../app/workspace.js";
 import { findGitRoot, git } from "../automation/git.js";
 import { UsageError } from "../cli/errors.js";
@@ -111,19 +112,29 @@ async function atCommit(repository, root, commit, build) {
 /**
  * Writes the layered documentation of the working tree and of the asked states, or checks it.
  * @param input the project
- * @param values { output, at, releases, last, refresh, check, pictures, view, config, ... } and the analysis options
+ * @param values { output, at, releases, last, refresh, check, pictures, view, profile, config, ... } and the analysis options;
+ *   profile names a documentation profile of layers.profiles in .bca.json (src/app/layers-profile.js)
  * @returns { output, inSync, check, current?, states: [{ label, commit, folder, status, written, removed }], history? }
  */
 export async function syncLayers(input, values = {}) {
   const root = path.resolve(values.projectRoot ?? input ?? ".");
-  const settings = { ...LAYERS_DEFAULTS, ...((await loadConfig(root, values.config).catch(() => undefined))?.values?.layers ?? {}) };
+  const configured = (await loadConfig(root, values.config).catch(() => undefined))?.values?.layers;
+  // What is written, and how. Settings that are not valid write nothing.
+  const profile = await loadLayersProfile(root, configured, values.profile);
+  const settings = { ...LAYERS_DEFAULTS, ...Object.fromEntries(Object.keys(LAYERS_DEFAULTS).filter((key) => profile[key] !== undefined).map((key) => [key, profile[key]])) };
   const pictures = values.pictures ?? settings.pictures;
   if (!LAYERS_PICTURES.includes(pictures)) throw new UsageError(`--pictures must be one of: ${LAYERS_PICTURES.join(", ")}`);
   if (!LAYERS_HISTORY.includes(settings.history)) throw new UsageError(`layers.history in .bca.json must be one of: ${LAYERS_HISTORY.join(", ")}`);
   const output = values.output ? path.resolve(values.output) : path.resolve(root, settings.outputDir);
   const check = Boolean(values.check);
-  const { output: _output, format: _format, at: _at, view: _view, ...analysis } = values;
+  const { output: _output, format: _format, at: _at, view: _view, profile: _profile, ...analysis } = values;
   const historyFolder = path.join(output, "history");
+  // A folder holds the pages of one profile: a run removes what the run before wrote and this one does not.
+  const previous = await readJson(path.join(output, "layers.json")).catch(() => undefined);
+  if (previous?.schema === LAYERS_SCHEMA && (previous.profile ?? "") !== (profile.name ?? "")) {
+    const said = (name) => (name ? `the profile ${name}` : "the settings without a profile");
+    throw new UsageError(`${displayPath(output)} holds the pages of ${said(previous.profile)}; a run with ${said(profile.name)} would replace them. Give each profile a folder of its own (outputDir), or delete ${displayPath(path.join(output, "layers.json"))} to give this folder to ${said(profile.name)}`);
+  }
 
   // Which states of the source are asked for besides the working tree.
   const asked = several(values.at);
@@ -157,7 +168,7 @@ export async function syncLayers(input, values = {}) {
       entry.status = "missing";
       continue;
     }
-    const built = await atCommit(repository, root, state.commit, (project) => buildLayers(new Workspace(project, { ...analysis, projectRoot: undefined }, { live: false }), { pictures, state, view: true }));
+    const built = await atCommit(repository, root, state.commit, (project) => buildLayers(new Workspace(project, { ...analysis, projectRoot: undefined }, { live: false }), { pictures, state, view: true, profile }));
     if (!built) {
       entry.status = "no project";
       continue;
@@ -169,14 +180,8 @@ export async function syncLayers(input, values = {}) {
   let current;
   const existing = (await fs.readdir(historyFolder, { withFileTypes: true }).catch(() => [])).filter((item) => item.isDirectory()).map((item) => item.name);
   if (!asked.length || values.releases) {
-    const previous = await readJson(path.join(output, "layers.json")).catch(() => undefined);
-    const built = await buildLayers(new Workspace(root, analysis, { live: false }), { pictures, view: Boolean(values.view ?? settings.view) });
-    if (existing.length) {
-      // The way from the system to its history.
-      const readme = built.files.get("README.md");
-      built.files.set("README.md", readme.replace("\nThe graph itself is in [atlas.json]", "\n## History\n\n[The system as it was](history/README.md) at earlier commits, tags, and releases, and what changed between them.\n\nThe graph itself is in [atlas.json]"));
-    }
-    current = { ...(await syncFolder(output, built.files, previous?.schema === LAYERS_SCHEMA ? previous.files : [], { check })), manifest: built.manifest, atlas: built.atlas, files: built.files.size };
+    const built = await buildLayers(new Workspace(root, analysis, { live: false }), { pictures, view: Boolean(values.view ?? settings.view), profile, history: existing.length > 0 });
+    current = { ...(await syncFolder(output, built.files, previous?.schema === LAYERS_SCHEMA ? previous.files : [], { check })), manifest: built.manifest, atlas: built.atlas, files: built.files.size, fixed: built.fixed };
   }
 
   // The page of the history: every recorded state, and what changed from each to the next.
@@ -200,7 +205,7 @@ export async function syncLayers(input, values = {}) {
 
   const changed = [...(current ? [...current.written, ...current.removed] : []), ...(history ? history.written.map((file) => `history/${file}`) : [])];
   const inSync = !changed.length && states.every(({ status }) => status === "recorded" || (!check && status !== "no project"));
-  return { output, check, inSync: check ? inSync : true, changed, current, states, history };
+  return { output, check, inSync: check ? inSync : true, changed, current, states, history, profile: profile.name };
 }
 
 export async function layersCommand(input, values) {
@@ -208,7 +213,7 @@ export async function layersCommand(input, values) {
   const { output, check, current, states, history } = result;
   if (values.format === "json") {
     const brief = (part) => part && { written: part.written, removed: part.removed, unchanged: part.unchanged.length };
-    process.stdout.write(`${JSON.stringify({ schema: "bc-atlas.layers-sync/1", output: displayPath(output), check, inSync: result.inSync, current: current && { ...brief(current), counts: current.manifest.counts },
+    process.stdout.write(`${JSON.stringify({ schema: "bc-atlas.layers-sync/1", output: displayPath(output), ...(result.profile ? { profile: result.profile } : {}), check, inSync: result.inSync, current: current && { ...brief(current), counts: current.manifest.counts },
       states: states.map(({ label, commit, folder, status, written, removed }) => ({ label, commit, folder, status, written: written.length, removed: removed.length })), history: brief(history) }, null, 2)}\n`);
   } else {
     const lines = [];
@@ -223,9 +228,9 @@ export async function layersCommand(input, values) {
       // Where to start, and what there is to change.
       const changes = current.atlas?.changes ?? [];
       if (!check) {
-        lines.push("", `Start with ${displayPath(path.join(output, "README.md"))}: how it works, how it is connected, and what to change.`);
+        if (current.fixed.readme) lines.push("", `Start with ${displayPath(path.join(output, current.fixed.readme))}: how it works, how it is connected, and what to change.`);
         if (changes.length) {
-          lines.push(`${changes.length} change(s) to the architecture, the most important first (${displayPath(path.join(output, "changes.md"))}):`);
+          lines.push(`${changes.length} change(s) to the architecture, the most important first${current.fixed.changes ? ` (${displayPath(path.join(output, current.fixed.changes))})` : ""}:`);
           for (const [position, change] of changes.slice(0, 5).entries()) lines.push(`  ${position + 1}. ${change.title}`);
           if (changes.length > 5) lines.push(`  and ${changes.length - 5} more`);
         }

@@ -18,7 +18,8 @@ function pair(item, option, example) {
 
 /**
  * The operations a set of options asks for (see src/flows/config.js).
- * @param values { flow, title, when, step, to, at, set, id, after, unstep, up, down, remove, deliver, from }
+ * @param values { flow, title, when, step, to, at, set, id, after, unstep, up, down, remove, deliver, from,
+ *   trigger, on, branches, paths, tags, cron, hook, untrigger }
  */
 export async function flowOperations(values = {}) {
   const operations = [];
@@ -51,15 +52,30 @@ export async function flowOperations(values = {}) {
         ...(values.after !== undefined ? { after: several(values.after) } : {})
       });
     }
-  } else if (stepOptions.length || values.title !== undefined || values.when !== undefined) {
+  } else if (stepOptions.length || (values.title !== undefined && !values.trigger) || values.when !== undefined) {
     throw new UsageError("say which flow with --flow <id>");
   }
+  // A trigger of your own: what starts it. What is not named stays as it is.
+  const triggerOptions = ["on", "branches", "paths", "tags", "cron", "hook"].filter((name) => values[name] !== undefined);
+  if (values.trigger) {
+    operations.unshift({
+      op: "trigger", name: values.trigger,
+      ...(!values.flow && values.title !== undefined ? { title: values.title } : {}),
+      ...Object.fromEntries(triggerOptions.map((name) => [name, ["cron", "hook"].includes(name) ? values[name] : several(values[name])]))
+    });
+  } else if (triggerOptions.length) {
+    throw new UsageError(`--${triggerOptions[0]} belongs to a trigger of your own: say which with --trigger <name>`);
+  }
+  for (const name of each(values.untrigger)) operations.push({ op: "untrigger", name });
   for (const item of each(values.deliver)) {
     const [trigger, sync] = pair(item, "--deliver", "<trigger>=<sync mode>, such as ci=verify");
     operations.push({ op: "deliver", trigger, sync });
   }
   return operations;
 }
+
+// The flows of a description, with the names of its triggers: enough to read them again.
+const shown = (description) => ({ flows: description.flows, automation: { triggers: Object.fromEntries(Object.keys(description.triggers).map((name) => [name, {}])) } });
 
 const usage = (error) => (/^flows:/u.test(error.message) ? new UsageError(error.message.replace(/^flows: /u, "")) : error);
 
@@ -99,7 +115,7 @@ export async function flowCommand(input, values) {
     process.stdout.write(catalogText(description.artifacts));
     return;
   }
-  process.stdout.write(flowsText(flowsConfig({ flows: description.flows }, { pluginTasks: description.artifacts.filter(({ plugin }) => plugin).map(({ id }) => id) }), description));
+  process.stdout.write(flowsText(flowsConfig(shown(description), { pluginTasks: description.artifacts.filter(({ plugin }) => plugin).map(({ id }) => id) }), description));
   const lines = hints(description);
   if (description.flows.length) lines.push("Run one: bca run --flow <id>. Change them: bca flow define, or the Flow menu of the view.");
   if (lines.length) console.error(lines.join("\n"));
@@ -119,7 +135,7 @@ export async function flowDefineCommand(input, values) {
     process.stdout.write(`${JSON.stringify({ ...result, file: displayPath(result.file), dryRun: Boolean(values.dryRun) }, null, 2)}\n`);
     return undefined;
   }
-  process.stdout.write(flowsText(flowsConfig({ flows: result.flows }, { pluginTasks: result.artifacts.filter(({ plugin }) => plugin).map(({ id }) => id) }), result));
+  process.stdout.write(flowsText(flowsConfig(shown(result), { pluginTasks: result.artifacts.filter(({ plugin }) => plugin).map(({ id }) => id) }), result));
   const freed = result.freed.flatMap(({ steps }) => steps);
   console.error([
     result.written ? `Wrote ${displayPath(result.file)}` : result.changed ? "Dry run: nothing written." : "Nothing changed.",
@@ -154,6 +170,7 @@ export async function flowExportCommand(input, values) {
     `  runs     bca run --flow ${result.flow}`,
     `  on       ${result.events.join(", ")}`,
     ...Object.entries(result.delivery).map(([trigger, sync]) => `  ${trigger.padEnd(8)} ${{ verify: "fails when what the flow saves differs from the commit", artifact: "uploads what the flow saves as an artifact", "pull-request": "opens a pull request with what the flow saves", commit: "commits what the flow saves" }[sync]}`),
-    ...(result.written ? ["Commit the file; GitHub runs it from the next push."] : [])
+    ...result.skipped.map(({ name, why }) => `  ${name.padEnd(8)} not in this file: ${why}`),
+    ...(result.written ? [result.to === "github" ? "Commit the file; GitHub runs it from the next push." : `Commit the file, and create a pipeline from ${result.path} in Azure DevOps.`] : [])
   ].join("\n"));
 }

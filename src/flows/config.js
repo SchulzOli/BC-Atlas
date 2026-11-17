@@ -27,7 +27,7 @@
 // what they save is delivered with the sync mode of the trigger, like the
 // output of a task. `bca run --flow <id>` runs one by name.
 import path from "node:path";
-import { syncModesFor, TRIGGERS } from "../automation/config.js";
+import { customTrigger, syncModesFor, TRIGGERS } from "../automation/config.js";
 import { ARTIFACTS, stepOutputs } from "./artifacts.js";
 
 export const FLOW_SCHEMA = "bc-atlas.flows/1";
@@ -130,6 +130,9 @@ export function flowsConfig(config = {}, { pluginTasks = [] } = {}) {
   if (!Array.isArray(flows)) throw new Error("flows: \"flows\" in .bca.json must be a list of flows");
   const seen = new Set();
   const saved = new Map();
+  // The built-in triggers, and those of your own (automation.triggers).
+  const defined = config.automation?.triggers;
+  const known = [...new Set([...Object.keys(TRIGGERS), ...(defined && typeof defined === "object" ? Object.keys(defined) : [])])];
   return flows.map((flow, index) => {
     if (!flow || typeof flow !== "object" || Array.isArray(flow)) throw new Error(`flows: flow ${index + 1} must be an object with "id" and "steps"`);
     const id = String(flow.id ?? "").trim();
@@ -137,7 +140,7 @@ export function flowsConfig(config = {}, { pluginTasks = [] } = {}) {
     if (seen.has(id)) throw new Error(`flows: there are two flows "${id}"`);
     seen.add(id);
     const when = [...new Set(several(flow.when))];
-    for (const trigger of when) if (!TRIGGERS[trigger]) throw new Error(`flows: flow "${id}" runs on "${trigger}", which is not a trigger; use ${Object.keys(TRIGGERS).join(", ")}`);
+    for (const trigger of when) if (!known.includes(trigger)) throw new Error(`flows: flow "${id}" runs on "${trigger}", which is not a trigger; use ${known.join(", ")}, or define it: bca flow define --trigger ${ID.test(trigger) ? trigger : "<name>"} --on push`);
     if (!Array.isArray(flow.steps ?? [])) throw new Error(`flows: "steps" of flow "${id}" must be a list`);
     const steps = (flow.steps ?? []).map((step, at) => normalizeStep(step, `step ${at + 1} of flow "${id}"`, pluginTasks));
     // The wires: every name once, every "after" a step of this flow, and no circle.
@@ -227,9 +230,20 @@ export function stepKey(flow, steps, index) {
 // came after nothing but a step that started the flow now starts the flow itself: `rerouted`
 // names every step whose wires changed, so nobody loses a gate without being told.
 //
+// { op: "restore", flows } puts the flows back as they were: what Undo in the builder sends.
+//
 // Taking a wire away is something else: a step that no wire leads to is in no flow. It leaves
 // with the steps that run only through it, and `freed` names them: the builder keeps them on its
 // canvas, with the wires among them, to be wired again (canvas.js).
+
+const TRIGGER_KEYS = ["title", "on", "branches", "paths", "tags", "cron", "hook"];
+const custom = (name, definition) => {
+  try {
+    return customTrigger(name, definition);
+  } catch (error) {
+    throw new Error(`flows: ${error.message}`);
+  }
+};
 
 const position = (flow, at, id) => {
   if (!/^[1-9]\d*$/u.test(String(at)) || Number(at) > (flow.steps ?? []).length) throw new Error(`flows: flow "${id}" has no step ${at}; it has ${(flow.steps ?? []).length}`);
@@ -269,6 +283,16 @@ export function applyFlowOperations(config = {}, operations = [], { pluginTasks 
       const { id, title, when, steps, ...rest } = flow;
       for (const key of Object.keys(flow)) delete flow[key];
       Object.assign(flow, { id, ...(title ? { title } : {}), when: when ?? [], steps: steps ?? [], ...rest });
+    } else if (op === "restore") {
+      // The flows as they were: what Undo in the builder sends.
+      if (!Array.isArray(operation.flows)) throw new Error("flows: restore needs \"flows\": the list of flows to go back to");
+      flows.splice(0, flows.length, ...structuredClone(operation.flows));
+      // With "triggers", the triggers of your own go back too: { [name]: its definition }.
+      if (operation.triggers && typeof operation.triggers === "object") {
+        const triggers = Object.fromEntries(Object.entries(next.automation?.triggers ?? {}).filter(([name]) => TRIGGERS[name]));
+        for (const [name, definition] of Object.entries(operation.triggers)) if (!TRIGGERS[name]) triggers[name] = structuredClone(definition);
+        next.automation = { ...(next.automation ?? {}), triggers };
+      }
     } else if (op === "remove") {
       flows.splice(flows.indexOf(need(operation)), 1);
     } else if (op === "step") {
@@ -357,13 +381,47 @@ export function applyFlowOperations(config = {}, operations = [], { pluginTasks 
       flow.steps.splice(to, 0, ...flow.steps.splice(from, 1));
     } else if (op === "deliver") {
       const { trigger, sync } = operation;
-      if (!TRIGGERS[trigger]) throw new Error(`flows: "${trigger ?? ""}" is not a trigger; use ${Object.keys(TRIGGERS).join(", ")}`);
-      if (!syncModesFor(trigger).includes(sync)) throw new Error(`flows: the trigger "${trigger}" delivers with ${syncModesFor(trigger).join(", ")}, not "${sync ?? ""}"`);
+      const own = TRIGGERS[trigger] ? undefined : next.automation?.triggers?.[trigger];
+      if (!TRIGGERS[trigger] && !own) throw new Error(`flows: "${trigger ?? ""}" is not a trigger; use ${[...Object.keys(TRIGGERS), ...Object.keys(next.automation?.triggers ?? {}).filter((name) => !TRIGGERS[name])].join(", ")}`);
+      const modes = syncModesFor(trigger, own ? custom(trigger, own) : undefined);
+      if (!modes.includes(sync)) throw new Error(`flows: the trigger "${trigger}" delivers with ${modes.join(", ")}, not "${sync ?? ""}"`);
       next.automation ??= {};
       next.automation.triggers ??= {};
-      next.automation.triggers[trigger] = { tasks: [], ...(next.automation.triggers[trigger] ?? {}), sync };
+      next.automation.triggers[trigger] = { ...(own ? {} : { tasks: [] }), ...(next.automation.triggers[trigger] ?? {}), sync };
+    } else if (op === "trigger") {
+      // A trigger of your own, or the cron of the built-in schedule. What is not named stays.
+      const { name } = operation;
+      next.automation ??= {};
+      next.automation.triggers ??= {};
+      const before = next.automation.triggers[name] ?? {};
+      if (name === "schedule") {
+        const others = Object.keys(operation).filter((key) => !["op", "name", "cron"].includes(key));
+        if (others.length || !operation.cron) throw new Error("flows: the built-in trigger schedule takes a cron only, such as { \"op\": \"trigger\", \"name\": \"schedule\", \"cron\": \"0 6 * * 1\" }");
+        next.automation.triggers.schedule = { tasks: [], ...before, cron: operation.cron };
+      } else {
+        const asked = Object.fromEntries(TRIGGER_KEYS.filter((key) => operation[key] !== undefined).map((key) => [key, operation[key]]));
+        const merged = { ...Object.fromEntries(TRIGGER_KEYS.filter((key) => before[key] !== undefined).map((key) => [key, before[key]])), ...asked };
+        const definition = custom(name, merged);
+        const sync = operation.sync ?? before.sync;
+        // A trigger that is started another way now may not deliver the way it did.
+        const kept = sync && syncModesFor(name, definition).includes(sync) ? sync : undefined;
+        if (operation.sync && !kept) throw new Error(`flows: the trigger "${name}" delivers with ${syncModesFor(name, definition).join(", ")}, not "${operation.sync}"`);
+        next.automation.triggers[name] = { ...definition, ...(before.tasks?.length ? { tasks: before.tasks } : {}), ...(kept && kept !== "none" ? { sync: kept } : {}) };
+      }
+    } else if (op === "untrigger") {
+      const { name } = operation;
+      if (TRIGGERS[name]) throw new Error(`flows: "${name}" is a built-in trigger; take it from the flows that run on it instead`);
+      if (!next.automation?.triggers?.[name]) throw new Error(`flows: there is no trigger "${name ?? ""}" of your own`);
+      delete next.automation.triggers[name];
+      // No flow runs on a trigger that is gone.
+      for (const flow of flows) {
+        if (!flow.when) continue;
+        const rest = [flow.when].flat().flatMap((item) => String(item).split(",")).map((item) => item.trim()).filter((item) => item && item !== name);
+        if (rest.length) flow.when = rest;
+        else delete flow.when;
+      }
     } else {
-      throw new Error(`flows: unknown operation "${op ?? ""}"; use set, remove, step, wire, unwire, unstep, detach, move, or deliver`);
+      throw new Error(`flows: unknown operation "${op ?? ""}"; use set, remove, step, wire, unwire, unstep, detach, move, deliver, trigger, untrigger, or restore`);
     }
   }
   if (flows.length) next.flows = flows;
@@ -375,8 +433,8 @@ export function applyFlowOperations(config = {}, operations = [], { pluginTasks 
 
 /** The flows as text, for the terminal. */
 export function flowsText(flows, { triggers = {} } = {}) {
-  if (!flows.length) return "No flows yet. Add one: bca flow define --flow docs --when pre-push,ci --step layers --to docs/layers\n";
   const lines = [];
+  if (!flows.length) lines.push("No flows yet. Add one: bca flow define --flow docs --when pre-push,ci --step layers --to docs/layers", "");
   for (const flow of flows) {
     lines.push(`${flow.id}${flow.title !== flow.id ? `  ${flow.title}` : ""}`);
     lines.push(`  when   ${flow.when.length ? flow.when.map((trigger) => `${trigger}${triggers[trigger]?.sync && triggers[trigger].sync !== "none" ? ` (${triggers[trigger].sync})` : ""}`).join(", ") : "only by name: bca run --flow " + flow.id}`);
@@ -386,6 +444,12 @@ export function flowsText(flows, { triggers = {} } = {}) {
       lines.push(`  ${String(index + 1).padStart(2)}. ${(step.id && step.id !== step.what ? `${step.what} "${step.id}"` : step.what).padEnd(16)} ${step.to ? `-> ${step.to}` : step.plugin ? "(plugin task)" : "(gate)"}${options ? `  ${options}` : ""}${after ? `  after ${after}` : ""}`);
     });
     if (!flow.steps.length) lines.push("  no steps yet");
+    lines.push("");
+  }
+  const own = Object.entries(triggers).filter(([, trigger]) => trigger.custom);
+  if (own.length) {
+    lines.push("Triggers of your own");
+    for (const [name, trigger] of own) lines.push(`  ${name.padEnd(16)} ${trigger.summary}${trigger.sync !== "none" ? `  (${trigger.sync})` : ""}`);
     lines.push("");
   }
   return lines.join("\n");

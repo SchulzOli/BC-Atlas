@@ -8,9 +8,17 @@
 //       "pre-commit": { "tasks": ["check"], "sync": "none" },
 //       "pre-push":   { "tasks": ["report", "docs"], "sync": "verify" },
 //       "ci":         { "tasks": ["check", "report", "docs"], "sync": "verify" },
-//       "schedule":   { "cron": "0 6 * * 1", "tasks": ["report", "docs"], "sync": "pull-request" }
+//       "schedule":   { "cron": "0 6 * * 1", "tasks": ["report", "docs"], "sync": "pull-request" },
+//       "release":    { "title": "A release tag", "on": ["tag"], "tags": ["v*"], "sync": "artifact" },
+//       "al-changed": { "on": ["push"], "branches": ["main"], "paths": ["src/**/*.al"] },
+//       "merged":     { "hook": "post-merge" },
+//       "nightly":    { "cron": "0 2 * * *", "sync": "commit" }
 //     }
 //   }
+//
+// The first five are built in. Any other name is a trigger of your own: what starts it is its
+// events ("on"), its cron, or its Git hook; with none of them it is started by its name only
+// (bca run --trigger <name>), from a script of yours.
 import path from "node:path";
 
 export const TASKS = Object.freeze({
@@ -32,6 +40,20 @@ export const TRIGGERS = Object.freeze({
   schedule: "Scheduled pipeline run (cron)",
   manual: "bca run without a trigger"
 });
+
+/** What starts a trigger of your own in a pipeline ("on"). */
+export const EVENTS = Object.freeze({
+  push: "A push to a branch (branches, paths)",
+  "pull-request": "A pull request (branches, paths)",
+  tag: "A tag is pushed (tags)",
+  release: "A release is published (GitHub)",
+  manual: "Started by hand in the pipeline"
+});
+
+/** The Git hooks a trigger of your own can be. pre-commit and pre-push are the built-in triggers. */
+export const HOOKS = Object.freeze(["post-commit", "post-merge", "post-checkout", "post-rewrite", "pre-rebase", "pre-merge-commit", "prepare-commit-msg", "commit-msg"]);
+
+const TRIGGER_NAME = /^[a-z0-9][a-z0-9._-]*$/u;
 
 export const SYNC_MODES = Object.freeze({
   none: "Only run the tasks",
@@ -57,8 +79,67 @@ export const DEFAULTS = Object.freeze({
   simulation: { outputDir: "docs/simulation" }
 });
 
-export function syncModesFor(trigger) {
-  return ["pre-commit", "pre-push", "manual"].includes(trigger) ? HOOK_SYNC : PIPELINE_SYNC;
+/**
+ * What starts a trigger: "hook" (a Git hook), "pipeline" (events or a cron), or "call" (its name only).
+ * @param definition the trigger of your own as it is defined, for a name that is not built in
+ */
+export function triggerKind(trigger, definition) {
+  if (["pre-commit", "pre-push"].includes(trigger)) return "hook";
+  if (["ci", "schedule"].includes(trigger)) return "pipeline";
+  if (trigger === "manual" || !definition) return "call";
+  return definition.hook ? "hook" : definition.on?.length || definition.cron ? "pipeline" : "call";
+}
+
+export function syncModesFor(trigger, definition) {
+  if (TRIGGERS[trigger] || !definition) return ["pre-commit", "pre-push", "manual"].includes(trigger) ? HOOK_SYNC : PIPELINE_SYNC;
+  const kind = triggerKind(trigger, definition);
+  // Started by its name, it runs wherever your script runs: on a machine or in a pipeline.
+  return kind === "hook" ? HOOK_SYNC : kind === "pipeline" ? PIPELINE_SYNC : Object.keys(SYNC_MODES);
+}
+
+const list = (value) => [value ?? []].flat().flatMap((item) => String(item).split(",")).map((item) => item.trim()).filter(Boolean);
+
+/**
+ * Normalizes a trigger of your own.
+ * @param trigger what .bca.json or the builder says: { title?, on?, branches?, paths?, tags?, cron?, hook? }
+ * @returns { title?, on?, branches?, paths?, tags?, cron?, hook? } with only what is set
+ */
+export function customTrigger(name, trigger = {}) {
+  if (!TRIGGER_NAME.test(String(name ?? ""))) throw new Error(`a trigger needs a name of lowercase letters, digits, ".", "_", or "-", not "${name ?? ""}"`);
+  if (TRIGGERS[name]) throw new Error(`"${name}" is a built-in trigger; give your own another name`);
+  const on = [...new Set(list(trigger.on))];
+  const unknown = on.filter((event) => !EVENTS[event]);
+  if (unknown.length) throw new Error(`trigger "${name}" starts on "${unknown[0]}", which is not an event; use ${Object.keys(EVENTS).join(", ")}`);
+  const hook = trigger.hook ? String(trigger.hook).trim() : undefined;
+  if (hook && !HOOKS.includes(hook)) throw new Error(`trigger "${name}" is the Git hook "${hook}"; use ${HOOKS.join(", ")} (pre-commit and pre-push are built-in triggers)`);
+  if (hook && (on.length || trigger.cron)) throw new Error(`trigger "${name}" is a Git hook and a pipeline event at once; make two triggers`);
+  const filters = Object.fromEntries(["branches", "paths", "tags"].map((key) => [key, list(trigger[key])]).filter(([, value]) => value.length));
+  if (filters.tags && !on.includes("tag")) throw new Error(`trigger "${name}" names tags but does not start on a tag; add "tag" to "on"`);
+  if ((filters.branches || filters.paths) && !on.some((event) => ["push", "pull-request"].includes(event))) throw new Error(`trigger "${name}" names branches or paths but does not start on a push or a pull request; add "push" or "pull-request" to "on"`);
+  const title = String(trigger.title ?? "").trim();
+  return {
+    ...(title ? { title } : {}),
+    ...(on.length ? { on } : {}),
+    ...filters,
+    ...(trigger.cron ? { cron: validateCron(trigger.cron) } : {}),
+    ...(hook ? { hook } : {})
+  };
+}
+
+/** One line that says what starts a trigger of your own. */
+export function triggerSummary(name, definition = {}) {
+  if (definition.title) return definition.title;
+  if (definition.hook) return `Git hook ${definition.hook}`;
+  const parts = (definition.on ?? []).map((event) => ({
+    push: `pushes${definition.branches ? ` to ${definition.branches.join(", ")}` : ""}`,
+    "pull-request": `pull requests${definition.branches ? ` into ${definition.branches.join(", ")}` : ""}`,
+    tag: `tags${definition.tags ? ` ${definition.tags.join(", ")}` : ""}`,
+    release: "a published release",
+    manual: "by hand in the pipeline"
+  })[event]);
+  if (definition.cron) parts.push(`cron ${definition.cron}`);
+  if (!parts.length) return `bca run --trigger ${name}, from a script of yours`;
+  return `${parts.join(", ")}${definition.paths ? `, when ${definition.paths.join(", ")} changed` : ""}`.replace(/^./u, (letter) => letter.toUpperCase());
 }
 
 export function parseList(value, allowed, name) {
@@ -91,15 +172,18 @@ export function automationConfig(config = {}, { pluginTasks = [] } = {}) {
   const automation = config.automation ?? {};
   const triggers = {};
   for (const [name, trigger] of Object.entries(automation.triggers ?? {})) {
-    if (!TRIGGERS[name]) throw new Error(`unknown trigger "${name}"; use ${Object.keys(TRIGGERS).join(", ")}`);
+    if (!trigger || typeof trigger !== "object" || Array.isArray(trigger)) throw new Error(`trigger "${name}" must be an object such as { "tasks": ["check"], "sync": "none" }`);
+    // Any name that is not built in is a trigger of your own.
+    const custom = TRIGGERS[name] ? undefined : customTrigger(name, trigger);
     const sync = trigger.sync ?? "none";
-    if (!syncModesFor(name).includes(sync)) {
-      throw new Error(`trigger "${name}" supports sync ${syncModesFor(name).join(", ")}, not "${sync}"`);
+    if (!syncModesFor(name, custom).includes(sync)) {
+      throw new Error(`trigger "${name}" supports sync ${syncModesFor(name, custom).join(", ")}, not "${sync}"`);
     }
     triggers[name] = {
       tasks: parseList(trigger.tasks ?? [], allowed, `${name} tasks`),
       sync,
-      ...(name === "schedule" && trigger.cron ? { cron: validateCron(trigger.cron) } : {})
+      ...(name === "schedule" && trigger.cron ? { cron: validateCron(trigger.cron) } : {}),
+      ...(custom ? { ...(custom.cron ? { cron: custom.cron } : {}), custom } : {})
     };
   }
   const hooks = automation.hooks ?? "none";

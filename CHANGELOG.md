@@ -4,6 +4,73 @@ All notable changes to BC Atlas will be documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+## 0.24.0 - 2026-11-17
+
+### Added
+
+- **Triggers of your own.** A flow no longer runs on one of five triggers
+  only: any other name under `automation.triggers` is a trigger of your own,
+  started by pipeline events (`push`, `pull-request`, `tag`, `release`,
+  `manual`, with `branches`, `paths`, and `tags`), by a `cron`, by a Git
+  `hook` (`post-merge`, `post-commit`, ...), or by its name only
+  (`bca run --trigger <name>` from a script of yours).
+  `bca flow define --trigger/--untrigger` defines them, the builder has
+  **New trigger…** and a form on every trigger node, `bca setup` keeps them
+  and installs those that are a hook, and `bca flow export` writes a
+  pipeline that starts on them, finds out which trigger it was, and delivers
+  the way that trigger says.
+- **Documentation profiles.** What the layered documentation writes, and
+  how, is set under `layers` in `.bca.json`: `pages` (which kinds of page,
+  which lenses and stories), `scope` (apps, components, namespaces, object
+  types, names to leave out), `sections` (which sections of each kind of
+  page, in which order), `titles` and `language` (`de`: the headings,
+  tables, and fixed texts in German), `names` (file and folder names by
+  pattern; every link follows), and `templates` (a Markdown file per kind
+  of page with placeholders for the title, the summary, the picture, and
+  each section). Named
+  `profiles` write several documentations from one source, each to a folder
+  of its own: `bca layers --profile <name>`, the `profile` argument of
+  `bc_atlas_layers`, and the option `profile` of a `layers` step in a flow.
+  Without any of these keys the pages are byte for byte what they were.
+
+- **Undo in the builder** (the button, or Ctrl+Z), for flows and for
+  processes: the last change is taken back as one checked operation.
+- **`bca flow export --to azure-devops`** writes a flow as a pipeline of
+  its own for Azure Pipelines (`azure-pipelines.bc-atlas-<flow>.yml`); the
+  builder has **For Azure Pipelines** next to For GitHub Actions.
+- **How sure the telemetry is.** Mining and the run say how the events
+  found their step: only one step can have them, by who did them, or only
+  by where the case was. When a third or more are of the last kind, the
+  finding `process-telemetry-uncertain` says that the times are an
+  estimate. The guide has a sketch in AL for sending one event per step.
+
+### Changed
+
+- **The canvas of the flow builder is React Flow** (`@xyflow/react`, MIT,
+  vendored: nothing is loaded from the internet) instead of a canvas of our
+  own, with BC Atlas' nodes for triggers, flows, and artifacts on it. New
+  with it: a minimap, zoom and fit controls, touch, Shift-drag to select and
+  remove several nodes at once, wires that show while they are pulled
+  whether they may end where they are, and the buttons of a node and the
+  choice on a wire as the library's own toolbars on what is selected. The flows, `.bca.json`, and `bca run`
+  are as before. An exported view (`bca export --view app`) is about 410 KB
+  larger for it.
+- `bca run --trigger` and the MCP tools take any trigger name, not only the
+  five built-in ones.
+
+- **A change to the flows or the processes no longer reads the project
+  again.** In VS Code the graph is read again on the analysis that is
+  there, so a wire or a step is as fast on a large project as on a small
+  one. A change to anything else in `.bca.json` reads the project as
+  before.
+- A custom dimension and an event id of the app are taken with or without
+  the prefix Business Central may give them (`al`).
+- An exported view refuses a change the project would refuse (a place that
+  is saved twice, a file of the wrong kind, a step that comes after a step
+  that is not there) instead of keeping it for later.
+
 ## 0.23.0 - 2026-11-15
 
 ### Added

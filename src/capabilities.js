@@ -800,6 +800,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           refresh: flag("Write a state that is already recorded again, for example after an update of BC Atlas.", { group: SELECTION }),
           check: flag("Write nothing; fail (exit code 1) when the pages are not in sync with the source, or an asked state is not recorded.", { group: OUTPUT }),
           pictures: string("Pictures of single objects: auto (up to 400 objects), all, or none (no pictures at all). The system, apps, components, namespaces, and lenses always get one unless none.", { group: OUTPUT, enum: ["auto", "all", "none"], default: "auto" }),
+          profile: string("A documentation profile of layers.profiles in .bca.json: which pages and sections are written, for which part of the system, in which language, under which file names, and from which templates. Without it, the settings of layers itself.", { group: SELECTION, value: "name" }),
           view: flag("Also write view.html: the BC Atlas view of the working tree as one offline file, next to the pages. A state of the past always has it.", { group: OUTPUT }),
           format: string("What the command reports: text (default) or json.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
           projectRoot: projectOptions.projectRoot,
@@ -814,10 +815,12 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           "The same source gives the same files, byte for byte: a run changes only what changed, and removes what it wrote before and no longer writes.",
           "A recorded state never changes; its pages are written once. history/README.md lists every state and what changed from each to the next.",
           "A state of the past is read with the BC Atlas of today from a temporary checkout (git worktree); the working tree is not touched.",
-          "As a task of bca run (layers), the pages follow the sync mode of the trigger: verify, stage, commit, or pull request."
+          "As a task of bca run (layers), the pages follow the sync mode of the trigger: verify, stage, commit, or pull request.",
+          "A profile (layers in .bca.json: pages, scope, sections, titles, language, names, templates) says what is written and how; each profile writes to a folder of its own. A step of a flow names one with its option profile."
         ],
         examples: [
           "bca layers ./app",
+          "bca layers ./app --profile management",
           "bca layers ./app -o docs/system",
           "bca layers ./app --check",
           "bca layers ./app --at v1.4.0",
@@ -993,8 +996,8 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         argv: ["bca", "run", "[app-root]"],
         purpose: "Run the features and the flows configured for a trigger (Git hook, pipeline, schedule) and sync their output.",
         options: {
-          trigger: string("Trigger whose tasks and sync mode are used.", {
-            enum: ["pre-commit", "pre-push", "ci", "schedule", "manual"],
+          trigger: string("Trigger whose tasks, flows, and sync mode are used: pre-commit, pre-push, ci, schedule, manual, or a trigger of your own (bca flow define --trigger).", {
+            value: "name",
             default: "manual"
           }),
           tasks: string("Run these features instead: check, simulate, report, docs, codegraph, handbook, diagrams.", { value: "list" }),
@@ -1029,7 +1032,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         },
         output: { type: "json", when: "--format json", schema: "bc-atlas.flows" },
         rules: [
-          "A flow has an id, the triggers it runs on (when: pre-commit, pre-push, ci, schedule, manual), and steps. A step makes one artifact (what) and saves it (to), relative to the project.",
+          "A flow has an id, the triggers it runs on (when: pre-commit, pre-push, ci, schedule, manual, or a trigger of your own), and steps. A step makes one artifact (what) and saves it (to), relative to the project.",
           "Artifacts: layers, report, handbook, catalog, docs, simulate, check, view (any lens or story as a picture, a page, or data), diagram, app, knowledge-graph, and the tasks of plugins.",
           "The same artifact can be made more than once with different options and places; two steps never save to the same place.",
           "Steps are a graph: a step can come after others (after), if each passed, failed, or always; bca run skips a step whose condition does not hold."
@@ -1044,7 +1047,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         options: {
           flow: string("Add this flow, or change it: --title, --when, and its steps.", { group: SELECTION, value: "id" }),
           title: string("The title of the flow.", { group: GENERAL, value: "text" }),
-          when: string("The triggers the flow runs on, comma-separated: pre-commit, pre-push, ci, schedule, manual. An empty value leaves only bca run --flow.", { group: GENERAL, value: "list" }),
+          when: string("The triggers the flow runs on, comma-separated: pre-commit, pre-push, ci, schedule, manual, and the triggers of your own (--trigger). An empty value leaves only bca run --flow.", { group: GENERAL, value: "list" }),
           step: string("Add a step that makes this artifact (see bca flow --artifacts); with --at, make that step this artifact instead.", { group: SELECTION, value: "artifact" }),
           to: string("Where the step saves: a folder or a file, relative to the project. Without it, the default of the artifact.", { group: GENERAL, value: "path" }),
           set: string("An option of the step, as <option>=<value>: lens=data, form=diagram, language=de. An empty value takes it away. Repeatable.", { group: GENERAL, repeatable: true, value: "option=value" }),
@@ -1055,8 +1058,16 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           up: string("Move the step with this number one up.", { group: SELECTION, value: "n" }),
           down: string("Move the step with this number one down.", { group: SELECTION, value: "n" }),
           remove: string("Remove a flow. Repeatable.", { group: SELECTION, repeatable: true, value: "id" }),
+          trigger: string("Define a trigger of your own, or change it: what starts it is --on, --cron, or --hook; with none of them, only bca run --trigger <name> does. With --cron alone and the name schedule, sets the cron of the built-in schedule.", { group: SELECTION, value: "name" }),
+          on: string("The events that start the trigger in a pipeline, comma-separated: push, pull-request, tag, release, manual.", { group: GENERAL, value: "list" }),
+          branches: string("Only pushes to, and pull requests into, these branches. Comma-separated; an empty value takes them away.", { group: GENERAL, value: "list" }),
+          paths: string("Only when files under these paths changed, such as src/**/*.al. Comma-separated.", { group: GENERAL, value: "list" }),
+          tags: string("Only these tags, such as v*. Comma-separated.", { group: GENERAL, value: "list" }),
+          cron: string("Start the trigger on a schedule: a five-field cron expression, such as \"0 2 * * *\".", { group: GENERAL, value: "cron" }),
+          hook: string("Make the trigger a Git hook: post-commit, post-merge, post-checkout, post-rewrite, pre-rebase, pre-merge-commit, prepare-commit-msg, commit-msg. bca setup apply --from-config installs it.", { group: GENERAL, value: "name" }),
+          untrigger: string("Remove a trigger of your own; the flows that ran on it no longer do. Repeatable.", { group: SELECTION, repeatable: true, value: "name" }),
           deliver: string("How a trigger delivers what its tasks and flows save, as <trigger>=<sync mode>: none, verify, stage (hooks), artifact, pull-request, commit (pipelines). Repeatable.", { group: SELECTION, repeatable: true, value: "trigger=sync" }),
-          from: string("Apply the operations of a JSON file: a list of { op, flow, ... } (set, remove, step, wire, unwire, unstep, move, deliver). What the Flow menu of the view saves.", { group: SELECTION, value: "path" }),
+          from: string("Apply the operations of a JSON file: a list of { op, flow, ... } (set, remove, step, wire, unwire, unstep, move, deliver, trigger, untrigger). What the Flow menu of the view saves.", { group: SELECTION, value: "path" }),
           dryRun: flag("Check the change and show the result; write nothing.", { group: OUTPUT }),
           format: string("text (default) or json: the flows after the change.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
           projectRoot: projectOptions.projectRoot,
@@ -1080,6 +1091,11 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           "bca flow define --flow docs --step check --to docs/health.md --after gate:failed",
           "bca flow define --flow docs --unstep 2",
           "bca flow define --deliver ci=verify --deliver pre-push=stage",
+          "bca flow define --trigger release --title \"A release tag\" --on tag --tags \"v*\" --deliver release=artifact",
+          "bca flow define --trigger al-changed --on push --branches main --paths \"src/**/*.al\"",
+          "bca flow define --trigger merged --hook post-merge",
+          "bca flow define --flow docs --when ci,release",
+          "bca flow define --untrigger merged",
           "bca flow define --remove docs",
           "bca flow define --from flow-changes.json --format json"
         ]
@@ -1088,11 +1104,11 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         id: "flow.export",
         area: "integrate",
         argv: ["bca", "flow", "export", "[app-root]"],
-        purpose: "Export a flow as a pipeline of its own: for GitHub Actions, one workflow file that runs the flow on the events of its triggers and delivers what it saves.",
+        purpose: "Export a flow as a pipeline of its own: one workflow file for GitHub Actions, or one pipeline file for Azure Pipelines, that runs the flow on the events of its triggers and delivers what it saves.",
         options: {
           flow: string("The flow to export.", { group: SELECTION, value: "id", required: true }),
-          to: string("What to export it for.", { group: SELECTION, enum: ["github"], default: "github" }),
-          output: string("Write this file instead of .github/workflows/bc-atlas-<flow>.yml; - prints the workflow.", { group: OUTPUT, short: "o", value: "path" }),
+          to: string("What to export it for: GitHub Actions, or Azure Pipelines.", { group: SELECTION, enum: ["github", "azure-devops"], default: "github" }),
+          output: string("Write this file instead of .github/workflows/bc-atlas-<flow>.yml (GitHub) or azure-pipelines.bc-atlas-<flow>.yml (Azure Pipelines); - prints it.", { group: OUTPUT, short: "o", value: "path" }),
           force: flag("Replace a file that bca flow export did not write.", { group: OUTPUT }),
           dryRun: flag("Say what would be written; write nothing.", { group: OUTPUT }),
           format: string("text (default) or json: the file, the events, the delivery, and the workflow.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
@@ -1101,6 +1117,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         },
         output: { type: "file", pathOption: "output", default: ".github/workflows/bc-atlas-<flow>.yml" },
         rules: [
+          "A trigger of your own starts on what it says: its events (push, pull-request, tag, release, manual) with their branches, paths, and tags, or its cron. The file finds out which trigger it was and delivers the way that trigger says. A trigger that is a Git hook, or that only its name starts, is not in the file; the command says so. A trigger that a pull request, a tag, or a release starts cannot write back: it uploads an artifact instead of a pull request or a commit.",
           "Events: the trigger ci is pull requests and pushes to main, schedule is the cron of automation.triggers.schedule (default 0 6 * * 1); every workflow can be started by hand. A flow with neither runs by hand only.",
           "Delivery is the sync mode of the trigger: verify fails the run, artifact uploads what the flow saves, pull-request and commit (schedule) write it back. A trigger without a sync mode uploads an artifact.",
           "The workflow runs bca run --flow <id>, so the flow stays in .bca.json: change it there and the workflow follows. Export again when its triggers, its places, or the delivery change.",
@@ -1109,6 +1126,7 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
         examples: [
           "bca flow export --flow docs",
           "bca flow export --flow docs --dry-run",
+          "bca flow export --flow docs --to azure-devops",
           "bca flow export --flow docs -o - > docs.yml"
         ]
       }),

@@ -97,6 +97,229 @@ Every page links one layer up and one layer down: an object names its app,
 component, and namespace; a component lists its objects; a procedure links to
 the objects it touches. Pictures are SVG diagrams, drawn by BC Atlas itself.
 
+## What is written, and how: the documentation profile
+
+Without settings, `bca layers` writes every page, every section, in English,
+under the names of the tables above. The profile changes that: the keys
+below, under `layers` in `.bca.json`. Settings that are not valid write
+nothing; the error says what is wrong and what can be chosen.
+
+```json
+{
+  "layers": {
+    "outputDir": "docs/layers",
+    "pages": { "stories": false, "changes": false, "lenses": ["data", "events"] },
+    "scope": { "apps": ["Contoso Sales"], "types": ["table", "codeunit", "page"], "exclude": ["*Test*"] },
+    "sections": { "object": ["Inside", "Uses", "Used by"], "readme": ["Start here", "Apps", "Lenses"] },
+    "titles": { "Used by": "Who uses it", "README": "Our system" },
+    "language": "de",
+    "names": { "objects": "objekte/{type}/{name}.md", "readme": "index.md" },
+    "templates": "docs/templates",
+    "profiles": {
+      "management": { "outputDir": "docs/overview", "pages": { "objects": false, "namespaces": false } }
+    }
+  }
+}
+```
+
+| Key | Does |
+| --- | --- |
+| `pages` | Which pages are written |
+| `scope` | Which part of the system is documented |
+| `sections` | Which sections a page has, and their order |
+| `titles` | Other headings |
+| `language` | `de`: the fixed headings and labels in German |
+| `names` | The file name of each kind of page |
+| `templates` | A folder with your own layout per kind of page |
+| `profiles` | Named sets of these keys: `bca layers --profile management` |
+
+### Pages
+
+`pages` has one key per kind of page: `readme`, `architecture`, `changes`,
+`findings`, `apps`, `components`, `namespaces`, `objects`, `lenses`,
+`stories`.
+
+- `false` leaves the kind out.
+- A list keeps the pages of the kind that match one entry: by name
+  (`"CON Item*"`), by ID (`"50000"`, `"data"`), or by type and name
+  (`"table CON Item"`). `*` and `?` are wildcards; case does not matter.
+  The four kinds with one page take only `true` or `false`.
+
+A page that is not written is still named where it was linked, as text
+without a link. A lens or a story that is left out is also left out of the
+lists of the first page.
+
+### Scope
+
+`scope` documents a part of the system. An object is in the scope when it
+matches every list that is not empty:
+
+| List | Matches |
+| --- | --- |
+| `apps` | The name of its app |
+| `components` | The name of its component |
+| `namespaces` | Its namespace; `Contoso.Sales*` also takes the ones below |
+| `types` | Its type: `table`, `codeunit`, `page`, ... |
+| `exclude` | Leaves it out, by name (`*Test*`) or by type, ID, and name |
+
+Only objects in the scope get a page. An app, a component, or a namespace
+gets one when it holds such an object, and its page counts and lists only
+those. An object outside the scope is still named where one inside uses it,
+without a link. The first page says that the pages are about a part, and of
+what.
+
+The scope is about objects. The relations and the health in the first
+sentence, `architecture.md`, `changes.md`, `findings.md`, the lenses, the
+stories, and `atlas.json` are the ones of the whole system; leave them out
+with `pages` when they do not fit.
+
+### Sections
+
+`sections` names, per kind of page, the sections (the headings of the second
+level) to write, in that order. A section that is not named is left out. A
+section a page does not have is skipped: a page has a section only when
+there is something to say in it. A name that is not a section of the kind
+is an error that lists the ones it has:
+
+| Kind of page | Sections |
+| --- | --- |
+| `readme` | Start here, Layers, Apps, Components, Namespaces, Lenses, Stories, Findings, Read from, History |
+| `architecture` | Apps, Components, Shared data, What to change |
+| `changes` | Changes, Options |
+| `findings` | Error, Warning, Info |
+| `app` | Components, Namespaces, Depends on, Used by, What to change here, Objects, Findings |
+| `component`, `namespace` | Depends on, Used by, What to change here, Objects, Findings |
+| `object` | Inside, Uses, Used by, What to change here, Findings |
+| `lens` | Findings |
+| `story` | Its steps (`1. <title>`); `[]` leaves what stands above them |
+
+Sections are always named in English, as in this table, whatever `language`
+and `titles` say. What stands above the first section (the way up, the
+sentence, the facts, the picture) and the footer are not sections: a
+[template](#templates) moves or drops them.
+
+### Titles and language
+
+`titles` gives a heading another text: the key is the heading as BC Atlas
+writes it in English, the value is what to call it.
+
+- `"Used by": "Who uses it"` renames the section on every kind of page.
+- `"object.Used by": "Callers"` renames it on the pages of objects only.
+- `"How it is connected"`, `"What to change, and how"`, and `"Findings"` are
+  also the titles of their pages; `"README"` is the title of the first
+  page, which is the name of the system otherwise.
+
+Links that name a renamed page, and links to a renamed section, follow.
+
+`"language": "de"` writes what BC Atlas itself says in the same way on every
+page in German. `titles` goes over it.
+
+| In German | Stays as it is |
+| --- | --- |
+| The titles of `architecture.md`, `changes.md`, `findings.md`, and every section heading | The sentences made from the source: what a part is and holds, the numbers of the first page, the list under **Start here** |
+| Table headers, the names of the facts, the table of the layers | The title, why, and steps of a change; the message and fix of a finding |
+| The way up at the top of a page (`Ebene 2: Komponenten`) | The pages of lenses and stories, except their table headers and section headings |
+| The fixed sentences that explain a section, and the footer | Names from the source and its words: object types, relation kinds (`reads`, `writes`), `Layer 0`, severities |
+| The labels `Why`, `How`, `Effort`, `Fix`, `On`, `Source` | `history/README.md` |
+
+### Names
+
+`names` gives each kind of page its file, relative to the folder of the
+pages. A pattern ends with `.md` and can hold folders.
+
+| Kind | Default | Placeholders |
+| --- | --- | --- |
+| `readme`, `architecture`, `changes`, `findings` | `README.md`, `architecture.md`, ... | none |
+| `apps`, `components` | `apps/{name}.md`, `components/{name}.md` | `{name}` |
+| `namespaces` | `namespaces/{name}.md` | `{name}`, `{app}` |
+| `objects` | `objects/{type}-{id}-{name}.md` | `{name}`, `{type}`, `{id}`, `{app}`, `{component}`, `{namespace}` |
+| `lenses`, `stories` | `lenses/{id}.md`, `stories/{id}.md` | `{id}`, `{name}` (the title) |
+
+A value is written in lower case, with `-` for everything that is not a
+letter or a digit; a part that is empty (an object without a namespace) is
+`unnamed`. Every link follows, and so do the pictures: the picture of a page
+has the name of the page with `.svg`, the one of the first page is
+`system.svg` next to it. `layers.json` lists the files as they are written,
+and names the first page as `start` when it is not `README.md`.
+
+Two pages that would get one file are an error that names both; add
+`{id}` or `{type}`. A name below `history/` is not allowed.
+
+### Templates
+
+`templates` is a folder, relative to the project, with a Markdown file per
+kind of page you want to lay out yourself: `readme.md`, `architecture.md`,
+`changes.md`, `findings.md`, `app.md`, `component.md`, `namespace.md`,
+`object.md`, `lens.md`, `story.md`. A kind without a file is written as
+always; other files in the folder are ignored.
+
+```markdown
+# {{title}}
+
+> {{type}} {{id}} of the app {{app}}
+
+{{picture}}
+
+{{summary}}
+
+{{section "Used by"}}
+
+## Needs
+
+{{body "Uses"}}
+
+{{sections}}
+
+Ask the team before you change it.
+
+{{footer}}
+```
+
+| Placeholder | Becomes |
+| --- | --- |
+| <code v-pre>{{title}}</code> | The title of the page, without the `#` |
+| <code v-pre>{{summary}}</code> | What stands between the title and the first section: the way up, the sentence, the facts, and the picture, unless the template has <code v-pre>{{picture}}</code> |
+| <code v-pre>{{picture}}</code> | The picture of the page |
+| <code v-pre>{{section "Uses"}}</code> | A section with its heading; nothing when the page does not have it |
+| <code v-pre>{{body "Uses"}}</code> | The same without the heading |
+| <code v-pre>{{sections}}</code> | Every section the template does not place by name, in the order of `sections` |
+| <code v-pre>{{footer}}</code> | The line that says the page is generated; on the first page also where the graph is |
+| <code v-pre>{{name}}</code>, <code v-pre>{{type}}</code>, <code v-pre>{{id}}</code>, <code v-pre>{{app}}</code>, <code v-pre>{{component}}</code>, <code v-pre>{{namespace}}</code>, <code v-pre>{{system}}</code> | Facts about what the page is of; empty when it has none |
+
+A line that holds only placeholders with nothing to say is left out. A
+section that `sections` leaves out is empty in a template too. A placeholder
+that is not known, or a section the kind does not have, is an error that
+names the template and the placeholder. Links you write in a template are
+written as they are.
+
+A template is part of the sync: change it, and the next run writes the pages
+of its kind again; `--check` fails until then.
+
+### Profiles
+
+A profile is a named set of the same keys, for another reader of the same
+system.
+
+```sh
+bca layers --profile management
+bca layers --profile management --check
+```
+
+- A key of the profile replaces the key of `layers` as a whole: a profile
+  with `pages` does not inherit single entries of `layers.pages`. A key it
+  does not set is the one of `layers`.
+- Every profile has a folder of its own: its `outputDir`, or
+  `<outputDir>-<name>` (here `docs/layers-management`) without one. Two
+  profiles with one folder are an error, because a run removes the pages it
+  wrote before and no longer writes.
+- `layers.json` records the profile of its folder. A run with another
+  profile into that folder (`-o`) stops with an error; delete `layers.json`
+  to give the folder to the other profile.
+- A name that is not a profile is an error that lists the profiles.
+
+States of the past (`--at`, `--releases`) are written with the same profile
+as the working tree.
+
 ## In sync
 
 The same source gives the same files, byte for byte. Nothing in them says
@@ -130,6 +353,8 @@ when they were written. So:
 | `layers.pictures` | `auto` | Pictures of single objects: `auto` (up to 400 objects), `all`, or `none` (no pictures at all) |
 | `layers.history` | `none` | `releases`: every run also records each release (Git tag) that is not recorded yet |
 | `layers.view` | `false` | Also write `view.html`, the BC Atlas view of the working tree as one offline file |
+
+What is written, and how, is [the documentation profile](#what-is-written-and-how-the-documentation-profile).
 
 ## History: a commit, a tag, a release
 

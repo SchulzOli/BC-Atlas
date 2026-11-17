@@ -6,6 +6,8 @@ import { gzipSync } from "node:zlib";
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 const read = (name) => readFileSync(new URL(`./ui/${name}`, import.meta.url), "utf8");
 const theme = () => readFileSync(new URL("../ui/theme.css", import.meta.url), "utf8");
+// The canvas of the builder: React Flow, built into vendor/ by scripts/build-flow-vendor.js.
+const vendor = (name) => readFileSync(new URL(`../../vendor/${name}`, import.meta.url), "utf8");
 
 const escapeHtml = (value) => String(value).replace(/[&<>"]/gu, (character) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]);
@@ -45,8 +47,8 @@ export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
     .replace('<html lang="en">', () => (mode === "vscode" ? '<html lang="en" data-host="vscode">' : '<html lang="en">'))
     .replace("__TITLE__", () => escapeHtml(title))
     .replace("__GENERATOR__", () => `BC Atlas ${pkg.version}`)
-    .replace("/*__STYLE__*/", () => `${theme()}\n${read("atlas.css")}`)
+    .replace("/*__STYLE__*/", () => `${vendor("flow-canvas.css")}\n${theme()}\n${read("atlas.css")}`)
     .replace("__BOOT__", () => boot)
     // The graph and the scene register themselves before the view starts.
-    .replace("/*__APP__*/", () => `${read("graph.js")}\n${read("scene.js")}\n${read("atlas.js")}`);
+    .replace("/*__APP__*/", () => `${vendor("flow-canvas.js").replaceAll("</script", "<\\/script")}\n${read("graph.js")}\n${read("scene.js")}\n${read("atlas.js")}`);
 }

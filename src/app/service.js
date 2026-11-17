@@ -79,6 +79,8 @@ export function createService(workspace) {
       exclude: params.exclude || undefined,
       include: params.include || undefined
     }),
+    // The graph again, on the analysis that is there: after a change to the flows or the processes.
+    forgetAtlas: () => workspace.forgetAtlas(),
     refresh: () => {
       workspace.reset();
       return { generation: workspace.generation, updatedAt: workspace.updatedAt };

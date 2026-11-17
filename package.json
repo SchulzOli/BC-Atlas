@@ -1,6 +1,6 @@
 {
   "name": "bc-atlas",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "description": "BC Atlas maps Microsoft Dynamics 365 Business Central AL projects: architecture diagrams, health checks, reports, and documentation generated from source.",
   "homepage": "https://github.com/SchulzOli/BC-Atlas#readme",
   "bugs": {
@@ -44,6 +44,7 @@
     "site:preview": "vitepress preview website",
     "version:set": "node ./scripts/set-version.js",
     "update:graph-vendor": "node ./scripts/build-graph-vendor.js",
+    "update:flow-vendor": "node ./scripts/build-flow-vendor.js",
     "update:font-metrics": "node ./scripts/build-font-metrics.js"
   },
   "keywords": [
@@ -79,6 +80,7 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.4.0",
+    "@xyflow/react": "^12.12.1",
     "3d-force-graph": "^1.80.0",
     "bpmn-moddle": "^10.3.1",
     "esbuild": "^0.28.2",
@@ -86,6 +88,8 @@
     "n3": "^2.13.12",
     "opentype.js": "^2.0.0",
     "rdfxml-streaming-parser": "^3.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "three": "^0.187.0",
     "vitepress": "2.0.0-alpha.21"
   }

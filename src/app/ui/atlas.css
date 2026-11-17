@@ -408,15 +408,42 @@ code { font-family: var(--mono); font-size: 0.92em; padding: 1px 4px; border-rad
 #board .pfindings .finding p { margin: 2px 0 0; font-size: 12.5px; }
 #board .pfindings .finding .fix { color: var(--muted); }
 /* The canvas: nodes to place and wire freely. */
-#board .canvas { position: relative; overflow: hidden; outline: 0; cursor: grab; touch-action: none; background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 22px 22px; }
+#board .canvas { position: relative; overflow: hidden; outline: 0; }
 #board .canvas.over { background-color: var(--accent-soft); border: 0; }
-#board .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-#board .wires { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; }
+/* The canvas is React Flow (vendor/flow-canvas.css); these make it look like the rest of the view. */
+#board .flowcanvas { position: absolute; inset: 0; }
+#board .react-flow { --xy-background-color: transparent; --xy-background-pattern-color: var(--border); --xy-edge-stroke: #2563eb; --xy-edge-stroke-selected: var(--accent); --xy-edge-stroke-width: 2; --xy-connectionline-stroke: var(--accent); --xy-connectionline-stroke-width: 2; --xy-handle-background-color: var(--muted); --xy-handle-border-color: var(--panel-solid, var(--surface)); --xy-edge-label-background-color: var(--panel-solid, var(--surface)); --xy-edge-label-color: var(--muted); --xy-minimap-background-color: var(--panel-solid, var(--surface)); --xy-minimap-mask-background-color: color-mix(in srgb, var(--border) 55%, transparent); --xy-controls-button-background-color: var(--panel-solid, var(--surface)); --xy-controls-button-background-color-hover: var(--accent-soft); --xy-controls-button-color: var(--text); --xy-controls-button-border-color: var(--border); --xy-selection-background-color: var(--accent-soft); --xy-selection-border: 1px dashed var(--accent); --xy-attribution-background-color: transparent; font: inherit; }
+#board .react-flow__node-card { padding: 0; border: 0; background: none; }
+#board .react-flow__edge.starts .react-flow__edge-path { stroke: #b7791f; }
+#board .react-flow__edge.failed .react-flow__edge-path { stroke: #c0392b; stroke-dasharray: 6 4; }
+#board .react-flow__edge.always .react-flow__edge-path { stroke: var(--muted); stroke-dasharray: 2 4; }
+#board .react-flow__edge.idle { opacity: 0.45; }
+#board .react-flow__edge.selected .react-flow__edge-path { stroke: var(--accent); stroke-width: 4; }
+#board .react-flow__edge-text { font-size: 11px; }
+#board .react-flow__handle { width: 12px; height: 12px; border-width: 2px; }
+#board .react-flow__handle.source { background: var(--accent); cursor: crosshair; }
+#board .react-flow__handle.valid, #board .react-flow__handle.connectingto { background: #0f766e; }
+#board .react-flow__minimap { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+#board .react-flow__minimap-node { fill: #0f766e; opacity: 0.55; }
+#board .react-flow__minimap-node.trigger { fill: #b7791f; }
+#board .react-flow__minimap-node.flow { fill: #2563eb; }
+#board .react-flow__controls { margin-bottom: 52px; box-shadow: var(--shadow); border-radius: 8px; overflow: hidden; }
+#board .react-flow__attribution { font-size: 9px; opacity: 0.6; }
+#board .react-flow__attribution a { color: var(--muted); }
+#board .card { display: grid; width: 190px; border: 1px solid var(--border); border-left: 4px solid #0f766e; border-radius: 10px; background: var(--panel-solid, var(--surface)); box-shadow: var(--shadow); user-select: none; color: var(--text); }
+#board .card .inside { display: grid; gap: 1px; padding: 7px 12px 8px; min-width: 0; }
+#board .card.trigger { width: 170px; border-left-color: #b7791f; border-radius: 22px 10px 10px 22px; }
+#board .card.trigger .inside { padding-left: 16px; }
+#board .card.flow { width: 208px; border-left-color: #2563eb; }
+#board .card.loose { border-style: dashed; border-left-style: dashed; opacity: 0.85; }
+#board .card b { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#board .card small { color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#board .card .acts { display: flex; gap: 5px; margin-top: 5px; }
+#board .card .acts .btn { height: 24px; padding: 0 8px; font-size: 12px; }
+#board .card.picked { outline: 2px solid var(--accent); outline-offset: 1px; }
 #board .wire { fill: none; stroke: #2563eb; stroke-width: 2; pointer-events: none; }
-#board .wire.starts { stroke: #b7791f; }
 #board .wire.failed { stroke: #c0392b; stroke-dasharray: 6 4; }
 #board .wire.always { stroke: var(--muted); stroke-dasharray: 2 4; }
-#board .wire.idle { opacity: 0.45; }
 #board .wires .label, #board .pwires .label { font-size: 11px; fill: var(--muted); paint-order: stroke; stroke: var(--panel-solid, var(--surface)); stroke-width: 4px; pointer-events: none; }
 #board .wires .label.failed { fill: #c0392b; }
 #board .canvas .tools select { height: 28px; padding: 0 6px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel-solid, var(--surface)); color: var(--text); font: inherit; }
@@ -424,24 +451,14 @@ code { font-family: var(--mono); font-size: 0.92em; padding: 1px 4px; border-rad
 #board .wire.pending { stroke: var(--accent); stroke-dasharray: 5 4; }
 #board .wire.picked { stroke: var(--accent); stroke-width: 4; }
 #board .hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
-#board .node { position: absolute; display: grid; gap: 1px; width: 190px; padding: 7px 12px 8px; border: 1px solid var(--border); border-left: 4px solid #0f766e; border-radius: 10px; background: var(--panel-solid, var(--surface)); box-shadow: var(--shadow); cursor: grab; user-select: none; }
-#board .node.trigger { width: 132px; border-left-color: #b7791f; border-radius: 999px 10px 10px 999px; padding-left: 16px; }
-#board .node.flow { width: 208px; border-left-color: #2563eb; }
-#board .node.loose { border-style: dashed; border-left-style: dashed; opacity: 0.85; }
-#board .node b { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#board .node small { color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#board .node .acts { display: flex; gap: 5px; margin-top: 5px; }
-#board .node .acts .btn { height: 24px; padding: 0 8px; font-size: 12px; }
-#board .node.picked { outline: 2px solid var(--accent); outline-offset: 1px; }
-#board .node.aim { outline: 2px dashed var(--accent); outline-offset: 2px; }
 #board .port { position: absolute; top: 50%; width: 14px; height: 14px; margin-top: -7px; border: 2px solid var(--panel-solid, var(--surface)); border-radius: 50%; background: var(--muted); }
 #board .port.in { left: -9px; }
 #board .port.out { right: -8px; background: var(--accent); cursor: crosshair; }
 #board .port.out:hover { transform: scale(1.35); }
-#board .canvas .tools { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 5px; cursor: default; }
+#board .canvas .tools { position: absolute; right: 14px; bottom: 14px; z-index: 6; display: flex; gap: 5px; cursor: default; }
 #board .canvas .tools .btn { height: 28px; background: var(--panel-solid, var(--surface)); }
-#board .canvas .kept { position: absolute; left: 12px; bottom: 12px; padding: 5px 8px; border-radius: 8px; background: var(--panel-solid, var(--surface)); cursor: default; }
-#board .canvas .empty { position: absolute; left: 40px; top: 40px; width: 320px; margin: 0; color: var(--muted); }
+#board .canvas .kept { position: absolute; left: 12px; top: 12px; z-index: 6; padding: 5px 8px; border-radius: 8px; background: var(--panel-solid, var(--surface)); cursor: default; }
+#board .canvas .empty { position: absolute; z-index: 6; pointer-events: none; left: 40px; top: 40px; width: 320px; margin: 0; color: var(--muted); }
 @media (max-width: 760px) {
   #board .body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 40%) minmax(0, 1fr); }
   #board .palette { border-right: 0; border-bottom: 1px solid var(--border); }
@@ -546,3 +563,10 @@ code { font-family: var(--mono); font-size: 0.92em; padding: 1px 4px; border-rad
 @media print {
   #bar, #zoom, #popover, #toast { display: none; }
 }
+#board .palette .trigger.own { border-style: dashed; }
+#board .palette > .btn { justify-self: start; margin-top: 6px; }
+#board .nodetools, #board .wiretools, #board .canvastools { display: flex; gap: 5px; }
+#board .nodetools .btn, #board .canvastools .btn { height: 26px; padding: 0 9px; font-size: 12px; background: var(--panel-solid, var(--surface)); box-shadow: var(--shadow); }
+#board .wiretools select { height: 26px; padding: 0 6px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel-solid, var(--surface)); color: var(--text); font: inherit; font-size: 12px; }
+#board .canvashint { max-width: 320px; color: var(--muted); }
+#board .react-flow__controls { margin-bottom: 15px; }

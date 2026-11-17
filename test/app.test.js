@@ -471,7 +471,8 @@ test("bca export writes the app as one offline file with the whole atlas", () =>
     const withMembers = objects.filter(({ id }) => snapshot.inside[id]);
     assert.ok(withMembers.length >= 5 && withMembers.length <= objects.length);
     assert.ok(Object.values(snapshot.inside).every(({ nodes, edges, relations }) => (nodes.length || edges.length) && edges.every(([, , relation]) => relations[relation])));
-    assert.ok(html.length < 400_000, `one small file (${html.length} bytes)`);
+    // The canvas of the builder (React Flow) comes along, so the file builds flows offline too.
+    assert.ok(html.length < 900_000, `one small file (${html.length} bytes)`);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

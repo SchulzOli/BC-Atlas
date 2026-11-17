@@ -14,13 +14,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { automationConfig } from "../automation/config.js";
 import { findGitRoot } from "../automation/git.js";
-import { FLOW_MARKER, githubWorkflow } from "../automation/pipelines.js";
+import { azurePipeline, FLOW_MARKER, githubWorkflow } from "../automation/pipelines.js";
 import { loadPlugins } from "../plugins/registry.js";
 import { flowsConfig } from "./config.js";
 import { stepOutputs } from "./artifacts.js";
+import { azureFlowPipeline, flowStarts, githubFlowWorkflow, startEvents } from "./pipeline.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
-export const FLOW_EXPORT_TARGETS = Object.freeze(["github"]);
+export const FLOW_EXPORT_TARGETS = Object.freeze(["github", "azure-devops"]);
 export const DEFAULT_CRON = "0 6 * * 1";
 const posix = (value) => value.replaceAll("\\", "/");
 
@@ -48,7 +49,7 @@ export async function exportFlow(input, { flow: id, to = "github", output, force
   if (!flow) throw new Error(`flows: there is no flow "${id}"; there ${flows.length === 1 ? "is" : "are"} ${flows.map((item) => item.id).join(", ") || "none"}`);
   if (!flow.steps.length) throw new Error(`flows: the flow "${id}" has no steps yet`);
   const gitRoot = await findGitRoot(root);
-  if (!gitRoot) throw new Error("flows: a workflow for GitHub Actions needs a Git repository; run git init first");
+  if (!gitRoot) throw new Error("flows: a pipeline of a flow needs a Git repository; run git init first");
   const appPath = posix(path.relative(gitRoot, root)) || ".";
 
   // What the flow saves, from the root of the repository; a task of a plugin says so itself.
@@ -62,15 +63,22 @@ export async function exportFlow(input, { flow: id, to = "github", output, force
     // A push verifies or uploads; it never writes back to the branch it runs on.
     triggers.ci = { sync: ["verify", "artifact"].includes(deliver("ci")) ? deliver("ci") : "artifact", outputs: placed };
   }
-  if (flow.when.includes("schedule")) triggers.schedule = { sync: deliver("schedule"), cron: automation.schedule?.cron ?? DEFAULT_CRON, outputs: placed };
+  // Azure Pipelines has no step that opens a pull request: what the flow saved is published instead.
+  const scheduled = to === "azure-devops" && deliver("schedule") === "pull-request" ? "artifact" : deliver("schedule");
+  if (flow.when.includes("schedule")) triggers.schedule = { sync: scheduled, cron: automation.schedule?.cron ?? DEFAULT_CRON, outputs: placed };
   if (!triggers.ci && !triggers.schedule) triggers.manual = { sync: "artifact", outputs: placed };
 
   // With a package.json that declares bc-atlas, the workflow uses that version.
   const packageJson = await fs.readFile(path.join(gitRoot, "package.json"), "utf8").then(JSON.parse, () => undefined);
   const local = Boolean(packageJson?.devDependencies?.["bc-atlas"] || packageJson?.dependencies?.["bc-atlas"]);
-  const content = githubWorkflow({ appPath, version, triggers, local, alTools: (config.al?.compiler ?? "auto") !== "off", flow: { id: flow.id, title: flow.title } });
+  const alTools = (config.al?.compiler ?? "auto") !== "off";
+  // A flow on triggers of your own gets a pipeline that tells them apart (pipeline.js).
+  const own = flow.when.some((name) => automation[name]?.custom) ? flowStarts(flow.when, automation, { to, defaultCron: DEFAULT_CRON }) : undefined;
+  const content = own
+    ? (to === "github" ? githubFlowWorkflow : azureFlowPipeline)({ appPath, version, starts: own.starts, outputs: placed, local, alTools, flow: { id: flow.id, title: flow.title } })
+    : (to === "github" ? githubWorkflow : azurePipeline)({ appPath, version, triggers, local, alTools, flow: { id: flow.id, title: flow.title } });
 
-  const target = output ? path.resolve(output) : path.join(gitRoot, ".github", "workflows", `bc-atlas-${flow.id}.yml`);
+  const target = output ? path.resolve(output) : to === "github" ? path.join(gitRoot, ".github", "workflows", `bc-atlas-${flow.id}.yml`) : path.join(gitRoot, `azure-pipelines.bc-atlas-${flow.id}.yml`);
   const current = await fs.readFile(target, "utf8").catch(() => undefined);
   if (current !== undefined && current !== content && !current.includes(FLOW_MARKER) && !force) {
     throw new Error(`flows: ${posix(path.relative(gitRoot, target))} exists and was not written by bca flow export; use --force to replace it, or --output for another file`);
@@ -89,7 +97,11 @@ export async function exportFlow(input, { flow: id, to = "github", output, force
     content,
     action,
     written,
-    events: [...(triggers.ci ? ["pull_request", "push"] : []), ...(triggers.schedule ? [`schedule (${triggers.schedule.cron})`] : []), "workflow_dispatch"],
-    delivery: Object.fromEntries(Object.entries(triggers).map(([name, { sync }]) => [name, sync]))
+    // The triggers of the flow that no pipeline starts, and why: [{ name, why }].
+    skipped: own?.skipped ?? [],
+    events: own ? startEvents(own.starts) : to === "github"
+      ? [...(triggers.ci ? ["pull_request", "push"] : []), ...(triggers.schedule ? [`schedule (${triggers.schedule.cron})`] : []), "workflow_dispatch"]
+      : [...(triggers.ci ? ["pull requests", "pushes to main"] : []), ...(triggers.schedule ? [`schedule (${triggers.schedule.cron})`] : []), "by hand"],
+    delivery: own ? Object.fromEntries(own.starts.filter(({ implied }) => !implied).map(({ name, sync }) => [name, sync])) : Object.fromEntries(Object.entries(triggers).map(([name, { sync }]) => [name, sync]))
   };
 }

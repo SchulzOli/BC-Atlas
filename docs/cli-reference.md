@@ -828,6 +828,7 @@ bca layers ./app --releases --last 5   # the working tree, and the newest five r
 | `--refresh` | | Write a state that is already recorded again, for example after an update of BC Atlas. |
 | `--check` | | Write nothing; fail (exit code 1) when the pages are not in sync with the source, or an asked state is not recorded. |
 | `--pictures` | `auto`, `all`, `none` | Pictures of single objects: `auto` (up to 400 objects), `all`, or `none` (no pictures at all). |
+| `--profile` | name | A [documentation profile](./layers.md#what-is-written-and-how-the-documentation-profile) of `layers.profiles` in `.bca.json`: which pages and sections are written, for which part of the system, in which language, under which file names, and from which templates. Each profile writes to a folder of its own. |
 | `--view` | | Also write `view.html`, the BC Atlas view of the working tree as one offline file. A state of the past always has it. |
 | `-f`, `--format` | `text`, `json` | What the command reports. |
 
@@ -1004,6 +1005,8 @@ bca flow define [app-root] --flow <id> [--title <text>] [--when <triggers>]
 bca flow define [app-root] --flow <id> --step <artifact> [--to <path>] [--set <option>=<value>]
 bca flow define [app-root] --flow <id> --at <n> [--to <path>] [--set <option>=<value>]
 bca flow define [app-root] --deliver <trigger>=<sync mode>
+bca flow define [app-root] --trigger <name> [--on <events>] [--branches <list>] [--paths <list>] [--tags <list>] [--cron <cron>] [--hook <name>]
+bca flow define [app-root] --untrigger <name>
 ```
 
 Changes the flows in `.bca.json`. A change names what it changes and keeps the
@@ -1014,7 +1017,7 @@ flows as they are.
 | --- | --- | --- |
 | `--flow` | id | Add this flow, or change it. |
 | `--title` | text | The title of the flow. |
-| `--when` | list | The triggers the flow runs on: `pre-commit`, `pre-push`, `ci`, `schedule`, `manual`. An empty value leaves only `bca run --flow`. |
+| `--when` | list | The triggers the flow runs on: `pre-commit`, `pre-push`, `ci`, `schedule`, `manual`, and the triggers of your own. An empty value leaves only `bca run --flow`. |
 | `--step` | artifact | Add a step that makes this artifact; with `--at`, make that step this artifact instead. |
 | `--to` | path | Where the step saves: a folder or a file, relative to the project. Without it, the default of the artifact. |
 | `--set` | option=value | An option of the step, such as `lens=data`. An empty value takes it away. Repeatable. |
@@ -1025,6 +1028,14 @@ flows as they are.
 | `--up`, `--down` | n | Move the step with this number one up or down. |
 | `--remove` | id | Remove a flow. Repeatable. |
 | `--deliver` | trigger=sync | How a trigger delivers what its tasks and flows save: its sync mode. Repeatable. |
+| `--trigger` | name | Define a trigger of your own, or change it. What starts it is `--on`, `--cron`, or `--hook`; with none of them only `bca run --trigger <name>` does. `--title` without `--flow` says what it is. With the name `schedule` and `--cron`, sets the cron of the built-in schedule. See [Triggers of your own](./flows.md#triggers-of-your-own). |
+| `--on` | list | The events that start the trigger in a pipeline: `push`, `pull-request`, `tag`, `release`, `manual`. |
+| `--branches` | list | Only pushes to, and pull requests into, these branches. An empty value takes them away. |
+| `--paths` | list | Only when files under these paths changed, such as `src/**/*.al`. |
+| `--tags` | list | Only these tags, such as `v*`. |
+| `--cron` | cron | Start the trigger on a schedule: a five-field cron expression. |
+| `--hook` | name | Make the trigger a Git hook: `post-commit`, `post-merge`, `post-checkout`, `post-rewrite`, `pre-rebase`, `pre-merge-commit`, `prepare-commit-msg`, `commit-msg`. `bca setup apply --from-config` installs it. |
+| `--untrigger` | name | Remove a trigger of your own; the flows that ran on it no longer do. Repeatable. |
 | `--from` | path | Apply the operations of a JSON file: what the Flow menu of an exported view saves. |
 | `--dry-run` | flag | Check the change and show the result; write nothing. |
 | `--format` | `text` or `json` | Output mode. Default: `text`. |
@@ -1034,7 +1045,7 @@ flows as they are.
 ### `flow export`
 
 ```text
-bca flow export [app-root] --flow <id> [--to github] [-o <file>] [--dry-run] [--force]
+bca flow export [app-root] --flow <id> [--to github|azure-devops] [-o <file>] [--dry-run] [--force]
 ```
 
 Exports a flow as a pipeline of its own: for GitHub Actions, the workflow
@@ -1046,7 +1057,7 @@ mode of the trigger. See
 | Option | Value | Description |
 | --- | --- | --- |
 | `--flow` | id | The flow to export. Required. |
-| `--to` | `github` | What to export it for. Default: `github`. |
+| `--to` | `github`, `azure-devops` | What to export it for: GitHub Actions, or Azure Pipelines (`azure-pipelines.bc-atlas-<flow>.yml`). Default: `github`. |
 | `--output`, `-o` | path | Write this file instead; `-` prints the workflow. |
 | `--force` | flag | Replace a file that `bca flow export` did not write. |
 | `--dry-run` | flag | Say what would be written; write nothing. |

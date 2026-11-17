@@ -8,7 +8,7 @@ import { createStarterConfig } from "./starter.js";
 import { EXPORT_FORMATS } from "../docs/export.js";
 import { loadCorpus } from "../docs/model.js";
 import { loadPlugins } from "../plugins/registry.js";
-import { CI_PROVIDERS, DEFAULTS, HOOK_MANAGERS, outputsFor, parseList, TASKS, validateCron } from "./config.js";
+import { CI_PROVIDERS, DEFAULTS, HOOK_MANAGERS, outputsFor, parseList, TASKS, TRIGGERS, validateCron } from "./config.js";
 import { flowOutputs, flowsConfig, flowsFor } from "../flows/config.js";
 import { findGitRoot, git, hostOf, remoteUrl } from "./git.js";
 import {
@@ -361,7 +361,8 @@ export function answersFromConfig(config, fallback) {
 
 function buildConfig(existing, answers) {
   const config = { ...existing };
-  const triggers = {};
+  // The triggers of your own stay: setup decides the built-in ones only.
+  const triggers = Object.fromEntries(Object.entries(existing.automation?.triggers ?? {}).filter(([name]) => !TRIGGERS[name]));
   // Setup asks only about its FEATURES; tasks it does not manage (simulate, handbook, diagrams,
   // plugin tasks such as sync) stay in the triggers they were configured for.
   const kept = (name, tasks) => [...new Set([
@@ -438,12 +439,21 @@ export async function applySetup(input, rawAnswers = {}, { dryRun = false, force
   const commands = [];
   const nextSteps = [];
 
-  for (const [hook, trigger] of [["pre-commit", "pre-commit"], ["pre-push", "pre-push"]]) {
+  // The built-in hooks, and the triggers of your own that are a Git hook ({ "hook": "post-merge" }).
+  const hooks = [["pre-commit", "pre-commit"], ["pre-push", "pre-push"], ...Object.entries(config.automation.triggers).filter(([name, trigger]) => !TRIGGERS[name] && trigger?.hook).map(([name, trigger]) => [trigger.hook, name])];
+  const written = new Map();
+  for (const [hook, trigger] of hooks) {
     if (!config.automation.triggers[trigger] || answers.hooks === "none") continue;
     const directory = answers.hooks === "husky" ? ".husky" : ".githooks";
     const file = path.join(gitRoot, directory, hook);
-    const current = await readFile(file, "utf8").catch(() => undefined);
-    files.push(await plannedWrite(file, mergeHook(current, answers.hooks, hook, { appPath, version }), options));
+    // Two triggers can be one hook: each has its line.
+    const current = written.get(file) ?? await readFile(file, "utf8").catch(() => undefined);
+    const content = mergeHook(current, answers.hooks, hook, { appPath, version, trigger });
+    written.set(file, content);
+    const planned = await plannedWrite(file, content, options);
+    const at = files.findIndex((item) => item.path === planned.path);
+    if (at >= 0) files[at] = planned;
+    else files.push(planned);
   }
   if (answers.hooks === "husky") {
     const file = path.join(gitRoot, "package.json");

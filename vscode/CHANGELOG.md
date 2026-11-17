@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+## 0.24.0
+
+- **The canvas of the flow builder is React Flow**, with BC Atlas' nodes on
+  it: a minimap, zoom and fit controls, touch, Shift-drag to select several,
+  the buttons of a node above it, and the choice on a wire at the wire.
+- **Triggers of your own**: **New trigger…** in the builder, and a form on
+  every trigger node: pipeline events with branches, paths, and tags, a
+  cron, a Git hook, or a name your own script calls.
+- A `layers` step of a flow can name a **documentation profile**: which
+  pages and sections are written, for which part of the system, in which
+  language, and from which templates.
+- **Undo** in the builder (the button, or Ctrl+Z).
+- A change to the flows or the processes no longer analyses the project
+  again: the graph is read again on the analysis that is there.
+- **For Azure Pipelines**, next to For GitHub Actions, in the form of a
+  flow.
+
 ## 0.23.0
 
 - The engine is BC Atlas 0.23.0.

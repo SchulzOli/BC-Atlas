@@ -19,6 +19,9 @@ const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
 const example = fileURLToPath(new URL("../examples/purchasing-app", import.meta.url));
 const bca = (args, options = {}) => spawnSync(process.execPath, [cli, ...args], { encoding: "utf8", timeout: 180_000, ...options });
 
+/** The events of the page every step opens, without the people: nothing tells the steps apart. */
+const anonymousPage = (events) => events.filter(({ type }) => type === "page").map(({ user: _user, ...event }) => event);
+
 function project() {
   const root = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-process-"));
   cpSync(example, root, { recursive: true });
@@ -276,6 +279,8 @@ test("telemetry gives the processes their time: how often, how long, the waits, 
   assert.deepEqual(timing.steps.approve, { count: 15, cases: 12, repeated: 3, duration: timing.steps.approve.duration, work: timing.steps.approve.work });
   assert.deepEqual(timing.ways.map(({ from, into, count, share }) => [from, into, count, share]), [["create", "release", 15, 100], ["release", "approve", 15, 100], ["approve", "order", 12, 100], ["approve", "create", 3, 25]]);
   assert.equal(span(timing.ways[1].wait.avg), "1.4 d");
+  // How the events found their step: what only one step can have, by who did it, by where the case was.
+  assert.deepEqual(timing.matching, { certain: 24, person: 42, place: 27 });
   // A page every step opens belongs to the step the person is seen doing: nobody but Ben approves.
   assert.ok(timing.steps.release.duration.avg < 1000, "the release does not swallow the wait for the approval");
 
@@ -296,6 +301,17 @@ test("telemetry gives the processes their time: how often, how long, the waits, 
   assert.ok(!timingFindings(looped, timeProcess(looped.steps, events, tasks)).some(({ rule }) => rule === "process-way-not-in-model"));
   assert.equal(timeProcess(run.steps, [{ time: 1, duration: 5, case: "a", event: "PR0009", text: "" }], tasks, { "purchase-request-setup": "PR0009" }).steps.setup.count, 1);
   assert.equal(timeProcess(run.steps, [{ time: 1, duration: 5, case: "a", type: "page", id: "1", text: "" }], tasks), undefined);
+  // Business Central may prefix what the app sends: the field of the case and the event id are taken either way.
+  assert.equal(telemetryEvent({ timestamp: "2026-10-05T08:00:00Z", customDimensions: { alRequestNo: "PR-7" } }, { caseField: "requestNo" }).case, "PR-7");
+  assert.equal(timeProcess(run.steps, [{ time: 1, duration: 5, case: "a", event: "alPR0009", text: "" }], tasks, { "purchase-request-setup": "PR0009" }).steps.setup.count, 1);
+  // Mostly a guess: without people, and everything on one page.
+  const guessed = timeProcess(run.steps, anonymousPage(events), tasks);
+  assert.ok(guessed.matching.place / guessed.events >= 0.3);
+  assert.ok(timingFindings(run, guessed).some(({ rule }) => rule === "process-telemetry-uncertain"));
+  // Undo in the builder: the processes as they were.
+  const once = applyProcessOperations({}, [{ op: "set", process: "orders" }, { op: "step", process: "orders", title: "Take" }]);
+  assert.deepEqual(applyProcessOperations(applyProcessOperations(once, [{ op: "remove", process: "orders" }, { op: "set", process: "other" }]), [{ op: "restore", processes: once.processes }]).processes, once.processes);
+  assert.throws(() => applyProcessOperations(once, [{ op: "restore" }]), /restore needs "processes"/u);
   // Without people in the telemetry, what several steps could have goes to the next step from the longest pause on.
   const anonymous = events.map(({ user: _user, ...event }) => event);
   assert.deepEqual(timeProcess(run.steps, anonymous, tasks).variants[0].steps, ["create", "release", "approve", "order"]);

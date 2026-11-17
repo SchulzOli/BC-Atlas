@@ -793,7 +793,7 @@
     const waits = [step.after ?? []].flat().map((wire) => (typeof wire === "string" ? wire.replace(":", " if ") : `${wire.step}${wire.if && wire.if !== "passed" ? ` if ${wire.if}` : ""}`)).join(", ");
     return `${to ? `→ ${to}` : artifactOf(what)?.plugin ? "task of a plugin" : "gate: it only passes or fails"}${detail ? ` · ${detail}` : ""}${waits ? ` · after ${waits}` : ""}`;
   };
-  const describeOperation = (operation) => [operation.op, operation.flow ?? operation.trigger, operation.what, operation.at ? `step ${operation.at}` : "", operation.to ? `→ ${operation.to}` : "", operation.sync].filter(Boolean).join(" ");
+  const describeOperation = (operation) => [operation.op, operation.flow ?? operation.trigger ?? operation.name, operation.what, operation.at ? `step ${operation.at}` : "", operation.to ? `→ ${operation.to}` : "", operation.sync].filter(Boolean).join(" ");
   const muted = (text) => `<p class="text" style="color:var(--muted);font-size:12.5px">${text}</p>`;
   function flowStepForm() {
     const flow = flowOf(flowForm.flow);
@@ -814,12 +814,39 @@
       ${muted(`${esc(artifact.summary)}.${artifact.stable === false ? " It differs on every run, so it is not for a trigger that verifies." : ""}`)}
       ${artifact.plugin ? muted("A task of a plugin saves where its own section of <code>.bca.json</code> says.") : `<label class="field wide" title="Relative to the project"><span>Save to</span><input type="text" data-f="to" value="${esc(same.to ?? "")}" placeholder="${esc(artifact.to ?? "nowhere: only pass or fail")}" autocomplete="off" spellcheck="false"></label>
       ${muted(artifact.target === "folder" ? "A folder of the project." : `One file: ${artifact.extensions.map((item) => `.${esc(item)}`).join(", ")}.${artifact.optional ? " Without a place it only passes or fails." : ""}`)}`}
-      ${artifact.options.map(field).join("").replace('data-o="lens"', 'data-o="lens" list="flow-lenses"').replace('data-o="story"', 'data-o="story" list="flow-stories"')}${lensOptions}
+      ${artifact.options.map(field).join("").replace('data-o="lens"', 'data-o="lens" list="flow-lenses"').replace('data-o="story"', 'data-o="story" list="flow-stories"').replace('data-o="profile"', 'data-o="profile" list="flow-profiles"')}${lensOptions}${what === "layers" ? `<datalist id="flow-profiles">${(atlas.flows.profiles ?? []).map((name) => `<option value="${esc(name)}"></option>`).join("")}</datalist>${muted(`A profile says which pages and sections are written, for which part of the system, in which language, and from which templates: <code>layers.profiles</code> in <code>.bca.json</code>.${(atlas.flows.profiles ?? []).length ? "" : " There is none yet."}`)}` : ""}
       <label class="field wide" title="Other steps can come after it by this name"><span>Name</span><input type="text" data-f="id" value="${esc(existing?.id ?? "")}" placeholder="none: nothing waits for it" autocomplete="off" spellcheck="false"></label>
       ${existing ? muted(waits.length ? `Comes after ${esc(waits.join(", "))}. Wire it on the canvas of the builder.` : "Starts with the flow. To let it wait for another step, wire it on the canvas of the builder.") : ""}
       <hr><div class="actions"><button class="btn primary" data-flow-act="step-apply">Apply</button>${existing ? '<button class="btn" data-flow-act="step-remove">Remove</button>' : ""}<button class="btn" data-flow-act="step-back">Back</button></div>`;
   }
+  /** The form of a trigger: what starts one of your own, and how any trigger delivers what was saved. */
+  function triggerFormHtml() {
+    const { triggers, syncModes, events = {}, hooks = [] } = atlas.flows;
+    const name = flowForm.trigger;
+    const trigger = triggers[name];
+    const own = !trigger || trigger.custom;
+    const listed = (key) => esc((trigger?.[key] ?? []).join(", "));
+    const modes = trigger?.modes ?? Object.keys(syncModes);
+    const users = trigger ? atlas.flows.flows.filter(({ when }) => when.includes(name)) : [];
+    const text = (key, title, hint, value) => `<label class="field wide" title="${esc(hint)}"><span>${esc(title)}</span><input type="text" data-f="${key}" value="${value}" placeholder="${esc(hint)}" autocomplete="off" spellcheck="false"></label>`;
+    return `<h3>${trigger ? `Trigger ${esc(name)}` : "New trigger"}</h3>
+      ${trigger ? muted(`${esc(trigger.summary)}.${users.length ? ` It starts ${esc(users.map(({ title }) => title).join(", "))}.` : " No flow runs on it yet: pull a wire from it into a flow."}`) : muted("A trigger of your own says what starts it. Flows run on it like on a built-in one.")}
+      ${trigger ? "" : text("name", "Name", "release", "")}
+      ${own ? `${text("title", "What it is", "A release tag", esc(trigger?.title ?? ""))}
+      <fieldset class="checks" style="max-height:none"><legend>Started in a pipeline by</legend>${Object.entries(events).map(([event, summary]) => `<label title="${esc(summary)}"><input type="checkbox" data-f="on" value="${esc(event)}" ${trigger?.on?.includes(event) ? "checked" : ""}>${esc(event)} <small>${esc(summary)}</small></label>`).join("")}</fieldset>
+      ${text("branches", "Only these branches", "main, release/*", listed("branches"))}
+      ${text("paths", "Only when these changed", "src/**/*.al", listed("paths"))}
+      ${text("tags", "Only these tags", "v*", listed("tags"))}
+      ${text("cron", "Or on a schedule (cron)", "0 2 * * *", esc(trigger?.cron ?? ""))}
+      <label class="field wide" title="Instead of a pipeline: a Git hook on the machine of each developer. bca setup apply --from-config installs it"><span>Or as a Git hook</span><select data-f="hook"><option value="">No hook</option>${hooks.map((hook) => `<option ${trigger?.hook === hook ? "selected" : ""}>${esc(hook)}</option>`).join("")}</select></label>
+      ${muted("With none of these, only its name starts it: <code>bca run --trigger &lt;name&gt;</code>, from a script of yours.")}`
+    : name === "schedule" ? text("cron", "Schedule (cron)", "0 6 * * 1", esc(trigger.cron ?? "")) : ""}
+      <label class="field wide" title="What happens to what the flows of this trigger saved"><span>Delivery</span><select data-f="sync">${modes.map((mode) => `<option value="${esc(mode)}" ${mode === (trigger?.sync ?? "none") ? "selected" : ""} title="${esc(syncModes[mode])}">${esc(mode)}: ${esc(syncModes[mode])}</option>`).join("")}</select></label>
+      ${own ? muted("A Git hook delivers with none, verify, or stage; a pipeline with none, verify, artifact, pull-request, or commit.") : ""}
+      <hr><div class="actions"><button class="btn primary" data-flow-act="trigger-apply">Apply</button>${trigger?.custom ? '<button class="btn" data-flow-act="trigger-remove">Remove</button>' : ""}<button class="btn" data-flow-act="back">Back</button></div>`;
+  }
   function flowFormHtml() {
+    if (flowForm.trigger !== undefined) return triggerFormHtml();
     if (flowForm.step !== undefined) return flowStepForm();
     const flow = flowForm.flow ? flowOf(flowForm.flow) : undefined;
     const { triggers, syncModes } = atlas.flows;
@@ -832,7 +859,7 @@
       ${flow.when.length ? `<h3>Delivery: what happens to what was saved</h3>${flow.when.map((name) => `<label class="field wide" title="${esc(syncModes[triggers[name].sync])}"><span>${esc(name)}</span><select data-deliver="${esc(name)}">${triggers[name].modes.map((mode) => `<option value="${esc(mode)}" ${mode === triggers[name].sync ? "selected" : ""} title="${esc(syncModes[mode])}">${esc(mode)}: ${esc(syncModes[mode])}</option>`).join("")}</select></label>`).join("")}
       ${flow.when.some((name) => name !== "manual" && !triggers[name].configured) ? muted("Nothing calls some of these triggers yet: <code>bca setup</code> installs the Git hook or the pipeline.") : ""}` : ""}` : muted("Apply it, then add its steps.")}
       <hr><div class="actions"><button class="btn primary" data-flow-act="apply">Apply</button>${flow && LIVE ? `<button class="btn" data-flow-act="run" title="bca run --flow ${esc(flow.id)}">Run now</button>` : ""}${flow ? '<button class="btn" data-flow-act="remove">Remove</button>' : ""}<button class="btn" data-flow-act="back">Back</button></div>
-      ${flow?.steps.length ? `<hr><h3>Export</h3><div class="actions"><button class="btn" data-flow-act="github" title="One workflow file that runs this flow on GitHub and delivers what it saves">For GitHub Actions</button></div>
+      ${flow?.steps.length ? `<hr><h3>Export</h3><div class="actions"><button class="btn" data-flow-act="github" title="One workflow file that runs this flow on GitHub and delivers what it saves">For GitHub Actions</button><button class="btn" data-flow-act="github" data-to="azure-devops" title="One pipeline file that runs this flow in Azure Pipelines and delivers what it saves">For Azure Pipelines</button></div>
       ${muted(LIVE ? `Writes <code>.github/workflows/bc-atlas-${esc(flow.id)}.yml</code>: it runs on ${flow.when.includes("ci") ? "pull requests and pushes" : ""}${flow.when.includes("ci") && flow.when.includes("schedule") ? ", " : ""}${flow.when.includes("schedule") ? "the schedule" : ""}${flow.when.some((name) => name === "ci" || name === "schedule") ? ", or" : ""} by hand.` : "Copies the command that writes the workflow file.")}` : ""}`;
   }
   MENUS.flow = () => {
@@ -862,6 +889,25 @@
       if (!used.has(candidate)) return candidate;
     }
   }
+  /** What is not valid about the flows as they are now, as src/flows/config.js would say it; nothing when all is well. */
+  function flowWrong() {
+    const places = new Map();
+    for (const flow of atlas.flows.flows) {
+      const names = new Set();
+      for (const step of flow.steps) {
+        if (step.id && names.has(step.id)) return `The flow ${flow.id} has two steps "${step.id}".`;
+        if (step.id) names.add(step.id);
+        const artifact = artifactOf(step.what);
+        if (!artifact) return `"${step.what}" is not an artifact.`;
+        const place = placeOfStep(step);
+        if (place && artifact.extensions && !artifact.extensions.includes(place.slice(place.lastIndexOf(".") + 1).toLowerCase())) return `${artifact.title} saves one file that ends in ${artifact.extensions.map((item) => `.${item}`).join(", ")}, not "${place}".`;
+        if (place && places.has(place)) return `"${place}" is saved twice: by ${places.get(place)} and by ${step.what} of the flow ${flow.id}. Give one of them another place.`;
+        if (place) places.set(place, `${step.what} of the flow ${flow.id}`);
+      }
+      for (const step of flow.steps) for (const wire of wiresOf(step)) if (!names.has(wire.step)) return `A step of the flow ${flow.id} comes after "${wire.step}", which is not a step of it.`;
+    }
+    return undefined;
+  }
   /** What operations do to the flows, in a snapshot: the same as src/flows/config.js, without its checks. */
   function flowLocal(operations) {
     const { flows, triggers } = atlas.flows;
@@ -872,7 +918,28 @@
         if (!flow) flows.push({ id: operation.flow, title: operation.title || operation.flow, when: operation.when ?? [], steps: [] });
         else Object.assign(flow, operation.title ? { title: operation.title } : {}, operation.when ? { when: operation.when } : {});
       } else if (operation.op === "deliver") triggers[operation.trigger].sync = operation.sync;
-      else if (!flow) continue;
+      else if (operation.op === "trigger") {
+        // A trigger of your own, as src/automation/config.js describes it; the project checks it when the changes are applied.
+        const before = triggers[operation.name] ?? {};
+        const list = (value) => [value ?? []].flat().flatMap((item) => String(item).split(",")).map((item) => item.trim()).filter(Boolean);
+        if (operation.name === "schedule") {
+          before.cron = operation.cron;
+          continue;
+        }
+        const next = { ...before, custom: true, configured: true, tasks: before.tasks ?? [], sync: operation.sync ?? before.sync ?? "none" };
+        for (const key of ["on", "branches", "paths", "tags"]) if (operation[key] !== undefined) next[key] = list(operation[key]);
+        for (const key of ["title", "cron", "hook"]) if (operation[key] !== undefined) next[key] = String(operation[key]).trim();
+        for (const key of ["title", "on", "branches", "paths", "tags", "cron", "hook"]) if (!next[key]?.length) delete next[key];
+        next.kind = next.hook ? "hook" : next.on || next.cron ? "pipeline" : "call";
+        next.modes = next.kind === "hook" ? ["none", "verify", "stage"] : next.kind === "pipeline" ? ["none", "verify", "artifact", "pull-request", "commit"] : Object.keys(atlas.flows.syncModes);
+        if (!next.modes.includes(next.sync)) next.sync = "none";
+        next.summary = next.title ?? (next.hook ? `Git hook ${next.hook}` : [...(next.on ?? []), ...(next.cron ? [`cron ${next.cron}`] : [])].join(", ") || `bca run --trigger ${operation.name}`);
+        triggers[operation.name] = next;
+      } else if (operation.op === "untrigger") {
+        delete triggers[operation.name];
+        for (const other of flows) other.when = other.when.filter((item) => item !== operation.name);
+        canvas.triggers = canvas.triggers.filter((item) => item !== operation.name);
+      } else if (!flow) continue;
       else if (operation.op === "remove") flows.splice(flows.indexOf(flow), 1);
       else if (operation.op === "unstep") {
         // The way closes around it, as in src/flows/config.js: what came after it comes after what it came after.
@@ -959,26 +1026,17 @@
   }
   function boardHtml() {
     const { triggers, artifacts } = atlas.flows;
-    const chip = (name) => `<span class="trigger" draggable="true" data-drag="trigger" data-name="${esc(name)}" title="${esc(triggers[name].summary)}">${esc(name)}</span>`;
+    const chip = (name) => `<span class="trigger ${triggers[name].custom ? "own" : ""}" draggable="true" data-drag="trigger" data-name="${esc(name)}" title="${esc(triggers[name].summary)}">${esc(name)}</span>`;
     const flows = boardMode === "canvas";
     return `<header class="top"><h2>Builder</h2><div class="segments" role="radiogroup" aria-label="What to build"><button role="radio" data-board-mode="canvas" aria-checked="${flows}" title="Your own workflows: what to make from the source, when, and where to save it">Flows</button><button role="radio" data-board-mode="process" aria-checked="${!flows}" title="How the company works with the app: processes in lanes (BPMN), mined, run, improved">Processes</button></div>
-        <p>${flows ? "Drag nodes onto the canvas and wire them: a trigger into a flow, a flow into the steps it starts with, a step into those that come after it. Click a wire to say when it holds. Double-click a node for its settings." : "A process in lanes: every step in the lane of the role that does it. Drag a process test into a lane, pull a wire from a step into the one that comes after it, and play it with the people of the simulation."}</p><button class="close" data-board="close" aria-label="Close" title="Close (Esc)">×</button></header>
+        <p>${flows ? "Drag nodes onto the canvas and wire them: a trigger into a flow, a flow into the steps it starts with, a step into those that come after it. Click a wire to say when it holds. Double-click a node for its settings; Shift-drag selects several." : "A process in lanes: every step in the lane of the role that does it. Drag a process test into a lane, pull a wire from a step into the one that comes after it, and play it with the people of the simulation."}</p><button class="btn" data-board="undo" title="Take the last change back (Ctrl+Z)" ${undone.length ? "" : "disabled"}>Undo</button><button class="close" data-board="close" aria-label="Close" title="Close (Esc)">×</button></header>
       <div class="body">${flows ? `
         <aside class="palette" aria-label="What to drag">
           <h3>Flow</h3><input type="text" id="board-title" placeholder="Title of a new flow" autocomplete="off" aria-label="Title of a new flow"><div class="flowcard" draggable="true" data-drag="flow" title="Drag it onto the canvas to start a flow"><b>New flow</b><small>drag it onto the canvas</small></div>
-          <h3>When</h3><div class="triggers">${Object.keys(triggers).map((name) => chip(name)).join("")}</div>
+          <h3>When</h3><div class="triggers">${Object.keys(triggers).map((name) => chip(name)).join("")}</div><button class="btn" data-flow-act="trigger-new" title="A trigger of your own: a tag, a release, paths that changed, a schedule, a Git hook, or a name your own script calls">New trigger…</button>
           <h3>Make</h3>${artifacts.map((artifact) => `<div class="artifact" draggable="true" data-drag="artifact" data-what="${esc(artifact.id)}" title="${esc(artifact.summary)}"><b>${esc(artifact.title)}</b><small>${esc(artifact.plugin ? "task of a plugin" : artifact.to ?? "gate")}</small></div>`).join("")}
         </aside>
         <div class="canvas" data-drop="canvas" tabindex="0" aria-label="The canvas of the flows">
-          <div class="world"></div>
-          <div class="tools" role="group" aria-label="Canvas">
-            <select data-canvas-if aria-label="When the step after the selected wire runs" title="When the step after this wire runs" hidden>${Object.entries(atlas.flows.conditions ?? { passed: "", failed: "", always: "" }).map(([key, text]) => `<option value="${esc(key)}" title="${esc(text)}">${esc({ passed: "Runs if it passed", failed: "Runs if it fails", always: "Runs in any case" }[key] ?? key)}</option>`).join("")}</select>
-            <button class="btn" data-canvas="remove" title="Remove what is selected: a node, or a wire (Delete)" disabled>Remove</button>
-            <button class="btn" data-canvas="tidy" title="Lay the nodes out again">Tidy up</button>
-            <button class="btn" data-canvas="fit" title="Show everything">Fit</button>
-            <button class="btn" data-canvas="out" aria-label="Zoom out">−</button><button class="btn" data-canvas="in" aria-label="Zoom in">+</button>
-          </div>
-          ${flowChanges.length ? `<p class="kept">${plural(flowChanges.length, "change")} kept in this snapshot. <button class="btn" data-board="save">Save the changes (JSON)</button></p>` : ""}
         </div>` : procHtml()}
       </div>`;
   }
@@ -1069,6 +1127,7 @@
     if (item.dataset.flowAct) return flowClick(item);
     const act = item.dataset.board;
     if (act === "close") return boardShow(false);
+    if (act === "undo") return boardUndo();
     if (act === "save") return download("flow-changes.json", `${JSON.stringify({ operations: flowChanges }, null, 2)}\n`, "application/json");
     return undefined;
   });
@@ -1079,7 +1138,11 @@
   $("#board").addEventListener("keydown", (event) => {
     if (event.key === "Escape") return boardShow(false);
     const typing = event.target.matches?.("input, select");
-    if (event.target.classList?.contains("canvas")) {
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z" && !typing) {
+      event.preventDefault();
+      return boardUndo();
+    }
+    if (event.target.closest?.(".canvas") && !typing) {
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
         return canvasRemove();
@@ -1101,6 +1164,63 @@
     if (event.key === "Enter" && event.target.id === "proc-title") $('[data-proc="create"]').click();
     return undefined;
   });
+
+  // ------------------------------------------------------------------- undo
+  // What the builder changed, to take back: the flows or the processes as they were before each
+  // change. Undo sends them as one operation (restore), so it is checked and written like any other.
+  const undone = [];
+  const keepForUndo = (entry) => {
+    undone.push(entry);
+    if (undone.length > 50) undone.shift();
+  };
+  /** A trigger of your own as .bca.json holds it. */
+  const triggerJson = (trigger) => ({ ...Object.fromEntries(["title", "on", "branches", "paths", "tags", "cron", "hook"].filter((key) => trigger[key] !== undefined).map((key) => [key, trigger[key]])), ...(trigger.tasks?.length ? { tasks: trigger.tasks } : {}), ...(trigger.sync && trigger.sync !== "none" ? { sync: trigger.sync } : {}) });
+  const flowsBefore = () => structuredClone({
+    flows: atlas.flows.flows,
+    sync: Object.fromEntries(Object.entries(atlas.flows.triggers).map(([name, trigger]) => [name, trigger.sync])),
+    // The triggers of your own, to put back, and all of them as the view shows them.
+    own: Object.fromEntries(Object.entries(atlas.flows.triggers).filter(([, trigger]) => trigger.custom).map(([name, trigger]) => [name, triggerJson(trigger)])),
+    described: atlas.flows.triggers,
+    loose: canvas.loose,
+    triggers: canvas.triggers
+  });
+  async function boardUndo() {
+    const last = undone.pop();
+    if (!last) return toast("Nothing to take back.");
+    if (last.kind === "process") {
+      if (LIVE) {
+        try {
+          await call("defineProcesses", { operations: [{ op: "restore", processes: last.before }] });
+        } catch (error) {
+          return toast(error.message.replace(/^processes: /u, ""));
+        }
+        toast("Taken back.");
+        return reload("Running the processes", false);
+      }
+      atlas.processes.processes = last.before;
+      procChanges.splice(procChanges.length - last.changes, last.changes);
+    } else {
+      // The flows, how their triggers deliver, and what was on the canvas in no flow; the nodes stay where they are now.
+      const delivery = Object.entries(last.before.sync).filter(([name, sync]) => !last.before.own[name] && atlas.flows.triggers[name]?.sync !== sync).map(([trigger, sync]) => ({ op: "deliver", trigger, sync }));
+      canvas.loose = last.before.loose;
+      canvas.triggers = last.before.triggers;
+      if (LIVE) {
+        try {
+          await call("defineFlows", { operations: [{ op: "restore", flows: last.before.flows, triggers: last.before.own }, ...delivery] });
+        } catch (error) {
+          return toast(error.message.replace(/^flows: /u, ""));
+        }
+        await canvasSave();
+        toast("Taken back.");
+        return reload("Reading the flows", false);
+      }
+      atlas.flows.flows = last.before.flows;
+      atlas.flows.triggers = last.before.described;
+      flowChanges.splice(flowChanges.length - last.changes, last.changes);
+    }
+    toast("Taken back.");
+    return boardDraw();
+  }
 
   // ---------------------------------------------------------------- process
   // The processes of the company as BPMN lanes to build on (src/process): every step in the lane
@@ -1286,8 +1406,24 @@
   /** Sends operations: written to .bca.json in VS Code, kept to save in an exported file. */
   async function procApply(operations) {
     if (!operations.length) return false;
+    const before = structuredClone(atlas.processes.processes);
     if (!LIVE) {
+      keepForUndo({ kind: "process", before, changes: operations.length });
       procLocal(operations);
+      // What the project would not take, a snapshot does not keep either.
+      const wrong = atlas.processes.processes.map((model) => {
+        const names = model.steps.map(({ id }) => id);
+        if (new Set(names).size !== names.length) return `The process ${model.title ?? model.id} has two steps of one name.`;
+        const lost = model.steps.flatMap((step) => procWires(step)).find((wire) => !names.includes(wire.step));
+        return lost ? `A step of the process ${model.title ?? model.id} comes after "${lost.step}", which is not a step of it.` : undefined;
+      }).find(Boolean);
+      if (wrong) {
+        undone.pop();
+        atlas.processes.processes = before;
+        toast(wrong);
+        boardDraw();
+        return false;
+      }
       procChanges.push(...operations);
       toast(`Kept ${plural(operations.length, "change")}. Save the changes from the builder.`);
       procForm = undefined;
@@ -1297,6 +1433,7 @@
     }
     try {
       const result = await call("defineProcesses", { operations });
+      if (result.written) keepForUndo({ kind: "process", before, changes: operations.length });
       toast(result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed.");
     } catch (error) {
       // What is not valid was not written.
@@ -1305,7 +1442,7 @@
     }
     procForm = undefined;
     closeMenu();
-    await reload("Running the processes");
+    await reload("Running the processes", false);
     return true;
   }
   /** Whether a step comes, directly or through others, after another. */
@@ -1453,12 +1590,13 @@
   // the canvas (src/flows/canvas.js), kept in .bca/flow-canvas.json.
   let boardMode = "canvas";
   let canvas = { positions: {}, loose: [], triggers: [] };
-  const sight = { x: 28, y: 24, k: 1 };
-  let wiring;
+  const curve = ([x1, y1], [x2, y2]) => {
+    const bend = Math.max(36, Math.abs(x2 - x1) / 2);
+    return `M${x1} ${y1} C${x1 + bend} ${y1} ${x2 - bend} ${y2} ${x2} ${y2}`;
+  };
   let picked;
   let gesture;
   let removing;
-  let lastClick;
   const CANVAS_KEY = () => `bca-flow-canvas:${atlas.title}`;
   /** The canvas of the project: from the atlas, and in a snapshot what this browser kept. */
   function canvasRead() {
@@ -1537,109 +1675,134 @@
     });
     return { nodes, wires };
   }
-  function canvasNodeHtml(node) {
+  /** What the card of a node says, and what its buttons do; the library draws the card (scripts/flow-canvas-entry.js). */
+  function canvasNodeData(node) {
     const { triggers } = atlas.flows;
-    const style = `style="left:${node.pos[0]}px;top:${node.pos[1]}px"`;
-    const ports = (into, out) => `${into ? '<span class="port in" data-port="in" title="Drop a wire here"></span>' : ""}${out ? '<span class="port out" data-port="out" title="Drag a wire from here"></span>' : ""}`;
-    if (node.kind === "trigger") return `<div class="node trigger" data-key="${esc(node.key)}" ${style} title="${esc(triggers[node.name].summary)}. Delivery: ${esc(triggers[node.name].sync)}"><small>When</small><b>${esc(node.name)}</b>${ports(false, true)}</div>`;
+    const remove = { id: "remove", label: "Remove", tip: "Remove it (Delete)" };
+    const settings = { id: "open", label: "Settings…", tip: "Its settings (double-click, or Enter)" };
+    if (node.kind === "trigger") return { over: `When${triggers[node.name].custom ? " · your own" : ""}`, title: node.name, under: triggers[node.name].summary, actions: [settings, remove] };
     if (node.kind === "flow") {
       const { flow } = node;
-      return `<div class="node flow" data-key="${esc(node.key)}" ${style} title="Double-click for its title, triggers, and delivery"><small>Flow · ${esc(flow.id)}</small><b>${esc(flow.title)}</b>
-        <span class="acts">${LIVE ? `<button class="btn" data-flow-act="run" data-flow="${esc(flow.id)}" title="bca run --flow ${esc(flow.id)}" ${flow.steps.length ? "" : "disabled"}>Run now</button>` : ""}<button class="btn" data-flow-act="github" data-flow="${esc(flow.id)}" title="Export it as a workflow for GitHub Actions" ${flow.steps.length ? "" : "disabled"}>GitHub Actions</button></span>${ports(true, true)}</div>`;
+      const none = !flow.steps.length;
+      return { over: `Flow · ${flow.id}`, title: flow.title, under: flow.when.length ? `on ${flow.when.join(", ")}` : "only by name", actions: [settings,
+        ...(LIVE ? [{ id: "run", label: "Run now", tip: `bca run --flow ${flow.id}`, disabled: none }] : []),
+        { id: "github", label: "GitHub Actions", tip: "Export it as a workflow for GitHub Actions", disabled: none },
+        { id: "azure", label: "Azure Pipelines", tip: "Export it as a pipeline for Azure Pipelines", disabled: none },
+        remove] };
     }
     const { what, to: _to, id: name, after: _after, ...options } = node.step;
     const artifact = artifactOf(what);
-    const detail = options.lens ?? options.story ?? options.view ?? options.language;
+    const detail = options.lens ?? options.story ?? options.view ?? options.profile ?? options.language;
     const place = placeOfStep(node.step);
     const loose = node.kind === "loose";
-    return `<div class="node step ${loose ? "loose" : ""}" data-key="${esc(node.key)}" ${style} title="${loose ? "In no flow yet: drag a wire into it from a flow or one of its steps" : "Double-click for where it is saved and its options. Pull a wire from its right into the steps that come after it"}"><small>${loose ? "Not wired" : `Step ${node.at}`}${name ? ` · ${esc(name)}` : ""}</small><b>${esc(artifact?.title ?? what)}${detail ? `: ${esc(detail)}` : ""}</b><small>${esc(place ? `→ ${place}` : artifact?.plugin ? "task of a plugin" : "gate")}</small>${ports(true, !loose)}</div>`;
+    return { over: `${loose ? "Not wired" : `Step ${node.at}`}${name ? ` · ${name}` : ""}`, title: `${artifact?.title ?? what}${detail ? `: ${detail}` : ""}`, under: place ? `→ ${place}` : artifact?.plugin ? "task of a plugin" : "gate", actions: loose ? [remove] : [settings, remove] };
   }
-  let model;
-  function canvasDraw() {
-    const world = $("#board .world");
-    if (!world) return;
-    model = canvasModel();
-    world.innerHTML = `<svg class="wires" aria-hidden="true"></svg>${[...model.nodes.values()].map(canvasNodeHtml).join("")}`;
-    world.style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
-    if (picked?.node && !model.nodes.has(picked.node)) picked = undefined;
-    if (picked?.wire && !model.wires.some((wire) => wire.from === picked.wire.from && wire.to === picked.wire.to)) picked = undefined;
-    if (!model.nodes.size) world.insertAdjacentHTML("beforeend", '<p class="empty">Drag <b>New flow</b> here, then an artifact, and pull a wire from the flow into it.</p>');
-    canvasWires();
-  }
-  /** Where the ports of a node are, in the coordinates of the world. */
-  function canvasPort(key, side) {
-    const element = $(`#board .node[data-key="${CSS.escape(key)}"]`);
-    if (!element) return undefined;
-    return [element.offsetLeft + (side === "out" ? element.offsetWidth : 0), element.offsetTop + element.offsetHeight / 2];
-  }
-  const curve = ([x1, y1], [x2, y2]) => {
-    const bend = Math.max(36, Math.abs(x2 - x1) / 2);
-    return `M${x1} ${y1} C${x1 + bend} ${y1} ${x2 - bend} ${y2} ${x2} ${y2}`;
+  const NODE_TITLE = {
+    trigger: "Double-click for what starts it and how it delivers. Pull a wire from its right into a flow",
+    flow: "Double-click for its title, triggers, and delivery",
+    step: "Double-click for where it is saved and its options. Pull a wire from its right into the steps that come after it",
+    loose: "In no flow yet: drag a wire into it from a flow or one of its steps"
   };
   const CONDITION = { passed: "if it passed", failed: "if it fails", always: "in any case" };
-  function canvasWires() {
-    const svg = $("#board .wires");
-    if (!svg) return;
-    const same = (wire) => picked?.wire && picked.wire.from === wire.from && picked.wire.to === wire.to;
-    svg.innerHTML = model.wires.map((wire, index) => {
-      const from = canvasPort(wire.from, "out");
-      const to = canvasPort(wire.to, "in");
-      if (!from || !to) return "";
-      const path = curve(from, to);
-      const label = wire.cond && wire.cond !== "passed" ? `<text class="label ${wire.cond}" x="${(from[0] + to[0]) / 2}" y="${(from[1] + to[1]) / 2 - 7}" text-anchor="middle">${CONDITION[wire.cond]}</text>` : "";
-      return `<path class="wire ${wire.kind} ${wire.cond ?? ""} ${wire.loose ? "idle" : ""} ${same(wire) ? "picked" : ""}" d="${path}"></path>${label}${wire.loose ? "" : `<path class="hit" data-wire="${index}" d="${path}"><title>Click to select the wire${wire.fromAt ? " and say when it holds" : ""}, or to remove it</title></path>`}`;
-    }).join("") + (wiring ? `<path class="wire pending" d="${curve(canvasPort(wiring.from, "out"), wiring.to)}"></path>` : "");
-    for (const element of $$("#board .node")) element.classList.toggle("picked", picked?.node === element.dataset.key);
-    const remove = $('#board [data-canvas="remove"]');
-    if (remove) {
-      remove.disabled = !picked;
-      remove.textContent = removing && picked?.node === removing ? "Remove the flow and its steps" : "Remove";
-    }
-    // A wire between two steps says when the second runs.
-    const chosen = picked?.wire ? model.wires.find(same) : undefined;
-    const condition = $("#board [data-canvas-if]");
-    if (condition) {
-      condition.hidden = !chosen?.fromAt;
-      if (chosen?.fromAt) condition.value = chosen.cond;
+  const wireId = (wire) => `${wire.from}\n${wire.to}`;
+  let model;
+  // The canvas itself is a library (React Flow, vendor/flow-canvas.js): it draws the nodes and
+  // wires, and says what was dragged, wired, selected, and opened. Its element outlives the board.
+  let flowCanvas;
+  let canvasFitted = false;
+  function canvasHost() {
+    if (flowCanvas) return flowCanvas;
+    const element = document.createElement("div");
+    element.className = "flowcanvas";
+    // The library fills in what the canvas can do once it is drawn, so it is asked each time.
+    flowCanvas = window.BCAFlowCanvas.mount(element, {
+      connect: (from, to) => canvasConnect(from, to),
+      allowed: (from, to) => canvasAllowed(from, to),
+      moved: (nodes) => {
+        for (const { key, pos } of nodes) {
+          canvas.positions[key] = pos;
+          if (model.nodes.has(key)) model.nodes.get(key).pos = pos;
+        }
+        return canvasSave();
+      },
+      picked: ({ nodes, wires }) => {
+        const wire = (id) => ({ from: id.split("\n")[0], to: id.split("\n")[1] });
+        picked = !nodes.length && !wires.length ? undefined
+          : nodes.length === 1 && !wires.length ? { node: nodes[0] }
+            : wires.length === 1 && !nodes.length ? { wire: wire(wires[0]) }
+              : { many: { nodes, wires: wires.map(wire) } };
+        if (removing && picked?.node !== removing) removing = undefined;
+        canvasPicked();
+      },
+      opened: (key) => canvasOpen(key),
+      action: (key, id) => {
+        const node = model.nodes.get(key);
+        if (!node) return undefined;
+        if (id === "open") return canvasOpen(key);
+        if (id === "remove") {
+          picked = { node: key };
+          return canvasRemove();
+        }
+        return flowClick({ dataset: { flowAct: id === "run" ? "run" : "github", flow: node.flow.id, ...(id === "azure" ? { to: "azure-devops" } : {}) } });
+      },
+      // A wire between two steps says when the second runs.
+      chosen: (id, value) => {
+        const wire = model.wires.find((other) => wireId(other) === id);
+        return wire?.fromAt ? flowApply([{ op: "wire", flow: wire.flow, from: wire.fromAt, into: wire.at, if: value }]) : undefined;
+      },
+      tool: (id) => (id === "save" ? download("flow-changes.json", `${JSON.stringify({ operations: flowChanges }, null, 2)}\n`, "application/json") : canvasTool(id)),
+      dark: () => document.documentElement.dataset.theme === "dark"
+    });
+    flowCanvas.element = element;
+    return flowCanvas;
+  }
+  /** Whether a wire from one node may lead into another: what the canvas shows while one is pulled. */
+  function canvasAllowed(from, to) {
+    const source = model?.nodes.get(from);
+    const target = model?.nodes.get(to);
+    if (!source || !target) return false;
+    if (source.kind === "trigger") return target.kind === "flow";
+    return (source.kind === "flow" || source.kind === "step") && (target.kind === "step" || target.kind === "loose");
+  }
+  function canvasDraw() {
+    const ground = $("#board .canvas");
+    if (!ground) return;
+    const host = canvasHost();
+    if (host.element.parentElement !== ground) ground.prepend(host.element);
+    model = canvasModel();
+    if (picked?.node && !model.nodes.has(picked.node)) picked = undefined;
+    if (picked?.wire && !model.wires.some((wire) => wire.from === picked.wire.from && wire.to === picked.wire.to)) picked = undefined;
+    if (picked?.many) picked = undefined;
+    const conditions = Object.keys(atlas.flows.conditions ?? { passed: "", failed: "", always: "" }).map((value) => ({ value, label: { passed: "Runs if it passed", failed: "Runs if it fails", always: "Runs in any case" }[value] ?? value }));
+    host.set({
+      nodes: [...model.nodes.values()].map((node) => ({ key: node.key, kind: node.kind, ...canvasNodeData(node), tip: NODE_TITLE[node.kind], pos: node.pos, into: node.kind !== "trigger", out: node.kind !== "loose" })),
+      wires: model.wires.map((wire) => ({ id: wireId(wire), from: wire.from, to: wire.to, kind: `${wire.kind} ${wire.cond ?? ""} ${wire.loose ? "idle" : ""}`, label: wire.cond && wire.cond !== "passed" ? CONDITION[wire.cond] : undefined, fixed: Boolean(wire.loose), ...(wire.fromAt ? { choice: { value: wire.cond, options: conditions } } : {}) })),
+      tools: [
+        ...(flowChanges.length ? [{ id: "save", label: `Save ${plural(flowChanges.length, "change")} (JSON)`, tip: "The changes kept in this snapshot, for bca flow define --from" }] : []),
+        { id: "remove", label: "Remove", tip: "Remove what is selected: nodes, or wires (Delete)", needsPicked: true },
+        { id: "tidy", label: "Tidy up", tip: "Lay the nodes out again" }
+      ],
+      hint: model.nodes.size ? undefined : "Drag New flow here, then an artifact, and pull a wire from the flow into it."
+    }, { picked: { nodes: picked?.node ? [picked.node] : [], wires: picked?.wire ? [wireId(picked.wire)] : [] } });
+    // Shown for the first time: everything in sight.
+    if (!canvasFitted && model.nodes.size) {
+      canvasFitted = true;
+      setTimeout(() => host.fit(), 60);
     }
   }
-  /** A point of the screen in the coordinates of the world. */
+  /** What is selected changed; the library shows its buttons. */
+  function canvasPicked() {}
+  /** A point of the screen in the coordinates of the canvas. */
   function canvasPoint(event) {
-    const box = $("#board .canvas").getBoundingClientRect();
-    return [(event.clientX - box.left - sight.x) / sight.k, (event.clientY - box.top - sight.y) / sight.k];
-  }
-  function canvasZoom(factor, anchor) {
-    const element = $("#board .canvas");
-    const [px, py] = anchor ?? [element.clientWidth / 2, element.clientHeight / 2];
-    const k = Math.min(2, Math.max(0.3, sight.k * factor));
-    sight.x = px - (px - sight.x) * (k / sight.k);
-    sight.y = py - (py - sight.y) * (k / sight.k);
-    sight.k = k;
-    $("#board .world").style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
-  }
-  function canvasFit() {
-    const elements = $$("#board .node");
-    const element = $("#board .canvas");
-    if (!elements.length) return;
-    const left = Math.min(...elements.map((node) => node.offsetLeft));
-    const top = Math.min(...elements.map((node) => node.offsetTop));
-    const right = Math.max(...elements.map((node) => node.offsetLeft + node.offsetWidth));
-    const bottom = Math.max(...elements.map((node) => node.offsetTop + node.offsetHeight));
-    sight.k = Math.min(1.25, Math.max(0.3, Math.min((element.clientWidth - 56) / (right - left), (element.clientHeight - 96) / (bottom - top))));
-    sight.x = 28 - left * sight.k;
-    sight.y = 24 - top * sight.k;
-    $("#board .world").style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
+    return canvasHost().point(event.clientX, event.clientY);
   }
   function canvasTool(tool) {
-    if (tool === "in") return canvasZoom(1.2);
-    if (tool === "out") return canvasZoom(1 / 1.2);
-    if (tool === "fit") return canvasFit();
     if (tool === "remove") return canvasRemove();
     if (tool === "tidy") {
       canvas.positions = {};
       canvasSave();
       canvasDraw();
-      return canvasFit();
+      return setTimeout(() => canvasHost().fit(), 60);
     }
     return undefined;
   }
@@ -1769,6 +1932,25 @@
   /** Takes what is selected away: a wire, or a node. */
   async function canvasRemove() {
     if (!picked) return undefined;
+    if (picked.many) {
+      // Several: one after the other, each found again by what it is, as the flows change under them.
+      const { nodes, wires } = picked.many;
+      const flows = nodes.filter((key) => model.nodes.get(key)?.kind === "flow");
+      for (const wire of wires) {
+        // A wire of a node that goes anyway goes with it.
+        if (nodes.includes(wire.from) || nodes.includes(wire.to) || !model.wires.some(({ from, to }) => from === wire.from && to === wire.to)) continue;
+        picked = { wire };
+        await canvasRemove();
+      }
+      for (const key of nodes.filter((item) => !flows.includes(item))) {
+        if (!model.nodes.has(key)) continue;
+        picked = { node: key };
+        await canvasRemove();
+      }
+      picked = undefined;
+      canvasPicked();
+      return flows.length ? toast(`A flow goes with its steps: select ${flows.length === 1 ? "it" : "each"} alone to remove it.`) : undefined;
+    }
     if (picked.wire) {
       const wire = model.wires.find(({ from, to }) => from === picked.wire.from && to === picked.wire.to);
       picked = undefined;
@@ -1790,7 +1972,7 @@
     if (node.kind === "flow" && removing !== node.key) {
       // Asked twice before a flow goes with its steps.
       removing = node.key;
-      canvasWires();
+      canvasPicked();
       return toast(`Remove again to take the flow ${node.flow.id} and its ${plural(node.flow.steps.length, "step")} away.`);
     }
     removing = undefined;
@@ -1821,30 +2003,7 @@
       procWiring = { from: from.dataset.step, to: [event.clientX - box.left, event.clientY - box.top] };
       event.preventDefault();
       try { $("#board").setPointerCapture(event.pointerId); } catch { /* optional */ }
-      return;
     }
-    const ground = event.target.closest?.(".canvas");
-    if (!ground || event.button !== 0 || event.target.closest("button, select, .tools, .kept")) return;
-    const element = event.target.closest(".node");
-    const hit = event.target.closest("[data-wire]");
-    if (removing) removing = undefined;
-    if (event.target.closest(".port.out")) {
-      gesture = { kind: "wire" };
-      wiring = { from: element.dataset.key, to: canvasPoint(event) };
-    } else if (element) {
-      const node = model.nodes.get(element.dataset.key);
-      gesture = { kind: "node", key: node.key, element, start: [event.clientX, event.clientY], origin: [...node.pos], moved: false };
-    } else if (hit) {
-      const wire = model.wires[Number(hit.dataset.wire)];
-      picked = { wire: { from: wire.from, to: wire.to } };
-      ground.focus({ preventScroll: true });
-      return canvasWires();
-    } else {
-      gesture = { kind: "pan", start: [event.clientX, event.clientY], origin: [sight.x, sight.y], moved: false };
-    }
-    event.preventDefault();
-    ground.focus({ preventScroll: true });
-    try { $("#board").setPointerCapture(event.pointerId); } catch { /* optional */ }
     return undefined;
   });
   $("#board").addEventListener("pointermove", (event) => {
@@ -1856,28 +2015,7 @@
       if (over && over.dataset.step !== procWiring.from) over.classList.add("aim");
       return procWiresDraw();
     }
-    if (gesture.kind === "wire") {
-      wiring.to = canvasPoint(event);
-      const over = document.elementFromPoint(event.clientX, event.clientY)?.closest?.("#board .node");
-      for (const element of $$("#board .node.aim")) element.classList.remove("aim");
-      if (over && over.dataset.key !== wiring.from) over.classList.add("aim");
-      return canvasWires();
-    }
-    const dx = event.clientX - gesture.start[0];
-    const dy = event.clientY - gesture.start[1];
-    if (Math.abs(dx) + Math.abs(dy) > 3) gesture.moved = true;
-    if (!gesture.moved) return;
-    if (gesture.kind === "pan") {
-      sight.x = gesture.origin[0] + dx;
-      sight.y = gesture.origin[1] + dy;
-      $("#board .world").style.transform = `translate(${sight.x}px, ${sight.y}px) scale(${sight.k})`;
-      return;
-    }
-    const node = model.nodes.get(gesture.key);
-    node.pos = [Math.round(gesture.origin[0] + dx / sight.k), Math.round(gesture.origin[1] + dy / sight.k)];
-    gesture.element.style.left = `${node.pos[0]}px`;
-    gesture.element.style.top = `${node.pos[1]}px`;
-    canvasWires();
+    return undefined;
   });
   const canvasRelease = (event) => {
     if (!gesture) return undefined;
@@ -1896,31 +2034,7 @@
       if (procComesAfter(process, from, into)) toast("A way back: the steps between them are done again. Name the way in the form of the step.");
       return procApply([{ op: "wire", process: process.id, from, into }]);
     }
-    if (done.kind === "wire") {
-      const from = wiring.from;
-      wiring = undefined;
-      const over = event.type === "pointerup" ? document.elementFromPoint(event.clientX, event.clientY)?.closest?.("#board .node") : undefined;
-      for (const element of $$("#board .node.aim")) element.classList.remove("aim");
-      canvasWires();
-      return over ? canvasConnect(from, over.dataset.key) : undefined;
-    }
-    if (done.kind === "pan") {
-      if (!done.moved) {
-        picked = undefined;
-        canvasWires();
-      }
-      return undefined;
-    }
-    picked = { node: done.key };
-    canvasWires();
-    if (!done.moved) {
-      // The pointer is held by the board while it is down, so a double click is two clicks on one node.
-      const twice = lastClick?.key === done.key && event.timeStamp - lastClick.time < 450;
-      lastClick = twice ? undefined : { key: done.key, time: event.timeStamp };
-      return twice ? canvasOpen(done.key) : undefined;
-    }
-    canvas.positions[done.key] = model.nodes.get(done.key).pos;
-    return canvasSave();
+    return undefined;
   };
   $("#board").addEventListener("pointerup", canvasRelease);
   $("#board").addEventListener("pointercancel", canvasRelease);
@@ -1930,21 +2044,16 @@
     if (!node) return undefined;
     if (node.kind === "flow") return flowEdit(node.flow.id);
     if (node.kind === "step") return flowEdit(node.flow.id, node.at);
-    return toast(node.kind === "loose" ? "It is in no flow yet: pull a wire into it from a flow or one of its steps, then set its place and options." : "A trigger has no settings of its own; how it delivers is in the form of a flow.");
+    if (node.kind === "trigger") return triggerEdit(node.name);
+    return toast("It is in no flow yet: pull a wire into it from a flow or one of its steps, then set its place and options.");
   }
-  $("#board").addEventListener("change", (event) => {
-    if (event.target.dataset.canvasIf === undefined || !picked?.wire) return undefined;
-    const wire = model.wires.find(({ from, to }) => from === picked.wire.from && to === picked.wire.to);
-    return wire?.fromAt ? flowApply([{ op: "wire", flow: wire.flow, from: wire.fromAt, into: wire.at, if: event.target.value }]) : undefined;
-  });
-  $("#board").addEventListener("wheel", (event) => {
-    const ground = event.target.closest?.(".canvas");
-    if (!ground) return;
-    event.preventDefault();
-    const box = ground.getBoundingClientRect();
-    canvasZoom(event.deltaY < 0 ? 1.1 : 1 / 1.1, [event.clientX - box.left, event.clientY - box.top]);
-  }, { passive: false });
 
+  /** Opens the Flow menu on one trigger: from its node. */
+  function triggerEdit(name) {
+    closeMenu();
+    flowForm = { trigger: name };
+    showMenu($("#flow-button"));
+  }
   /** Opens the Flow menu on one flow, or on one of its steps: from the card of a node. */
   function flowEdit(flow, step) {
     closeMenu();
@@ -1968,9 +2077,23 @@
       flowRedraw();
       return false;
     }
+    const before = flowsBefore();
     if (!LIVE) {
       // A snapshot shows the change and keeps it to save; the project gets it with bca flow define --from.
+      keepForUndo({ kind: "flow", before, changes: operations.length });
       flowLocal(operations);
+      // What the project would not take, a snapshot does not keep either.
+      const wrong = flowWrong();
+      if (wrong) {
+        undone.pop();
+        atlas.flows.flows = before.flows;
+        atlas.flows.triggers = before.described;
+        canvas.loose = before.loose;
+        canvas.triggers = before.triggers;
+        toast(wrong);
+        boardDraw();
+        return false;
+      }
       flowChanges.push(...operations);
       if (change) {
         change();
@@ -1979,12 +2102,13 @@
       toast(`Kept: ${operations.map(describeOperation).join("; ")}. Save the changes from the Flow menu.`);
       boardDraw();
       if (!openMenu) return true;
-      flowForm = next?.flow && flowOf(next.flow) ? next : undefined;
+      flowForm = (next?.flow && flowOf(next.flow)) || (next?.trigger && atlas.flows.triggers[next.trigger]) ? next : undefined;
       flowRedraw();
       return true;
     }
     try {
       const result = await call("defineFlows", { operations });
+      if (result.written) keepForUndo({ kind: "flow", before, changes: operations.length });
       const open = (result.rerouted ?? []).filter(({ after }) => !after.length).map(({ step }) => step);
       toast(`${result.written ? `Wrote ${String(result.file).split(/[\\/]/u).pop()}.` : "Nothing changed."}${open.length ? ` ${open.join(", ")} came after nothing else and now ${open.length === 1 ? "starts" : "start"} the flow.` : ""}`);
     } catch (error) {
@@ -1998,9 +2122,9 @@
     }
     const menu = Boolean(openMenu);
     closeMenu();
-    await reload("Reading the flows");
+    await reload("Reading the flows", false);
     // The builder stays open on the flow, so one step follows the other.
-    if (menu && next?.flow && flowOf(next.flow)) {
+    if (menu && ((next?.flow && flowOf(next.flow)) || (next?.trigger && atlas.flows.triggers[next.trigger]))) {
       flowForm = next;
       showMenu($("#flow-button"));
     }
@@ -2038,6 +2162,48 @@
       if (item.dataset.process) processId = item.dataset.process;
       return boardShow(true, "process");
     }
+    if (act === "trigger-new") {
+      closeMenu();
+      flowForm = { trigger: "" };
+      return showMenu($("#flow-button"));
+    }
+    if (act === "trigger-remove") {
+      const name = flowForm.trigger;
+      const users = atlas.flows.flows.filter(({ when }) => when.includes(name));
+      // Asked twice when flows run on it.
+      if (users.length && item.textContent !== "Remove the trigger") {
+        item.textContent = "Remove the trigger";
+        item.classList.add("primary");
+        return toast(`${users.map(({ title }) => title).join(", ")} ${users.length === 1 ? "runs" : "run"} on it and will not any more.`);
+      }
+      return flowApply([{ op: "untrigger", name }], undefined, () => {
+        canvas.triggers = canvas.triggers.filter((other) => other !== name);
+        delete canvas.positions[`trigger:${name}`];
+      });
+    }
+    if (act === "trigger-apply") {
+      const { triggers } = atlas.flows;
+      const name = flowForm.trigger || value("name").toLowerCase();
+      const trigger = triggers[name];
+      const sync = value("sync");
+      if (!flowForm.trigger) {
+        if (!/^[a-z0-9][a-z0-9._-]*$/u.test(name)) return toast("A trigger needs a name of lowercase letters, digits, \".\", \"_\", or \"-\".");
+        if (trigger) return toast(`There is a trigger ${name} already.`);
+      }
+      if (trigger && !trigger.custom) {
+        const operations = [];
+        if (name === "schedule" && value("cron") && value("cron") !== trigger.cron) operations.push({ op: "trigger", name, cron: value("cron") });
+        if (sync !== trigger.sync) operations.push({ op: "deliver", trigger: name, sync });
+        return flowApply(operations, { trigger: name });
+      }
+      const list = (key) => value(key).split(",").map((part) => part.trim()).filter(Boolean);
+      const operation = { op: "trigger", name, title: value("title"), on: $$('#popover [data-f="on"]:checked').map((box) => box.value), branches: list("branches"), paths: list("paths"), tags: list("tags"), cron: value("cron"), hook: value("hook"), sync };
+      // Only what differs is sent, so a snapshot keeps a short list.
+      const same = trigger && ["title", "cron", "hook"].every((key) => (trigger[key] ?? "") === operation[key]) && ["on", "branches", "paths", "tags"].every((key) => (trigger[key] ?? []).join() === operation[key].join()) && trigger.sync === sync;
+      return flowApply(same ? [] : [operation], { trigger: name }, () => {
+        if (!canvas.triggers.includes(name)) canvas.triggers.push(name);
+      });
+    }
     const id = item.dataset.flow ?? flowForm?.flow;
     if (act === "step") {
       flowForm = { flow: id, step: item.dataset.at === "new" ? "new" : Number(item.dataset.at) };
@@ -2070,12 +2236,12 @@
       closeMenu();
       if (!LIVE) {
         // A snapshot cannot write into the repository: the command does.
-        const command = `bca flow export --flow ${id}`;
+        const command = `bca flow export --flow ${id}${item.dataset.to ? ` --to ${item.dataset.to}` : ""}`;
         return navigator.clipboard?.writeText(command).then(() => toast(`Copied: ${command}. Run it in the project to write the workflow.`), () => toast(`Run in the project: ${command}`)) ?? toast(`Run in the project: ${command}`);
       }
-      return call("exportFlow", { flow: id }).then((result) => toast(result.action === "unchanged"
+      return call("exportFlow", { flow: id, ...(item.dataset.to ? { to: item.dataset.to } : {}) }).then((result) => toast(result.action === "unchanged"
         ? `${result.path} is up to date.`
-        : `Wrote ${result.path}: ${Object.entries(result.delivery).map(([trigger, sync]) => `${trigger} → ${sync}`).join(", ")}. Commit it, and GitHub runs the flow.`), (error) => toast(error.message.replace(/^flows: /u, "")));
+        : `Wrote ${result.path}: ${Object.entries(result.delivery).map(([trigger, sync]) => `${trigger} → ${sync}`).join(", ")}. ${result.to === "github" ? "Commit it, and GitHub runs the flow." : "Commit it, and create a pipeline from it in Azure DevOps."}`), (error) => toast(error.message.replace(/^flows: /u, "")));
     }
     if (act === "run") {
       closeMenu();
@@ -2255,11 +2421,12 @@
   });
 
   // ---------------------------------------------------------- live updates
-  async function reload(text) {
+  /** @param again read the source again; false for what changed the graph and not the analysis (the flows, the processes) */
+  async function reload(text, again = true) {
     $("#sync-button").className = "tool status menu busy";
     $("#sync-text").textContent = text;
     try {
-      if (text !== "Reading" && LIVE) await call("refresh").catch(() => undefined);
+      if (again && text !== "Reading" && LIVE) await call("refresh").catch(() => undefined);
       await load();
       applied = { ...applied, key: undefined };
       await render();

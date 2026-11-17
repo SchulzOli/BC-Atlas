@@ -53,7 +53,7 @@ function resultText(result) {
   for (const command of result.commands) lines.push(`  ${result.dryRun ? "would run" : "ran"}  ${command}`);
   lines.push("", "Triggers");
   for (const [name, trigger] of Object.entries(result.config.automation.triggers)) {
-    lines.push(`  ${name.padEnd(11)} ${trigger.tasks.join(", ") || "-"}  (sync: ${trigger.sync}${trigger.cron ? `, cron: ${trigger.cron}` : ""})`);
+    lines.push(`  ${name.padEnd(11)} ${(trigger.tasks ?? []).join(", ") || "-"}  (sync: ${trigger.sync ?? "none"}${trigger.cron ? `, cron: ${trigger.cron}` : ""}${trigger.hook ? `, hook: ${trigger.hook}` : ""}${trigger.on ? `, on: ${trigger.on.join(", ")}` : ""})`);
   }
   if (!Object.keys(result.config.automation.triggers).length) lines.push("  none");
   lines.push("", "Next steps", ...result.nextSteps.map((step) => `  ${step}`), "");
