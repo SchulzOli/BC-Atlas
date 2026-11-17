@@ -15,11 +15,13 @@
 import { coupling, COUPLING_WEIGHTS } from "../graph/coupling.js";
 import { clusterByRelations, deriveSelectors, dominantPrefix, functionalFolder, mostCommon, shaper } from "./cluster.js";
 import { compileSelector, componentAssigner, selectorContext } from "./components.js";
+import { applyRenames, memberAgreement, roleNaming, uniqueNames } from "./naming.js";
+import { THRESHOLDS } from "./placement.js";
 import { GROUPINGS, PROPOSAL_DEFAULTS, shapingKinds } from "./settings.js";
 
 // With --group-by namespace or folder, a group splits until it holds no more than this share of objects.
-const MAX_SHARE = 0.15;
-const MIN_SPLIT_OBJECTS = 40;
+const MAX_SHARE = THRESHOLDS.split.share;
+const MIN_SPLIT_OBJECTS = THRESHOLDS.split.objects;
 
 /**
  * Namespace groups: start one segment below the common prefix, then split any
@@ -67,11 +69,17 @@ function namespaceGroups(nodes, depth) {
     }
     if (!split) break;
   }
+  const thresholds = depth === undefined ? { split: limit } : { depth };
   return (node) => {
-    const prefix = key(segments(node).slice(0, assignment.get(node.id)));
-    if (!prefix) return { key: "namespace:(global)", label: "(global)", selector: "*" };
+    const used = assignment.get(node.id);
+    const prefix = key(segments(node).slice(0, used));
+    if (!prefix) {
+      return { key: "namespace:(global)", label: "(global)", selector: "*", naming: roleNaming("objects without a namespace"), thresholds,
+        placement: { step: "structure", detail: { by: "namespace" } } };
+    }
     const name = display(prefix);
-    return { key: `namespace:${prefix}`, label: name.split(".").at(-1), fullName: name, selector: `namespace:${name}` };
+    return { key: `namespace:${prefix}`, label: name.split(".").at(-1), fullName: name, selector: `namespace:${name}`, naming: { by: "namespace", from: name }, thresholds,
+      placement: { step: "structure", detail: { by: "namespace", value: name, depth: used, ...(used > length ? { split: true, limit } : {}) } } };
   };
 }
 
@@ -80,11 +88,17 @@ function grouping(nodes, levels, { groupBy, depth, weights, clustering }) {
   const apps = new Map((levels.app?.nodes ?? []).map((node) => [node.id, node]));
   const byApp = (node) => {
     const label = apps.get(node.app)?.label ?? "(no app)";
-    return { key: `app:${label}`, label, selector: `app:${label}` };
+    return { key: `app:${label}`, label, selector: `app:${label}`, kind: "app", naming: { by: "app", from: label } };
   };
   const byModule = (node) => {
     const label = modules.get(node.module)?.label ?? apps.get(node.app)?.label ?? "(no app)";
-    return { key: `module:${label}`, label, selector: `module:${label}` };
+    return { key: `module:${label}`, label, selector: `module:${label}`, kind: "module", naming: { by: "module", from: label } };
+  };
+  // Why an app or module is one component: { reason, objects }.
+  const whole = new Map();
+  const boundary = (node, reason = whole.get(coarse(node).key)) => {
+    const { kind, label } = coarse(node);
+    return { step: "boundary", detail: { kind, name: label, ...(reason ?? {}), ...(reason?.reason === "small" ? { minimum: THRESHOLDS.minClusterObjects } : {}) } };
   };
   // Apps and modules are boundaries that exist already; components form inside them.
   const coarse = modules.size ? byModule : byApp;
@@ -101,22 +115,24 @@ function grouping(nodes, levels, { groupBy, depth, weights, clustering }) {
     // Nothing inside relates to anything else (a module of only permission
     // sets or control add-ins): the app or module stays one component, named
     // after it, instead of one "Unconnected" group.
-    if ([...result.values()].every(({ key }) => key.endsWith("|unconnected"))) return;
+    if ([...result.values()].every(({ key }) => key.endsWith("|unconnected"))) return false;
     for (const [id, group] of result) clustered.set(id, group);
+    return true;
   };
 
   let inner;
   if (groupBy === "module") {
     if (!modules.size) throw new Error("--group-by module needs nested app.json modules; use namespace or folder");
-    inner = byModule;
+    inner = (node) => ({ ...byModule(node), placement: boundary(node, { reason: "group-by" }) });
   } else if (groupBy === "app") {
-    inner = byApp;
+    inner = (node) => ({ ...byApp(node), placement: { step: "boundary", detail: { kind: "app", name: byApp(node).label, reason: "group-by" } } });
   } else if (groupBy === "auto" || groupBy === "coupling") {
     // The relations decide whether an app or module holds more than one component.
-    for (const list of members.values()) {
-      if (list.length >= 6) cluster(list);
+    for (const [key, list] of members) {
+      if (list.length < THRESHOLDS.minClusterObjects) whole.set(key, { reason: "small", objects: list.length });
+      else if (!cluster(list)) whole.set(key, { reason: "no-relations", objects: list.length });
     }
-    inner = (node) => clustered.get(node.id) ? { ...clustered.get(node.id), outer: coarse(node), derived: true } : coarse(node);
+    inner = (node) => clustered.get(node.id) ? { ...clustered.get(node.id), outer: coarse(node), derived: true } : { ...coarse(node), placement: boundary(node) };
   } else {
     // namespace or folder: the structure decides where there is one; objects without it follow their relations.
     const structured = groupBy === "namespace"
@@ -136,8 +152,11 @@ function grouping(nodes, levels, { groupBy, depth, weights, clustering }) {
   }
   // Objects outside the analyzed path (context such as the System
   // Application) keep their app as one fixed component.
-  const groupOf = (node) => node.outsideSelection ? { ...byApp(node), fixed: true } : inner(node);
+  const groupOf = (node) => node.outsideSelection
+    ? { ...byApp(node), fixed: true, naming: { by: "fixed", from: byApp(node).label }, placement: { step: "outside", detail: { app: byApp(node).label } } }
+    : inner(node);
   groupOf.coarse = coarse;
+  groupOf.boundary = modules.size ? "module" : "app";
   return groupOf;
 }
 
@@ -163,10 +182,43 @@ function folderGroups(nodes, depth) {
     }
     if (!split) break;
   }
+  const thresholds = depth === undefined ? { split: limit } : { depth };
   return (node) => {
-    const folder = segments(node).slice(0, assignment.get(node.id)).join("/");
-    return { key: `folder:${folder}`, label: folder.split("/").at(-1), fullName: folder };
+    const used = assignment.get(node.id);
+    const folder = segments(node).slice(0, used).join("/");
+    return { key: `folder:${folder}`, label: folder.split("/").at(-1), fullName: folder, naming: folder ? { by: "folder", from: folder } : roleNaming("objects without a folder"), thresholds,
+      placement: { step: "structure", detail: { by: "folder", ...(folder ? { value: folder, depth: used } : {}), ...(used > length ? { split: true, limit } : {}) } } };
   };
+}
+
+const round = (value, digits = 1) => Number(value.toFixed(digits));
+
+/**
+ * The names architecture.proposal.naming.avoid keeps free: apps, modules, and
+ * namespaces (by their last segment), each with the objects it holds. A
+ * component may share such a name only when it holds exactly those objects.
+ */
+function reservedNames(avoid = [], levels, nodes) {
+  const reserved = [];
+  const add = (kind, name, members) => reserved.push({ kind, name, members: new Set(members.map(({ id }) => id)) });
+  for (const kind of ["app", "module"]) {
+    if (!avoid.includes(kind)) continue;
+    for (const owner of levels[kind]?.nodes ?? []) add(kind, owner.label, nodes.filter((node) => node[kind] === owner.id));
+  }
+  if (avoid.includes("namespace")) {
+    const namespaces = new Map();
+    for (const node of nodes) {
+      if (!node.namespace || node.namespace === "(global)") continue;
+      const parts = node.namespace.split(".");
+      for (let depth = 1; depth <= parts.length; depth++) {
+        const prefix = parts.slice(0, depth).join(".");
+        if (!namespaces.has(prefix.toLowerCase())) namespaces.set(prefix.toLowerCase(), { name: prefix, members: [] });
+        namespaces.get(prefix.toLowerCase()).members.push(node);
+      }
+    }
+    for (const { name, members } of namespaces.values()) add("namespace", name.split(".").at(-1), members);
+  }
+  return reserved;
 }
 
 /** Orders groups so that most dependency weight points to later groups. */
@@ -226,7 +278,7 @@ const segment = (name) => String(name ?? "").split(/[^A-Za-z0-9]+/u).filter(Bool
  * the candidate's objects share already, else the root (the first segment most
  * namespaced objects start with, else the publisher) and the candidate's name.
  */
-function recommend(kept, nodes, componentOf, levels) {
+function recommend(kept, nodes, componentOf, levels, naming) {
   const publishers = new Map((levels.app?.nodes ?? []).map((node) => [node.id, node.publisher]));
   const namespaced = (list) => list.filter(({ namespace }) => namespace && namespace !== "(global)").map(({ namespace }) => namespace);
   const root = dominantPrefix(namespaced(nodes).map((namespace) => namespace.split(".")[0]), { total: namespaced(nodes).length })
@@ -254,8 +306,13 @@ function recommend(kept, nodes, componentOf, levels) {
   for (const app of apps.values()) app.components.sort((a, b) => b.objects - a.objects || a.name.localeCompare(b.name));
   const size = (app) => app.components.reduce((sum, { objects }) => sum + objects, 0);
   const candidates = [...apps.values()].sort((a, b) => size(b) - size(a));
-  for (const app of candidates) if (app.components.length === 1) app.label = app.components[0].name;
-  uniqueNames(candidates);
+  for (const app of candidates) {
+    if (app.whole) app.naming = app.outer.naming;
+    if (app.components.length !== 1) continue;
+    app.label = app.components[0].name;
+    app.naming = app.components[0].naming;
+  }
+  uniqueNames(candidates, { qualify: naming.qualify });
 
   const members = new Map();
   for (const node of nodes) {
@@ -295,7 +352,9 @@ function recommend(kept, nodes, componentOf, levels) {
         ].filter(Boolean);
         if (!options.length) options = [qualify(root, segment(group.name))];
       }
-      let suggested = options.find((option) => !taken.has(option));
+      // Component names are unique, so the component's own name below the base is the last choice before a number.
+      const byName = qualify(base ?? root, segment(group.name));
+      let suggested = [...options, byName].find((option) => option && !taken.has(option));
       for (let index = 2; !suggested; index++) if (!taken.has(`${options[0]}${index}`)) suggested = `${options[0]}${index}`;
       taken.add(suggested);
       recommendations.push({
@@ -318,27 +377,6 @@ const ROLE_TEXT = {
   review: () => "Objects without relations to the rest; place them by hand"
 };
 
-// Larger groups get the plain names first. A name that a group of another app
-// or module holds already gets that app or module; inside one, a more precise name.
-function uniqueNames(groups) {
-  const used = new Map();
-  // Components you named yourself (architecture.proposal.keep) keep their names.
-  for (const group of groups.filter(({ pinned }) => pinned)) {
-    group.name = group.label;
-    used.set(group.name, group.outer?.key);
-  }
-  for (const group of [...groups].filter(({ pinned }) => !pinned).sort((a, b) => (b.objects ?? 0) - (a.objects ?? 0))) {
-    const base = group.label || group.key;
-    const qualified = group.outer && `${base} (${group.outer.label})`;
-    const elsewhere = used.has(base) && group.outer && used.get(base) !== group.outer.key;
-    const candidates = (elsewhere ? [qualified, base] : [base, ...(group.alternatives ?? []), qualified]).filter(Boolean);
-    let name = candidates.find((candidate) => !used.has(candidate));
-    for (let index = 2; !name; index++) if (!used.has(`${base} ${index}`)) name = `${base} ${index}`;
-    used.set(name, group.outer?.key);
-    group.name = name;
-  }
-}
-
 /**
  * Proposes components, layers, and allowed dependencies for the workspace
  * objects of a dependency graph. Returns an `architecture` configuration that
@@ -349,7 +387,8 @@ export function proposeArchitecture(levels, settings = {}) {
     groupBy, depth, minObjects = 1, weights = COUPLING_WEIGHTS,
     startFrom = PROPOSAL_DEFAULTS.startFrom, ignore = PROPOSAL_DEFAULTS.ignore,
     granularity = PROPOSAL_DEFAULTS.granularity, appGranularity = PROPOSAL_DEFAULTS.appGranularity,
-    sharedCore = PROPOSAL_DEFAULTS.sharedCore, keep = [], exclude = [], moves: moveSettings = PROPOSAL_DEFAULTS.moves
+    sharedCore = PROPOSAL_DEFAULTS.sharedCore, keep = [], exclude = [], moves: moveSettings = PROPOSAL_DEFAULTS.moves,
+    naming = PROPOSAL_DEFAULTS.naming
   } = settings;
   const nodes = levels.object.nodes.filter(({ origin }) => origin === "workspace");
   const mode = groupBy ?? "auto";
@@ -364,12 +403,19 @@ export function proposeArchitecture(levels, settings = {}) {
   const assignKept = keep.length ? componentAssigner(keep, levels) : () => undefined;
   const excluders = exclude.map((selector) => compileSelector(selector, context));
   const keptOf = new Map();
-  const excluded = new Set();
+  // Why each object is where it is: { step, detail } (placement.js).
+  const placements = new Map();
+  const excluded = new Map();
   for (const node of nodes) {
     if (node.outsideSelection) continue;
-    const kept = assignKept(node)?.component;
-    if (kept) keptOf.set(node.id, kept);
-    else if (excluders.some((matches) => matches(node))) excluded.add(node.id);
+    const kept = assignKept(node);
+    if (kept) {
+      keptOf.set(node.id, kept.component);
+      placements.set(node.id, { step: "kept", detail: { selector: kept.selector } });
+    } else {
+      const index = excluders.findIndex((matches) => matches(node));
+      if (index >= 0) excluded.set(node.id, exclude[index]);
+    }
   }
   const shaping = nodes.filter(({ id }) => !keptOf.has(id) && !excluded.has(id));
   const inner = grouping(shaping, levels, {
@@ -378,17 +424,19 @@ export function proposeArchitecture(levels, settings = {}) {
     weights,
     clustering: { ignore: [...ignore], startFrom: [...startFrom], granularity, appGranularity, sharedCore }
   });
-  const keptGroups = new Map(keep.map(({ name, match, description }) => [name, { key: `keep:${name}`, label: name, fullName: name, pinned: true, derived: true, preset: match, description }]));
+  const keptGroups = new Map(keep.map(({ name, match, description }) => [name, { key: `keep:${name}`, label: name, fullName: name, pinned: true, derived: true, preset: match, description, naming: { by: "kept", from: name } }]));
   const groupOf = (node) => keptOf.has(node.id) ? keptGroups.get(keptOf.get(node.id)) : inner(node);
   groupOf.coarse = inner.coarse;
+  groupOf.boundary = inner.boundary;
 
   const groups = new Map();
   const nodeGroup = new Map();
-  const place = (node, group) => {
+  const place = (node, { placement, ...group }, reason = placement) => {
     if (!groups.has(group.key)) groups.set(group.key, { ...group, objects: 0, apps: new Set() });
     groups.get(group.key).objects++;
     groups.get(group.key).apps.add(node.app);
     nodeGroup.set(node.id, group.key);
+    if (reason) placements.set(node.id, reason);
   };
   for (const node of nodes) if (!excluded.has(node.id)) place(node, groupOf(node));
   // Objects the relations left unconnected that only grant or include
@@ -406,11 +454,12 @@ export function proposeArchitecture(levels, settings = {}) {
     grants.get(edge.source).set(to, (grants.get(edge.source).get(to) ?? 0) + 1);
   }
   for (const [id, targets] of grants) {
-    const [best] = [...targets].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+    const [best, count] = [...targets].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
     const from = groups.get(nodeGroup.get(id));
     from.objects--;
     groups.get(best).objects++;
     nodeGroup.set(id, best);
+    placements.set(id, { step: "grants", detail: { grants: count, of: [...targets.values()].reduce((sum, value) => sum + value, 0), was: placements.get(id) } });
     if (!from.objects) groups.delete(from.key);
   }
   // Excluded objects: the component they are most coupled to, else one group to place by hand.
@@ -425,8 +474,11 @@ export function proposeArchitecture(levels, settings = {}) {
     }
   }
   for (const node of nodes.filter(({ id }) => excluded.has(id))) {
-    const [best] = [...(pull.get(node.id) ?? [])].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] ?? [];
-    place(node, best ? groups.get(best) : { key: "excluded", label: "Not placed", fullName: "Not placed", derived: true, unplaced: true });
+    const links = [...(pull.get(node.id) ?? [])].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const [best, weight] = links[0] ?? [];
+    const selector = excluded.get(node.id);
+    if (best) place(node, groups.get(best), { step: "excluded", detail: { selector, weight: round(weight), total: round(links.reduce((sum, [, value]) => sum + value, 0)) } });
+    else place(node, { key: "excluded", label: "Not placed", fullName: "Not placed", derived: true, unplaced: true, naming: roleNaming("excluded objects without relations") }, { step: "not-placed", detail: { selector } });
   }
   // Components formed inside an app or module get selectors that reproduce
   // exactly their objects: namespaces, functional folders, ID ranges, or objects.
@@ -454,6 +506,11 @@ export function proposeArchitecture(levels, settings = {}) {
     const best = [...counts].filter(([id]) => id.startsWith(`${group.key}\u0000`))
       .sort((a, b) => b[1] - a[1])[0];
     if (best) merged.set(group.key, best[0].split("\u0000")[1]);
+  }
+  for (const [id, key] of nodeGroup) {
+    if (!merged.has(key)) continue;
+    const small = groups.get(key);
+    placements.set(id, { step: "merged", detail: { size: small.objects, minObjects, from: small.label, was: placements.get(id) } });
   }
 
   const edges = new Map();
@@ -483,10 +540,27 @@ export function proposeArchitecture(levels, settings = {}) {
   }
 
   const kept = keys.map((key) => groups.get(key));
-  uniqueNames(kept);
+  const finalKey = (id) => merged.get(nodeGroup.get(id)) ?? nodeGroup.get(id);
+  const membersOf = new Map();
+  for (const node of nodes) {
+    const key = finalKey(node.id);
+    if (!membersOf.has(key)) membersOf.set(key, []);
+    membersOf.get(key).push(node);
+  }
+  // Names: unique without case, told apart by meaning, then renamed as architecture.proposal.naming says.
+  const memberIds = new Map();
+  uniqueNames(kept, {
+    qualify: naming.qualify,
+    reserved: reservedNames(naming.avoid, levels, nodes),
+    membersOf: (group) => {
+      if (!memberIds.has(group.key)) memberIds.set(group.key, new Set((membersOf.get(group.key) ?? []).map(({ id }) => id)));
+      return memberIds.get(group.key);
+    }
+  });
+  const unusedRenames = applyRenames(kept, naming.rename);
   const nameOf = new Map(kept.map((group) => [group.key, group.name]));
   for (const [small, into] of merged) groups.get(into).absorbed = [...(groups.get(into).absorbed ?? []), groups.get(small)];
-  const recommendations = recommend(kept, nodes.filter(({ outsideSelection }) => !outsideSelection), (id) => merged.get(nodeGroup.get(id)) ?? nodeGroup.get(id), levels);
+  const recommendations = recommend(kept, nodes.filter(({ outsideSelection }) => !outsideSelection), finalKey, levels, naming);
   const recommendationOf = new Map(recommendations.map((recommendation) => [recommendation.component, recommendation]));
 
   const components = kept
@@ -525,7 +599,6 @@ export function proposeArchitecture(levels, settings = {}) {
     const [best, count] = [...links].filter(([group]) => group !== own).sort((a, b) => b[1] - a[1])[0] ?? [];
     const gain = (count ?? 0) - (links.get(own) ?? 0);
     if (best && gain >= Math.max(moveSettings.minGain, Number.EPSILON)) {
-      const round = (value) => Number(value.toFixed(1));
       moves.push({
         object: { id: node.id, label: node.label, type: node.type, objectId: node.objectId, file: node.file },
         from: nameOf.get(own),
@@ -538,9 +611,44 @@ export function proposeArchitecture(levels, settings = {}) {
   }
   moves.sort((a, b) => b.gain - a.gain || a.object.label.localeCompare(b.object.label));
 
+  // Why each component is what it is: its name, the steps that placed its
+  // objects, what the objects agree on, and the thresholds that applied.
+  const rationale = {};
+  for (const group of kept) {
+    const list = membersOf.get(group.key) ?? [];
+    const steps = {};
+    let inside = 0;
+    let total = 0;
+    for (const { id } of list) {
+      const step = placements.get(id)?.step;
+      if (step) steps[step] = (steps[step] ?? 0) + 1;
+      for (const [other, weight] of affinity.get(id) ?? []) {
+        total += weight;
+        if (other === group.key) inside += weight;
+      }
+    }
+    const within = group.outer?.label ?? (group.kind ? group.label : undefined);
+    rationale[group.name] = {
+      naming: group.naming,
+      steps,
+      agreement: memberAgreement(list),
+      coupling: { inside: total ? round(inside / total, 2) : undefined },
+      boundary: group.fixed ? "app" : groupOf.boundary,
+      ...(within ? { within } : {}),
+      thresholds: {
+        ...(group.thresholds?.smallGroup || steps.boundary ? { minClusterObjects: THRESHOLDS.minClusterObjects } : {}),
+        ...(group.thresholds ?? {}),
+        ...(group.derived ? { selectorOwnership: THRESHOLDS.selectorOwnership } : {}),
+        ...(group.absorbed?.length ? { minObjects } : {})
+      }
+    };
+  }
+
   return {
     groupBy: mode,
     architecture: { components, allowSameLayer: false },
+    placements,
+    rationale,
     feedback: feedback.map(({ source, target, weight, objectEdges: count }) => ({ source: nameOf.get(source), target: nameOf.get(target), objectEdges: count, coupling: Number(weight.toFixed(1)) })),
     moves: moves.slice(0, moveSettings.limit),
     recommendations,
@@ -560,6 +668,8 @@ export function proposeArchitecture(levels, settings = {}) {
       objects: { considered: nodes.length, shaping: shaping.length, kept: keptOf.size, excluded: excluded.size, outside: nodes.filter(({ outsideSelection }) => outsideSelection).length },
       kept: keep.map(({ name }) => ({ name, objects: [...keptOf.values()].filter((value) => value === name).length })),
       exclude: [...exclude],
+      naming: { qualify: naming.qualify, avoid: [...naming.avoid], rename: { ...naming.rename }, ...(unusedRenames.length ? { unusedRenames } : {}) },
+      thresholds: THRESHOLDS,
       ...(settings.sources ? { sources: settings.sources } : {})
     }
   };

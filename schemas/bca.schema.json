@@ -516,6 +516,23 @@
           }
         },
         "proposal": { "$ref": "#/$defs/proposal" },
+        "goals": { "$ref": "#/$defs/architectureGoals" },
+        "template": {
+          "description": "The template in use: a preset or one of architecture.templates. It gives the goals, the proposal settings, the coupling weights, and the layer rules that architecture.goals, architecture.proposal, and the settings beside them do not set themselves. Default: balanced.",
+          "type": "string",
+          "default": "balanced",
+          "examples": ["balanced", "follow-structure", "by-coupling", "layered", "modular-monolith", "small-steps"]
+        },
+        "templates": {
+          "description": "Your own templates by name: a template, or the path of a JSON file with one (relative to the project), so several repositories can share it. A preset name cannot be used.",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              { "$ref": "#/$defs/architectureTemplate" },
+              { "type": "string", "pattern": "\\.json$" }
+            ]
+          }
+        },
         "couplingWeights": {
           "description": "How strongly each relation kind binds two objects (defaults: writes 5, extends 4, source 4, relates 3, implements 3, calls 2, runs 2, part 2, reads 2, selects 1.5, uses 1, subscribes 1, permits 0.1, includes 0.1). 0 drops a kind.",
           "type": "object",
@@ -535,6 +552,64 @@
         "rules": { "type": "array" },
         "baseline": { "type": "string" },
         "surface": { "type": "string" }
+      }
+    },
+    "architectureGoals": {
+      "description": "What a good architecture is for this team: how much each criterion counts when architectures are scored and compared (bca architecture compare). The template in use gives what is not set here.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "$comment": { "type": "string" },
+        "weights": {
+          "description": "Weight per criterion; 0 leaves a criterion out. Only the proportions count.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "$comment": { "type": "string" },
+            "cohesion": { "description": "The share of the weighted coupling that stays inside components.", "type": "number", "minimum": 0, "default": 2 },
+            "modularity": { "description": "The components are real groups: the weighted modularity of the grouping; 0.5 and more counts as full.", "type": "number", "minimum": 0, "default": 4 },
+            "layering": { "description": "The share of dependencies between components that go the allowed way.", "type": "number", "minimum": 0, "default": 3 },
+            "acyclic": { "description": "Components that are not part of a dependency cycle.", "type": "number", "minimum": 0, "default": 2 },
+            "ownership": { "description": "Tables that only their own component writes.", "type": "number", "minimum": 0, "default": 2 },
+            "extractable": { "description": "The share of objects in components that could be an app of their own today.", "type": "number", "minimum": 0, "default": 1 },
+            "stability": { "description": "Dependencies that point at a component at least as stable.", "type": "number", "minimum": 0, "default": 1 },
+            "size": { "description": "The share of objects in components inside the size band.", "type": "number", "minimum": 0, "default": 1 },
+            "followNamespaces": { "description": "Agreement of the components with the namespaces of the source.", "type": "number", "minimum": 0, "default": 1 },
+            "followFolders": { "description": "Agreement of the components with the functional folders of the source.", "type": "number", "minimum": 0, "default": 1 },
+            "followApps": { "description": "Agreement of the components with the apps of the workspace.", "type": "number", "minimum": 0, "default": 1 },
+            "fewMoves": { "description": "Closeness to the structure the source has today: objects that do not have to move.", "type": "number", "minimum": 0, "default": 2 }
+          }
+        },
+        "size": {
+          "description": "The size band of the size criterion: components of min to max objects are neither tiny nor huge.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "min": { "type": "integer", "minimum": 1, "default": 3 },
+            "max": { "type": "integer", "minimum": 1, "default": 200 }
+          }
+        }
+      }
+    },
+    "architectureTemplate": {
+      "description": "Everything that says what a good architecture is, under one name. It starts from the defaults or from the template it extends and overrides parts of it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "$comment": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "description": "When to use this template.", "type": "string" },
+        "extends": { "description": "A preset or another template of architecture.templates to start from.", "type": "string" },
+        "goals": { "$ref": "#/$defs/architectureGoals" },
+        "proposal": { "$ref": "#/$defs/proposal" },
+        "couplingWeights": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/relationKind" },
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        },
+        "allowSameLayer": { "type": "boolean" },
+        "strictLayers": { "type": "boolean" },
+        "internalAccess": { "enum": ["app", "component"] }
       }
     },
     "proposal": {
@@ -592,6 +667,31 @@
           "properties": {
             "minGain": { "type": "number", "minimum": 0, "default": 2 },
             "limit": { "type": "integer", "minimum": 0, "default": 50 }
+          }
+        },
+        "naming": {
+          "description": "How proposed components are named. Names are unique without case; components that would get the same name are told apart by meaning before a number.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "$comment": { "type": "string" },
+            "rename": {
+              "description": "A map from the name the proposal gives a component to the name you want, applied last: { \"Setup 2\": \"Purchase Setup\" }. Two components must not end up with the same name.",
+              "type": "object",
+              "additionalProperties": { "type": "string", "minLength": 1 }
+            },
+            "qualify": {
+              "description": "What tells components of the same name apart first. parent: the namespace segment or folder above (Sales Setup); app: the app or module (Setup (Contoso Sales)); number: Setup 2.",
+              "enum": ["parent", "app", "number"],
+              "default": "parent"
+            },
+            "avoid": {
+              "description": "Kinds of names a component may only have when it holds exactly the same objects: app, module, namespace (its last segment). A component that would share such a name with something else is told apart like two components of the same name.",
+              "type": "array",
+              "items": { "enum": ["app", "module", "namespace"] },
+              "uniqueItems": true,
+              "default": []
+            }
           }
         }
       }

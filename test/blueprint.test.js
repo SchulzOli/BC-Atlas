@@ -843,6 +843,11 @@ test("without namespaces, the relations find the business areas and a shared cor
       assert.ok(members[component].every((object) => object.split(":")[1].startsWith(String(base))), `${component} holds its own ID block`);
     }
     assert.deepEqual(members.Shared, ["table:50900"], "the setup table every area reads is the shared core");
+    // The proposal remembers why: used from at least three other groups, and hardly from its own.
+    const setup = [...proposal.placements].find(([id]) => /::table::50900$/u.test(id))[1];
+    assert.equal(setup.step, "shared-core");
+    assert.ok(setup.detail.communities >= setup.detail.needs.communities && setup.detail.ownShare < setup.detail.needs.ownShare);
+    assert.deepEqual(result.components.find(({ name }) => name === "Shared").rationale.naming, { by: "role", from: "the shared core" });
     // Without namespaces or functional folders, object ID ranges describe the components.
     const match = Object.fromEntries(proposal.architecture.components.map(({ name, match }) => [name, match]));
     assert.deepEqual(match.Sales, ["id:50000..50002"]);

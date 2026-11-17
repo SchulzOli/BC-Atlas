@@ -100,7 +100,7 @@ already):
 | Small groups | Communities with fewer than 3 objects (or 1% of the app) join the one they are most coupled to. |
 | Loose objects | Objects without any relation (besides permission grants) join the component of their namespace, functional folder, or nearest object ID (within 50); otherwise they are listed as *Unconnected* to place by hand. |
 | App candidates | The same relations at a coarser resolution; each component goes to the app candidate most of its objects land in, so an app candidate always holds whole components. One with fewer than 10 objects (or 5% of the app) joins the candidate it is most coupled to. |
-| Names | The deepest namespace most of a component's objects share (below what the whole app shares), else the folder, else the words their names share most (`Sales Post`). |
+| Names | The deepest namespace most of a component's objects share (below what the whole app shares), else the folder, else the words their names share most. Two components never share a name; see [Names](#names). |
 | Selectors | A namespace or functional folder whose objects (80% or more) belong to one component becomes its selector, then object ID ranges (`id:50100..50149`), then single objects for what is left; the result is checked so every object lands where the relations put it. |
 | Context | Objects outside the analyzed path (`--paths`, a focus folder) keep their app as one component. |
 | `--min-objects N` | Merges components with fewer than N objects into the one they depend on most. Default: 1 (no merging). |
@@ -150,20 +150,7 @@ completes and checks them in `.bca.json`.
 | `keep` | | none | Components you define yourself: their objects are not clustered, keep your name and description, and are never proposed for a move. The proposal arranges everything else around them. |
 | `exclude` | | none | Objects that do not shape components, for example permission sets or test codeunits. Afterwards they join the component they are most coupled to, or *Not placed*. |
 | `moves` | | `{ "minGain": 2, "limit": 50 }` | Which objects are listed as belonging elsewhere. |
-
-`bca architecture --explain <object>` (and **Why in …** on the object page of
-the app) says why an object is where it is: the selector that assigns it, and
-its coupling to each component by relation kind. An object coupled more to
-another component than to its own is a candidate to move.
-
-```text
-codeunit 50001 CON Warehouse Hooks
-  Component: Core (assigned by folder:src/Core)
-
-  Coupling by component (weighted like the proposal):
-         8  Core (own)  1 object(s): uses 1, reads 1, writes 1
-       1.6  Warehouse  1 object(s): subscribes 2
-```
+| `naming` | | `{ "qualify": "parent", "avoid": [], "rename": {} }` | How components are named; see [Names](#names). |
 
 Every proposal says how it was made: the text and Markdown reports have a
 **How this proposal was made** section, the app shows **What was
@@ -171,6 +158,136 @@ considered**, and the JSON has `proposal.basis`. That section lists the
 objects that shaped components, kept ones, and excluded ones; the relation
 kinds and weights; the settings; and, for each one changed, whether the
 value came from `.bca.json` or an option.
+
+### Why an object is where it is
+
+A proposal remembers, for every object, which step placed it and the numbers
+that step looked at. `bca architecture --explain <object>` (and **Why in …**
+on the object page of the app) shows it, together with the selector that
+assigns the object and its coupling to each component by relation kind. An
+object coupled more to another component than to its own is a candidate to
+move.
+
+`bca architecture --explain <component>` answers the same for a whole
+component: what it is named after, how many of its objects came to it by which
+step, what they agree on (namespace, folder, name prefix), how much of its
+coupling stays inside, the thresholds that applied, its members, its
+neighbours, and which setting would change it. An agent asks the MCP tool
+`bc_atlas_architecture_explain` for either. What should be preferred, and how
+the structure of today compares with a target, is in
+[Current and target architecture](./target-architecture.md).
+
+```text
+codeunit 50001 CON Warehouse Hooks
+  Component: Core (assigned by namespace:Contoso.Core)
+  Why: It works most with the objects of this component: 8 of its 9.6 weighted links go there (83%). The grouping started from the relations alone because that kept most coupling inside groups (modularity 0.32).
+  The component is named after namespace Contoso.Core (80% of its objects).
+
+  Coupling by component (weighted like the proposal):
+         8  Core (own)  1 object(s): uses 1, reads 1, writes 1
+       1.6  Sales  1 object(s): subscribes 2
+```
+
+These are the steps. Each object has exactly one; an object that a later
+step moved also keeps the step that placed it before.
+
+| Step | The object is in its component because |
+| --- | --- |
+| `coupling` | It works most with the objects of this component. The relations between the objects of the app were grouped so that as much of their weight as possible stays inside a group. The explanation gives the share of the object's weighted links that go to its component, and whether the grouping started from the relations alone, today's namespaces, or today's folders (the start that kept most coupling inside groups wins). |
+| `shared-core` | Several groups use it and none owns it, so it went to the shared core. |
+| `small-group` | It formed a group too small to stand alone, and the group joined the component it works with most. |
+| `namespace-neighbour` | Nothing relates it to the rest of the app, so it follows the objects of its namespace. |
+| `folder-neighbour` | The same, by its functional folder. |
+| `id-neighbour` | The same, by the object with the nearest object ID. |
+| `unconnected` | Nothing relates it to the rest of the app and nothing else points to a component: *Unconnected*, to place by hand. |
+| `grants` | It only grants or includes permissions, so it moved to the component that holds most of what it grants. |
+| `excluded` | `exclude` kept it from shaping components; afterwards it joined the component it works with most. |
+| `not-placed` | `exclude` kept it from shaping components and nothing relates it to one: *Not placed*. |
+| `merged` | Its component had fewer objects than `minObjects` and joined the component it depends on most. |
+| `boundary` | Its app or module stays one component: it has fewer than 6 objects, nothing inside relates to anything else, or the grouping is `app` or `module`. |
+| `structure` | The grouping is `namespace` or `folder`, and its namespace or folder is the component. |
+| `kept` | A component you defined in `keep` takes it. |
+| `outside` | It lies outside the analyzed path; its app is kept as one component for context. |
+| `declared` | The architecture is configured: a selector of the component in `.bca.json` assigns it. |
+
+The numbers behind those steps are fixed, and a proposal lists them
+(`proposal.basis.thresholds` in JSON). Where a threshold depends on the size
+of the app, the value that applied is part of each component's rationale.
+
+| Threshold | Value | What it decides |
+| --- | --- | --- |
+| Smallest app or module that is split | 6 objects | With fewer, the app or module stays one component. |
+| Shared core | used from 3 other groups; incoming coupling at the 90th percentile of the app (at least 4); less than 40% of it from its own group | Which objects go to the shared core. |
+| Small group | fewer than 3 objects, or 1% of the app | Which groups join another one. |
+| App candidate | fewer than 10 objects, or 5% of the app | Which app candidates join another one. |
+| Nearest object ID | within 50 | How far an object without relations may be from the object it follows. |
+| Selector | 80% of the objects | When a namespace or folder becomes the selector of one component. |
+| Split | more than 40 objects, or 15% of the objects | With `groupBy` `namespace` or `folder` and no `depth`: when a group splits one level deeper. |
+
+For a whole component, the JSON report has a `rationale` on every component:
+how it got its name (`naming`), how many objects each step placed (`steps`),
+what most of its objects share today (`agreement`: namespace, folder, name
+prefix), how much of its coupling stays inside (`coupling`), the app or
+module it lies in, and the `thresholds` that applied. The text and Markdown
+reports have a **Why these components** section with one line per
+component:
+
+```text
+Why these components (name; how the objects got there)
+  Core: named after namespace Contoso.Core (4 of 5 objects); 4 by coupling, 1 by nearest object ID
+  Sales: named after namespace Contoso.Sales (4 of 6 objects); 4 by coupling, 2 from a small group that joined
+```
+
+A configured architecture has a rationale too: every object is `declared`,
+and the rationale counts how many objects each selector assigns.
+
+### Names
+
+A component is named after what most of its objects share:
+
+1. the deepest namespace most of them are in, below what the whole app shares
+   (`Contoso.Sales.Posting` gives `Posting`);
+2. else their functional folder (`src/Sales` gives `Sales`);
+3. else the word their names share most (`Sales`), without words such as
+   `Mgt`, `Setup`, or `Card` that say what an object is, not what it is about;
+4. an app or module that stays one component keeps its name; the shared core
+   is `Shared`.
+
+Names are unique, compared without case, because `component:` selectors and
+`bca refactor move --to` look a component up that way. `Sales` and `sales`
+are one name, also for the components you write into `.bca.json`.
+
+When two components would get the same name, they are told apart by what
+they mean, in this order:
+
+| Order | Example | When |
+| --- | --- | --- |
+| The level above | `Sales Setup`, `Purchase Setup` | The names come from `Contoso.Sales.Setup` and `Contoso.Purchase.Setup`, or from folders. All components of that name are qualified. |
+| The app or module | `Setup (Contoso Sales)` | The components lie in different apps or modules. |
+| Other words | `Sales Post` | The objects share further words. The largest component keeps the plain name. |
+| A number | `Setup 2` | Nothing else tells them apart. |
+
+`architecture.proposal.naming` changes that:
+
+```json
+{
+  "architecture": {
+    "proposal": {
+      "naming": {
+        "qualify": "parent",
+        "avoid": ["app"],
+        "rename": { "Setup 2": "Purchase Setup" }
+      }
+    }
+  }
+}
+```
+
+| Setting | Default | What it decides |
+| --- | --- | --- |
+| `qualify` | `"parent"` | What is tried first: `parent` (the level above), `app` (the app or module), or `number`. |
+| `avoid` | `[]` | Kinds of names a component may only have when it holds exactly the same objects: `app`, `module`, `namespace` (its last segment). With `["app"]`, a component `Sales` that holds only part of the app `Sales` is told apart like two components of the same name. Components you `keep` and apps outside the analyzed path keep their names. |
+| `rename` | `{}` | A map from the name the proposal gives to the name you want, applied last and looked up without case. Two components must not end up with one name; the error names both. A name no component has is listed in `proposal.basis.naming.unusedRenames`. |
 
 ### Namespaces
 

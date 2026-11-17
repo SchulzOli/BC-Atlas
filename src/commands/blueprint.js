@@ -7,12 +7,25 @@ import { writeBaseline } from "../blueprint/baseline.js";
 import { architectureJson, formatArchitectureMarkdown, formatArchitectureText } from "../blueprint/report.js";
 import { formatExtractionMarkdown, formatExtractionText, planExtraction } from "../blueprint/extract.js";
 import { writeSurface } from "../blueprint/surface.js";
-import { explainPlacement, findObject, formatPlacement } from "../blueprint/explain.js";
+import { explainComponent, explainPlacement, findObject, formatComponentExplanation, formatPlacement } from "../blueprint/explain.js";
 
 export function renderArchitecture(assessment, format = "text") {
   if (format === "json") return `${JSON.stringify(architectureJson(assessment), null, 2)}\n`;
   if (format === "markdown") return formatArchitectureMarkdown(assessment);
-  return formatArchitectureText(assessment);
+  return `${formatArchitectureText(assessment)}${goalsText(assessment)}`;
+}
+
+/** How well the architecture meets the goals of the template in use, for the terminal. */
+function goalsText({ template, score }) {
+  if (!score) return "";
+  const counted = score.criteria.filter(({ weight }) => weight > 0);
+  return [
+    "",
+    `Goals (template ${template.template.name}): ${score.total.toFixed(1)} of 100`,
+    ...counted.map(({ title, score: value, weight }) => `  ${title.padEnd(22)} ${value.toFixed(2)}  weight ${weight}`),
+    "  bca architecture compare puts this next to a target; bca architecture templates says what the goals mean.",
+    ""
+  ].join("\n");
 }
 
 /** Saves the evaluated architecture in .bca.json, keeping every other setting. */
@@ -37,7 +50,12 @@ function renderExtraction(plan, format = "text") {
 
 function renderPlacement(assessment, query, format = "text") {
   const matches = findObject(assessment.levels, query);
-  if (!matches.length) throw new Error(`no object "${query}" in the analyzed source`);
+  if (!matches.length) {
+    // Not an object: a component, and why it is what it is.
+    const component = explainComponent(assessment, query);
+    if (!component) throw new Error(`no object and no component "${query}" in the analyzed source; the components are ${assessment.result.components.map(({ name }) => name).join(", ")}`);
+    return format === "json" ? `${JSON.stringify(component, null, 2)}\n` : `${formatComponentExplanation(component).join("\n")}\n`;
+  }
   const placements = matches.map(({ id }) => explainPlacement(assessment, id));
   if (format === "json") return `${JSON.stringify(placements.length === 1 ? placements[0] : placements, null, 2)}\n`;
   return `${placements.map((placement) => formatPlacement(placement).join("\n")).join("\n\n")}\n`;

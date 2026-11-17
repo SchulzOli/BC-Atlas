@@ -16,7 +16,15 @@
 //   exclude         objects that do not shape components; they join the
 //                   component they are most coupled to afterwards
 //   moves           { minGain, limit } for objects that belong elsewhere
+//   naming          how components are named: { rename, qualify, avoid }
+//                   rename   a map from the name the proposal gives to the
+//                            name you want
+//                   qualify  what tells two components of the same name
+//                            apart first: parent | app | number
+//                   avoid    names a component may only have when it holds
+//                            exactly those objects: app, module, namespace
 import { COUPLING_WEIGHTS, couplingWeights } from "../graph/coupling.js";
+import { AVOIDABLE, nameKey, QUALIFIERS } from "./naming.js";
 
 export const GROUPINGS = Object.freeze(["auto", "coupling", "namespace", "folder", "module", "app"]);
 export const STRUCTURES = Object.freeze(["namespace", "folder"]);
@@ -33,7 +41,8 @@ export const PROPOSAL_DEFAULTS = Object.freeze({
   sharedCore: true,
   keep: Object.freeze([]),
   exclude: Object.freeze([]),
-  moves: Object.freeze({ minGain: 2, limit: 50 })
+  moves: Object.freeze({ minGain: 2, limit: 50 }),
+  naming: Object.freeze({ rename: Object.freeze({}), qualify: "parent", avoid: Object.freeze([]) })
 });
 
 const KEYS = Object.keys(PROPOSAL_DEFAULTS);
@@ -83,11 +92,14 @@ const VALIDATE = {
   },
   keep: (value) => {
     if (!Array.isArray(value)) fail("keep", "must list components: [{ \"name\": ..., \"match\": [...] }]");
-    const names = new Set();
+    const names = new Map();
     return value.map((component, index) => {
       if (!component?.name || typeof component.name !== "string") fail(`keep[${index}]`, "needs a name");
-      if (names.has(component.name)) fail("keep", `names "${component.name}" twice`);
-      names.add(component.name);
+      // Names are compared without case, like everywhere a component is looked up by name.
+      const other = names.get(nameKey(component.name));
+      if (other === component.name) fail("keep", `names "${component.name}" twice`);
+      if (other !== undefined) fail("keep", `names "${other}" and "${component.name}", which differ only in case`);
+      names.set(nameKey(component.name), component.name);
       const match = [component.match ?? []].flat();
       if (!match.length || match.some((selector) => typeof selector !== "string")) fail(`keep[${index}]`, "needs match selectors, e.g. [\"namespace:Contoso.Sales\"]");
       return { name: component.name, match, ...(component.description ? { description: String(component.description) } : {}) };
@@ -105,6 +117,26 @@ const VALIDATE = {
       minGain: value.minGain === undefined ? PROPOSAL_DEFAULTS.moves.minGain : number("moves.minGain", value.minGain),
       limit: value.limit === undefined ? PROPOSAL_DEFAULTS.moves.limit : number("moves.limit", value.limit, { integer: true })
     };
+  },
+  naming: (value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) fail("naming", "must be { \"rename\": { ... }, \"qualify\": ..., \"avoid\": [...] }");
+    for (const key of Object.keys(value)) if (!["rename", "qualify", "avoid", "$comment"].includes(key)) fail("naming", `has no setting "${key}"; use rename, qualify, or avoid`);
+    const qualify = value.qualify ?? PROPOSAL_DEFAULTS.naming.qualify;
+    if (!QUALIFIERS.includes(qualify)) fail("naming.qualify", `must be one of: ${QUALIFIERS.join(", ")}`);
+    const avoid = value.avoid === undefined ? [] : list("naming.avoid", value.avoid);
+    for (const item of avoid) if (!AVOIDABLE.includes(item)) fail("naming.avoid", `takes ${AVOIDABLE.join(", ")} (received "${item}")`);
+    const rename = value.rename ?? {};
+    if (!rename || typeof rename !== "object" || Array.isArray(rename)) fail("naming.rename", "must map names to names: { \"Setup 2\": \"Purchase Setup\" }");
+    const from = new Map();
+    const to = new Map();
+    for (const [name, wanted] of Object.entries(rename)) {
+      if (typeof wanted !== "string" || !wanted.trim()) fail("naming.rename", `needs a name for "${name}"`);
+      if (from.has(nameKey(name))) fail("naming.rename", `lists "${from.get(nameKey(name))}" and "${name}", which differ only in case`);
+      if (to.has(nameKey(wanted))) fail("naming.rename", `gives "${to.get(nameKey(wanted))}" and "${name}" the same name "${wanted}"`);
+      from.set(nameKey(name), name);
+      to.set(nameKey(wanted), name);
+    }
+    return { rename: Object.fromEntries(Object.entries(rename).map(([name, wanted]) => [name, wanted.trim()])), qualify, avoid: [...new Set(avoid)] };
   }
 };
 

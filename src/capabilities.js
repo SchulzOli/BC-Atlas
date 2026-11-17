@@ -230,8 +230,11 @@ const blueprintOptions = {
   ignore: string("Relation kinds that never shape a component (comma-separated, e.g. permits,includes,uses); architecture.proposal.ignore in .bca.json.", { group: "Proposal", value: "kinds", default: "permits,includes" }),
   granularity: string("How finely the relations split: above 1 gives more and smaller components, below 1 fewer and larger ones; architecture.proposal.granularity in .bca.json.", { group: "Proposal", value: "n", default: "1" }),
   sharedCore: string("Pull objects that many components use into a shared core component; architecture.proposal.sharedCore in .bca.json.", { group: "Proposal", enum: ["true", "false"], default: "true" }),
+  template: string("The template that says what a good architecture is here: a preset (balanced, follow-structure, by-coupling, layered, modular-monolith, small-steps) or one of your own (architecture.templates in .bca.json); architecture.template in .bca.json. See bca architecture templates.", { group: "Goals", value: "name" }),
+  weight: string("How much a goal weighs, as <goal>=<n>; 0 leaves it out. Goals: cohesion, modularity, layering, acyclic, ownership, extractable, stability, size, followNamespaces, followFolders, followApps, fewMoves. Repeatable, or comma-separated; architecture.goals.weights in .bca.json.", { group: "Goals", repeatable: true, value: "goal=n" }),
+  size: string("The size a component should have, as <min>..<max> objects (default 3..200); architecture.goals.size in .bca.json.", { group: "Goals", value: "min..max" }),
   extract: string("Plan extracting this component as an app of its own: blockers, dependencies, app.json, table moves, and steps.", { group: "Extraction", value: "component" }),
-  explain: string("Explain why an object is in its component: the selector that assigns it and its coupling to each component (name, ID, or type:name).", { group: "Proposal", value: "object" }),
+  explain: string("Explain why an object is in its component (name, ID, or type:name): the step of the proposal that placed it, with its numbers, the selector that assigns it, and its coupling to each component. With the name of a component: why it exists, what it is named after, how its objects came to it, and the thresholds that applied.", { group: "Proposal", value: "object|component" }),
   write: flag("Save the architecture to .bca.json (architecture section).", { group: "Enforcement" }),
   updateBaseline: flag("Accept today's violations in the baseline file; only new ones fail afterwards.", { group: "Enforcement" }),
   updateSurface: flag("Record each component's public surface (what other components use) in .bca-surface.json; bca check then reports changes that break its users.", { group: "Enforcement" }),
@@ -650,6 +653,94 @@ export function createCapabilities(version, { plugins = BUILTIN_MANIFESTS } = {}
           "bca architecture ./app --propose --write --update-baseline",
           "bca architecture ./app --format json",
           "bca architecture ./app --extract Sales --format markdown -o extract-sales.md"
+        ]
+      }),
+      command({
+        id: "architecture.compare",
+        area: "analyze",
+        argv: ["bca", "architecture", "compare", "[app-root]"],
+        purpose: "The architecture as it is and as it should be, side by side: both scored with the same weighted goals, how the components of one become those of the other, the objects that have to move, and the steps with their commands.",
+        options: {
+          from: string("The current state: structure (the namespaces, folders, and apps the source has today), configured (architecture.components in .bca.json), proposal, or best.", { group: SELECTION, enum: ["structure", "configured", "proposal", "best"], default: "structure" }),
+          to: string("The target state: configured, proposal (under the template in use), best (several proposals scored with the goals; the best wins and all are listed), or structure. Default: configured when .bca.json has components, else best.", { group: SELECTION, enum: ["structure", "configured", "proposal", "best"] }),
+          limit: string("Most objects to list as moves; 0 for all.", { group: OUTPUT, value: "n", default: "50" }),
+          write: flag("Save the target as the architecture of the project (architecture section of .bca.json): what bca check enforces from then on.", { group: "Enforcement" }),
+          saveTemplate: string("Save the settings of this call (the template in use, .bca.json, and the options together) as a template of this name; the same as bca architecture templates --save.", { group: "Goals", value: "name" }),
+          format: blueprintOptions.format,
+          output: blueprintOptions.output,
+          template: blueprintOptions.template,
+          weight: blueprintOptions.weight,
+          size: blueprintOptions.size,
+          groupBy: blueprintOptions.groupBy,
+          depth: blueprintOptions.depth,
+          minObjects: blueprintOptions.minObjects,
+          startFrom: blueprintOptions.startFrom,
+          ignore: blueprintOptions.ignore,
+          granularity: blueprintOptions.granularity,
+          sharedCore: blueprintOptions.sharedCore,
+          paths: blueprintOptions.paths,
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config,
+          compiler: projectOptions.compiler
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.architecture-compare" },
+        rules: [
+          "Both states are scored with the same goals and weights, so the totals can be compared. Every goal says what it measured.",
+          "A move is an object whose home today is not where the target has it; each has its command (bca refactor move). The steps are ordered: what removes cycles and wrong-way dependencies first, then by component, the largest gain first.",
+          "With --to best, every candidate is listed with its settings and its score for each goal, so the choice can be checked.",
+          "See docs/target-architecture.md."
+        ],
+        examples: [
+          "bca architecture compare ./app",
+          "bca architecture compare ./app --to best --template modular-monolith",
+          "bca architecture compare ./app --weight fewMoves=5 --weight layering=4",
+          "bca architecture compare ./app --from configured --to proposal --format markdown -o docs/target.md",
+          "bca architecture compare ./app --template layered --granularity 0.8 --weight fewMoves=4 --save-template our-way",
+          "bca architecture compare ./app --to best --write"
+        ]
+      }),
+      command({
+        id: "architecture.templates",
+        area: "analyze",
+        argv: ["bca", "architecture", "templates", "[app-root]"],
+        purpose: "The templates that say what a good architecture is and how much each goal weighs: lists the presets and your own, takes one into use, saves the settings as they are as a new template, or removes one.",
+        options: {
+          use: string("Take this template into use (architecture.template in .bca.json); an empty value goes back to the defaults.", { group: SELECTION, value: "name" }),
+          save: string("Save the settings as they are now (the template in use, .bca.json, and the options of this call) as a template of this name.", { group: SELECTION, value: "name" }),
+          from: string("With --save: copy this template instead of the settings as they are.", { group: SELECTION, value: "name", default: "current" }),
+          title: string("With --save: the title of the template.", { group: GENERAL, value: "text" }),
+          summary: string("With --save: when to use it.", { group: GENERAL, value: "text" }),
+          templateFile: string("With --save: write the template to this JSON file, so that several repositories can share it; .bca.json keeps the path.", { group: OUTPUT, value: "path" }),
+          remove: string("Remove a template of your own.", { group: SELECTION, value: "name" }),
+          show: string("Print one template with everything it inherits, as JSON.", { group: SELECTION, value: "name" }),
+          dryRun: flag("Check the change and show the result; write nothing.", { group: OUTPUT }),
+          format: string("text (default) or json: the templates, the goals with what each means, and the default weights.", { group: OUTPUT, short: "f", enum: ["text", "json"], default: "text" }),
+          template: blueprintOptions.template,
+          weight: blueprintOptions.weight,
+          size: blueprintOptions.size,
+          groupBy: blueprintOptions.groupBy,
+          depth: blueprintOptions.depth,
+          minObjects: blueprintOptions.minObjects,
+          startFrom: blueprintOptions.startFrom,
+          ignore: blueprintOptions.ignore,
+          granularity: blueprintOptions.granularity,
+          sharedCore: blueprintOptions.sharedCore,
+          projectRoot: projectOptions.projectRoot,
+          config: projectOptions.config
+        },
+        output: { type: "json", when: "--format json", schema: "bc-atlas.architecture-templates" },
+        rules: [
+          "A template holds the weights of the goals, the size a component should have, and the settings of the proposal. One of your own can extend a preset or another template and change parts of it.",
+          "Precedence: an option of the call, then architecture.goals and architecture.proposal in .bca.json, then the template in use, then the defaults.",
+          "A preset cannot be replaced or removed; save your version under another name."
+        ],
+        examples: [
+          "bca architecture templates",
+          "bca architecture templates --use layered",
+          "bca architecture templates --save house --title \"Our house rules\" --weight layering=5 --weight fewMoves=3 --group-by namespace",
+          "bca architecture templates --save house --from modular-monolith --template-file ../shared/architecture-house.json",
+          "bca architecture templates --show house",
+          "bca architecture templates --remove house"
         ]
       }),
       command({

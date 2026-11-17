@@ -6,6 +6,49 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- **Why a component is what it is.** A proposal remembers for every object
+  the step that placed it (its coupling, the shared core, a small group that
+  joined, a neighbour by namespace, folder, or ID, a permission set that
+  follows what it grants, kept, ...) with the numbers that step looked at,
+  and for every component what it is named after, what its objects agree on,
+  and every threshold that applied. `bca architecture --explain` takes an
+  object or a component, the report has **Why these components**, and the
+  MCP tool `bc_atlas_architecture_explain` answers both for an agent.
+- **Current and target architecture.** `bca architecture compare` puts the
+  architecture as it is (the namespaces, folders, and apps of the source, or
+  what `.bca.json` configures) next to the one it should be (configured, the
+  proposal, or the best of several proposals): both scored from 0 to 100
+  with the same weighted goals, how the components of one become those of
+  the other, the objects that have to move with the command for each, and
+  the steps in order. `--write` makes the target the architecture of the
+  project.
+- **Goals with weights, and templates.** Twelve goals say what is preferred
+  (cohesion, modularity, layering, no cycles, data ownership, extractable,
+  stable dependencies, size, following namespaces, folders, and apps, few
+  moves); `--weight <goal>=<n>` and `architecture.goals` weigh them. A
+  template bundles the weights with the settings of the proposal: six
+  presets (`balanced`, `follow-structure`, `by-coupling`, `layered`,
+  `modular-monolith`, `small-steps`) and your own, which can extend another
+  and live in `.bca.json` or in a file several repositories share.
+  `bca architecture templates` lists, uses, saves (`--save <name>`: the
+  settings as they are), and removes them.
+- **For agents**: the MCP tools `bc_atlas_architecture_compare`,
+  `bc_atlas_architecture_templates`, and `bc_atlas_architecture_adopt`, and
+  `template`, `weights`, and `size` on `bc_atlas_architecture`, which now
+  also returns the score of the architecture for every goal.
+
+### Changed
+
+- **Names of components no longer clash.** Names are compared without case
+  everywhere. Two components that would get one name are told apart by what
+  they are: the level above first (`Sales Setup`, `Purchase Setup`), then
+  the app, and a number only last. `architecture.proposal.naming` renames
+  components (`rename`), chooses what tells them apart (`qualify`), and
+  keeps a component from sharing its name with an app, a module, or a
+  namespace it only partly covers (`avoid`).
+
 ## 0.24.0 - 2026-11-17
 
 ### Added

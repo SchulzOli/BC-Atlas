@@ -16,6 +16,8 @@ import { annotateLevels } from "../blueprint/annotate.js";
 import { proposeArchitecture } from "../blueprint/propose.js";
 import { proposalSettings } from "../blueprint/settings.js";
 import { clusterByRelations } from "../blueprint/cluster.js";
+import { uniqueNames } from "../blueprint/naming.js";
+import { THRESHOLDS } from "../blueprint/placement.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
@@ -48,12 +50,14 @@ function addClusters(levels, weights) {
     if (!groups.has(owner)) groups.set(owner, []);
     groups.get(owner).push(node);
   }
+  const kinds = new Map([...(levels.app?.nodes ?? []).map((node) => [node.id, "app"]), ...(levels.module?.nodes ?? []).map((node) => [node.id, "module"])]);
   const clusters = new Map();
   for (const [owner, nodes] of groups) {
     const label = owners.get(owner) ?? "(no app)";
-    if (nodes.length < 6) {
+    const outer = { key: owner, label };
+    if (nodes.length < THRESHOLDS.minClusterObjects) {
       for (const node of nodes) node.cluster = `${owner}|all`;
-      clusters.set(`${owner}|all`, { label, alternatives: [], owner: label, size: nodes.length });
+      clusters.set(`${owner}|all`, { label, alternatives: [], outer, size: nodes.length, naming: { by: kinds.get(owner) ?? "app", from: label } });
       continue;
     }
     const byId = new Map(nodes.map((node) => [node.id, node]));
@@ -63,7 +67,8 @@ function addClusters(levels, weights) {
       const entry = clusters.get(cluster.key) ?? {
         label: cluster.label,
         alternatives: cluster.alternatives ?? [],
-        owner: label,
+        naming: cluster.naming,
+        outer,
         group: cluster.app?.key,
         size: 0,
         ...(cluster.shared ? { shared: true } : {})
@@ -72,19 +77,11 @@ function addClusters(levels, weights) {
       clusters.set(cluster.key, entry);
     }
   }
-  // Larger clusters keep the plain name; the others take a more precise one
-  // ("Sales Post"), the name of their app or module, or a number.
-  const used = new Map();
-  for (const cluster of [...clusters.values()].sort((a, b) => b.size - a.size)) {
-    const base = cluster.label;
-    const elsewhere = used.has(base) && used.get(base) !== cluster.owner;
-    const candidates = elsewhere ? [`${base} (${cluster.owner})`, ...cluster.alternatives] : [base, ...cluster.alternatives, `${base} (${cluster.owner})`];
-    let name = candidates.find((candidate) => !used.has(candidate));
-    for (let index = 2; !name; index++) if (!used.has(`${base} ${index}`)) name = `${base} ${index}`;
-    used.set(name, cluster.owner);
-    cluster.label = name;
-  }
-  return Object.fromEntries([...clusters].map(([key, { label, size, group, shared }]) => [key, { label, size, ...(group ? { group } : {}), ...(shared ? { shared } : {}) }]));
+  // The same names as the architecture proposal gives (naming.js): unique
+  // without case; clusters that would share a name are told apart by the
+  // level above, their app or module, other words, and last a number.
+  uniqueNames([...clusters.values()]);
+  return Object.fromEntries([...clusters].map(([key, { name, size, group, shared }]) => [key, { label: name, size, ...(group ? { group } : {}), ...(shared ? { shared } : {}) }]));
 }
 
 /**

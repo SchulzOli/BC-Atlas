@@ -250,7 +250,10 @@ These options override `architecture.proposal` in `.bca.json`, which also takes 
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--explain` | object | Explain why an object is in its component: the selector that assigns it, and its coupling to each component by relation kind. Accepts a name, an ID, or `type:name`. |
+| `--explain` | object or component | With an object (name, ID, or `type:name`): why it is in its component: the step of the proposal that placed it, with its numbers, the selector that assigns it, and its coupling to each component. With the name of a component: what it is named after, how its objects came to it, what they agree on, the thresholds that applied, its members, and its neighbours. See [Why an object is where it is](./clean-architecture.md#why-an-object-is-where-it-is). |
+| `--template` | name | The [template](./target-architecture.md) that says what a good architecture is here: a preset (`balanced`, `follow-structure`, `by-coupling`, `layered`, `modular-monolith`, `small-steps`) or one of your own. `architecture.template` in `.bca.json`. |
+| `--weight` | goal=n | How much a goal weighs; `0` leaves it out. Repeatable. `architecture.goals.weights` in `.bca.json`. |
+| `--size` | min..max | The size a component should have, in objects. Default `3..200`. |
 | `--extract` | component | Plan extracting this component as an app: blockers, dependencies, `app.json`, tables whose data moves, and steps. Never fails the command. |
 | `--write` | flag | Save the architecture to the `architecture` section of `.bca.json`. |
 | `--update-baseline` | flag | Accept today's violations in `.bca-architecture-baseline.json`; only new ones fail afterwards. |
@@ -260,6 +263,63 @@ These options override `architecture.proposal` in `.bca.json`, which also takes 
 | `--project-root` | path | Analyze a wider workspace. |
 | `--config` | path | Configuration file. |
 | `--compiler` | mode | `auto`, `off`, or a path; see [AL toolchain](./al-toolchain.md). Default: `auto`. |
+
+### `architecture compare`
+
+```text
+bca architecture compare [app-root] [--from <state>] [--to <state>] [--template <name>] [--weight <goal>=<n>] [options]
+```
+
+The architecture as it is and as it should be, side by side: both scored with
+the same weighted goals, how the components of one become those of the other,
+the objects that have to move, and the steps with their commands. See
+[Current and target architecture](./target-architecture.md).
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--from` | `structure`, `configured`, `proposal`, `best` | The current state. `structure` (default) is the namespaces, folders, and apps the source has today. |
+| `--to` | `structure`, `configured`, `proposal`, `best` | The target state. Default: `configured` when `.bca.json` has components, else `best`: several proposals scored with the goals; all are listed and the best wins. |
+| `--template` | name | The template that says what is preferred. |
+| `--weight` | goal=n | How much a goal weighs, on top of the template. Repeatable. |
+| `--size` | min..max | The size a component should have. |
+| `--group-by`, `--depth`, `--min-objects`, `--start-from`, `--ignore`, `--granularity`, `--shared-core` | | The settings of the proposal, as for `bca architecture`. |
+| `--limit` | n | Most objects to list as moves; `0` for all. Default: `50`. |
+| `--save-template` | name | Save the settings of this call as a template of this name. |
+| `--write` | flag | Save the target as the architecture of the project: what `bca check` enforces from then on. |
+| `--format` | `text`, `markdown`, `json` | Output format. Default: `text`. |
+| `-o`, `--output` | path | Write the comparison to a file. |
+| `--paths` | globs | Only these files. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
+| `--compiler` | mode | AL compiler use. |
+
+### `architecture templates`
+
+```text
+bca architecture templates [app-root]
+bca architecture templates [app-root] --use <name>
+bca architecture templates [app-root] --save <name> [--from <name>] [--title <text>] [--summary <text>] [--template-file <path>]
+bca architecture templates [app-root] --remove <name>
+```
+
+Lists the presets and your own templates with the weight of every goal, takes
+one into use, saves the settings as they are as a new template, or removes
+one.
+
+| Option | Value | Description |
+| --- | --- | --- |
+| `--use` | name | Take this template into use (`architecture.template`); an empty value goes back to the defaults. |
+| `--save` | name | Save the settings as they are now (the template in use, `.bca.json`, and the options of this call) as a template. A preset cannot be replaced. |
+| `--from` | name | With `--save`: copy this template instead. Default: `current`. |
+| `--title`, `--summary` | text | With `--save`: what it is, and when to use it. |
+| `--template-file` | path | With `--save`: write the template to this JSON file, so that several repositories share it; `.bca.json` keeps the path. |
+| `--remove` | name | Remove a template of your own. |
+| `--show` | name | Print one template with everything it inherits, as JSON. |
+| `--template`, `--weight`, `--size`, `--group-by`, `--depth`, `--min-objects`, `--start-from`, `--ignore`, `--granularity`, `--shared-core` | | With `--save`: settings on top of those in use. |
+| `--dry-run` | flag | Check the change and show the result; write nothing. |
+| `--format` | `text` or `json` | `json`: the templates, the goals with what each means, and the default weights. |
+| `--project-root` | path | Project root. |
+| `--config` | path | Configuration file. |
 
 ### `refactor move`
 
