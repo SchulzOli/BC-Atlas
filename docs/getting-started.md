@@ -101,7 +101,7 @@ also fails on new dependencies that point the wrong way. See
 BC Atlas tells you in the terminal when a new version exists:
 
 ```text
-BC Atlas 0.26.0 is available (you have 0.25.0). Run "bca update" to see what's new.
+BC Atlas 0.27.0 is available (you have 0.26.0). Run "bca update" to see what's new.
 ```
 
 `bca update` shows the release notes, asks before installing, and moves your

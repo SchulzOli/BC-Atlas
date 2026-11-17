@@ -59,7 +59,7 @@ export const THRESHOLDS = Object.freeze({
   hubMinIncoming: 4,
   hubOwnShare: 0.4,
   // A group smaller than max(objects, share of the app) joins another one.
-  smallGroup: Object.freeze({ objects: 3, share: 0.01 }),
+  smallGroup: Object.freeze({ objects: 3, share: 0.01, most: 10 }),
   appCandidate: Object.freeze({ objects: 10, share: 0.05 }),
   // An object without relations follows an object whose ID is this close.
   idDistance: 50,

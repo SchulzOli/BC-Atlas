@@ -35,6 +35,18 @@ the builder works offline in VS Code and in every exported HTML file.
 - Update command: `npm run update:flow-vendor` (after updating one of the
   packages or the entry)
 
+## mcp-app.js
+
+The adapter that lets the BC Atlas view run as an
+[MCP App](https://github.com/modelcontextprotocol/ext-apps) in a chat
+client: the MCP Apps SDK (`@modelcontextprotocol/ext-apps`, with the parts of
+the MCP SDK and zod it needs) behind the interface of
+`scripts/mcp-app-entry.js`. The MCP server inlines it into the page it serves
+as `ui://bc-atlas/view.html`.
+
+- Update command: `npm run update:mcp-app-vendor` (after updating the SDK or
+  the entry)
+
 ## fonts/
 
 Liberation Sans Regular and Bold (SIL Open Font License 1.1, see

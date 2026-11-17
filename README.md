@@ -80,6 +80,7 @@ documentation, test, and demonstration. [Guide](./docs/vscode.md)
 | Area | Command | What you get |
 | --- | --- | --- |
 | **In VS Code** | BC Atlas extension | Everything below in the editor, as one view: a toolbar and the graph. Every object, app, component, finding, process test, and person is a node of one graph; a lens shows a part of it as a 2D graph, a diagram, or a 3D graph; stories walk through it; everything exports. The graph follows the source and the editor; findings in the Problems panel; CodeLens above AL objects; the MCP server for agents. [Guide](./docs/vscode.md) |
+| **In the chat** | MCP App (`bc_atlas_app`) | The same view inside the conversation, in every client that renders [MCP Apps](./docs/agent-integration.md#the-view-in-the-chat-mcp-app): Claude, ChatGPT, VS Code, and others. Released together with the extension. |
 | **Get started** | `bca setup` | Guided setup in the terminal or through your AI agent (Claude Code, Copilot, Cursor): a starter `.bca.json`, features, Husky or Git hooks, GitHub Actions or Azure Pipelines, cron schedule, and sync. |
 | **Analyze** | `bca check` | Health findings - cycles, forbidden dependencies, architecture violations, hot spots, undocumented public API, diagnostics, and AL compiler and CodeCop/UICop/AppSourceCop findings - with a CI exit code, also as SARIF for code scanning. [Rules](./docs/health-checks.md) |
 | | `bca simulate` | The battle test: simulate the use in your company. Agents with your roles, permission sets, and task groups perform the process tests (AL UI tests) step by step. It fails CI when a role is blocked or can do what it must not, explains every permission a step needs, and writes the fit-gap analysis against your requirements. [Guide](./docs/battle-test.md), [example](./examples/simulation/README.md) |
@@ -95,7 +96,7 @@ documentation, test, and demonstration. [Guide](./docs/vscode.md)
 | | `bca graph render` | Render saved graph selections as SVG, static HTML, DOT, or JSON through the CLI or MCP, locally and without Graphviz. |
 | **Integrate** | `bca run` | One entry point for Git hooks, schedules, and pipelines; verifies, stages, or publishes generated files. Also available as a [GitHub Action](./docs/automation-and-ci.md#github-actions). |
 | | `bca flow` | Your own workflows: a flow says what to make from the source (any artifact, as often as you need it), when (the triggers), and where to save it. Build flows in the **Flow** menu of the view, with `bca flow define`, or through an agent; `bca run` runs them and keeps what they save in sync, and `bca flow export` writes a flow as a workflow for GitHub Actions. [Guide](./docs/flows.md) |
-| | `bca update` | "BC Atlas 0.26.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
+| | `bca update` | "BC Atlas 0.27.0 is available": release notes, one-step update, and regenerated hooks, tasks, and pipelines. Dependabot pull requests on request. |
 | | `bca mcp` | A Model Context Protocol server for AI agents; `bca help --format json` is the versioned command contract. |
 
 Run `bca` for the same overview in your terminal and `bca help <command>` for

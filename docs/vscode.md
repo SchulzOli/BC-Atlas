@@ -270,6 +270,14 @@ tools: check the health and the architecture, propose one, write reports and
 diagrams, and work with the UI-test documentation. See
 [Agent integration](./agent-integration.md).
 
+### The same view in the chat
+
+The MCP server the extension registers also shows this view inside the chat,
+as an [MCP App](./agent-integration.md#the-view-in-the-chat-mcp-app): ask the
+agent to show the components, a lens, or the architecture, and the graph
+appears in the conversation, in VS Code and in every other client that
+renders MCP Apps. Both are released together and are one page.
+
 ## Settings
 
 | Setting | Default | Description |

@@ -43,6 +43,8 @@ import { documentationGlossary } from "./docs/tags.js";
 import { DOCUMENT_MODES, EXPORT_FORMATS, exportDocumentation } from "./docs/export.js";
 import { loadCorpus, scenarioSummary } from "./docs/model.js";
 import { loadConfig } from "./config.js";
+import { createService } from "./app/service.js";
+import { Workspace } from "./app/workspace.js";
 import { loadPlugins } from "./plugins/registry.js";
 
 const pkg = JSON.parse(await fs.readFile(new URL("../package.json", import.meta.url)));
@@ -126,6 +128,17 @@ async function generateDiagram(args) {
     nodes: architecture.model.objects.length,
     edges: architecture.model.edges.length
   };
+}
+
+// The BC Atlas view as an MCP App (SEP-1865, io.modelcontextprotocol/ui): the page, and one
+// workspace per project so that the page asks on an analysis that is there, as in VS Code.
+export const APP_URI = "ui://bc-atlas/view.html";
+export const APP_MIME = "text/html;profile=mcp-app";
+const appServices = new Map();
+function appService(input) {
+  const root = path.resolve(input ?? ".");
+  if (!appServices.has(root)) appServices.set(root, createService(new Workspace(root, {}, { live: true })));
+  return { root, service: appServices.get(root) };
 }
 
 // What is preferred in an architecture: the template and the weights of the goals (src/blueprint/goals.js, templates.js).
@@ -265,6 +278,75 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
     const { violations, ...rest } = report;
     return { ...rest, workItems: report.workItems.slice(0, limit), violationCount: violations.length };
   }));
+
+  // ------------------------------------------------------------- MCP App
+  // The BC Atlas view inside the chat (MCP Apps, io.modelcontextprotocol/ui): the same page the
+  // VS Code extension shows. bc_atlas_app opens it; the page asks for everything else through
+  // bc_atlas_app_call, which only the page can call.
+  server.registerResource("BC Atlas view", APP_URI, {
+    description: "The BC Atlas view: the graph of the project with its lenses, findings, stories, the flow and process builders, and the architecture.",
+    mimeType: APP_MIME
+  }, async () => {
+    const { renderAppHtml } = await import("./app/page.js");
+    return { contents: [{ uri: APP_URI, mimeType: APP_MIME, text: renderAppHtml({ mode: "mcp" }), _meta: { ui: { prefersBorder: true } } }] };
+  });
+
+  server.registerTool("bc_atlas_app", {
+    title: "BC Atlas view",
+    description: "Show the BC Atlas view to the user, inside the chat: the interactive graph of the project with every lens, the findings, the stories, the builders for flows and processes, and the Architecture menu (goals, templates, why each component is what it is, current against target). It is the same view the VS Code extension shows, and the user can work in it: change flows, compare architectures, adopt a target. Use it when the user wants to see or explore something rather than read about it; lens, story, inside, and select choose what it opens on. In a client that does not render MCP Apps the tool returns a summary of the project and the address of what would be shown; use bc_atlas_view there.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      lens: z.string().optional().describe("The lens to open: overview, system, components, apps, data, calls, events, health, flows, ... (bc_atlas_view lists them)"),
+      story: z.string().optional().describe("A story to open instead: system, architecture, fix, ..."),
+      inside: z.string().optional().describe("Open inside this node: an object, an app, a component (component::Sales), or a namespace"),
+      select: z.string().optional().describe("Select this node, by id")
+    }),
+    annotations: { readOnlyHint: true, idempotentHint: true },
+    _meta: { ui: { resourceUri: APP_URI }, "ui/resourceUri": APP_URI }
+  }, async ({ path: input, lens, story, inside, select }) => {
+    const { root, service } = appService(input);
+    const overview = await service.call("overview");
+    const address = `#${new URLSearchParams(Object.entries({ lens, story, inside, sel: select }).filter(([, value]) => value)).toString()}`;
+    const summary = {
+      path: root,
+      address: address === "#" ? "" : address,
+      title: overview.title,
+      health: { passed: overview.health?.passed, ...(overview.health?.counts ?? {}) },
+      architecture: overview.architecture
+    };
+    return { content: [{ type: "text", text: `The BC Atlas view of ${overview.title} is shown to the user${address === "#" ? "" : ` (${address})`}.\n${JSON.stringify(summary, null, 2)}` }], structuredContent: summary };
+  });
+
+  server.registerTool("bc_atlas_app_call", {
+    title: "BC Atlas view: a request of the page",
+    description: "A request of the BC Atlas view (bc_atlas_app) to the project it shows: what the VS Code extension answers for the same page. Only the page calls it.",
+    inputSchema: z.object({
+      path: z.string().describe("The project the view shows"),
+      method: z.string().describe("The method of the view service"),
+      params: z.record(z.string(), z.unknown()).optional()
+    }),
+    _meta: { ui: { resourceUri: APP_URI, visibility: ["app"] }, "ui/resourceUri": APP_URI }
+  }, async ({ path: input, method, params = {} }) => {
+    try {
+      const { root, service } = appService(input);
+      let result;
+      if (method === "saveFile") {
+        // A chat client has no save dialog: what the view exports goes into the project.
+        const directory = path.join(root, ".bca", "exports");
+        const file = path.join(directory, path.basename(String(params.name ?? "export")));
+        await fs.mkdir(directory, { recursive: true });
+        await fs.writeFile(file, Buffer.from(String(params.content ?? ""), params.encoding === "base64" ? "base64" : "utf8"));
+        result = { path: path.relative(root, file).replaceAll("\\", "/") };
+      } else if (method === "openFile") {
+        throw new Error(`${params.file}${params.line ? `:${params.line}` : ""}`);
+      } else {
+        result = await service.call(method, params);
+      }
+      return { content: [{ type: "text", text: JSON.stringify(result ?? null) }] };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error.message }] };
+    }
+  });
 
   server.registerTool("bc_atlas_architecture_explain", {
     description: "Why the architecture is what it is. With an object (a name, an ID, or type:name): the component it is in, the step that placed it there with its numbers (coupling, shared core, a small group that joined, a neighbour by namespace, folder, or ID, a permission set that follows what it grants, kept, declared, ...), the selector that assigns it, its coupling to every component, and a move when it works more with another. With the name of a component: what it is named after, how its objects came to it (count per step), what they agree on (namespace, folder, name prefix), how much of its coupling stays inside, the thresholds that applied, its members with their step, its neighbours, and which setting would change it. Without either: every component with its reasons, and the vocabulary of steps. Use it before proposing a refactoring, and to answer why a component exists.",

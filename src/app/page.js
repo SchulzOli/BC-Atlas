@@ -23,7 +23,8 @@ const packed = (text) => gzipSync(text, { level: 9 }).toString("base64");
 
 /**
  * @param mode "vscode" (a webview of the VS Code extension, which answers the
- *   page's requests) or "static" (one offline file)
+ *   page's requests), "mcp" (an MCP App in a chat client; the MCP server
+ *   answers them), or "static" (one offline file)
  * @param snapshot for a static page: the atlas and the inside of its objects
  *   (snapshot.js)
  * @param csp a Content-Security-Policy for the page (the extension's webview)
@@ -35,7 +36,7 @@ export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
       `window.BCA_APP = ${embed({ mode, version: pkg.version })};`,
       `window.BCA_SNAPSHOT_GZIP = "${packed(JSON.stringify(snapshot))}";`
     ].join("\n");
-  } else if (mode === "vscode") {
+  } else if (mode === "vscode" || mode === "mcp") {
     boot = `window.BCA_APP = ${embed({ mode, version: pkg.version })};`;
   } else {
     throw new Error(`unknown page mode "${mode}"`);
@@ -44,11 +45,12 @@ export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
   return read("index.html")
     .replace('<meta charset="utf-8">', () => `<meta charset="utf-8">${csp ? `\n<meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}">` : ""}`)
     // In VS Code the page takes its colors and font from the editor's theme (src/ui/theme.css).
-    .replace('<html lang="en">', () => (mode === "vscode" ? '<html lang="en" data-host="vscode">' : '<html lang="en">'))
+    .replace('<html lang="en">', () => (mode === "vscode" ? '<html lang="en" data-host="vscode">' : mode === "mcp" ? '<html lang="en" data-host="mcp">' : '<html lang="en">'))
     .replace("__TITLE__", () => escapeHtml(title))
     .replace("__GENERATOR__", () => `BC Atlas ${pkg.version}`)
     .replace("/*__STYLE__*/", () => `${vendor("flow-canvas.css")}\n${theme()}\n${read("atlas.css")}`)
     .replace("__BOOT__", () => boot)
     // The graph and the scene register themselves before the view starts.
-    .replace("/*__APP__*/", () => `${vendor("flow-canvas.js").replaceAll("</script", "<\\/script")}\n${read("graph.js")}\n${read("scene.js")}\n${read("atlas.js")}`);
+    // As an MCP App, the host is the MCP server: its adapter (scripts/mcp-app-entry.js) comes first.
+    .replace("/*__APP__*/", () => `${mode === "mcp" ? `${vendor("mcp-app.js").replaceAll("</script", "<\\/script")}\n` : ""}${vendor("flow-canvas.js").replaceAll("</script", "<\\/script")}\n${read("graph.js")}\n${read("scene.js")}\n${read("atlas.js")}`);
 }

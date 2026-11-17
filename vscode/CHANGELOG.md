@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.27.0
+
+- The MCP server of the extension shows the BC Atlas view inside the chat as
+  an **MCP App** (`bc_atlas_app`): the same page as the panel, in VS Code
+  chat and in every other client that renders MCP Apps.
+
 ## 0.26.0
 
 - **Architecture** menu: the goals with their scores and weights, the
