@@ -161,10 +161,15 @@ export function componentAssigner(components, levels) {
     throw new Error("architecture.components must list at least one component");
   }
   const names = new Set();
+  const keys = new Map();
   const context = selectorContext(levels);
   const compiled = components.map((component) => {
     if (!component?.name) throw new Error("every architecture component needs a name");
-    if (names.has(component.name)) throw new Error(`duplicate architecture component "${component.name}"`);
+    // Names are compared without case: component: selectors, dependsOn in rules, and bca refactor move look them up that way.
+    const other = keys.get(normalizeIdentifier(component.name));
+    if (other === component.name) throw new Error(`duplicate architecture component "${component.name}"`);
+    if (other !== undefined) throw new Error(`architecture components "${other}" and "${component.name}" have the same name; names are compared without case`);
+    keys.set(normalizeIdentifier(component.name), component.name);
     names.add(component.name);
     const selectors = [component.match ?? []].flat();
     if (!selectors.length) throw new Error(`architecture component "${component.name}" has no match selectors`);

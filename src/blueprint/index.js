@@ -1,4 +1,6 @@
 import path from "node:path";
+import { scoreArchitecture } from "./goals.js";
+import { templateSettings, withTemplateRules } from "./templates.js";
 import { readFileSync, statSync } from "node:fs";
 import { analyzeProject, mergeArchitectureOptions } from "../architecture.js";
 import { loadConfig } from "../config.js";
@@ -6,6 +8,7 @@ import { objectFilter, pathMatcher } from "../views.js";
 import { dependencyLens } from "../graph/lenses/dependency.js";
 import { BASELINE_FILE, compareWithBaseline, readBaseline } from "./baseline.js";
 import { addCheck, evaluateArchitecture } from "./evaluate.js";
+import { addRationale } from "./explain.js";
 import { proposalSettings } from "./settings.js";
 import { compareSurface, componentSurfaces, readSurface, SURFACE_FILE } from "./surface.js";
 import { proposeArchitecture } from "./propose.js";
@@ -51,24 +54,30 @@ export async function assessArchitecture(input, values = {}, { model } = {}) {
   const levels = await dependencyLevels(context, { model: analyzed });
   const configured = context.options.architecture;
   let proposal;
-  let architecture = configured;
+  // What is preferred here: the template in use, then .bca.json, then the options of this call (templates.js).
+  const template = templateSettings(context.projectRoot, configured, {
+    template: values.template,
+    weights: values.weights ?? values.weight,
+    size: values.size,
+    groupBy: values.groupBy,
+    depth: values.depth,
+    minObjects: values.minObjects,
+    startFrom: values.startFrom,
+    ignore: values.ignore,
+    granularity: values.granularity,
+    sharedCore: values.sharedCore
+  });
+  let architecture = withTemplateRules(configured, template);
   if (values.propose || !configured?.components?.length) {
-    // Defaults, then architecture.proposal in .bca.json, then the options of this call.
-    proposal = proposeArchitecture(levels, proposalSettings(context.options.architecture, {
-      groupBy: values.groupBy,
-      depth: values.depth,
-      minObjects: values.minObjects,
-      startFrom: values.startFrom,
-      ignore: values.ignore,
-      granularity: values.granularity,
-      sharedCore: values.sharedCore
-    }));
-    // Configured coupling weights also shape and score a proposal.
-    architecture = configured?.couplingWeights ? { ...proposal.architecture, couplingWeights: configured.couplingWeights } : proposal.architecture;
+    proposal = proposeArchitecture(levels, template.settings);
+    // Configured coupling weights, and the rules of the template, also shape and score a proposal.
+    architecture = withTemplateRules(proposal.architecture, template, { proposed: true });
   }
   const result = evaluateArchitecture(levels, architecture, {
     architectureOrigin: proposal ? "proposed" : "configured"
   });
+  // Why each component is what it is: recorded by the proposal, or declared in .bca.json.
+  addRationale({ levels, architecture, proposal, result });
   result.surface = componentSurfaces({ levels, componentOf: result.assignment, model: analyzed, components: result.components });
   if (!proposal) {
     for (const surface of result.surface.filter(({ candidates }) => candidates.length)) {
@@ -83,6 +92,9 @@ export async function assessArchitecture(input, values = {}, { model } = {}) {
   }
   const baseline = proposal ? undefined : await readBaseline(context.baselineFile);
   return {
+    template,
+    // How well the architecture meets the goals, each with its weight and what it measured (goals.js).
+    score: scoreArchitecture({ levels, result }, template.goals),
     context,
     model: analyzed,
     levels,

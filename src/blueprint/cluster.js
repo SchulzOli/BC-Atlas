@@ -19,6 +19,11 @@ import louvain from "graphology-communities-louvain";
 import { coupling } from "../graph/coupling.js";
 import { compileSelector, componentMatcher, selectorContext } from "./components.js";
 import { normalizeIdentifier } from "../resolver.js";
+import { clusterName, commonAffix, dominantPrefix, functionalFolder, hasNamespace, mostCommon, roleNaming, uniqueNames } from "./naming.js";
+import { THRESHOLDS } from "./placement.js";
+
+// Naming lives in naming.js; these stay importable from here.
+export { clusterName, commonAffix, dominantPrefix, functionalFolder, mostCommon };
 
 // Permission sets grant access to everything; they never decide where an
 // object belongs. architecture.proposal.ignore can name other kinds too.
@@ -30,26 +35,7 @@ export function shaper(ignore = DEFAULT_IGNORED) {
 }
 export const shapes = shaper();
 
-// Folders that sort objects by type say nothing about what they do.
-const TYPE_FOLDERS = new Set([
-  "table", "tables", "tableextension", "tableextensions", "tableext", "tableexts",
-  "page", "pages", "pageextension", "pageextensions", "pageext", "pageexts", "pagecustomization", "pagecustomizations",
-  "report", "reports", "reportextension", "reportextensions", "reportext", "reportexts", "layout", "layouts", "reportlayouts",
-  "codeunit", "codeunits", "query", "queries", "xmlport", "xmlports", "enum", "enums", "enumextension", "enumextensions", "enumext", "enumexts",
-  "interface", "interfaces", "permissionset", "permissionsets", "permissionsetextension", "permissionsetextensions", "permissions",
-  "controladdin", "controladdins", "profile", "profiles", "entitlement", "entitlements", "translations",
-  "src", "source", "sources", "app", "al", "objects", "object", "base"
-]);
-const typeFolder = (segment) => TYPE_FOLDERS.has(segment.toLowerCase().replace(/[^a-z]/gu, ""));
-
-/** The folder of a file without the folders that only sort by type: src/Sales/Tables/X.al -> src/Sales. */
-export function functionalFolder(file) {
-  const segments = String(file ?? "").split("/").slice(0, -1);
-  while (segments.length && typeFolder(segments.at(-1))) segments.pop();
-  return segments.some((segment) => !typeFolder(segment)) ? segments.join("/") : undefined;
-}
-
-const hasNamespace = (node) => Boolean(node.namespace) && node.namespace !== "(global)";
+const round = (value, digits = 1) => Number(Number(value).toFixed(digits));
 
 // Louvain is randomized; a fixed seed keeps proposals stable.
 function seededRandom(seed) {
@@ -177,6 +163,10 @@ function refine({ offsets, neighbors, weights, strength, total }, start, count, 
  * the given candidates (such as today's namespaces), each refined by moving
  * single objects. Structure that exists already survives only where the
  * relations confirm it.
+ * @param candidates [{ name, read }] existing structures to start from
+ * @returns { of: { id: community }, start, modularity, scores }: which start
+ *   won ("relations" or a candidate's name), its modularity, and the best
+ *   modularity of every start
  */
 function communities(nodes, edges, { resolution = 1, candidates = [] } = {}) {
   const csr = adjacency(nodes, edges);
@@ -184,98 +174,31 @@ function communities(nodes, edges, { resolution = 1, candidates = [] } = {}) {
   const starts = [];
   for (const seed of [7, 11, 13, 17, 19]) {
     const result = graph.size ? louvain(graph, { getEdgeWeight: "weight", rng: seededRandom(seed), resolution }) : {};
-    starts.push(csr.order.map((id) => result[id] === undefined ? `s${id}` : `l${result[id]}`));
+    starts.push({ name: "relations", labels: csr.order.map((id) => result[id] === undefined ? `s${id}` : `l${result[id]}`) });
   }
-  for (const read of candidates) starts.push(csr.order.map((id) => read(id) === undefined ? `s${id}` : `k${read(id)}`));
+  for (const { name, read } of candidates) starts.push({ name, labels: csr.order.map((id) => read(id) === undefined ? `s${id}` : `k${read(id)}`) });
   let best;
   let bestScore = -Infinity;
-  for (const labels of starts) {
+  let winner;
+  const scores = {};
+  for (const { name, labels } of starts) {
     const { partition: start, count } = numbered(labels);
     const partition = refine(csr, start, count, resolution);
     const score = modularity(csr, partition, count, resolution);
+    scores[name] = Math.max(scores[name] ?? -Infinity, score);
     if (score > bestScore + 1e-9) {
       best = partition;
       bestScore = score;
+      winner = name;
     }
   }
   // Objects without coupling stay unassigned; the callers place them.
-  const result = {};
+  const of = {};
   if (best) csr.order.forEach((id, node) => {
-    if (csr.offsets[node + 1] > csr.offsets[node]) result[id] = best[node];
+    if (csr.offsets[node + 1] > csr.offsets[node]) of[id] = best[node];
   });
-  return result;
-}
-
-export const mostCommon = (values) => {
-  const counts = new Map();
-  for (const value of values) if (value !== undefined) counts.set(value, (counts.get(value) ?? 0) + 1);
-  return [...counts].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))[0];
-};
-
-// Words that describe what an object is, not what it is about.
-const GENERIC = new Set(["mgt", "management", "card", "list", "subform", "entry", "entries", "line", "lines", "header", "ext", "extension",
-  "buffer", "handler", "helper", "impl", "codeunit", "table", "page", "report", "query", "the", "and", "of", "for", "to", "api", "factbox", "part",
-  "type", "types", "code", "codes", "status", "no", "doc", "document", "documents", "mgmt", "setup", "test", "tests", "wizard", "archive", "statistics"]);
-
-/** The affix shared by most object names (CON in "CON Sales Header"), so it does not name every cluster. */
-export function commonAffix(nodes) {
-  const first = nodes.map((node) => String(node.label ?? "").split(/[^A-Za-z0-9]+/u).filter(Boolean)[0]?.toLowerCase());
-  const [affix, count] = mostCommon(first) ?? [];
-  return affix && affix.length <= 6 && count >= nodes.length * 0.4 ? affix : undefined;
-}
-
-const title = (word) => word[0].toUpperCase() + word.slice(1);
-
-/**
- * The longest prefix (namespace segments, folders) that at least `share` of
- * `total` values start with, compared without case: Microsoft.Sales when most
- * values lie in Microsoft.Sales.Document or Microsoft.Sales.Customer.
- */
-export function dominantPrefix(values, { separator = ".", share = 0.5, total = values.length, minDepth = 1 } = {}) {
-  const counts = new Map();
-  for (const value of values.filter(Boolean)) {
-    const parts = String(value).split(separator);
-    for (let depth = 1; depth <= parts.length; depth++) {
-      const prefix = parts.slice(0, depth).join(separator);
-      const entry = counts.get(prefix.toLowerCase()) ?? { prefix, depth, count: 0 };
-      entry.count++;
-      counts.set(prefix.toLowerCase(), entry);
-    }
-  }
-  let best;
-  for (const entry of counts.values()) {
-    if (entry.depth < minDepth || entry.count < total * share) continue;
-    if (!best || entry.depth > best.depth || (entry.depth === best.depth && entry.count > best.count)) best = entry;
-  }
-  return best?.prefix;
-}
-
-/**
- * A name for a cluster: its namespace or functional folder when most members
- * share one, else the words their names share most. `alternatives` names it
- * more precisely when another cluster has the same name.
- */
-export function clusterName(members, affix, { namespaceDepth = 2, folderDepth = 1 } = {}) {
-  const words = [];
-  for (const { label } of members) {
-    words.push(...new Set(String(label ?? "").split(/[^A-Za-z]+/u).map((word) => word.toLowerCase())
-      .filter((word) => word.length > 2 && word !== affix && !GENERIC.has(word))));
-  }
-  const counts = new Map();
-  for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1);
-  const ranked = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([word]) => title(word));
-  const byWords = ranked.slice(1, 4).map((word) => `${ranked[0]} ${word}`);
-  // The deepest namespace or folder most members share, below what all objects
-  // of the app share (Microsoft, src/Layers/W1/BaseApp says nothing).
-  // Most members, else the largest part of them.
-  const namespaces = members.filter(hasNamespace).map(({ namespace }) => namespace);
-  const namespace = dominantPrefix(namespaces, { total: members.length, minDepth: namespaceDepth }) ??
-    dominantPrefix(namespaces, { total: members.length, minDepth: namespaceDepth, share: 0.3 });
-  if (namespace) return { label: namespace.split(".").at(-1), fullName: namespace, alternatives: byWords, basis: "namespace" };
-  const folder = dominantPrefix(members.map(({ file }) => functionalFolder(file)), { separator: "/", total: members.length, minDepth: folderDepth });
-  if (folder && !typeFolder(folder.split("/").at(-1))) return { label: folder.split("/").at(-1), fullName: folder, alternatives: byWords, basis: "folder" };
-  if (ranked.length) return { label: ranked[0], fullName: ranked[0], alternatives: byWords };
-  return { label: "Group", fullName: "Group", alternatives: [] };
+  const rounded = (value) => Number(value.toFixed(3));
+  return { of, start: winner, modularity: best ? rounded(bestScore) : 0, scores: Object.fromEntries(Object.entries(scores).map(([name, score]) => [name, rounded(score)])) };
 }
 
 // Coarser communities for app candidates; 0.3 keeps business areas (sales,
@@ -284,7 +207,9 @@ const APP_RESOLUTION = 0.3;
 
 /**
  * Clusters the objects of one app or module by coupling.
- * @returns Map of object id to { key, shared?, label, fullName, alternatives, app: { key, label, fullName } }
+ * @returns Map of object id to { key, shared?, label, fullName, alternatives, naming, app: { key, label, fullName },
+ *   placement: { step, detail } (why the object is in this cluster, see placement.js),
+ *   thresholds (the size-dependent numbers that applied to this app or module) }
  */
 // The explorer and the architecture proposal cluster the same apps, and after
 // a saved file most apps and modules are unchanged: results are kept by a
@@ -339,10 +264,10 @@ function clusterFresh(nodes, edges, { startFrom, granularity, appGranularity, sh
     namespace: (id) => hasNamespace(byId.get(id)) ? byId.get(id).namespace.toLowerCase() : undefined,
     folder: (id) => functionalFolder(byId.get(id).file)
   };
-  const candidates = startFrom.map((structure) => readers[structure]);
+  const candidates = startFrom.map((structure) => ({ name: structure, read: readers[structure] }));
   const resolution = granularity;
   // 1. Communities, 2. hubs out, communities again.
-  const first = communities(ids, edges, { candidates, resolution });
+  const first = communities(ids, edges, { candidates, resolution }).of;
   const incoming = new Map();
   for (const { source, target, weight } of edges) {
     if (!incoming.has(target)) incoming.set(target, new Map());
@@ -350,18 +275,22 @@ function clusterFresh(nodes, edges, { startFrom, granularity, appGranularity, sh
     incoming.get(target).set(from, (incoming.get(target).get(from) ?? 0) + weight);
   }
   const degrees = [...incoming.values()].map((map) => [...map.values()].reduce((sum, value) => sum + value, 0)).sort((a, b) => a - b);
-  const busy = Math.max(4, degrees[Math.floor(degrees.length * 0.9)] ?? 4);
-  const hubs = new Set();
+  const busy = Math.max(THRESHOLDS.hubMinIncoming, degrees[Math.floor(degrees.length * THRESHOLDS.hubPercentile)] ?? THRESHOLDS.hubMinIncoming);
+  const hubNeeds = { communities: THRESHOLDS.hubCommunities, incoming: round(busy), ownShare: THRESHOLDS.hubOwnShare };
+  const hubs = new Map();
   for (const [id, sources] of incoming) {
     const total = [...sources.values()].reduce((sum, value) => sum + value, 0);
     const own = sources.get(first[id]) ?? 0;
     const others = [...sources.keys()].filter((community) => community !== first[id]).length;
-    if (sharedCore && others >= 3 && total >= busy && own / total < 0.4) hubs.add(id);
+    if (sharedCore && others >= THRESHOLDS.hubCommunities && total >= busy && own / total < THRESHOLDS.hubOwnShare) {
+      hubs.set(id, { communities: others, incoming: round(total), ownShare: round(own / total, 2), needs: hubNeeds });
+    }
   }
   const rest = [...ids].filter((id) => !hubs.has(id));
-  const second = communities(rest, edges.filter(({ source, target }) => !hubs.has(source) && !hubs.has(target)), { candidates, resolution });
+  const found = communities(rest, edges.filter(({ source, target }) => !hubs.has(source) && !hubs.has(target)), { candidates, resolution });
+  const second = found.of;
   const cluster = new Map(rest.map((id) => [id, second[id] === undefined ? undefined : `c${second[id]}`]));
-  for (const id of hubs) cluster.set(id, "shared");
+  for (const id of hubs.keys()) cluster.set(id, "shared");
 
   // 3. Tiny communities join the one they are most coupled to; loose objects their neighbors.
   const coupled = new Map();
@@ -376,12 +305,14 @@ function clusterFresh(nodes, edges, { startFrom, granularity, appGranularity, sh
     for (const key of cluster.values()) if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
     return counts;
   };
-  const minimum = Math.max(3, Math.ceil(nodes.length * 0.01));
-  for (let round = 0; round < 3; round++) {
+  const minimum = Math.max(THRESHOLDS.smallGroup.objects, Math.ceil(nodes.length * THRESHOLDS.smallGroup.share));
+  // Why each object is where it is; an object keeps the first reason that moved it.
+  const reasons = new Map();
+  for (let pass = 0; pass < 3; pass++) {
     const counts = sizes();
     const small = [...counts].filter(([key, size]) => key !== "shared" && size < minimum).sort((a, b) => a[1] - b[1]);
     if (!small.length) break;
-    for (const [key] of small) {
+    for (const [key, size] of small) {
       const members = [...cluster].filter(([, value]) => value === key).map(([id]) => id);
       const pull = new Map();
       for (const id of members) {
@@ -390,24 +321,55 @@ function clusterFresh(nodes, edges, { startFrom, granularity, appGranularity, sh
           if (target && target !== key) pull.set(target, (pull.get(target) ?? 0) + weight);
         }
       }
-      const [best] = [...pull].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))[0] ?? [];
+      const [best, weight] = [...pull].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))[0] ?? [];
       // Without coupling to anything else, they are placed like loose objects below.
-      for (const id of members) cluster.set(id, best);
+      for (const id of members) {
+        cluster.set(id, best);
+        if (best && !reasons.has(id)) reasons.set(id, { step: "small-group", detail: { size, minimum, weight: round(weight) } });
+        if (!best) reasons.delete(id);
+      }
     }
   }
   // Objects without coupling: where their namespace, folder, or nearest ID points.
   const placed = [...cluster].filter(([, key]) => key).map(([id]) => byId.get(id));
-  const majority = (read, value) => mostCommon(placed.filter((node) => read(node) === value).map((node) => cluster.get(node.id)))?.[0];
+  const majority = (read, value) => {
+    const same = placed.filter((node) => read(node) === value);
+    const [key, objects] = mostCommon(same.map((node) => cluster.get(node.id))) ?? [];
+    return key === undefined ? undefined : { key, objects, of: same.length };
+  };
   const numbered = placed.filter(({ objectId }) => /^\d+$/u.test(String(objectId ?? ""))).sort((a, b) => Number(a.objectId) - Number(b.objectId));
   for (const id of [...ids].filter((key) => !cluster.get(key))) {
     const node = byId.get(id);
-    let key = hasNamespace(node) ? majority((other) => other.namespace, node.namespace) : undefined;
-    key ??= functionalFolder(node.file) ? majority((other) => functionalFolder(other.file), functionalFolder(node.file)) : undefined;
+    const folder = functionalFolder(node.file);
+    const inNamespace = hasNamespace(node) ? majority((other) => other.namespace, node.namespace) : undefined;
+    const inFolder = !inNamespace && folder ? majority((other) => functionalFolder(other.file), folder) : undefined;
+    let key = inNamespace?.key ?? inFolder?.key;
+    if (inNamespace) reasons.set(id, { step: "namespace-neighbour", detail: { namespace: node.namespace, objects: inNamespace.objects, of: inNamespace.of } });
+    else if (inFolder) reasons.set(id, { step: "folder-neighbour", detail: { folder, objects: inFolder.objects, of: inFolder.of } });
     if (!key && /^\d+$/u.test(String(node.objectId ?? "")) && numbered.length) {
       const nearest = numbered.reduce((best, other) => Math.abs(Number(other.objectId) - Number(node.objectId)) < Math.abs(Number(best.objectId) - Number(node.objectId)) ? other : best);
-      if (Math.abs(Number(nearest.objectId) - Number(node.objectId)) <= 50) key = cluster.get(nearest.id);
+      const distance = Math.abs(Number(nearest.objectId) - Number(node.objectId));
+      if (distance <= THRESHOLDS.idDistance) {
+        key = cluster.get(nearest.id);
+        reasons.set(id, { step: "id-neighbour", detail: { neighbour: { id: nearest.id, label: nearest.label, objectId: nearest.objectId }, distance, limit: THRESHOLDS.idDistance } });
+      }
     }
+    if (!key) reasons.set(id, { step: "unconnected", detail: {} });
     cluster.set(id, key ?? "unconnected");
+  }
+  // Everything else is where the relations put it: how much of its coupling stays in its component.
+  for (const [id, key] of cluster) {
+    if (reasons.has(id) && reasons.get(id).step !== "small-group") continue;
+    let inside = 0;
+    let total = 0;
+    for (const [other, weight] of coupled.get(id) ?? []) {
+      total += weight;
+      if (cluster.get(other) === key) inside += weight;
+    }
+    const numbers = { inside: round(inside), total: round(total), share: total ? round(inside / total, 2) : 0 };
+    if (reasons.has(id)) Object.assign(reasons.get(id).detail, numbers);
+    else if (hubs.has(id)) reasons.set(id, { step: "shared-core", detail: { ...hubs.get(id), ...numbers } });
+    else reasons.set(id, { step: "coupling", detail: { ...numbers, start: found.start, modularity: found.modularity, scores: found.scores } });
   }
 
   const members = new Map();
@@ -417,14 +379,14 @@ function clusterFresh(nodes, edges, { startFrom, granularity, appGranularity, sh
   }
 
   // 4. App candidates: whole components, by where most of their objects go at a coarser resolution.
-  const coarse = communities(rest, edges.filter(({ source, target }) => !hubs.has(source) && !hubs.has(target)), { resolution: appGranularity });
+  const coarse = communities(rest, edges.filter(({ source, target }) => !hubs.has(source) && !hubs.has(target)), { resolution: appGranularity }).of;
   const appOf = new Map();
   for (const [key, list] of members) {
     if (key === "shared" || key === "unconnected") appOf.set(key, key);
     else appOf.set(key, `a${mostCommon(list.map(({ id }) => coarse[id]))?.[0] ?? key}`);
   }
   // An app candidate too small to stand alone joins the one it is most coupled to.
-  const appMinimum = Math.max(10, Math.ceil(nodes.length * 0.05));
+  const appMinimum = Math.max(THRESHOLDS.appCandidate.objects, Math.ceil(nodes.length * THRESHOLDS.appCandidate.share));
   for (let round = 0; round < 3; round++) {
     const sizes = new Map();
     for (const [key, list] of members) sizes.set(appOf.get(key), (sizes.get(appOf.get(key)) ?? 0) + list.length);
@@ -452,8 +414,8 @@ function clusterFresh(nodes, edges, { startFrom, granularity, appGranularity, sh
     namespaceDepth: Math.max(2, floor(nodes.filter(hasNamespace).map(({ namespace }) => namespace), ".")),
     folderDepth: floor(nodes.map(({ file }) => functionalFolder(file)), "/")
   };
-  const nameOf = (key, list) => key === "shared" ? { label: "Shared", fullName: "Shared", alternatives: [] }
-    : key === "unconnected" ? { label: "Unconnected", fullName: "Unconnected", alternatives: [] } : clusterName(list, affix, depths);
+  const nameOf = (key, list) => key === "shared" ? { label: "Shared", fullName: "Shared", alternatives: [], naming: roleNaming("the shared core") }
+    : key === "unconnected" ? { label: "Unconnected", fullName: "Unconnected", alternatives: [], naming: roleNaming("objects without relations") } : clusterName(list, affix, depths);
   const apps = new Map();
   for (const [key, list] of members) {
     const app = appOf.get(key);
@@ -471,10 +433,19 @@ function clusterFresh(nodes, edges, { startFrom, granularity, appGranularity, sh
     const own = name.basis ? name : nameOf(largest.get(app), members.get(largest.get(app)));
     return [app, { key: `${prefix}${app}`, ...own, alternatives: [...new Set([...(own.alternatives ?? []), ...(name.basis ? [] : [name.label])])] }];
   }));
+  // The numbers that applied to this app or module, for the rationale of its components.
+  const thresholds = Object.freeze({
+    smallGroup: minimum,
+    hub: Object.freeze(hubNeeds),
+    idDistance: THRESHOLDS.idDistance,
+    appCandidate: appMinimum
+  });
   const result = new Map();
   for (const [key, list] of members) {
     const name = nameOf(key, list);
-    for (const node of list) result.set(node.id, { key: `${prefix}${key}`, shared: key === "shared", ...name, app: appNames.get(appOf.get(key)) });
+    for (const node of list) {
+      result.set(node.id, { key: `${prefix}${key}`, shared: key === "shared", ...name, app: appNames.get(appOf.get(key)), placement: reasons.get(node.id), thresholds });
+    }
   }
   return result;
 }
@@ -497,10 +468,10 @@ export function subgroups(nodes, edges, { minSize = 3, affix = commonAffix(nodes
     return new Map(nodes.map(({ id }) => [id, group]));
   }
   const candidates = [
-    (id) => hasNamespace(byId.get(id)) ? byId.get(id).namespace.toLowerCase() : undefined,
-    (id) => functionalFolder(byId.get(id).file)
+    { name: "namespace", read: (id) => hasNamespace(byId.get(id)) ? byId.get(id).namespace.toLowerCase() : undefined },
+    { name: "folder", read: (id) => functionalFolder(byId.get(id).file) }
   ];
-  const found = communities(new Set(byId.keys()), inside, { candidates });
+  const found = communities(new Set(byId.keys()), inside, { candidates }).of;
   const group = new Map(nodes.map(({ id }) => [id, found[id] === undefined ? undefined : String(found[id])]));
 
   const coupled = new Map();
@@ -564,17 +535,20 @@ export function subgroups(nodes, edges, { minSize = 3, affix = commonAffix(nodes
     if (!members.has(name)) members.set(name, []);
     members.get(name).push(byId.get(id));
   }
-  // Largest first; the same name twice gets its next alternative.
+  // Largest first; groups that would get the same name are told apart (naming.js).
   const ordered = [...members].sort((a, b) => (a[0] === "loose") - (b[0] === "loose") || b[1].length - a[1].length || a[0].localeCompare(b[0]));
-  const used = new Set();
+  const named = ordered.map(([key, list], index) => ({
+    key: key === "loose" ? "loose" : `g${index}`,
+    list,
+    size: list.length,
+    ...(key === "loose" ? { label: "Loose", fullName: "Loose", alternatives: [], naming: roleNaming("objects without relations inside the component") } : clusterName(list, affix))
+  }));
+  uniqueNames(named);
   const result = new Map();
-  ordered.forEach(([key, list], index) => {
-    let name = key === "loose" ? { label: "Loose", fullName: "Loose", alternatives: [] } : clusterName(list, affix);
-    const label = [name.label, ...(name.alternatives ?? [])].find((candidate) => !used.has(candidate.toLowerCase())) ?? `${name.label} ${index + 1}`;
-    used.add(label.toLowerCase());
-    name = { label, fullName: label === name.label ? name.fullName : label, basis: label === name.label ? name.basis : undefined };
-    for (const node of list) result.set(node.id, { key: key === "loose" ? "loose" : `g${index}`, ...name });
-  });
+  for (const { key, list, name, label, fullName, basis, naming } of named) {
+    const group = { key, label: name, fullName: name === label ? fullName : name, basis: name === label ? basis : undefined, naming };
+    for (const node of list) result.set(node.id, { ...group });
+  }
   return result;
 }
 
@@ -637,7 +611,7 @@ export function deriveSelectors(nodes, assignment, groups, levels, outer) {
     const open = unit.nodes.filter(({ id }) => !covered.has(id));
     if (open.length < 2) continue;
     const [owner, count] = mostCommon(open.map(({ id }) => assignment.get(id)));
-    if (count < open.length * 0.8) continue;
+    if (count < open.length * THRESHOLDS.selectorOwnership) continue;
     groups.get(owner).selectors.push(scoped(unit.nodes[0], unit.selector));
     for (const node of open) covered.add(node.id);
   }

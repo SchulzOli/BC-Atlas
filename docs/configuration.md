@@ -100,6 +100,18 @@ how finely it splits, components you define yourself, and objects that should
 not shape components. See
 [Decide what the proposal considers](./clean-architecture.md#decide-what-the-proposal-considers).
 
+`architecture.proposal.naming` decides how the proposed components are named:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `qualify` | `"parent"` | What tells two components of the same name apart first: `parent` (the namespace segment or folder above: `Sales Setup`), `app` (the app or module: `Setup (Contoso Sales)`), or `number` (`Setup 2`). |
+| `avoid` | `[]` | Kinds of names a component may only have when it holds exactly the same objects: `app`, `module`, `namespace`. |
+| `rename` | `{}` | A map from the name the proposal gives to the name you want: `{ "Setup 2": "Purchase Setup" }`. |
+
+Names are compared without case everywhere, so `Sales` and `sales` are one
+name. See [Names](./clean-architecture.md#names) and
+[Why an object is where it is](./clean-architecture.md#why-an-object-is-where-it-is).
+
 Add `"$schema": "./node_modules/bc-atlas/schemas/bca.schema.json"` (or the
 schema's GitHub URL) to `.bca.json` for completion and checks in editors; the
 VS Code extension applies the schema to `.bca.json` on its own.

@@ -60,6 +60,10 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_ai_context",
         "bc_atlas_ai_write",
         "bc_atlas_architecture",
+        "bc_atlas_architecture_adopt",
+        "bc_atlas_architecture_compare",
+        "bc_atlas_architecture_explain",
+        "bc_atlas_architecture_templates",
         "bc_atlas_bundle",
         "bc_atlas_capabilities",
         "bc_atlas_check",
@@ -128,6 +132,54 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     assert.deepEqual(simulation.agents[0].attempts.find(({ outcome }) => outcome === "blocked").missingPermissions, ['codeunit "Request Notifications" = X']);
     assert.ok(simulation.tasks.every(({ steps }) => steps === undefined), "process tests are listed; their steps come with task");
     // The view without a window: what there is to see, a lens, an opened object, a story, a picture.
+    // The architecture for an agent: why it is what it is, the current and the target state, and the templates.
+    {
+      const copy = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-mcp-architecture-"));
+      try {
+        cpSync(path.join(root, "examples", "purchasing-app"), copy, { recursive: true });
+        const ask = async (name, args) => JSON.parse((await client.callTool({ name, arguments: { path: copy, ...args } })).content[0].text);
+        const why = await ask("bc_atlas_architecture_explain", {});
+        assert.equal(why.mode, "proposal");
+        assert.ok(why.components.length && why.components.every(({ naming, why: sentences, steps }) => naming?.by && sentences.length && Object.keys(steps).length));
+        assert.ok(why.steps.coupling && why.steps.kept);
+        const one = await ask("bc_atlas_architecture_explain", { component: why.components[0].component });
+        assert.ok(one.members.length && one.members.every(({ step }) => why.steps[step]));
+        const object = await ask("bc_atlas_architecture_explain", { object: one.members[0].label });
+        assert.equal(object.objects[0].component, why.components[0].component);
+        assert.ok(object.objects[0].why);
+
+        const templates = await ask("bc_atlas_architecture_templates", {});
+        assert.deepEqual(templates.templates.filter(({ origin }) => origin === "preset").map(({ name }) => name), ["balanced", "follow-structure", "by-coupling", "layered", "modular-monolith", "small-steps"]);
+        assert.ok(templates.criteria.some(({ id, meaning }) => id === "fewMoves" && meaning));
+        const dry = await ask("bc_atlas_architecture_templates", { action: "save", name: "house", title: "Our house", values: { template: "layered", weights: { fewMoves: 7 } } });
+        assert.equal(dry.written, false);
+        const saved = await ask("bc_atlas_architecture_templates", { action: "save", name: "house", title: "Our house", values: { template: "layered", weights: { fewMoves: 7 } }, use: true, dryRun: false });
+        assert.equal(saved.written, true);
+        assert.equal(JSON.parse(readFileSync(path.join(copy, ".bca.json"), "utf8")).architecture.template, "house");
+        assert.equal((await ask("bc_atlas_architecture_templates", { action: "show", name: "house" })).goals.weights.fewMoves, 7);
+
+        const compared = await ask("bc_atlas_architecture_compare", { to: "best" });
+        assert.equal(compared.template.name, "house");
+        assert.equal(compared.criteria.find(({ id }) => id === "fewMoves").weight, 7);
+        assert.ok(compared.candidates.length > 1 && compared.candidates.some(({ chosen }) => chosen));
+        assert.ok(compared.steps.length && compared.moves.every(({ command }) => command.startsWith("bca refactor move")));
+        assert.match((await ask("bc_atlas_architecture_compare", { to: "best", format: "markdown" })).markdown, /Current and target/u);
+
+        const planned = await ask("bc_atlas_architecture_adopt", { to: "proposal" });
+        assert.equal(planned.written, false);
+        assert.equal(JSON.parse(readFileSync(path.join(copy, ".bca.json"), "utf8")).architecture.components, undefined);
+        const adopted = await ask("bc_atlas_architecture_adopt", { to: "proposal", dryRun: false });
+        assert.ok(adopted.written && adopted.components >= 1);
+        const now = await ask("bc_atlas_architecture", {});
+        assert.equal(now.mode, "configured");
+        assert.ok(now.score.total >= 0 && now.score.criteria.length === templates.criteria.length);
+        assert.equal(now.template.name, "house");
+        assert.equal((await ask("bc_atlas_architecture_explain", {})).components[0].naming.by, "declared");
+      } finally {
+        rmSync(copy, { recursive: true, force: true });
+      }
+    }
+
     const view = async (args) => client.callTool({ name: "bc_atlas_view", arguments: { path: path.join(root, "examples", "purchasing-app"), ...args } });
     const overview = JSON.parse((await view({})).content[0].text);
     assert.deepEqual(overview.lenses.slice(-6).map(({ id, nodes }) => [id, nodes]), [["processes", 15], ["people", 14], ["requirements", 11], ["simulation", 21], ["run", 17], ["sync", 9]]);

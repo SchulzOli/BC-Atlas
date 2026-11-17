@@ -1,3 +1,5 @@
+import { namingSentence, stepCounts } from "./placement.js";
+
 const EFFORT = { S: "small", M: "medium", L: "large" };
 
 function count(value, singular, plural = `${singular}s`) {
@@ -81,7 +83,10 @@ export function architectureJson(assessment) {
     ...rest,
     mode: proposal ? "proposal" : "configured",
     architecture,
-    ...(proposal ? { proposal: { groupBy: proposal.groupBy, feedback: proposal.feedback, moves: proposal.moves, recommendations: proposal.recommendations, basis: proposal.basis } } : {}),
+    // What is preferred here, and how well the architecture meets it (templates.js, goals.js).
+    ...(assessment.template ? { template: assessment.template.template, goals: assessment.template.goals } : {}),
+    ...(assessment.score ? { score: assessment.score } : {}),
+    ...(proposal ? { proposal: { groupBy: proposal.groupBy, feedback: proposal.feedback, moves: proposal.moves, recommendations: proposal.recommendations, basis: proposal.basis, steps: placementCounts(proposal) } } : {}),
     baseline: {
       used: baseline.baselined,
       new: baseline.new.map(({ id }) => id),
@@ -90,6 +95,13 @@ export function architectureJson(assessment) {
     },
     passed: baseline.new.length === 0
   };
+}
+
+/** How many objects each step of the proposal placed. */
+function placementCounts(proposal) {
+  const counts = {};
+  for (const { step } of proposal.placements?.values() ?? []) counts[step] = (counts[step] ?? 0) + 1;
+  return counts;
 }
 
 const RULE_PHRASES = {
@@ -178,8 +190,35 @@ export function proposalBasis(basis) {
     ["Granularity", `${basis.granularity}, app candidates ${basis.appGranularity}${from("granularity") || from("appGranularity")}`],
     ["Shared core", `${basis.sharedCore ? "yes" : "no"}${from("sharedCore")}`],
     ["Merge below", `${basis.minObjects} object(s)${from("minObjects")}`],
+    ...(basis.naming && (basis.sources?.naming ?? "default") !== "default" ? [["Naming", [
+      `same names told apart by ${basis.naming.qualify} first`,
+      basis.naming.avoid.length ? `avoids names of ${basis.naming.avoid.join(", ")}` : "",
+      Object.keys(basis.naming.rename).length ? `${Object.keys(basis.naming.rename).length} renamed` : "",
+      basis.naming.unusedRenames?.length ? `no component is named ${basis.naming.unusedRenames.map((name) => `"${name}"`).join(", ")}` : ""
+    ].filter(Boolean).join("; ") + from("naming")]] : []),
     ...(basis.kept.length ? [["Your components", basis.kept.map(({ name, objects: count }) => `${name} (${count})`).join(", ")]] : [])
   ];
+}
+
+/**
+ * Why each proposed component is what it is, one row per component:
+ * { component, naming (how it got its name), steps (how its objects got there), agreement }.
+ */
+export function componentReasons(assessment) {
+  if (!assessment.proposal) return [];
+  return [...assessment.result.components]
+    .filter(({ rationale }) => rationale)
+    .sort((a, b) => (a.layer ?? 0) - (b.layer ?? 0) || a.name.localeCompare(b.name))
+    .map(({ name, rationale, metrics }) => {
+      const { namespace, folder } = rationale.agreement ?? {};
+      const agreed = namespace ?? folder;
+      return {
+        component: name,
+        naming: namingSentence(rationale.naming, { objects: metrics.objects }) ?? "",
+        steps: stepCounts(rationale.steps),
+        agreement: agreed ? `${Math.round(agreed.share * 100)}% in ${namespace ? "namespace" : "folder"} ${agreed.value}` : ""
+      };
+    });
 }
 
 export function formatArchitectureText(assessment, { limit = 15 } = {}) {
@@ -194,6 +233,12 @@ export function formatArchitectureText(assessment, { limit = 15 } = {}) {
   if (basis.length) {
     lines.push("", "How this proposal was made (architecture.proposal in .bca.json)");
     for (const [label, text] of basis) lines.push(`  ${label.padEnd(16)} ${text}`);
+  }
+  const reasons = componentReasons(assessment);
+  if (reasons.length) {
+    lines.push("", "Why these components (name; how the objects got there)");
+    for (const reason of reasons.slice(0, limit * 2)) lines.push(`  ${reason.component}: ${reason.naming}; ${reason.steps}`);
+    if (reasons.length > limit * 2) lines.push(`  ... ${reasons.length - limit * 2} more; use --format markdown or json for all of them`);
   }
   if (assessment.proposal?.recommendations?.length) {
     lines.push("", "App candidates and namespaces");
@@ -264,6 +309,14 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
       "What the proposal took into account. Change it in `architecture.proposal` in .bca.json, or with the options of `bca architecture --propose`.", "",
       "| Setting | Value |", "| --- | --- |");
     for (const [label, text] of basis) lines.push(`| ${label} | ${cell(text)} |`);
+    lines.push("");
+  }
+  const reasons = componentReasons(assessment);
+  if (reasons.length) {
+    lines.push("## Why these components", "",
+      "How each component got its name, which step of the proposal placed its objects, and what most of them share today.", "",
+      "| Component | Name | Objects placed | Today |", "| --- | --- | --- | --- |");
+    for (const reason of reasons) lines.push(`| ${cell(reason.component)} | ${cell(reason.naming)} | ${cell(reason.steps)} | ${cell(reason.agreement)} |`);
     lines.push("");
   }
   if (proposal?.recommendations?.length) {

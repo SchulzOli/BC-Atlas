@@ -23,6 +23,13 @@ import { queryGraph, renderGraph } from "./graph/platform.js";
 import { assessArchitecture } from "./blueprint/index.js";
 import { architectureJson } from "./blueprint/report.js";
 import { planExtraction } from "./blueprint/extract.js";
+import { explainComponent, explainPlacement, findObject } from "./blueprint/explain.js";
+import { compareArchitecture, formatCompareMarkdown } from "./blueprint/compare.js";
+import { CRITERIA, DEFAULT_GOALS } from "./blueprint/goals.js";
+import { PLACEMENT_STEPS } from "./blueprint/placement.js";
+import { listTemplates, removeTemplate, resolveTemplate, saveTemplate, useTemplate } from "./blueprint/templates.js";
+import { architectureContext } from "./blueprint/index.js";
+import { adoptTarget } from "./commands/architecture-target.js";
 import { planObjectMove } from "./commands/refactor.js";
 import { applyRefactoring } from "./refactor/move.js";
 import { planSurface } from "./refactor/surface.js";
@@ -120,6 +127,23 @@ async function generateDiagram(args) {
     edges: architecture.model.edges.length
   };
 }
+
+// What is preferred in an architecture: the template and the weights of the goals (src/blueprint/goals.js, templates.js).
+const goalFields = {
+  template: z.string().optional().describe("The template that says what a good architecture is: balanced, follow-structure, by-coupling, layered, modular-monolith, small-steps, or one of the project's own (bc_atlas_architecture_templates)"),
+  weights: z.record(z.string(), z.number().min(0)).optional().describe("How much each goal weighs, on top of the template, e.g. { \"layering\": 5, \"fewMoves\": 3 }; 0 leaves a goal out. Goals: cohesion, modularity, layering, acyclic, ownership, extractable, stability, size, followNamespaces, followFolders, followApps, fewMoves"),
+  size: z.object({ min: z.number().int().min(1).optional(), max: z.number().int().min(1).optional() }).optional().describe("The size a component should have, in objects")
+};
+// How a proposal groups objects into components.
+const proposalFields = {
+  groupBy: z.enum(["auto", "coupling", "namespace", "folder", "module", "app"]).optional(),
+  depth: z.number().int().positive().optional(),
+  minObjects: z.number().int().positive().optional(),
+  startFrom: z.array(z.enum(["namespace", "folder"])).optional(),
+  ignore: z.array(z.string()).optional(),
+  granularity: z.number().positive().optional(),
+  sharedCore: z.boolean().optional()
+};
 
 const projectFields = {
   path: architectureFields.path,
@@ -231,6 +255,7 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
       ignore: z.array(z.string()).optional().describe("Relation kinds that never shape a component, e.g. [\"permits\", \"includes\", \"uses\"]"),
       granularity: z.number().positive().optional().describe("Above 1: more, smaller components; below 1: fewer, larger ones"),
       sharedCore: z.boolean().optional().describe("Pull objects that many components use into a shared core"),
+      ...goalFields,
       paths: z.array(z.string()).optional(),
       limit: z.number().int().positive().default(50).describe("Most work items to return")
     }),
@@ -239,6 +264,110 @@ export function createMcpServer(version = pkg.version, { plugins } = {}) {
     const report = architectureJson(await assessArchitecture(input, values));
     const { violations, ...rest } = report;
     return { ...rest, workItems: report.workItems.slice(0, limit), violationCount: violations.length };
+  }));
+
+  server.registerTool("bc_atlas_architecture_explain", {
+    description: "Why the architecture is what it is. With an object (a name, an ID, or type:name): the component it is in, the step that placed it there with its numbers (coupling, shared core, a small group that joined, a neighbour by namespace, folder, or ID, a permission set that follows what it grants, kept, declared, ...), the selector that assigns it, its coupling to every component, and a move when it works more with another. With the name of a component: what it is named after, how its objects came to it (count per step), what they agree on (namespace, folder, name prefix), how much of its coupling stays inside, the thresholds that applied, its members with their step, its neighbours, and which setting would change it. Without either: every component with its reasons, and the vocabulary of steps. Use it before proposing a refactoring, and to answer why a component exists.",
+    inputSchema: z.object({
+      ...projectFields,
+      object: z.string().optional().describe("An object: codeunit:50100, table:Sales Doc, a name, or an ID"),
+      component: z.string().optional().describe("A component name from bc_atlas_architecture"),
+      propose: z.boolean().optional().describe("Explain the proposal even when .bca.json defines an architecture"),
+      ...proposalFields,
+      ...goalFields,
+      limit: z.number().int().positive().default(30).describe("Most members of a component to list"),
+      paths: z.array(z.string()).optional()
+    }),
+    annotations: { readOnlyHint: true, idempotentHint: true }
+  }, tool(async ({ path: input, object, component, limit, ...values }) => {
+    const assessment = await assessArchitecture(input, values);
+    if (object) {
+      const matches = findObject(assessment.levels, object);
+      if (!matches.length) throw new Error(`no object "${object}" in the analyzed source`);
+      return { objects: matches.map(({ id }) => explainPlacement(assessment, id)), steps: PLACEMENT_STEPS };
+    }
+    if (component) {
+      const explanation = explainComponent(assessment, component, { limit });
+      if (!explanation) throw new Error(`no component "${component}"; the components are ${assessment.result.components.map(({ name }) => name).join(", ")}`);
+      return { ...explanation, stepsVocabulary: PLACEMENT_STEPS };
+    }
+    return {
+      mode: assessment.proposal ? "proposal" : "configured",
+      template: assessment.template.template,
+      components: assessment.result.components.map(({ name }) => {
+        const { members: _members, ...explanation } = explainComponent(assessment, name, { limit: 1 });
+        return explanation;
+      }),
+      steps: PLACEMENT_STEPS,
+      basis: assessment.proposal?.basis
+    };
+  }));
+
+  server.registerTool("bc_atlas_architecture_compare", {
+    description: "The architecture as it is and as it should be (current and target state), to plan a refactoring. Both are scored from 0 to 100 with the same weighted goals (cohesion, modularity, layering, no cycles, data ownership, extractable, stable dependencies, size, follows namespaces, folders, apps, few moves), each goal with what it measured. Returns how the components of the current state become those of the target (same, renamed, reshaped, split, merged, new, gone), the objects that have to move with the command for each (bca refactor move, or bc_atlas_refactor_move), and the steps in order. from: structure (the namespaces, folders, and apps the source has today; default), configured, proposal, best. to: configured (default when .bca.json has components), proposal, best (default otherwise: up to 8 proposals scored with the goals, all listed with their settings and scores, the best wins), structure. Choose what is preferred with template (bc_atlas_architecture_templates lists them) and weights. Read-only; bc_atlas_architecture_adopt makes the target the architecture of the project.",
+    inputSchema: z.object({
+      ...projectFields,
+      from: z.enum(["structure", "configured", "proposal", "best"]).optional(),
+      to: z.enum(["structure", "configured", "proposal", "best"]).optional(),
+      ...proposalFields,
+      ...goalFields,
+      limit: z.number().int().min(0).default(50).describe("Most moves to list; 0 for all"),
+      format: z.enum(["json", "markdown"]).default("json").describe("markdown: the comparison as a page to show a person"),
+      paths: z.array(z.string()).optional()
+    }),
+    annotations: { readOnlyHint: true, idempotentHint: true }
+  }, tool(async ({ path: input, format, ...values }) => {
+    const result = await compareArchitecture(input, values);
+    return format === "markdown" ? { markdown: formatCompareMarkdown(result), summary: result.summary } : result;
+  }));
+
+  server.registerTool("bc_atlas_architecture_adopt", {
+    description: "Make a target architecture the architecture of the project: writes its components (name, the selectors that assign objects, layer, what each may depend on) to the architecture section of .bca.json, keeping every other setting. From then on bc_atlas_architecture and bc_atlas_check measure the source against it, and bc_atlas_refactor_move knows the components. The target is chosen like in bc_atlas_architecture_compare: to proposal or best, with template, weights, and the proposal settings. dryRun (default) returns what would be written; call again with dryRun false after the user agreed.",
+    inputSchema: z.object({
+      ...projectFields,
+      to: z.enum(["proposal", "best", "structure"]).default("best"),
+      ...proposalFields,
+      ...goalFields,
+      dryRun: z.boolean().default(true),
+      paths: z.array(z.string()).optional()
+    }),
+    annotations: { readOnlyHint: false, idempotentHint: true }
+  }, tool(async ({ path: input, dryRun, ...values }) => {
+    const result = await compareArchitecture(input, { ...values, limit: 0 });
+    const saved = await adoptTarget(input, values, result, { dryRun });
+    return { ...saved, dryRun, target: result.target, summary: result.summary, candidates: result.candidates };
+  }));
+
+  server.registerTool("bc_atlas_architecture_templates", {
+    description: "The templates that say what a good architecture is for this team and how much each goal weighs. action list (default): the presets (balanced, follow-structure, by-coupling, layered, modular-monolith, small-steps) and the project's own, each with its goal weights and proposal settings, the one in use, the goals that can be weighed with what each means and how it is measured, and the default weights. show: one template with everything it inherits. save: the settings as they are (the template in use, .bca.json, and values: template, weights, size, and proposal settings) as a new template of the project, or a given definition (template: { title, summary, extends, goals: { weights, size }, proposal }); with file it is written to a JSON file several repositories can share. use: take a template into use (architecture.template in .bca.json). remove: remove one of the project's own. save, use, and remove change .bca.json; dryRun (default) writes nothing.",
+    inputSchema: z.object({
+      path: architectureFields.path,
+      projectRoot: architectureFields.projectRoot,
+      config: architectureFields.config,
+      action: z.enum(["list", "show", "save", "use", "remove"]).default("list"),
+      name: z.string().optional().describe("show, save, use, remove: the template"),
+      title: z.string().optional().describe("save: its title"),
+      summary: z.string().optional().describe("save: when to use it"),
+      from: z.string().optional().describe("save: \"current\" (default) for the settings as they are, or the name of a template to copy"),
+      template: z.record(z.string(), z.unknown()).optional().describe("save: the definition to save as it is, instead of the settings as they are"),
+      values: z.object({ ...proposalFields, ...goalFields }).optional().describe("save: settings on top of those in use, as in bc_atlas_architecture_compare"),
+      file: z.string().optional().describe("save: write the template to this JSON file; .bca.json keeps the path"),
+      use: z.boolean().optional().describe("save: also take it into use"),
+      dryRun: z.boolean().default(true)
+    }),
+    annotations: { readOnlyHint: false, idempotentHint: true }
+  }, tool(async ({ path: input, action, name, dryRun, config, projectRoot, ...rest }) => {
+    const context = await architectureContext(input, { config, projectRoot });
+    const root = context.projectRoot;
+    const architecture = context.options.architecture ?? {};
+    if (action === "list") {
+      return { templates: listTemplates(root, architecture), criteria: CRITERIA.map(({ id, title, meaning, measured }) => ({ id, title, meaning, measured })), defaults: DEFAULT_GOALS };
+    }
+    if (!name) throw new Error(`${action} needs "name": the template`);
+    if (action === "show") return resolveTemplate(root, architecture, name);
+    if (action === "save") return { ...(await saveTemplate(root, { name, title: rest.title, summary: rest.summary, from: rest.from ?? "current", template: rest.template, values: rest.values ?? {}, file: rest.file, use: Boolean(rest.use), config, dryRun })), dryRun };
+    if (action === "use") return { ...(await useTemplate(root, { name, config, dryRun })), dryRun };
+    return { ...(await removeTemplate(root, { name, config, dryRun })), dryRun };
   }));
 
   server.registerTool("bc_atlas_extraction_plan", {
