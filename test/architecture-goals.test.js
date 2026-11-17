@@ -362,7 +362,8 @@ function checkShape(result, model) {
     const object = objects.get(move.object.id);
     assert.ok(object, move.object.id);
     assert.equal(object.name, move.object.name);
-    assert.equal(object.file, move.object.file);
+    // A move names the file with forward slashes on every system.
+    assert.equal(object.file.replaceAll("\\", "/"), move.object.file);
     assert.equal(result.sides.current.result.assignment.get(move.object.id), move.from);
     assert.equal(result.sides.target.result.assignment.get(move.object.id), move.to);
     assert.notEqual(move.from, move.to);
