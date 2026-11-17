@@ -1,6 +1,9 @@
 // One analyzed AL project, shared by the VS Code extension (worker.js) and its
 // static export. The one view reads from here (atlas.js), so the app,
 // `bca check`, `bca architecture`, and `bca export` always show the same.
+import { compareLevels } from "../blueprint/compare.js";
+import { removeTemplate, saveTemplate, useTemplate } from "../blueprint/templates.js";
+import { compareForView } from "./architecture.js";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -297,6 +300,47 @@ export class Workspace {
     const { exportFlow } = await import("../flows/index.js");
     const { content: _content, file: _file, ...result } = await exportFlow(root, { flow, to, force, config });
     return result;
+  }
+
+  /**
+   * The architecture as it is next to the one it should be, on the analysis that is there.
+   * @param values { from, to, template, weights, size } and the settings of the proposal
+   */
+  async compareArchitecture(values = {}) {
+    const assessment = await this.assessment();
+    return compareForView(compareLevels(assessment.levels, { root: assessment.context.projectRoot, architecture: assessment.context.options.architecture ?? {}, values }));
+  }
+
+  /** Makes the target of a comparison the architecture of the project. */
+  async adoptTarget(values = {}) {
+    const assessment = await this.assessment();
+    const result = compareLevels(assessment.levels, { root: assessment.context.projectRoot, architecture: assessment.context.options.architecture ?? {}, values: { ...values, limit: 0 } });
+    const file = assessment.context.config.path ?? path.join(assessment.context.projectRoot, ".bca.json");
+    let config = {};
+    try {
+      config = JSON.parse(await fs.readFile(file, "utf8"));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    config.architecture = { ...(config.architecture ?? {}), ...result.sides.target.architecture };
+    await fs.writeFile(file, `${JSON.stringify(config, null, 2)}\n`);
+    this.reset();
+    return { file, components: result.target.components.length };
+  }
+
+  /**
+   * The templates of the project: take one into use, save the settings as a new one, or remove one.
+   * @param params { action: "use" | "save" | "remove", name, title, summary, values: { template, weights, size, ... } }
+   */
+  async architectureTemplate({ action, name, title, summary, values = {} } = {}) {
+    const assessment = await this.assessment();
+    const root = assessment.context.projectRoot;
+    const config = assessment.context.config.path;
+    const result = action === "save" ? await saveTemplate(root, { name, title, summary, values, use: true, config })
+      : action === "remove" ? await removeTemplate(root, { name, config })
+        : await useTemplate(root, { name: name || undefined, config });
+    this.reset();
+    return { name: result.name, file: result.templateFile ?? result.file, written: result.written };
   }
 
   /** Saves a proposal as the configured architecture (and optionally accepts today's violations). */

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.26.0
+
+- **Architecture** menu: the goals with their scores and weights, the
+  templates, why each component is what it is, and the current next to the
+  target architecture with the steps to get there. The panel of a component
+  and of an object says why it is where it is.
+
 ## 0.25.0
 
 - The engine of the extension has the new architecture commands and MCP

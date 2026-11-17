@@ -293,6 +293,16 @@ The steps come in the order to take them:
 Run the comparison again at any point. The current state is always read from
 the source, so the distance shrinks as you go.
 
+## In the view
+
+The **Architecture** menu of the [BC Atlas view](./vscode.md) shows the same:
+the score of the architecture for every goal of the template in use, the
+templates, and **Current and target…**, where you choose the two states, set
+the weight of every goal, and compare. Each step lists its commands to copy;
+**Make the target the architecture…** writes the target to `.bca.json`, and
+**Save as a template** keeps your weights under a name. See
+[Why a component is what it is](./vscode.md#why-a-component-is-what-it-is).
+
 ## Limits
 
 - The score is a weighted mean of heuristics, not a proof. It ranks

@@ -6,6 +6,26 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 0.26.0 - 2026-11-17
+
+### Added
+
+- **The architecture in the view.** A new **Architecture** menu shows how
+  well the architecture meets the goals of the template in use (each goal
+  with its score and weight), lists the components with why each is what it
+  is, takes a template into use, saves your weights as a template of your
+  own, and compares the current with the target architecture: choose the two
+  states and the weights, read the scores, the mapping of the components,
+  the proposals that competed, and the steps with commands to copy, and make
+  the target the architecture of the project. The panel of a component says
+  **Why this component**, the panel of an object **Why in …**. An exported
+  file carries the comparison it was exported with.
+
+### Changed
+
+- Components named after the same word are told apart by the namespace or
+  folder most of each is in (`Posting (Sales)`) before a number is used.
+
 ## 0.25.0 - 2026-11-17
 
 ### Added

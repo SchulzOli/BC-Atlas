@@ -9,7 +9,7 @@ import { assessArchitecture, proposeArchitecture } from "../src/blueprint/index.
 import { clusterByRelations, subgroups } from "../src/blueprint/cluster.js";
 import { componentAssigner } from "../src/blueprint/components.js";
 import { explainComponent, explainPlacement, formatComponentExplanation, formatPlacement } from "../src/blueprint/explain.js";
-import { applyRenames, uniqueNames } from "../src/blueprint/naming.js";
+import { applyRenames, clusterName, uniqueNames } from "../src/blueprint/naming.js";
 import { PLACEMENT_STEPS, placementSentence, STEP_LABELS, THRESHOLDS } from "../src/blueprint/placement.js";
 import { architectureJson, formatArchitectureMarkdown, formatArchitectureText } from "../src/blueprint/report.js";
 import { proposalSettings } from "../src/blueprint/settings.js";
@@ -315,4 +315,15 @@ test("a configured architecture says which selector declares each object", async
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("groups named after the same word are told apart by the namespace most of each is in, not by a number", () => {
+  const member = (label, namespace) => ({ label, namespace, file: `src/${namespace.split(".").at(-1)}/${label}.al` });
+  // No namespace holds most of the group, so its word names it; the largest namespace is the alternative.
+  const mixed = (largest, others) => [...Array.from({ length: 2 }, (_, index) => member(`Posting ${largest} ${index}`, `Contoso.${largest}`)), ...others.map((other, index) => member(`Posting ${other} ${index}`, `Contoso.${other}`))];
+  const sales = clusterName(mixed("Sales", ["Stock", "Bank", "Tax", "Jobs", "Assets"]), undefined, { namespaceDepth: 2 });
+  const purchase = clusterName(mixed("Purchase", ["Stock", "Bank", "Tax", "Jobs", "Assets"]), undefined, { namespaceDepth: 2 });
+  assert.equal(sales.label, "Posting");
+  assert.ok(sales.alternatives.includes("Posting (Sales)"), sales.alternatives.join());
+  assert.ok(purchase.alternatives.includes("Posting (Purchase)"), purchase.alternatives.join());
 });
