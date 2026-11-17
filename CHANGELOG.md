@@ -6,6 +6,8 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 0.27.0 - 2026-11-17
+
 ### Added
 
 - **The BC Atlas view as an MCP App.** In a chat client that renders MCP

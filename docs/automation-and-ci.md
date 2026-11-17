@@ -159,7 +159,7 @@ You can also use BC Atlas as an action in your own workflows:
 ```yaml
 - uses: actions/checkout@v7
 - id: atlas
-  uses: SchulzOli/BC-Atlas@v0.26.0
+  uses: SchulzOli/BC-Atlas@v0.27.0
   with:
     path: apps/sales        # folder with .bca.json
     trigger: ci             # or: tasks: check,report
