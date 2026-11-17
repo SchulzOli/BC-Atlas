@@ -64,6 +64,7 @@ gives the way of that process test.
 | **Check** | Puts a ring on every node with a finding, in the color of the worst one. The number is the errors and warnings. |
 | **Story** | Walks through the graph step by step. See [Stories](#stories). |
 | **Simulate** | Who uses the app: the company of the [battle test](./battle-test.md#define-the-simulation), its agents and roles, and a form to define each. A change runs the simulation again. What stops the simulation is listed at the top, one click from the person it is about. **Run, step by step** plays the [run](./battle-test.md#a-run-step-by-step) of one person on the graph: each step shows where the person is, and the picture is built by it. **Build the bundle** writes [everything as one artifact](./bundle.md) next to the project. There when the project has process tests. |
+| **Architecture** | Why the components are what they are, how well the architecture meets the goals of the template in use (each goal with its score and weight), the templates, and the [current and the target architecture](./target-architecture.md) side by side: choose the two states and the weights, compare, copy the command of a step, and make the target the architecture of the project. |
 | **Flow** | Your own workflows: a builder for [flows](./flows.md). A flow says what to make from the source (its steps, one artifact each), when (the triggers), and where to save each artifact. A change is written to `.bca.json`; **Open the builder** shows them on a [canvas](./flows.md#the-canvas-place-and-wire) of nodes to place and wire freely. **Open the process builder** builds [processes](./processes.md) in lanes (BPMN): take one as the process tests have it, drag tests into the lanes of the roles, wire the steps, and **Play** it with the people of the simulation. **Run now** runs a flow at once, and **For GitHub Actions** writes it as a workflow of its own. |
 | **View** | Color, size, and grouping of the nodes; arrange again; reset. |
 | **Export** | Saves what you see. See [Export](#export). |
@@ -212,6 +213,23 @@ Both ask twice before anything is written. Another grouping, depth, or
 granularity of the proposal is set with `architecture.proposal` in
 `.bca.json` or with `bca architecture --propose`; see
 [Clean architecture](./clean-architecture.md) for the rules behind it.
+
+### Why a component is what it is
+
+Select a component in the graph: **Why this component** in its panel says what
+it is named after, how its objects came to it, what they agree on (namespace,
+folder, name prefix), and how much of its coupling stays inside. Select an
+object: **Why in …** says which step placed it in its component and what that
+step looked at; for a configured architecture, the selector that assigns it.
+The **Architecture** menu lists every component with its first reason and
+takes you to it.
+
+In the same menu, **Current and target…** compares two states of the
+architecture with weights you set, **Template** takes a preset or one of your
+own into use, and **Save as a template** keeps the weights you compared with
+under a name of your own. A template and the target are written to
+`.bca.json`. An exported file shows the comparison it was exported with and
+changes nothing.
 
 ## In the editor
 

@@ -16,6 +16,7 @@
 //   findings:  [{ severity, rule, message, fix?, nodes: [index], file?, line? }]
 //   stories:   [{ id, title, summary, kind, steps: [{ title, text, lens, nodes: [index] }] }]
 // }
+import { architectureForView } from "./architecture.js";
 import path from "node:path";
 import { dependencyMatrix } from "../blueprint/drilldown.js";
 import { RELATION_STYLES, TYPE_STYLES } from "../d2.js";
@@ -1192,6 +1193,8 @@ export async function createAtlas(workspace) {
       permissionSets: graph.nodes.filter((node) => node.kind === "object" && node.type === "permissionset").map(({ label }) => label).sort(),
       recordings: graph.nodes.filter((node) => node.kind === "recording").map(({ id, label }) => ({ id: id.split("::").at(-1), label }))
     } } : {}),
+    // Why the components are what they are, the goals, the templates, and current against target: for the Architecture menu.
+    architecture: architectureForView(assessment, { compare: !overview.live }),
     // The flows as they are defined, and what a step can make: for the Flow menu of the view.
     ...(defined ? { flows: defined } : {}),
     // The processes as they are drawn, how each runs, and the processes as the tests have them: for the builder.

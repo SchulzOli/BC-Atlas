@@ -131,7 +131,11 @@ export function clusterName(members, affix, { namespaceDepth = 2, folderDepth = 
   }
   if (ranked.length) {
     const naming = { by: "words", from: ranked[0], share: share(counts.get(ranked[0].toLowerCase()), members.length) };
-    return { label: ranked[0], fullName: ranked[0], alternatives: byWords, naming };
+    // No namespace or folder holds most of them: the one that holds the largest part still tells
+    // two groups of the same word apart better than a number does ("Posting (Sales)").
+    const largest = mostCommon(namespaces)?.[0]?.split(".").at(-1) ?? mostCommon(folders.filter(Boolean))?.[0]?.split("/").at(-1);
+    const alternatives = largest && !typeFolder(largest) && largest.toLowerCase() !== ranked[0].toLowerCase() ? [...byWords, `${ranked[0]} (${largest})`] : byWords;
+    return { label: ranked[0], fullName: ranked[0], alternatives, naming };
   }
   return { label: "Group", fullName: "Group", alternatives: [], naming: roleNaming("no shared namespace, folder, or word") };
 }

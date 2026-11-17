@@ -396,6 +396,19 @@
   });
 
   // ------------------------------------------------------------- inspector
+  /** Why a component is what it is, and why an object is in its component (src/app/architecture.js). */
+  function whyHere(node) {
+    const known = atlas.architecture;
+    if (!known) return "";
+    if (node.kind === "component") {
+      const component = known.components[node.label];
+      return component ? `<h3>Why this component</h3><ul class="why">${component.why.slice(0, 6).map((sentence) => `<li>${esc(sentence)}</li>`).join("")}</ul>` : "";
+    }
+    if (node.kind !== "object" || !node.component) return "";
+    const [step, sentence] = known.placements[node.id] ?? [];
+    if (!step) return "";
+    return `<h3>Why in ${esc(node.component)}</h3><p class="about"><b>${esc(known.stepLabels[step] ?? step)}.</b> ${esc(sentence ?? known.steps[step] ?? "")}</p>`;
+  }
   function inspector() {
     const element = $("#inspector");
     const index = state.sel && scene?.place.has(state.sel) ? scene.place.get(state.sel) : -1;
@@ -437,6 +450,7 @@
         ${atlas.flows && (node.kind === "flow" || node.kind === "artifact") ? '<button class="btn" data-act="flow" title="Change it in the Flow menu">Change…</button>' : ""}
         ${atlas.simulation && SIM_NODES[node.kind] ? `<button class="btn" data-act="define" title="Change it in the simulation">${node.kind === "task" ? "Ground…" : "Define…"}</button>` : ""}
       </div>
+      ${whyHere(node)}
       ${sides.length ? `<h3>See in</h3><div class="chips sides">${sides.map((lens) => `<button class="chip" data-side="${esc(lens.id)}" title="${esc(lens.summary)}">${esc(lens.title)}</button>`).join("")}</div>` : ""}
       ${findings.length ? `<h3>${plural(findings.length, "finding")}</h3>${findings.slice(0, 20).map((finding) => `<div class="finding ${esc(finding.severity)}"><b>${esc(finding.severity)} · ${esc(finding.rule)}</b><p>${rich(finding.message)}</p>${finding.fix ? `<p class="fix">${rich(finding.fix)}</p>` : ""}</div>`).join("")}` : ""}
       ${out.size ? `<h3>From here</h3><ul class="rows">${rows(out, "→")}</ul>` : ""}
@@ -650,6 +664,133 @@
       <hr><div class="actions"><button class="btn primary" data-sim="apply">Apply</button>${simForm.name && simEntry(simForm.kind, simForm.name) ? '<button class="btn" data-sim="remove">Remove</button>' : ""}<button class="btn" data-sim="back">Back</button></div>`;
   }
   const runsOf = () => atlas.stories.filter(({ kind }) => kind === "run");
+  // ------------------------------------------------------------ architecture
+  // Why the components are what they are, how well the architecture meets the goals of the
+  // template in use, and the architecture as it is next to the one it should be. In VS Code
+  // the weights and the template can be changed and the comparison is made again; a snapshot
+  // shows what it was exported with.
+  let archPage = "goals";
+  let archCompare;
+  let archWeights;
+  const archBar = (value) => `<span class="meter" aria-hidden="true"><i style="width:${Math.round(Math.max(0, Math.min(1, value)) * 100)}%"></i></span>`;
+  const archSigned = (value) => (Math.abs(value) < 0.005 ? "=" : `${value > 0 ? "+" : ""}${value.toFixed(2)}`);
+  function archCompareHtml() {
+    const known = atlas.architecture;
+    const result = archCompare ?? known.compare;
+    const weights = archWeights ?? known.goals.weights;
+    const side = (name, chosen) => `<select data-arch-side="${name}">${["structure", "configured", "proposal", "best"].map((kind) => `<option value="${kind}" ${kind === chosen ? "selected" : ""}>${esc({ structure: "The structure of the source today", configured: "What .bca.json configures", proposal: "The proposal", best: "The best of several proposals" }[kind])}</option>`).join("")}</select>`;
+    return `<h3>Current and target architecture</h3>
+      ${LIVE ? `<label class="field wide"><span>Current</span>${side("from", result?.from ?? "structure")}</label>
+      <label class="field wide"><span>Target</span>${side("to", result?.to ?? (known.mode === "configured" ? "configured" : "best"))}</label>
+      <h3>What counts, and how much</h3><div class="weights">${known.criteria.map(({ id, title, meaning }) => `<label title="${esc(meaning)}"><span>${esc(title)}</span><input type="number" min="0" max="20" step="1" data-arch-weight="${esc(id)}" value="${esc(weights[id] ?? 0)}"></label>`).join("")}</div>
+      <div class="actions"><button class="btn primary" data-arch="compare">Compare</button><button class="btn" data-arch="reset" title="The weights of the template in use">Reset the weights</button></div>` : muted("This file shows the comparison it was exported with. In VS Code, or with <code>bca architecture compare</code>, you choose the states and the weights.")}
+      ${result ? `<hr><p class="text"><b>${esc(result.current.title)}</b> scores <b>${result.summary.current.toFixed(1)}</b>; <b>${esc(result.target.title)}</b> scores <b>${result.summary.target.toFixed(1)}</b> of 100. ${result.summary.moves ? `${plural(result.summary.moves, "object")} of ${fmt(result.summary.objects)} would move (${Math.round(result.summary.distance * 100)}%).` : "No object has to move."}</p>
+      <table class="compare"><thead><tr><th>Goal</th><th title="Weight">W</th><th>Is</th><th>Target</th><th></th></tr></thead><tbody>${result.criteria.filter(({ weight }) => weight > 0).map((row) => `<tr title="${esc(row.why ?? "")}"><td>${esc(row.title)}</td><td>${esc(row.weight)}</td><td>${row.current.toFixed(2)}</td><td>${row.target.toFixed(2)}</td><td class="${row.delta > 0.005 ? "up" : row.delta < -0.005 ? "down" : ""}">${archSigned(row.delta)}</td></tr>`).join("")}</tbody></table>
+      ${result.candidates?.length ? `<h3>Proposals that competed</h3><ul class="pending">${result.candidates.map((candidate) => `<li>${candidate.chosen ? "<b>" : ""}${esc(candidate.label)}: ${candidate.error ? esc(candidate.error) : `${candidate.total.toFixed(1)}, ${plural(candidate.components, "component")}`}${candidate.chosen ? "</b> (chosen)" : ""}</li>`).join("")}</ul>` : ""}
+      <h3>Components of the target</h3><ul class="pending">${result.mapping.slice(0, 30).map((entry) => `<li><b>${esc(entry.target)}</b> (${fmt(entry.objects)}): ${esc(entry.status)}${entry.status === "same" ? "" : ` from ${esc(entry.from.map(({ component, objects }) => `${component} (${objects})`).join(", ") || "nothing of today")}`}</li>`).join("")}</ul>
+      <h3>Steps</h3><ol class="steps">${result.steps.map((step) => `<li><b>${esc(step.title)}</b><p>${esc(step.why)}</p>${step.commands.slice(0, 6).map((command) => `<button class="command" data-arch-copy="${esc(command)}" title="Copy the command">${esc(command)}</button>`).join("")}${step.commands.length > 6 ? `<small>and ${step.commands.length - 6} more</small>` : ""}</li>`).join("")}</ol>
+      ${LIVE && result.to !== "configured" ? `<div class="actions"><button class="btn" data-arch="adopt" title="Write the components of the target to .bca.json: what bca check enforces from then on">Make the target the architecture…</button></div>` : ""}` : LIVE ? muted("Choose the two states and compare.") : ""}
+      <hr><div class="actions"><button class="btn" data-arch="page" data-page="goals">Back</button></div>`;
+  }
+  MENUS.architecture = () => {
+    const known = atlas.architecture;
+    if (!known) return muted("The architecture was not read.");
+    if (archPage === "compare") return archCompareHtml();
+    const { template, score, templates, mode } = known;
+    const components = Object.entries(known.components);
+    return `<p class="text"><b>${mode === "proposal" ? "A proposal" : "The architecture of .bca.json"}</b>: ${plural(components.length, "component")}. It meets the goals of the template <b>${esc(template.title ?? template.name)}</b> with <b>${score.total.toFixed(1)}</b> of 100.</p>
+      <h3>Goals</h3><table class="compare">${score.criteria.filter(({ weight }) => weight > 0).map((row) => `<tr title="${esc(row.why ?? "")}"><td>${esc(row.title)}</td><td>${archBar(row.score)}</td><td>${row.score.toFixed(2)}</td><td title="Weight">×${esc(row.weight)}</td></tr>`).join("")}</table>
+      <div class="actions"><button class="btn primary" data-arch="page" data-page="compare">Current and target…</button></div>
+      <h3>Template</h3>
+      ${LIVE ? `<label class="field wide" title="What a good architecture is here, and how much each goal weighs"><span>In use</span><select data-arch-template>${templates.map((item) => `<option value="${esc(item.name)}" ${item.active ? "selected" : ""} ${item.error ? "disabled" : ""} title="${esc(item.summary ?? item.error ?? "")}">${esc(item.title ?? item.name)}${item.origin === "preset" ? "" : " (yours)"}</option>`).join("")}</select></label>` : ""}
+      ${muted(esc(template.summary ?? ""))}
+      ${LIVE ? `<label class="field wide" title="Saves the template in use with the weights of the comparison as a template of your own, and takes it into use"><span>Save as</span><input type="text" data-arch-name placeholder="our-way" autocomplete="off" spellcheck="false"></label>
+      <div class="actions"><button class="btn" data-arch="save">Save as a template</button>${templates.find(({ active }) => active)?.origin === "preset" ? "" : '<button class="btn" data-arch="remove">Remove this template</button>'}</div>` : ""}
+      <h3>Why these components</h3>${components.map(([name, component]) => `<button class="item" role="menuitem" data-arch-component="${esc(name)}"><b>${esc(name)}</b><span>${fmt(component.objects)}</span><small>${esc(component.why[0] ?? "")}</small></button>`).join("")}
+      <hr>${muted(LIVE ? "A template and the architecture are written to <code>.bca.json</code>. Select a component or an object in the graph to see why it is where it is." : "The same from a terminal or an agent: <code>bca architecture --explain</code>, <code>bca architecture compare</code>, <code>bca architecture templates</code>, and the MCP tools <code>bc_atlas_architecture_*</code>.")}`;
+  };
+  const archRedraw = () => { $("#popover").innerHTML = MENUS.architecture(); };
+  const archValues = () => ({
+    from: $('#popover [data-arch-side="from"]')?.value,
+    to: $('#popover [data-arch-side="to"]')?.value,
+    ...(archWeights ? { weights: archWeights } : {})
+  });
+  async function archClick(item) {
+    if (item.dataset.archCopy) return navigator.clipboard?.writeText(item.dataset.archCopy).then(() => toast(`Copied: ${item.dataset.archCopy}`), () => toast(item.dataset.archCopy)) ?? toast(item.dataset.archCopy);
+    if (item.dataset.archComponent) {
+      // The component in the graph, selected: its inspector says why it is what it is.
+      closeMenu();
+      const id = `component::${item.dataset.archComponent}`;
+      await set({ lens: "components", inside: "", focus: "", story: "", sel: id });
+      if (scene.place.has(id)) graph.center([scene.place.get(id)]);
+      return undefined;
+    }
+    const act = item.dataset.arch;
+    if (act === "page") {
+      archPage = item.dataset.page;
+      return archRedraw();
+    }
+    if (act === "reset") {
+      archWeights = undefined;
+      archCompare = undefined;
+      return archRedraw();
+    }
+    try {
+      if (act === "compare") {
+        archWeights = Object.fromEntries($$("#popover [data-arch-weight]").map((input) => [input.dataset.archWeight, Math.max(0, Number(input.value) || 0)]));
+        const values = archValues();
+        item.textContent = "Comparing…";
+        archCompare = await call("compareArchitecture", values);
+        return archRedraw();
+      }
+      if (act === "adopt") {
+        // Asked twice before .bca.json gets the components.
+        if (item.textContent !== "Write the target to .bca.json") {
+          item.textContent = "Write the target to .bca.json";
+          item.classList.add("primary");
+          return undefined;
+        }
+        const written = await call("adoptTarget", archValues());
+        closeMenu();
+        archCompare = undefined;
+        toast(`Wrote ${plural(written.components, "component")} to ${String(written.file).split(/[\\/]/u).pop()}.`);
+        return reload("Reading the architecture");
+      }
+      if (act === "save" || act === "remove") {
+        const name = act === "save" ? $("#popover [data-arch-name]").value.trim().toLowerCase() : atlas.architecture.template.name;
+        if (act === "save" && !/^[a-z0-9][a-z0-9._-]*$/u.test(name)) return toast("A template needs a name of lowercase letters, digits, \".\", \"_\", or \"-\".");
+        if (act === "remove" && item.textContent !== "Remove it") {
+          item.textContent = "Remove it";
+          item.classList.add("primary");
+          return undefined;
+        }
+        const written = await call("architectureTemplate", { action: act, name, values: archWeights ? { weights: archWeights } : {} });
+        closeMenu();
+        archWeights = undefined;
+        archCompare = undefined;
+        toast(act === "save" ? `Saved the template ${written.name}; it is in use.` : `Removed the template ${written.name}.`);
+        return reload("Reading the architecture");
+      }
+    } catch (error) {
+      toast(error.message);
+      archRedraw();
+    }
+    return undefined;
+  }
+  $("#popover").addEventListener("change", async (event) => {
+    if (event.target.dataset.archTemplate === undefined) return;
+    try {
+      const written = await call("architectureTemplate", { action: "use", name: event.target.value });
+      closeMenu();
+      archWeights = undefined;
+      archCompare = undefined;
+      toast(`The template ${written.name} is in use.`);
+      await reload("Reading the architecture");
+    } catch (error) {
+      toast(error.message);
+    }
+  });
+
   MENUS.simulate = () => {
     if (simForm) return simulateForm();
     const { definition, derived } = atlas.simulation;
@@ -2311,6 +2452,7 @@
     const item = event.target.closest("button");
     if (!item) return;
     if (item.dataset.proc) procClick(item);
+    else if (item.dataset.arch || item.dataset.archCopy || item.dataset.archComponent) archClick(item);
     else if (item.dataset.flowAct) flowClick(item);
     else if (item.dataset.sim || item.dataset.simEdit || item.dataset.simNew || item.dataset.simGo !== undefined || item.dataset.simRun) simulateClick(item);
     else if (item.dataset.setLens) {

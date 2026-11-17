@@ -7,6 +7,7 @@ import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 
+import { createAtlas } from "../src/app/atlas.js";
 import { renderAppHtml } from "../src/app/page.js";
 import { createService } from "../src/app/service.js";
 import { Workspace } from "../src/app/workspace.js";
@@ -429,7 +430,7 @@ test("the app is one view: a toolbar and the graph", () => {
   // The picture after a step starts from the picture before it.
   assert.match(html, /const before = graph\?\.snapshot\(\);[\s\S]{0,260}from: before,/u);
   assert.deepEqual([...body.matchAll(/data-form="(\w+)"/gu)].map(([, form]) => form), ["2d", "diagram", "3d"], "any part of the graph in three forms");
-  assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "simulate", "flow", "view", "export", "sync"]);
+  assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "simulate", "architecture", "flow", "view", "export", "sync"]);
   // Simulate stands next to Story, and is there when the project has process tests.
   assert.match(body, /id="story-button"[^\n]+\n\s*<button class="tool menu" id="simulate-button" data-menu="simulate"[^>]* hidden>Simulate<\/button>/u);
   assert.match(html, /call\("defineSimulation", \{ operations: \[operation\] \}\)/u, "a change is an operation, applied and run again");
@@ -496,5 +497,49 @@ test("the app keeps a component and excludes an object in architecture.proposal 
     await assert.rejects(service.call("updateProposal", { keep: { name: "X" } }), /keep needs a name and match selectors/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("the view has the architecture: why, the goals, the templates, and current against target", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-view-architecture-"));
+  try {
+    cpSync(fileURLToPath(new URL("../examples/purchasing-app", import.meta.url)), root, { recursive: true });
+    const workspace = new Workspace(root, {}, { live: true });
+    const service = createService(workspace);
+    const { architecture, nodes } = await service.call("atlas");
+    assert.equal(architecture.mode, "proposal");
+    assert.equal(architecture.template.name, "balanced");
+    assert.ok(architecture.score.total > 0 && architecture.score.criteria.every(({ title, weight }) => title && weight >= 0));
+    // Every component says why it is what it is, and every object which step placed it.
+    const components = nodes.filter(({ kind }) => kind === "component");
+    assert.ok(components.length && components.every(({ label }) => architecture.components[label]?.why.length));
+    const objects = nodes.filter(({ kind, component }) => kind === "object" && component);
+    assert.ok(objects.length && objects.every(({ id }) => architecture.steps[architecture.placements[id]?.[0]] && architecture.placements[id][1]));
+    assert.deepEqual(architecture.templates.filter(({ origin }) => origin === "preset").map(({ name }) => name), ["balanced", "follow-structure", "by-coupling", "layered", "modular-monolith", "small-steps"]);
+    // In VS Code the comparison is asked for; an exported file carries one.
+    assert.equal(architecture.compare, undefined);
+    assert.ok((await createAtlas(new Workspace(root, {}, { live: false }))).architecture.compare.criteria.length);
+
+    const compared = await service.call("compareArchitecture", { to: "best", weights: { fewMoves: 6 } });
+    assert.equal(compared.criteria.find(({ id }) => id === "fewMoves").weight, 6);
+    assert.ok(compared.candidates.some(({ chosen }) => chosen) && compared.steps.length && compared.sides === undefined);
+    // A template of your own, saved from the view and taken into use.
+    const saved = await service.call("architectureTemplate", { action: "save", name: "ours", values: { template: "layered", weights: { fewMoves: 6 } } });
+    assert.equal(saved.name, "ours");
+    assert.equal((await service.call("atlas")).architecture.template.name, "ours");
+    await service.call("architectureTemplate", { action: "use", name: "balanced" });
+    await service.call("architectureTemplate", { action: "remove", name: "ours" });
+    assert.equal(JSON.parse(readFileSync(path.join(root, ".bca.json"), "utf8")).architecture?.templates?.ours, undefined);
+    // The target becomes the architecture of the project.
+    const adopted = await service.call("adoptTarget", { to: "proposal" });
+    assert.ok(adopted.components >= 1);
+    const now = (await service.call("atlas")).architecture;
+    assert.equal(now.mode, "configured");
+    assert.equal(Object.values(now.placements)[0][0], "declared");
+
+    const html = renderAppHtml({ mode: "vscode" });
+    for (const part of ['id="architecture-button"', "MENUS.architecture = ", "function whyHere(", 'call("compareArchitecture"', 'call("adoptTarget"', 'call("architectureTemplate"']) assert.ok(html.includes(part), part);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

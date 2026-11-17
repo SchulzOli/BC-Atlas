@@ -62,6 +62,10 @@ export function createService(workspace) {
     },
     adoptArchitecture: (params = {}) => workspace.adoptArchitecture(architectureSettings(params), { updateBaseline: params.updateBaseline !== false }),
     updateBaseline: () => workspace.updateBaseline(),
+    // The Architecture menu of the view: current against target, the templates, and adopting the target.
+    compareArchitecture: (params = {}) => workspace.compareArchitecture(params),
+    adoptTarget: (params = {}) => workspace.adoptTarget(params),
+    architectureTemplate: (params = {}) => workspace.architectureTemplate(params),
     // The Simulate menu of the view: operations on the simulation section, applied and run at once.
     defineSimulation: (params = {}) => workspace.defineSimulation(params),
     // Build from the Simulate menu: everything the simulation shows, as one artifact.
