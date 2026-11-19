@@ -16,7 +16,7 @@ import { proposeArchitecture } from "./propose.js";
 export { evaluateArchitecture } from "./evaluate.js";
 export { proposeArchitecture } from "./propose.js";
 
-/** Options shared by bca architecture, bca check, the explorer, and the app. */
+/** Options shared by bca architecture, bca check, and the app. */
 export async function architectureContext(input, values = {}) {
   const config = await loadConfig(values.projectRoot ?? input, values.config);
   const options = mergeArchitectureOptions(config.values, values);
@@ -81,7 +81,7 @@ export async function assessArchitecture(input, values = {}, { model } = {}) {
   result.surface = componentSurfaces({ levels, componentOf: result.assignment, model: analyzed, components: result.components });
   if (!proposal) {
     for (const surface of result.surface.filter(({ candidates }) => candidates.length)) {
-      addCheck(result, "could-be-internal", `${surface.candidates.length} object(s) of ${surface.component} are used by no other component and could be Access = Internal: ${surface.candidates.slice(0, 5).map(({ object }) => object).join(", ")}${surface.candidates.length > 5 ? ", ..." : ""} (bca refactor surface --component "${surface.component}")`, { component: surface.component });
+      addCheck(result, "could-be-internal", `${surface.candidates.length} object(s) of ${surface.component} are used by no other component and could be Access = Internal: ${surface.candidates.slice(0, 5).map(({ object }) => object).join(", ")}${surface.candidates.length > 5 ? ", ..." : ""}`, { component: surface.component });
     }
     const snapshot = await readSurface(context.surfaceFile);
     result.surfaceChanges = snapshot ? compareSurface(snapshot, analyzed) : undefined;

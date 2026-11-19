@@ -12,19 +12,10 @@ The command writes versioned JSON to standard output. It defines command IDs, ar
 
 1. Pass each argument as a separate array item.
 2. Do not construct a shell command string.
-3. Use `graph query`, `export --view <view> --format json`, `check --format json`, `architecture --format json`, or `docs ... --format json` for machine reads.
+3. Use `view --format json`, `export --view <view> --format json`, `check --format json`, `architecture --format json`, or `docs ... --format json` for machine reads.
 4. Check for exit code `0` before you parse standard output.
 5. Run `docs set` and `docs unset` with `--dry-run` first.
 6. Pass `--expected-hash` when you write AL metadata.
-
-## Guided setup
-
-`bca setup agent --agent claude|copilot|cursor` writes a `/bca-setup` command
-that lets the agent set up BC Atlas through the CLI: it reads
-`bca setup plan --format json`, asks the user, previews with
-`bca setup apply --dry-run --format json`, and applies after confirmation.
-`bca setup agent` without `--agent` prints the same instructions for any other
-agent. See [Guided setup](./setup.md).
 
 ## Source of truth
 
@@ -95,7 +86,6 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 - `bc_atlas_capabilities` reads the command contract.
 - `bc_atlas_inspect` returns an architecture model.
 - `bc_atlas_check` returns the architecture health report used by `bca check`.
-- `bc_atlas_simulate` runs the [battle test](./battle-test.md): agents with the company's roles, permission sets, and task groups perform the process tests. It returns who is blocked at which step and by which missing permission, who can do what they must not, the processes, the fit-gap analysis, and findings with what to do; `agent` or `task` returns the details of one agent or one process test, `markdown: true` the report as documentation.
 - `bc_atlas_layers` writes the [documentation of a repository](./layers.md),
   in sync with the source, for one app or many: how it works, how its apps
   and components are connected, and what to change in the architecture and
@@ -103,43 +93,15 @@ The server uses stdio. It writes protocol messages to standard output and logs t
   changes (title, kind, why, how, effort). With `check` it writes nothing
   and says whether the pages match the source. For the changes alone,
   `bc_atlas_view` with `story: "architecture"`.
-- `bc_atlas_bundle` builds the bundle: validation, simulation, snapshots,
-  documentation, narrative, test results, and build outputs as one folder
-  and one ZIP file, and returns the manifest (see [The bundle](./bundle.md)).
-- `bc_atlas_ai_context` returns the grounding for narrative documentation:
-  for the system or one process, the facts BC Atlas read from the source as
-  Markdown. An agent that writes documentation writes from it; the tool
-  calls no model. `bc_atlas_ai_write` lets the model configured for the
-  project write the pages (see [BC Atlas AI](../plugins/ai/README.md)).
-- `bc_atlas_simulation_define` defines the simulation: operations add or
-  change an agent, a role, a task group, or a requirement, remove one, or
-  ground a process test on a recording of Business Central. The changed
-  simulation runs at once and its result comes back; `dryRun` writes
-  nothing. An agent that fixes a finding changes the company, reads the
-  result, and goes on.
-- `bc_atlas_view` is the [BC Atlas view](./vscode.md#the-bc-atlas-view) without a window: without arguments it returns the lenses and stories of the project; `lens` returns that part of the one graph (nodes with their facts and findings, and relations), `inside` an object's procedures and what each does, `focus` a node and what is near it, `story` a generated walk through the graph (what the system is, a process step by step, what to fix). `format` `text`, `md`, or `csv` returns that text; `output` writes a file, also a picture (`svg`, `png`) in a `form`. The same as `bca view`.
-- `bc_atlas_architecture` returns the target architecture with work items (with the `bca refactor` command for moves), data ownership, and checks.
+- `bc_atlas_view` is the [BC Atlas view](./vscode.md#the-bc-atlas-view) without a window: without arguments it returns the lenses and stories of the project; `lens` returns that part of the one graph (nodes with their facts and findings, and relations), `inside` an object's procedures and what each does, `focus` a node and what is near it, `story` a generated walk through the graph (what the system is, what to fix, what to change in the architecture). `format` `text`, `md`, or `csv` returns that text; `output` writes a file, also a picture (`svg`, `png`) in a `form`. The same as `bca view`.
+- `bc_atlas_architecture` returns the target architecture with work items, data ownership, and checks.
 - `bc_atlas_architecture_explain` says why the architecture is what it is: for an object, the step that placed it in its component with its numbers; for a component, what it is named after, how its objects came to it, what they agree on, and the thresholds that applied.
-- `bc_atlas_architecture_compare` returns the [current and the target state](./target-architecture.md) side by side: both scored with the same weighted goals, how the components map, the objects that have to move with the command for each, and the steps in order. `to: "best"` scores several proposals and lists them all.
+- `bc_atlas_architecture_compare` returns the [current and the target state](./target-architecture.md) side by side: both scored with the same weighted goals, how the components map, the objects that have to move, and the steps in order. `to: "best"` scores several proposals and lists them all.
 - `bc_atlas_architecture_templates` lists the presets and the project's templates with the goals and their weights, and saves, uses, or removes a template; `bc_atlas_architecture_adopt` writes a target to `.bca.json`. Both are `dryRun` by default.
 - `bc_atlas_app` shows the BC Atlas view itself inside the chat, in clients that render MCP Apps; see [The view in the chat](#the-view-in-the-chat-mcp-app).
 - `bc_atlas_extraction_plan` plans extracting one component as an app: blockers, `app.json`, data moves, and steps.
-- `bc_atlas_refactor_surface` sets `Access = Internal` on objects no other component uses and writes `exposes` to `.bca.json`; `dryRun` by default.
-- `bc_atlas_refactor_move` moves an object to another component with namespace and using fixes; `dryRun` (default) returns the diff, `dryRun: false` writes it. See [Split a monolith into apps](./modularization.md).
-- `bc_atlas_report` writes the Markdown architecture report (`bca export --view report`); `handbook: true` adds the system handbook.
-- `bc_atlas_handbook` reads the [system handbook](./handbook.md) (one page or all, in English or German): who writes a table, who subscribes to an event, what a permission set grants, which pages users can open, where the code is complex.
-- `bc_atlas_setup_plan` detects the project and returns setup questions with recommendations.
-- `bc_atlas_setup_apply` previews (default) or writes `.bca.json`, Git hooks, and a pipeline.
-- `bc_atlas_process` returns the [processes](./processes.md) of a project: the models in lanes, how each runs with the people of the simulation (who performs a step, what stops a lane, where the work changes hands, the events of each step), what to improve, and the processes as they are (mined from the process tests and recordings).
-- `bc_atlas_process_define` changes the models: operations add or change a process and its steps, wire them, rename a lane, or take a mined process as a model.
-- `bc_atlas_run` runs the tasks and flows configured for a trigger, or flows by id (`flows`), and reports sync status.
-- `bc_atlas_flow_define` defines the [flows](./flows.md) of a project: operations add or change a flow, its triggers, and its steps (the artifact to make and where to save it), say which step comes after which and when (`wire`, `unwire`, or `id` and `after` on a step), or set the sync mode of a trigger. Without operations it returns the flows and the catalog of artifacts with their options.
-- `bc_atlas_flow_export` writes a flow as a workflow for GitHub Actions (`.github/workflows/bc-atlas-<flow>.yml`) and returns its events, its delivery, and the workflow; `dryRun` writes nothing.
-- `bc_atlas_update_check` reports whether a newer BC Atlas version exists, with release notes.
+- `bc_atlas_report` writes the Markdown architecture report (`bca export --view report`).
 - `bc_atlas_generate_diagram` writes D2, JSON, or SVG.
-- `bc_atlas_explore` writes the interactive explorer or the temporal graph document.
-- `bc_atlas_graph_query` queries a saved graph as reusable JSON without analyzing AL.
-- `bc_atlas_graph_render` renders a saved graph selection as SVG, HTML, DOT, or JSON.
 - `bc_atlas_docs_list` lists documented scenarios.
 - `bc_atlas_docs_show` reads one scenario and its source hash.
 - `bc_atlas_docs_validate` validates a documentation corpus.
@@ -156,8 +118,8 @@ itself: in a chat client that renders
 [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) (Claude,
 ChatGPT, VS Code, Goose, and others) the tool `bc_atlas_app` shows the
 interactive graph inside the conversation. It is the same page the VS Code
-extension shows: every lens, the findings, the stories, the builders for
-flows and processes, and the Architecture menu.
+extension shows: every lens, the findings, the stories, and the
+Architecture menu.
 
 - `bc_atlas_app` takes the project and what to open on: `lens`, `story`,
   `inside` (an object, an app, `component::Sales`, a namespace), `select`.
@@ -166,13 +128,12 @@ flows and processes, and the Architecture menu.
 - The page asks the MCP server for everything else through
   `bc_atlas_app_call`, a tool only the page can call. It answers with the
   service the VS Code extension uses, on one analysis per project, so the
-  view can also change things: flows, processes, the simulation, the
-  architecture and its templates. They are written to `.bca.json`, as in
-  VS Code.
+  view can also change things: the architecture and its templates. They
+  are written to `.bca.json`, as in VS Code.
 - Two things differ from the editor: what the view exports is saved to
   `.bca/exports/` in the project, because a chat client has no save dialog;
   and **Source** shows the file and line instead of opening it.
-- The page is one HTML resource, `ui://bc-atlas/view.html`, about 1.4 MB,
+- The page is one HTML resource, `ui://bc-atlas/view.html`, about 850 kB,
   with everything inside: it loads nothing from the internet and needs no
   extra allowance from the client.
 
@@ -182,45 +143,6 @@ A client without MCP Apps ignores the page and shows the summary;
 The view is released for both hosts together: a version of BC Atlas has one
 page, shown by the VS Code extension and by the MCP server. A test keeps
 them in step: every request the page makes is answered by both.
-
-### Saved graph tools
-
-Separate analysis from use-case selection and rendering:
-
-1. `bc_atlas_explore` with `path`, `format: "json"`, and `output` saves the
-   native dependency graph once.
-2. `bc_atlas_graph_query` reads that file (or an existing version 1
-   nodes/edges snapshot), returning `bc-atlas.graph.slice` JSON with original
-   IDs, directions, evidence, boundaries, and metadata.
-3. `bc_atlas_graph_render` writes the same selection using the local renderer.
-
-Both graph tools accept `path`, `root` (array of exact node IDs, labels, or
-Atlas keys), `rootGroup`, `depth` (default 1), `direction` (outgoing, incoming,
-both), `kind` (array), `level` (default object), and `frame` (latest by
-default). Query is read-only. Render additionally requires `output` and
-accepts `format` (json, dot, svg, html), `title`, `maxNodes`, and `maxEdges`.
-Neither tool re-analyzes AL or requires Graphviz. They never overwrite the
-input graph.
-
-For an ORDERS snapshot with `roots.legacy`:
-
-```json
-{
-  "name": "bc_atlas_graph_render",
-  "arguments": {
-    "path": "C:\\work\\ORDERS-Dependencies.json",
-    "rootGroup": "legacy",
-    "depth": 1,
-    "direction": "outgoing",
-    "output": "C:\\work\\orders-direct.svg"
-  }
-}
-```
-
-The result reports `output`, `format`, `nodes`, `edges`, and `roots`. The
-equivalent CLI is `bca graph render <file> --root-group legacy -o orders-direct.svg`.
-See [Saved graph queries](./dependency-explorer.md#query-and-render-saved-graphs)
-for traversal and temporal-presence semantics.
 
 ## Test with MCP Inspector
 

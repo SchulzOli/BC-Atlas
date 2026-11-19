@@ -27,15 +27,6 @@ for (const folder of ["examples/docs"]) {
     copied++;
   }
 }
-// Explorer samples are committed as graph documents (JSON) and rendered here,
-// so the 1.4 MB viewer bundle is not checked in.
-const { renderExplorerHtml } = await import("../src/graph/html.js");
-for (const name of readdirSync(path.join(root, "examples/explorer")).filter((entry) => entry.endsWith(".json"))) {
-  const target = path.join(dist, publishedHtmlPath(`examples/explorer/${name.replace(/\.json$/u, ".html")}`));
-  mkdirSync(path.dirname(target), { recursive: true });
-  writeFileSync(target, renderExplorerHtml(JSON.parse(readFileSync(path.join(root, "examples/explorer", name), "utf8"))));
-  copied++;
-}
 // The app itself, exported as offline pages for the example projects.
 const { Workspace } = await import("../src/app/workspace.js");
 const { renderSnapshotHtml } = await import("../src/app/snapshot.js");

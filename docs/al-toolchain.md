@@ -6,7 +6,7 @@ source-level analysis, and keeps its own analysis as the fallback:
 
 | What | With the AL compiler | Without it |
 | --- | --- | --- |
-| Calls (call and workflow views, explorer, dependencies) | The compiler's call graph: overloads, variables, interfaces, and built-in methods resolved exactly | Resolved by name and number of arguments |
+| Calls (call and workflow views, dependencies) | The compiler's call graph: overloads, variables, interfaces, and built-in methods resolved exactly | Resolved by name and number of arguments |
 | Built-in methods (`Rec.FindFirst`, `Message`, `TestPage` methods) | Recognized as platform calls, not unresolved references | Listed as unresolved calls |
 | Syntax | Compiler errors (`AL0xxx`) | tree-sitter parse errors |
 | Diagnostics in `bca check` | Compiler errors and warnings plus CodeCop, UICop, AppSourceCop, and PerTenantExtensionCop findings | BC Atlas rules only |
@@ -131,15 +131,15 @@ step with the code.
 
 ## In pipelines
 
-`bca setup` adds a step that installs the AL Development Tools to the GitHub
-Actions workflow or Azure Pipeline it generates, so CI resolves calls and runs
-analyzers like a developer machine. Set `"al": { "compiler": "off" }` in
-`.bca.json` to leave it out. The BC Atlas GitHub Action installs them unless
-`al-compiler: false`.
+Install the AL Development Tools before `bca check`, so CI resolves calls
+and runs analyzers like a developer machine:
 
-Git hooks: `bca run --trigger pre-commit` leaves the compiler out so commits
-stay fast, unless `al.compiler` is set in `.bca.json`; the pre-push hook,
-pipelines, and schedules use it.
+```sh
+dotnet tool install --global Microsoft.Dynamics.BusinessCentral.Development.Tools
+bca check
+```
+
+Set `"al": { "compiler": "off" }` in `.bca.json` to leave the compiler out.
 
 On Linux and macOS the AL Development Tools need the .NET 8 runtime or later.
 GitHub-hosted and Microsoft-hosted Linux agents have it.

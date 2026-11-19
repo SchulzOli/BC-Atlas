@@ -246,10 +246,6 @@ function bestSide(levels, settings, reference) {
   };
 }
 
-/** An object selector for the command line: codeunit:50100, or interface:"Name" for objects without an ID. */
-const objectSelector = (node) => `${node.type}:${node.objectId ?? `"${node.label}"`}`;
-const moveCommand = (node, to) => `bca refactor move --object ${objectSelector(node)} --to "${to}"`;
-
 /** The dependencies between two objects that an evaluated architecture does not allow (rules of .bca.json aside). */
 function forbidden(result) {
   return new Set(result.violations.filter(({ rule }) => rule !== "dependency-rule").map(({ source, target }) => `${source.id}\u0000${target.id}`));
@@ -324,8 +320,7 @@ function planMoves(levels, current, target, alignment, weights) {
       from: currentOf.get(id),
       to,
       gain: round((toTarget.get(id) ?? 0) - (toHome.get(id) ?? 0), 1),
-      resolves: resolves.get(id) ?? 0,
-      command: moveCommand(node, to)
+      resolves: resolves.get(id) ?? 0
     };
   }).sort((a, b) => b.resolves - a.resolves || b.gain - a.gain || a.object.name.localeCompare(b.object.name) || a.object.id.localeCompare(b.object.id));
 }
@@ -352,12 +347,12 @@ const count = (number, noun) => `${number} ${number === 1 ? noun : noun.endsWith
  * dependencies that are forbidden today, then by the coupling the moves
  * bring inside), then what the target still does not allow, then the check.
  */
-function planSteps(current, target, moves, listed, settings) {
+function planSteps(current, target, moves, settings) {
   const steps = [];
   if (target.kind === "proposal" || target.kind === "best") {
     steps.push({
       title: "Adopt the target architecture",
-      why: "Writes the target components to .bca.json. From then on bca architecture and bca check measure the source against the target, and bca refactor move knows the components.",
+      why: "Writes the target components to .bca.json. From then on bca architecture and bca check measure the source against the target.",
       objects: 0,
       commands: [adoptCommand(target, settings)]
     });
@@ -374,7 +369,6 @@ function planSteps(current, target, moves, listed, settings) {
     if (!groups.has(move.to)) groups.set(move.to, []);
     groups.get(move.to).push(move);
   }
-  const visible = new Set(listed);
   const ordered = [...groups].map(([to, list]) => ({
     to,
     list,
@@ -385,7 +379,6 @@ function planSteps(current, target, moves, listed, settings) {
     const sources = new Map();
     for (const move of list) sources.set(move.from, (sources.get(move.from) ?? 0) + 1);
     const from = [...sources].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name, number]) => `${number} from ${name}`).join(", ");
-    const commands = list.filter((move) => visible.has(move)).map(({ command }) => command);
     steps.push({
       title: `Move ${count(list.length, "object")} to ${to}`,
       why: `${from}. ${resolves ? `Removes ${count(resolves, "dependency")} that today's structure does not allow. ` : ""}${gain > 0 ? `Brings ${gain} of coupling inside the component.` : gain < 0 ? `Costs ${-gain} of coupling inside components; the target wants the objects here for another reason.` : "Coupling inside components stays the same."}`,
@@ -393,8 +386,7 @@ function planSteps(current, target, moves, listed, settings) {
       objects: list.length,
       resolves,
       gain,
-      commands,
-      ...(commands.length < list.length ? { omitted: list.length - commands.length } : {})
+      commands: []
     });
   }
   const remaining = target.result.violations.filter(({ rule }) => rule !== "dependency-rule").length;
@@ -404,7 +396,7 @@ function planSteps(current, target, moves, listed, settings) {
       title: `Resolve ${count(remaining, "dependency")} the target does not allow`,
       why: `Moving objects does not remove them; they need a change in the code: ${strategies}. bca architecture lists every work item with its steps.`,
       objects: 0,
-      commands: target.result.workItems.filter(({ command }) => command).slice(0, 10).map(({ command }) => command)
+      commands: []
     });
   }
   steps.push({
@@ -508,7 +500,7 @@ export function compareLevels(levels, { root = ".", architecture = {}, values = 
     gone,
     moves: listed,
     movesTotal: moves.length,
-    steps: planSteps(current, target, moves, listed, settings),
+    steps: planSteps(current, target, moves, settings),
     ...(target.candidates ?? current.candidates ? { candidates: target.candidates ?? current.candidates } : {}),
     summary: {
       objects: ids.length,
@@ -543,8 +535,8 @@ export function compareLevels(levels, { root = ".", architecture = {}, values = 
  *   criteria: [{ id, title, weight, share, current, target, delta, why }],
  *   mapping: [{ target, objects, status: "same" | "renamed" | "split" | "merged" | "reshaped" | "new", from: [{ component, objects, share, ofCurrent }] }],
  *   gone: [{ component, objects, to: [{ component, objects }] }],
- *   moves: [{ object: { id, type, name, objectId?, file? }, from, to, gain, resolves, command }], movesTotal,
- *   steps: [{ title, why, component?, objects, resolves?, gain?, commands, omitted? }],
+ *   moves: [{ object: { id, type, name, objectId?, file? }, from, to, gain, resolves }], movesTotal,
+ *   steps: [{ title, why, component?, objects, resolves?, gain?, commands }],
  *   candidates?: [...] (with best),
  *   summary: { objects, moves, distance, current, target, delta, improves, worsens }
  * }
@@ -619,7 +611,6 @@ export function formatCompareText(result) {
     lines.push(`  ${index + 1}. ${step.title}`);
     lines.push(`     ${step.why}`);
     for (const command of step.commands) lines.push(`       ${command}`);
-    if (step.omitted) lines.push(`       ... and ${step.omitted} more (raise the limit to list them)`);
   });
   return `${lines.join("\n")}\n`;
 }
@@ -684,8 +675,7 @@ export function formatCompareMarkdown(result) {
       lines.push("   ```sh");
       for (const command of step.commands) lines.push(`   ${command}`);
       lines.push("   ```");
-      if (step.omitted) lines.push(`   ... and ${step.omitted} more.`);
-      lines.push("");
+        lines.push("");
     }
   });
   return `${lines.join("\n").replace(/\n+$/u, "")}\n`;

@@ -5,7 +5,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { parseJsonc } from "../automation/vscode.js";
+import { parseJsonc } from "../jsonc.js";
 
 const SKIPPED = new Set([".git", "node_modules", ".alpackages", ".alcache", ".snapshots", "dist", "out", ".output", ".bca"]);
 

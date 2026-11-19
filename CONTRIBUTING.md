@@ -27,7 +27,7 @@ npm run check
 Try the CLI against the included sample project:
 
 ```sh
-node src/cli.js graph examples/warehouse-app --view project -o dist/example.d2
+node src/cli.js export examples/warehouse-app --view project -o dist/example.d2
 npm run examples
 ```
 
@@ -50,7 +50,7 @@ src/
   cli.js               entry point: resolves the command and dispatches it
   capabilities.js      command catalog: feature areas, options, examples
   cli/                 argument parsing, help rendering, error types
-  commands/            init, report, graph/inspect/watch, check
+  commands/            check, architecture, export, report, view, layers
   docs/                AL UI-test documentation pipeline
   analyzer.js ...      parse -> resolve -> view -> render pipeline
   health.js            architecture health rules used by check and report
@@ -105,8 +105,7 @@ version number.
    `npm run version:set -- 0.11.0`. The tests and the release workflow
    refuse a mismatch.
 2. In `CHANGELOG.md` and `vscode/CHANGELOG.md`, turn the changes since the
-   last release into a section for the new version; update the version in
-   the GitHub Action example and the update-notice examples, then run
+   last release into a section for the new version, then run
    `npm run docs` and `npm run examples`.
 3. Merge the release pull request, then run the **Release** workflow on
    `main` with the same version. It publishes the npm package and the VS Code

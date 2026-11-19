@@ -165,7 +165,7 @@ export function componentAssigner(components, levels) {
   const context = selectorContext(levels);
   const compiled = components.map((component) => {
     if (!component?.name) throw new Error("every architecture component needs a name");
-    // Names are compared without case: component: selectors, dependsOn in rules, and bca refactor move look them up that way.
+    // Names are compared without case: component: selectors, and dependsOn in rules look them up that way.
     const other = keys.get(normalizeIdentifier(component.name));
     if (other === component.name) throw new Error(`duplicate architecture component "${component.name}"`);
     if (other !== undefined) throw new Error(`architecture components "${other}" and "${component.name}" have the same name; names are compared without case`);

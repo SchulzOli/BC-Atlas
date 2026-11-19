@@ -17,12 +17,12 @@ editor's own Node.js runtime. Everything stays on your machine.
 
 ## First: how it works
 
-![The overview of the purchasing example: people, processes, screens, logic, and data in five columns; the process test a team lead is stopped at is selected, and its way through the screens and the logic to the tables is lit](marketing/screenshots/view.png)
+![The overview of the purchasing example: screens, logic, and data in three columns; a codeunit is selected, and its way from the screen to the tables is lit](marketing/screenshots/view.png)
 
 The view opens on the **Overview**: how the app works, from left to right.
-Who uses it, what they do, on which screens, with which logic, in which
-data. Lines stay quiet until you click something; then its way lights up,
-from the person who starts it to the tables it ends in. A large project
+The screens, the logic behind them, and the data. Lines stay quiet until you
+click something; then its way lights up, from the screen to the tables it
+ends in. A large project
 shows areas in place of single objects, and an area opens with a double
 click.
 
@@ -33,7 +33,7 @@ graph, and the toolbar decides what you see of it:
 
 - a **lens** shows a part: how it works, the system, the components, the apps, the data,
   the calls, the events, the contracts, the pages, the permissions, what is
-  public or internal, the findings, the processes, the people;
+  public or internal, the findings;
 - **2D**, **Diagram**, or **3D** is the form, for any lens;
 - **Find** lights up what you look for, **Check** puts the findings on the
   nodes they are about;
@@ -65,19 +65,15 @@ Double-click an object and it opens: its procedures, triggers, and events
 become nodes, with what each of them does to other objects. Double-click a
 procedure and the editor is at its line.
 
-## Stories: documentation, test, and demonstration
-
-![A story walks through a process test by test: the step that is blocked is red](marketing/screenshots/story.png)
+## Stories: documentation and demonstration
 
 A story is generated from the source, like everything else. It walks through
 the graph step by step, with a text for each step and the nodes it is about:
 
 - **what the system is**, from the outside in, to explain it to someone new;
-- **one story per process** from your AL UI tests: the tests in order, every
-  step on the objects it touches and with the permissions it needs;
 - **what to fix**, one finding at a time, with the fix;
-- **the dependencies that point the wrong way**, with the steps to resolve
-  each.
+- **what to change in the architecture, and how**, the most important
+  first, with the steps.
 
 Press **Play** to demonstrate, **Markdown** to keep the story as a document.
 
@@ -95,74 +91,6 @@ and the baseline can only shrink.
 
 It answers the question behind splitting a large app: *which parts could
 become apps of their own today, and what is in the way for the rest?*
-
-## Who can do what
-
-![The People lens: four agents of a company, the process tests they perform, and the permission sets they hold; one is blocked](marketing/screenshots/people.png)
-
-With process tests in the project, BC Atlas lets agents with the roles and
-permission sets of your company perform them, step by step, from the source.
-The graph shows who performs what, who is blocked and by which missing
-permission, and who can do what they must not.
-
-## What really runs in Business Central
-
-![The Recordings lens: a channel, two recorded processes, and the pages, codeunits, and tables each one runs through and changes](marketing/screenshots/recordings.png)
-
-The source says what can happen; a recording says what does. With
-[BC Atlas Sync](https://github.com/SchulzOli/BC-Atlas/blob/main/plugins/sync/README.md)
-set up, every process recorded in Business Central is a node of the same
-graph: the objects it runs through, the tables it changes, and whether it is
-synced into the project or waits for it. Plugins add lenses, findings, and
-stories of their own in the same way.
-
-## Flow: your own workflows, and how the company works
-
-**Flow**, in the toolbar, opens a builder with two sides.
-
-**Flows** is a canvas of nodes to place and wire freely: a trigger (a Git
-hook, the pipeline, a schedule) into a flow, a flow into the steps it starts
-with, a step into those that come after it. A step makes one thing from the
-source (the layered documentation, a picture of a lens, the handbook, the
-health check, ...) and saves it where you say. A click on a wire says when it
-holds: if the step before passed, failed, or in any case. **Run now** runs a
-flow, and **GitHub Actions** writes it as a workflow of its own. See
-[Flows](https://github.com/SchulzOli/BC-Atlas/blob/main/docs/flows.md).
-
-**Processes** is a board of lanes, as in BPMN: every step in the lane of the
-role that does it, with the process test or recording that shows it works.
-Take a process as the process tests have it (process mining), drag tests into
-the lanes, pull wires between the steps, and **Play** it with the people of
-the simulation: the steps turn green where a lane gets through and red where
-the process stops, and **What to improve** says why. With telemetry of
-Business Central, a step shows how often it is done and how long it takes,
-and a wire how long the work waits. **BPMN** saves the process for other
-tools. See
-[Processes](https://github.com/SchulzOli/BC-Atlas/blob/main/docs/processes.md).
-
-Every change is written to `.bca.json`. The same works from a terminal
-(`bca flow`, `bca process`) and for AI agents (the MCP tools
-`bc_atlas_flow_define`, `bc_atlas_process`, `bc_atlas_process_define`).
-
-## Simulate: define who uses the app
-
-![The Simulation lens: four people, their roles, the process tests each role does or must not do, requirements, and recordings](marketing/screenshots/simulation.png)
-
-**Simulate**, next to Story, is where the company is defined: add an agent,
-give a role its permission sets and task groups, say what a role must not be
-able to do. Every change is written to `.bca.json` and the simulation runs
-again, so the graph shows at once who gets through and who is stopped. The
-same works from a terminal (`bca simulate define`) and for AI agents (the
-MCP tool `bc_atlas_simulation_define`).
-
-![A run of the simulation: Ben is stopped at the third step of the approval, and the picture shows what the run reached so far](marketing/screenshots/run.png)
-
-**Run, step by step**, in the same menu, plays the simulation of one person
-on the graph. It starts with the person alone; every step adds the process
-test and the objects it needs, and says whether the person can do it. Where
-the person is stopped, the step names the missing permission and what to
-add. **Build the bundle** then writes validation, the simulation with its
-runs, the documentation, and the view as one folder and one ZIP file.
 
 ## Right where you code
 
@@ -211,10 +139,8 @@ All commands are in the Command Palette under `BC Atlas: ...`.
 | Open, Open a Lens… | Shows the view, or the view with one lens. |
 | Run Health Check | Analyzes again and fills the Problems panel; the same rules as `bca check` in CI. |
 | Show the Components, Accept Current Violations in the Baseline | Find and enforce a target architecture. |
-| Export… | Writes the view as one offline HTML file to share, the Markdown report, the 3D explorer, the object catalog, the system handbook, or a diagram. |
+| Export… | Writes the view as one offline HTML file to share, the Markdown report, the object catalog, a diagram, or the knowledge graph. |
 | Generate Documentation from UI Tests… | Markdown, HTML, DITA, Azure DevOps CSV, or BPMN from AL UI tests. |
-| Set Up Automation | `.bca.json`, Git hooks, a GitHub or Azure DevOps pipeline, and a schedule, in a guided terminal session. |
-| Run Tasks of a Trigger… | Runs what a hook, the pipeline, or the schedule runs. |
 | Select Project… | Chooses the app, or a folder above several apps, to analyze. |
 | Analyze Again, Show Output | |
 
@@ -232,9 +158,8 @@ All commands are in the Command Palette under `BC Atlas: ...`.
 ## CI, pipelines, and the command line
 
 The same engine is the `bc-atlas` npm package: `bca check` gates pull
-requests, `bca export` writes reports and the view as one file, and `bca run`
-runs from Git hooks and pipelines. **Set Up Automation** configures all of it.
-See the [documentation](https://schulzoli.github.io/BC-Atlas/).
+requests, `bca export` writes reports and the view as one file, and
+`bca layers --check` keeps the generated documentation in sync. See the [documentation](https://schulzoli.github.io/BC-Atlas/).
 
 ## Privacy
 
@@ -256,5 +181,4 @@ them.
 ## License
 
 MIT. BC Atlas bundles `tree-sitter-al` and `web-tree-sitter` (MIT), elkjs
-(EPL-2.0), resvg (MPL-2.0), Liberation Sans (OFL-1.1), and, for the exported
-3D explorer, 3d-force-graph with three.js (MIT).
+(EPL-2.0), resvg (MPL-2.0), and Liberation Sans (OFL-1.1).

@@ -6,7 +6,7 @@
 // the active editor is the selected node.
 "use strict";
 
-const { existsSync, readFileSync } = require("node:fs");
+const { existsSync } = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const vscode = require("vscode");
@@ -109,11 +109,8 @@ async function refresh({ reanalyze = true } = {}) {
   treeView.message = "Analyzing…";
   try {
     if (reanalyze) await engine.request("refresh");
-    else await engine.request("forgetAtlas").catch(() => undefined);
     overview = await engine.request("overview");
     objects = await engine.request("objects");
-    // What the analysis was made from, to tell a change to the flows from a change to the rules.
-    rememberConfig();
     updateStatus(overview);
     if (overview.summary?.compiler?.tool) log(`AL compiler: ${overview.summary.compiler.tool}`);
     treeView.message = undefined;
@@ -130,43 +127,9 @@ async function refresh({ reanalyze = true } = {}) {
   }
 }
 
-/** Reads the .bca.json of the project, so that the next change to it can be told apart. */
-function rememberConfig() {
-  const file = path.join(overview?.projectRoot ?? project ?? "", ".bca.json");
-  try {
-    analysed.set(file, logic.analysisPart(readFileSync(file, "utf8")));
-  } catch {
-    analysed.delete(file);
-  }
-}
-
-// The part of each .bca.json the analysis depends on, as it was when it was last read.
-const analysed = new Map();
-let refreshWhole = false;
-
-/** Whether a change to this file changes the analysis: anything but a .bca.json in which only the builder's part changed. */
-function changesAnalysis(uri) {
-  if (!uri || path.basename(uri.fsPath) !== ".bca.json") return true;
-  let now;
-  try {
-    now = logic.analysisPart(readFileSync(uri.fsPath, "utf8"));
-  } catch {
-    // Deleted, or not readable: the analysis is another one.
-  }
-  const same = now !== undefined && analysed.get(uri.fsPath) === now;
-  analysed.set(uri.fsPath, now);
-  return !same;
-}
-
-/** @param uri the file that changed; without one, everything is read again */
-function scheduleRefresh(uri) {
-  refreshWhole ||= changesAnalysis(uri);
+function scheduleRefresh() {
   clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(() => {
-    const reanalyze = refreshWhole;
-    refreshWhole = false;
-    refresh({ reanalyze });
-  }, 600);
+  refreshTimer = setTimeout(() => refresh(), 600);
 }
 
 async function updateProblems() {
@@ -256,8 +219,7 @@ class AtlasPanel {
     const { id, method, params } = message;
     try {
       const result = LOCAL_METHODS.has(method) ? await this[method](params) : await engine.request(method, params);
-      // The flows and the processes change the graph, not the analysis: the view reads the graph again itself.
-      if (["adoptArchitecture", "updateBaseline", "updateProposal", "defineSimulation"].includes(method)) scheduleRefresh();
+      if (["adoptArchitecture", "updateBaseline", "updateProposal"].includes(method)) scheduleRefresh();
       this.post({ type: "response", id, result });
     } catch (error) {
       this.post({ type: "response", id, error: error.message });
@@ -323,19 +285,6 @@ function withCurrentObject(context, toHash) {
 
 // ------------------------------------------------------------- CLI commands
 
-/** Runs a bca command in a terminal, for interactive commands such as setup. */
-function runInTerminal(args) {
-  const { command, env } = runtime(config().get("nodePath") || undefined);
-  const terminal = vscode.window.createTerminal({
-    name: "BC Atlas",
-    cwd: project,
-    shellPath: command,
-    shellArgs: [enginePath("src", "cli.js"), ...args],
-    env
-  });
-  terminal.show();
-}
-
 async function exportFiles() {
   const target = await vscode.window.showQuickPick(logic.EXPORTS.map((item) => ({ ...item, description: item.view })), { placeHolder: "What should BC Atlas write?" });
   if (!target) return;
@@ -377,17 +326,6 @@ async function generateDocs() {
   } catch (error) {
     vscode.window.showErrorMessage(`BC Atlas could not write the guides: ${error.message}`, "Show Output").then((choice) => choice && output.show());
   }
-}
-
-async function runTasks() {
-  const trigger = await vscode.window.showQuickPick([
-    { label: "manual", detail: "The tasks configured for manual runs in .bca.json" },
-    { label: "pre-commit", detail: "What the pre-commit hook runs" },
-    { label: "pre-push", detail: "What the pre-push hook runs" },
-    { label: "ci", detail: "What the pipeline runs" },
-    { label: "schedule", detail: "What the scheduled run does" }
-  ], { placeHolder: "Run the BC Atlas tasks of which trigger?" });
-  if (trigger) runInTerminal(["run", project, "--trigger", trigger.label]);
 }
 
 async function selectProject(context) {
@@ -457,8 +395,6 @@ async function activate(context) {
   command("bcAtlas.refresh", () => refresh());
   command("bcAtlas.export", () => (engine ? exportFiles() : undefined));
   command("bcAtlas.generateDocs", () => (engine ? generateDocs() : undefined));
-  command("bcAtlas.setup", () => (project ? runInTerminal(["setup", project]) : undefined));
-  command("bcAtlas.runTasks", () => (project ? runTasks() : undefined));
   command("bcAtlas.selectProject", () => selectProject(context));
   command("bcAtlas.showOutput", () => output.show());
 
@@ -506,9 +442,9 @@ async function activate(context) {
 
   for (const pattern of [WATCHED, PACKAGES]) {
     const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-    watcher.onDidChange((uri) => scheduleRefresh(uri));
-    watcher.onDidCreate((uri) => scheduleRefresh(uri));
-    watcher.onDidDelete((uri) => scheduleRefresh(uri));
+    watcher.onDidChange(() => scheduleRefresh());
+    watcher.onDidCreate(() => scheduleRefresh());
+    watcher.onDidDelete(() => scheduleRefresh());
     context.subscriptions.push(watcher);
   }
   // A new AL Language extension version brings a new compiler.

@@ -57,7 +57,7 @@ medium, large), the nodes it is about, and its place in the source.
 | Cycle | Components depend on each other | Cut the thinnest way: move what causes it, or turn it with an event or an interface |
 | Dependency the wrong way | An object depends on a component its own may not depend on | The way BC Atlas resolves it (declare, move, invert, go through a facade), with the alternatives |
 | Shared data | A table is written from outside its component | Put the writes behind a codeunit of the owner, or move the table |
-| Public surface | Objects are public and used by nobody outside their component | `bca refactor surface --component <name>` |
+| Public surface | Objects are public and used by nobody outside their component | Set `Access = Internal` on them, and list what others use under `exposes` of the component |
 | Option | A component can be an app of its own | `bca architecture --extract <name>` writes the plan |
 
 The last two kinds are options: not wrong as they are. When there is
@@ -85,8 +85,8 @@ Across the layers:
 
 | Page | Holds |
 | --- | --- |
-| `lenses/<lens>.md` | Each lens of the view as a page with its picture: data, calls, events, contracts, pages, permissions, visibility, findings, processes, people, requirements, and the lenses of plugins |
-| `stories/<story>.md` | The generated walks through the system: what it is, each process step by step, who can do what, what to fix, and the [run](./battle-test.md#a-run-step-by-step) of each person of the simulation with the picture it built |
+| `lenses/<lens>.md` | Each lens of the view as a page with its picture: data, calls, events, contracts, pages, permissions, visibility, findings |
+| `stories/<story>.md` | The generated walks through the system: what it is, what to fix, and what to change in the architecture |
 | `architecture.md` | [How it is connected](#how-it-is-connected): apps, components, shared data, each with a picture |
 | `changes.md` | [What to change, and how](#what-to-change-and-how) |
 | `findings.md` | Everything the checks found, the most severe first, each linked to the objects it is about |
@@ -331,19 +331,10 @@ when they were written. So:
 - `bca layers --check` writes nothing and fails (exit code 1) when a run
   would change something. Use it in a pipeline to keep the pages from
   falling behind the source.
-- `layers` is a task of [`bca run`](./automation-and-ci.md): with a trigger's
-  sync mode the pages are verified, staged, committed, or proposed as a pull
-  request, like every other generated file.
 
 ```json
 {
-  "layers": { "outputDir": "docs/layers", "pictures": "auto", "history": "releases", "view": false },
-  "automation": {
-    "triggers": {
-      "pre-push": { "tasks": ["check", "layers"], "sync": "verify" },
-      "ci": { "tasks": ["check", "layers"], "sync": "verify" }
-    }
-  }
+  "layers": { "outputDir": "docs/layers", "pictures": "auto", "history": "releases", "view": false }
 }
 ```
 
@@ -386,8 +377,8 @@ next, and from the newest state to the working tree:
 ```
 
 What is compared is what BC Atlas reads from the source: objects, what they
-do with each other, components, process tests, people, requirements,
-recordings, and findings. A change of a comment changes nothing.
+do with each other, components, and findings. A change of a comment changes
+nothing.
 
 In a pipeline, a checkout without history (`fetch-depth: 1`) has no tags:
 fetch them (`fetch-depth: 0`, or `git fetch --tags`) before `bca layers
@@ -400,6 +391,4 @@ fetch them (`fetch-depth: 0`, or `git fetch --tags`) before `bca layers
 | The system explained layer by layer, in sync, now and at any release | `bca layers` |
 | One part of the graph as text, data, or a picture | [`bca view`](./cli-reference.md#view) |
 | The view itself as one file to share | `bca export` |
-| Topics across all objects: events, data, permissions, UI, code health | [`bca export --view handbook`](./handbook.md) |
 | User guides from UI tests | [`bca docs`](./al-ui-test-documentation.md) |
-| How the dependencies grew, as a 3D timeline | [`bca export --view explorer --history`](./dependency-explorer.md) |

@@ -215,9 +215,9 @@ export function planExtraction(assessment, name) {
   if (alreadyAnApp) {
     steps.push(`${component.name} is already an app of its own (${sourceApp?.name}); resolve the blockers below so it stays independent.`);
   } else {
-    if (blockers.length) steps.push(`Resolve the ${blockers.length} blocker(s) first (bca architecture lists the work items; bca refactor move applies the moves).`);
+    if (blockers.length) steps.push(`Resolve the ${blockers.length} blocker(s) first (bca architecture lists the work items).`);
     steps.push(`Create the app folder ${component.name} with the app.json below (dependencies, ID ranges${appJson.internalsVisibleTo ? ", internalsVisibleTo" : ""}).`);
-    if (mixedFiles.length) steps.push(`Split ${mixedFiles.length} file(s) that also hold objects of other components (bca refactor move does this per object).`);
+    if (mixedFiles.length) steps.push(`Split ${mixedFiles.length} file(s) that also hold objects of other components.`);
     steps.push(`Move ${files.length} file(s) with ${own.length} object(s) into it; keep object IDs and namespaces.`);
     if (tables.length) {
       steps.push(`Move the data of ${tables.length} table(s) and table extension(s): in ${sourceApp?.name}, set ObsoleteState = PendingMove and MovedTo = '${appId}'; in ${component.name}, set MovedFrom = '${sourceApp?.id}' (runtime 14.0, Business Central 2024 release wave 2 or later). Release both apps, then set ObsoleteState = Moved.`);
@@ -266,8 +266,7 @@ function workItemSummary(item) {
     effort: item.effort,
     source: `${item.source.type} ${item.source.label}`,
     targetComponent: item.targetComponent,
-    dependencies: item.violations,
-    ...(item.command ? { command: item.command } : {})
+    dependencies: item.violations
   };
 }
 
@@ -284,7 +283,7 @@ export function formatExtractionText(plan) {
     lines.push("Blockers");
     for (const blocker of plan.blockers) {
       lines.push(`  - ${blocker.message}`);
-      for (const item of (blocker.workItems ?? []).slice(0, 5)) lines.push(`      [${item.effort}] ${item.title}: ${item.source} -> ${item.targetComponent}${item.command ? `  (${item.command})` : ""}`);
+      for (const item of (blocker.workItems ?? []).slice(0, 5)) lines.push(`      [${item.effort}] ${item.title}: ${item.source} -> ${item.targetComponent}`);
     }
     lines.push("");
   }
@@ -304,7 +303,7 @@ export function formatExtractionMarkdown(plan) {
     lines.push("## Blockers", "");
     for (const blocker of plan.blockers) {
       lines.push(`- ${blocker.message}`);
-      for (const item of (blocker.workItems ?? []).slice(0, 10)) lines.push(`  - **${item.title}** (\`${item.strategy}\`, ${item.effort}): ${item.source} → ${item.targetComponent}${item.command ? ` — \`${item.command}\`` : ""}`);
+      for (const item of (blocker.workItems ?? []).slice(0, 10)) lines.push(`  - **${item.title}** (\`${item.strategy}\`, ${item.effort}): ${item.source} → ${item.targetComponent}`);
       for (const use of (blocker.uses ?? []).slice(0, 10)) lines.push(`  - ${use.source} (${use.component}) uses ${use.target}`);
     }
     lines.push("");

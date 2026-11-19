@@ -6,34 +6,6 @@
   "type": "object",
   "properties": {
     "$schema": { "type": "string" },
-    "plugins": {
-      "description": "Plugins of this project besides the built-in ones (see docs/plugins.md): package names, paths, or switches. Packages named bc-atlas-plugin-* in package.json are found without this list. Each plugin may own a section of its own in this file (its configKey, e.g. sync).",
-      "oneOf": [
-        {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              { "type": "string", "description": "npm package name or path to a plugin folder" },
-              {
-                "type": "object",
-                "properties": {
-                  "id": { "type": "string" },
-                  "name": { "type": "string", "description": "npm package" },
-                  "path": { "type": "string", "description": "Folder with plugin.json" },
-                  "enabled": { "type": "boolean" }
-                },
-                "additionalProperties": false
-              }
-            ]
-          }
-        },
-        {
-          "type": "object",
-          "description": "Plugin id to true, false (switch a built-in plugin off), a path, or { path, enabled }.",
-          "additionalProperties": { "oneOf": [{ "type": "boolean" }, { "type": "string" }, { "type": "object" }] }
-        }
-      ]
-    },
     "view": { "description": "Default diagram view.", "enum": ["project", "module", "object", "data", "call", "boundary", "contracts", "events", "ui", "workflow", "visibility"] },
     "projectRoot": { "description": "Root of the AL project, relative to this file.", "type": "string" },
     "paths": { "description": "Analyze only these folders (globs allowed).", "type": "array", "items": { "type": "string" } },
@@ -104,23 +76,12 @@
         "format": { "enum": ["svg", "d2"] },
         "title": { "type": "string" },
         "codegraph": { "type": "boolean" },
-        "handbook": { "description": "Also write the system handbook to <outputDir>/handbook.", "type": "boolean" },
         "json": { "type": "boolean" }
       }
     },
     "codegraph": { "type": "object", "properties": { "outputDir": { "type": "string" } } },
-    "handbook": {
-      "description": "The system handbook (bca export --view handbook, the handbook task of bca run).",
-      "type": "object",
-      "properties": {
-        "outputDir": { "type": "string", "default": "docs/handbook" },
-        "title": { "type": "string" },
-        "language": { "description": "Language of the pages: en (default) or de (de-DE).", "type": "string" },
-        "catalog": { "description": "Folder of the object catalog that object names link to; bca run uses the codegraph task's folder when the same run writes it.", "type": "string" }
-      }
-    },
     "layers": {
-      "description": "The layered documentation (bca layers, the layers task of bca run): the system explained from the whole down to each procedure, kept in sync with the source.",
+      "description": "The layered documentation (bca layers): the system explained from the whole down to each procedure, kept in sync with the source.",
       "type": "object",
       "properties": {
         "outputDir": { "type": "string", "default": "docs/layers" },
@@ -284,197 +245,7 @@
         }
       }
     },
-    "simulation": {
-      "description": "The battle test (bca simulate): the company whose agents perform the process tests.",
-      "type": "object",
-      "properties": {
-        "company": { "description": "Name of the company, for the title of the report.", "type": "string" },
-        "tests": { "description": "Folder with the process tests (AL UI tests with [SCENARIO]), relative to the app. Default: docs.tests, then the app.", "type": "string" },
-        "taskGroups": {
-          "description": "What there is to do. Without task groups, every [FEATURE] is one.",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["name"],
-            "properties": {
-              "name": { "type": "string" },
-              "description": { "type": "string" },
-              "tasks": { "description": "Process tests by document ID.", "$ref": "#/$defs/names" },
-              "features": { "description": "Every process test of these [FEATURE]s.", "$ref": "#/$defs/names" }
-            }
-          }
-        },
-        "roles": {
-          "description": "Who does it. Without roles and agents, every combination of [PERMISSIONS] in the tests is a role.",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["name"],
-            "properties": {
-              "name": { "type": "string" },
-              "description": { "type": "string" },
-              "permissionSets": { "$ref": "#/$defs/names" },
-              "taskGroups": { "$ref": "#/$defs/names" },
-              "tasks": { "$ref": "#/$defs/names" },
-              "features": { "$ref": "#/$defs/names" },
-              "mustNot": { "description": "Process tests, features, or task groups the role must not be able to complete.", "$ref": "#/$defs/names" }
-            }
-          }
-        },
-        "agents": {
-          "description": "The people who hold roles. Without agents, there is one per role.",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["name"],
-            "properties": {
-              "name": { "type": "string" },
-              "description": { "type": "string" },
-              "roles": { "$ref": "#/$defs/names" },
-              "permissionSets": { "description": "Permission sets besides those of the roles.", "$ref": "#/$defs/names" },
-              "taskGroups": { "$ref": "#/$defs/names" },
-              "tasks": { "$ref": "#/$defs/names" },
-              "features": { "$ref": "#/$defs/names" },
-              "mustNot": { "$ref": "#/$defs/names" }
-            }
-          }
-        },
-        "requirements": {
-          "description": "What the company needs, for the fit-gap analysis. Without requirements, every [FEATURE] is one.",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["id"],
-            "properties": {
-              "id": { "type": "string" },
-              "title": { "type": "string" },
-              "description": { "type": "string" },
-              "tasks": { "description": "Process tests that cover it, by document ID.", "$ref": "#/$defs/names" },
-              "features": { "$ref": "#/$defs/names" },
-              "objects": { "description": "Objects of the app that should cover it: page:Name, codeunit:Name, or a name.", "$ref": "#/$defs/names" }
-            }
-          }
-        },
-        "recordings": { "description": "Folder with recordings of Business Central (fact snapshots as JSON) the agents perform as well, relative to the app. A recording with the title of a process test adds what really ran to that test; any other is a process of its own.", "type": "string" },
-        "snapshotDir": { "description": "Folder the simulate task of bca run writes one fact snapshot per process test into, from the source.", "type": "string" },
-        "grounding": { "description": "Process tests grounded on recordings of Business Central (fact snapshots of the sync plugin): document ID of the test to the key or name of the recording. Without an entry a test stands on the recording that has its title.", "type": "object", "additionalProperties": { "type": "string" } },
-        "fullAccess": { "description": "Permission sets that grant everything although they are not in the analyzed source.", "$ref": "#/$defs/names", "default": ["SUPER"] },
-        "otherApps": { "description": "Rights on objects of other apps that the analyzed permission sets do not grant: assume them (they come with that app's permission sets) or check them.", "enum": ["assume", "check"], "default": "assume" },
-        "failOn": { "enum": ["error", "warning", "info", "never"], "default": "error" },
-        "language": { "description": "Language of the report: en (default) or de.", "type": "string" },
-        "title": { "type": "string" },
-        "outputDir": { "description": "Folder of the report the simulate task of bca run writes.", "type": "string", "default": "docs/simulation" }
-      }
-    },
-    "docs": { "type": "object" },
-    "automation": {
-      "type": "object",
-      "properties": {
-        "triggers": {
-          "description": "What runs when. pre-commit, pre-push, ci, schedule, and manual are built in; any other name is a trigger of your own, started by its events, its cron, its Git hook, or by name only (bca run --trigger <name>). See docs/flows.md.",
-          "type": "object",
-          "propertyNames": { "pattern": "^[a-z0-9][a-z0-9._-]*$" },
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "tasks": { "type": "array", "items": { "type": "string" } },
-              "sync": { "enum": ["none", "verify", "stage", "artifact", "pull-request", "commit"] },
-              "cron": { "description": "A five-field cron expression: the built-in schedule, or a trigger of your own.", "type": "string" },
-              "title": { "description": "A trigger of your own: what it is, in words.", "type": "string" },
-              "on": { "description": "A trigger of your own: the events that start it in a pipeline.", "type": "array", "items": { "enum": ["push", "pull-request", "tag", "release", "manual"] } },
-              "branches": { "description": "Only pushes to, and pull requests into, these branches.", "type": "array", "items": { "type": "string" } },
-              "paths": { "description": "Only when files under these paths changed.", "type": "array", "items": { "type": "string" } },
-              "tags": { "description": "Only these tags, such as v*.", "type": "array", "items": { "type": "string" } },
-              "hook": { "description": "A trigger of your own that is a Git hook.", "enum": ["post-commit", "post-merge", "post-checkout", "post-rewrite", "pre-rebase", "pre-merge-commit", "prepare-commit-msg", "commit-msg"] }
-            }
-          }
-        }
-      }
-    },
-    "processTelemetry": {
-      "description": "Telemetry of Business Central (Azure Application Insights), laid over the processes for their timing. See docs/processes.md.",
-      "type": "object",
-      "properties": {
-        "path": { "description": "A file or a folder of exports: a query result as JSON, JSON lines, or CSV.", "type": "string" },
-        "case": { "description": "The field (a custom dimension) that says which case an event belongs to, such as a document number. Without it, a case is a session.", "type": "string" },
-        "steps": { "description": "Events that mark a step for certain: the id of a process test or recording, and the event id or a text of the message.", "type": "object", "additionalProperties": { "type": "string" } },
-        "appId": { "description": "The application ID of the Application Insights resource to ask. The API key is read from BCA_TELEMETRY_API_KEY, never from this file.", "type": "string" },
-        "days": { "description": "How many days back to ask for (default 30).", "type": "integer", "minimum": 1 },
-        "endpoint": { "description": "The API to ask (default https://api.applicationinsights.io).", "type": "string" }
-      }
-    },
-    "processes": {
-      "description": "How the company works with the app: processes in lanes (BPMN). bca process mines, runs, and exports them. See docs/processes.md.",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["id"],
-        "properties": {
-          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
-          "title": { "type": "string" },
-          "steps": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": ["id"],
-              "properties": {
-                "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
-                "title": { "type": "string" },
-                "lane": { "description": "Who does the step: a role of simulation.roles.", "type": "string" },
-                "test": { "description": "What shows that the step works: a process test by document ID, or a recording.", "type": "string" },
-                "after": {
-                  "description": "The steps this step comes after, by id. A wire with \"when\" is one way of several.",
-                  "type": "array",
-                  "items": { "oneOf": [{ "type": "string" }, { "type": "object", "required": ["step"], "properties": { "step": { "type": "string" }, "when": { "type": "string" } } }] }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "flows": {
-      "description": "Your own workflows: what to make from the source, when, and where to save it. bca run runs the flows of a trigger after its tasks; bca run --flow <id> runs one by name. See docs/flows.md.",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["id"],
-        "properties": {
-          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
-          "title": { "type": "string" },
-          "when": {
-            "description": "The triggers the flow runs on. Without one it runs only by name.",
-            "type": "array",
-            "items": { "description": "pre-commit, pre-push, ci, schedule, manual, or a trigger of your own (automation.triggers).", "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" }
-          },
-          "steps": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": ["what"],
-              "properties": {
-                "what": {
-                  "description": "The artifact to make: layers, report, handbook, catalog, docs, simulate, check, view, diagram, app, knowledge-graph, or a task of a plugin. Its options are further properties of the step (bca flow --artifacts).",
-                  "type": "string"
-                },
-                "to": { "description": "Where to save it: a folder or a file, relative to the project. Without it, the default of the artifact.", "type": "string" },
-                "id": { "description": "The name of the step, so that other steps can come after it.", "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
-                "after": {
-                  "description": "The steps this step comes after, by id. It runs if each of them passed (the default), failed, or always; else it is skipped. Without it, the step starts with the flow.",
-                  "type": "array",
-                  "items": {
-                    "oneOf": [
-                      { "type": "string" },
-                      { "type": "object", "required": ["step"], "properties": { "step": { "type": "string" }, "if": { "enum": ["passed", "failed", "always"] } } }
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    "docs": { "type": "object" }
   },
   "$defs": {
     "names": {

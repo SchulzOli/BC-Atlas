@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Back to the core: the view shows the architecture of the source and
+  nothing else. Removed the lenses for processes, people, requirements, the
+  simulation, process models, and flows, the **Simulate** and **Flow** menus
+  with their builders, and the commands **Set Up Automation** and **Run Tasks
+  of a Trigger**. The export no longer offers the 3D explorer file and the
+  handbook. The overview is three columns: screens, logic, data.
+
 ## 0.27.0
 
 - The MCP server of the extension shows the BC Atlas view inside the chat as

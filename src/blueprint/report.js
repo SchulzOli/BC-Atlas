@@ -399,7 +399,7 @@ export function formatArchitectureMarkdown(assessment, { limit = 100 } = {}) {
   const surfaces = (result.surface ?? []).filter(({ api, candidates }) => api.length || candidates.length);
   if (surfaces.length) {
     lines.push("## Public surface", "",
-      "What other components use of each component (its de facto API), and what nobody outside uses and could be `Access = Internal` (`bca refactor surface`).", "",
+      "What other components use of each component (its de facto API), and what nobody outside uses and could be `Access = Internal`.", "",
       "| Component | Used by others | Objects others use | Could be internal |", "| --- | ---: | --- | --- |");
     for (const surface of surfaces) {
       const used = surface.api.map(({ object, usedBy, internal }) => `${object}${internal ? " (internal)" : ""} ← ${usedBy.map(({ component }) => component).join(", ")}`);

@@ -96,9 +96,7 @@ function statusFor(overview) {
 const EXPORTS = [
   { view: "app", label: "BC Atlas (one offline HTML file)", detail: "The graph with every lens, finding, and story, to share or publish", file: "bc-atlas.html", filters: { HTML: ["html"] } },
   { view: "report", label: "Markdown report", detail: "README.md with health, diagrams, and an optional object catalog", folder: "docs/atlas" },
-  { view: "explorer", label: "3D dependency explorer (HTML)", detail: "One offline file, replayable over Git history", file: "bc-atlas-explorer.html", filters: { HTML: ["html"] } },
   { view: "catalog", label: "Object catalog (Markdown)", detail: "One linked page per AL object", folder: "docs/codegraph" },
-  { view: "handbook", label: "System handbook (Markdown)", detail: "Events, data, permissions, interfaces, UI, and code health across all objects", folder: "docs/handbook" },
   { view: "knowledge-graph", label: "Knowledge graph (RDF, OWL)", detail: "For triple stores, graph databases, and Protégé: Turtle, RDF/XML, N-Triples, or JSON-LD", file: "bc-atlas.ttl", filters: { Turtle: ["ttl"], OWL: ["owl"], "RDF/XML": ["rdf"], "N-Triples": ["nt"], "JSON-LD": ["jsonld"] } },
   ...["project", "module", "data", "contracts", "events", "ui", "visibility"].map((view) => ({
     view, label: `Diagram: ${view} view`, detail: "SVG, PNG, PDF, or the D2 source", file: `${view}.svg`, filters: { SVG: ["svg"], PNG: ["png"], PDF: ["pdf"], D2: ["d2"] }
@@ -157,26 +155,8 @@ function editorAlSettings(inspect, { workspaceFolder, multiRoot = false } = {}) 
   return Object.fromEntries(Object.entries(layers).filter(([, layer]) => Object.keys(layer).length));
 }
 
-// What the builder of the view writes into .bca.json: it changes the graph, not the analysis.
-const BUILDER_SETTINGS = ["flows", "processes", "processTelemetry"];
-
-/**
- * The part of a .bca.json that the analysis depends on, as text to compare: everything but what
- * the builder writes. Undefined when the file cannot be read as JSON.
- */
-function analysisPart(text) {
-  try {
-    const config = JSON.parse(text);
-    if (!config || typeof config !== "object" || Array.isArray(config)) return undefined;
-    return JSON.stringify(Object.fromEntries(Object.entries(config).filter(([key]) => !BUILDER_SETTINGS.includes(key))));
-  } catch {
-    return undefined;
-  }
-}
-
 module.exports = {
   AL_SETTINGS,
-  analysisPart,
   editorAlSettings,
   EXPORTS,
   expandWorkspaceFolder,

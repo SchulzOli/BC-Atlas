@@ -1,60 +1,26 @@
 // Maps catalog command ids to their handlers. Command modules load on demand:
 // importing all of them (the analyzer, the renderers, the docs pipeline) took
 // most of the start-up time, which `--version`, help, and usage errors do not
-// need. Plugin commands (`bca <plugin> <command>`) share one handler.
+// need.
 
 const MODULES = {
-  setup: ["../commands/setup.js", "setupCommand"],
-  "setup.plan": ["../commands/setup.js", "setupPlanCommand"],
-  "setup.apply": ["../commands/setup.js", "setupApplyCommand"],
-  "setup.agent": ["../commands/setup.js", "setupAgentCommand"],
   check: ["../commands/check.js", "checkCommand"],
-  simulate: ["../commands/simulate.js", "simulateCommand"],
-  "simulate.define": ["../commands/simulate.js", "simulateDefineCommand"],
   architecture: ["../commands/blueprint.js", "architectureCommand"],
-  "refactor.move": ["../commands/refactor.js", "refactorMoveCommand"],
-  "refactor.surface": ["../commands/refactor.js", "refactorSurfaceCommand"],
   export: ["../commands/export.js", "exportCommand"],
   view: ["../commands/view.js", "viewCommand"],
   layers: ["../commands/layers.js", "layersCommand"],
-  bundle: ["../commands/bundle.js", "bundleCommand"],
-  "graph.query": ["../commands/graph.js", "graphQueryCommand"],
-  "graph.render": ["../commands/graph.js", "graphRenderCommand"],
-  run: ["../commands/run.js", "runCommand"],
-  flow: ["../commands/flow.js", "flowCommand"],
-  "flow.define": ["../commands/flow.js", "flowDefineCommand"],
   "architecture.compare": ["../commands/architecture-target.js", "compareCommand"],
-  "architecture.templates": ["../commands/architecture-target.js", "templatesCommand"],
-  "flow.export": ["../commands/flow.js", "flowExportCommand"],
-  process: ["../commands/process.js", "processCommand"],
-  "process.define": ["../commands/process.js", "processDefineCommand"],
-  "process.run": ["../commands/process.js", "processRunCommand"],
-  "process.export": ["../commands/process.js", "processExportCommand"],
-  update: ["../commands/update.js", "updateCommand"],
-  "plugins.list": ["../commands/plugins.js", "pluginsListCommand"],
-  "plugins.show": ["../commands/plugins.js", "pluginsShowCommand"],
-  "plugins.doctor": ["../commands/plugins.js", "pluginsDoctorCommand"],
-  "plugins.new": ["../commands/plugins.js", "pluginsNewCommand"]
+  "architecture.templates": ["../commands/architecture-target.js", "templatesCommand"]
 };
 
 // Literal specifiers, so bundlers (the VS Code extension) see every module.
 const IMPORTS = {
-  "../commands/setup.js": () => import("../commands/setup.js"),
   "../commands/check.js": () => import("../commands/check.js"),
-  "../commands/simulate.js": () => import("../commands/simulate.js"),
   "../commands/layers.js": () => import("../commands/layers.js"),
-  "../commands/bundle.js": () => import("../commands/bundle.js"),
   "../commands/blueprint.js": () => import("../commands/blueprint.js"),
   "../commands/architecture-target.js": () => import("../commands/architecture-target.js"),
-  "../commands/refactor.js": () => import("../commands/refactor.js"),
   "../commands/export.js": () => import("../commands/export.js"),
-  "../commands/view.js": () => import("../commands/view.js"),
-  "../commands/graph.js": () => import("../commands/graph.js"),
-  "../commands/run.js": () => import("../commands/run.js"),
-  "../commands/flow.js": () => import("../commands/flow.js"),
-  "../commands/process.js": () => import("../commands/process.js"),
-  "../commands/update.js": () => import("../commands/update.js"),
-  "../commands/plugins.js": () => import("../commands/plugins.js")
+  "../commands/view.js": () => import("../commands/view.js")
 };
 
 /**
@@ -63,10 +29,6 @@ const IMPORTS = {
  */
 export async function loadHandler(definition, version) {
   const id = typeof definition === "string" ? definition : definition.id;
-  if (typeof definition === "object" && definition.plugin) {
-    const { runPluginCommand } = await IMPORTS["../commands/plugins.js"]();
-    return (input, values) => runPluginCommand(definition, input, values);
-  }
   if (id === "mcp") {
     const { startMcpServer } = await import("../mcp.js");
     return () => startMcpServer(version);

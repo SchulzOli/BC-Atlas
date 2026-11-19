@@ -18,7 +18,7 @@ import path from "node:path";
 import { buildLayers, historyIndex, LAYERS_SCHEMA } from "../app/layers.js";
 import { loadLayersProfile } from "../app/layers-profile.js";
 import { Workspace } from "../app/workspace.js";
-import { findGitRoot, git } from "../automation/git.js";
+import { findGitRoot, git } from "../git.js";
 import { UsageError } from "../cli/errors.js";
 import { loadConfig } from "../config.js";
 import { displayPath } from "../output.js";
@@ -234,7 +234,7 @@ export async function layersCommand(input, values) {
           for (const [position, change] of changes.slice(0, 5).entries()) lines.push(`  ${position + 1}. ${change.title}`);
           if (changes.length > 5) lines.push(`  and ${changes.length - 5} more`);
         }
-        lines.push("Keep it in sync: `bca layers --check` fails when the pages differ from the source (a pipeline step), or let `bca setup` add it to a Git hook.");
+        lines.push("Keep it in sync: `bca layers --check` fails when the pages differ from the source (a pipeline step).");
       }
     }
     const said = { recorded: "already recorded", added: "recorded", refreshed: "recorded again", missing: "not recorded yet", "no project": "the project did not exist then" };

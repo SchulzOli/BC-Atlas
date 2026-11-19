@@ -7,7 +7,6 @@ import { displayPath } from "../output.js";
 import { assessHealth, formatHealthMarkdown, formatHealthText, healthResultLine } from "../health.js";
 import { assessArchitecture } from "../blueprint/index.js";
 import { renderSarif } from "../sarif.js";
-import { withPluginFindings } from "../plugins/health.js";
 
 export async function runHealthCheck(input, values = {}, context = {}) {
   // Strict mode becomes a fail threshold so the report is still produced.
@@ -25,12 +24,7 @@ export async function runHealthCheck(input, values = {}, context = {}) {
     blueprint = await assessArchitecture(input, { ...values, propose: false }, { model });
     settings.architecture = blueprint;
   }
-  // Plugins add their own rules (plugin.json contributes.healthRules).
-  const report = await withPluginFindings(assessHealth(architecture.model, settings), {
-    root: architecture.options.projectRoot,
-    configPath: values.config,
-    model: architecture.model
-  });
+  const report = assessHealth(architecture.model, settings);
   return { architecture, blueprint, report };
 }
 

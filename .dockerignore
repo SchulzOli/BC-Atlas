@@ -1,15 +1,6 @@
 node_modules
 **/node_modules
 dist
-plugins/*/al
-plugins/*/build
-plugins/*/demo
-plugins/*/docs
-plugins/*/e2e
-plugins/*/examples
-plugins/*/scripts
-plugins/*/test
-openbridge
 .git
 coverage
 docs

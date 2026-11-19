@@ -2,8 +2,6 @@ version: 2
 updates:
   # One PR per run instead of one per package: separate PRs all touch
   # package-lock.json and conflict with each other after the first merge.
-  # Updates of three or 3d-force-graph also need `npm run update:graph-vendor`
-  # (CI fails until vendor/graph-viewer.js is rebuilt).
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -24,19 +22,6 @@ updates:
       vscode-minor-and-patch:
         update-types: [minor, patch]
       vscode-major:
-        update-types: [major]
-  # BC OpenBridge: the gateway and the MCP server, each with its own lockfile.
-  - package-ecosystem: npm
-    directories:
-      - /openbridge/bc-openbridge
-      - /openbridge/bc-mcp
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    groups:
-      openbridge-minor-and-patch:
-        update-types: [minor, patch]
-      openbridge-major:
         update-types: [major]
   - package-ecosystem: github-actions
     directory: /

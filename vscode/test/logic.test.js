@@ -107,15 +107,3 @@ test("passes only al.* settings someone set, by layer, without the AL defaults",
     "${workspaceFolder}/rules.json");
   assert.deepEqual(logic.editorAlSettings(() => undefined), {});
 });
-
-test("tells a change to the flows and processes from a change the analysis depends on", () => {
-  const config = { architecture: { components: [{ name: "Core", match: ["namespace:Core"] }] }, simulation: { roles: [] } };
-  const before = logic.analysisPart(JSON.stringify(config));
-  // What the builder writes changes the graph, not the analysis.
-  assert.equal(logic.analysisPart(JSON.stringify({ ...config, flows: [{ id: "docs", steps: [] }], processes: [{ id: "orders" }], processTelemetry: { path: "telemetry" } })), before);
-  assert.notEqual(logic.analysisPart(JSON.stringify({ ...config, simulation: { roles: [{ name: "Buyer" }] } })), before);
-  assert.notEqual(logic.analysisPart(JSON.stringify({ ...config, exclude: ["test/**"] })), before);
-  // A file that is not a configuration is never the same as one that is.
-  assert.equal(logic.analysisPart("{ not json"), undefined);
-  assert.equal(logic.analysisPart("[]"), undefined);
-});

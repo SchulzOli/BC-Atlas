@@ -24,7 +24,7 @@ test("the command offers every lens, form, and format of the view", () => {
   assert.deepEqual(VIEW_LENSES, LENSES.map(({ id }) => id), "the lenses the command accepts are the lenses of the atlas");
   assert.deepEqual(VIEW_FORMS, S.FORMS);
   const command = findCommand(createCapabilities("0.0.0"), "view");
-  assert.equal(command.options.lens.enum, undefined, "plugins add lenses, so a lens is checked against the project");
+  assert.equal(command.options.lens.enum, undefined, "a lens is checked against the project: one with nothing in it does not exist");
   for (const lens of VIEW_LENSES) assert.ok(command.options.lens.description.includes(lens), lens);
   assert.deepEqual(command.options.format.enum, VIEW_FORMATS);
   assert.deepEqual(command.options.color.enum, S.COLORS);
@@ -118,12 +118,11 @@ test("an object opens from the terminal too", async () => {
   const text = (await renderView(multi, { inside: "codeunit:50201" })).content;
   assert.match(text, /^multi-app: Inside CON Item Sync\n3 nodes, 4 relations\. Its procedures, triggers, and events/u);
   assert.match(text, / {2}procedure Sync\(Code\[20\]\)\n {4}-> reads CON Item\n {4}-> writes CON Item/u);
-  await assert.rejects(renderView(purchasing, { inside: "person:Ben" }), /--inside needs an object, an app, a component, or a namespace of the workspace; "person:Ben" is a person\. Use --focus/u);
   await assert.rejects(renderView(multi, { inside: "CON Sales Quote" }), /--inside "CON Sales Quote" names 2 nodes: (?:page|table):50100, (?:page|table):50100; add the type, as in (?:page|table):50100/u);
   await assert.rejects(renderView(multi, { focus: "Nope" }), /--focus "Nope" names no node/u);
 });
 
-test("the overview shows how it works, in columns from who uses it to the data", async () => {
+test("the overview shows how it works, in columns from the screens to the data", async () => {
   const atlas = await purchasing.atlas();
   const found = S.index(atlas);
   // The view opens on it, as a diagram.
@@ -132,53 +131,39 @@ test("the overview shows how it works, in columns from who uses it to the data",
   assert.equal(S.formOf(atlas, { ...S.DEFAULTS, form: "3d" }), "3d", "the form a state names wins");
   const scene = S.scene(atlas, found, { ...S.DEFAULTS });
   assert.equal(scene.flow, true);
-  assert.deepEqual(scene.columns.map(({ title }) => title), ["People", "Processes", "Screens", "Logic", "Data"]);
+  assert.deepEqual(scene.columns.map(({ title }) => title), ["Screens", "Logic", "Data"]);
   const column = (title) => scene.nodes.filter(({ rank }) => rank === scene.columns.find((entry) => entry.title === title).rank).map(({ label }) => label);
-  assert.deepEqual(column("People"), ["Anna (Employee)", "Ben (Team lead)", "Carla (Purchaser)", "Dana (Administrator)"]);
-  // Process tests stand in the order of the process.
-  assert.deepEqual(scene.nodes.filter(({ order }) => order !== undefined).sort((a, b) => a.order - b.order).map(({ label }) => label).slice(0, 3),
-    ["Create a new Purchase Request", "Release a purchase request so that it can be approved", "Approve a released purchase request"]);
   assert.deepEqual(column("Screens").sort(), ["Purchase Request Setup", "Purchase Requests", "Request Approval Entries"]);
   assert.deepEqual(column("Logic").sort(), ["Purchase Order Creation", "Purchase Request Mgt.", "Request Notifications"]);
   assert.deepEqual(column("Data").sort(), ["Purchase Request", "Purchase Request Setup", "Request Approval Entry"]);
   // What is not part of how it works is not in it: permission sets, enums, and the test codeunit.
   for (const label of ["PR - APPROVE", "Purchase Request Status", "Purchase Request UI Tests"]) assert.ok(!scene.nodes.some((node) => node.label === label), label);
   assert.equal(atlas.nodes.find(({ label }) => label === "Purchase Request UI Tests").test, true);
-  // Few kinds of relation, each from a column on the left to one on the right, each pair once.
-  assert.deepEqual(scene.kinds.map(({ kind }) => kind), ["does", "stopped at", "uses"]);
+  // One kind of relation, each from a column on the left to one on the right, each pair once.
+  assert.deepEqual(scene.kinds.map(({ kind }) => kind), ["uses"]);
   assert.ok(scene.edges.every(([from, to]) => scene.nodes[from].rank < scene.nodes[to].rank));
   assert.equal(new Set(scene.edges.map(([from, to]) => `${from}>${to}`)).size, scene.edges.length);
   const at = (label, title) => scene.nodes.findIndex((node) => node.label === label && (!title || node.rank === scene.columns.find((entry) => entry.title === title).rank));
-  const kindOf = (from, to) => scene.edges.filter(([a, b]) => a === at(from) && b === at(to)).map(([, , kind]) => scene.kinds[kind].kind);
-  assert.deepEqual(kindOf("Ben (Team lead)", "Approve a released purchase request"), ["stopped at"]);
-  assert.deepEqual(kindOf("Anna (Employee)", "Create a new Purchase Request"), ["does"]);
-  // A process test leads to what it touches first; what that uses is reached through it.
-  assert.deepEqual(kindOf("Approve a released purchase request", "Purchase Requests"), ["uses"]);
-  assert.deepEqual(kindOf("Approve a released purchase request", "Purchase Request Mgt."), []);
 
-  // The way of a process test: who performs it, and everything it touches.
+  // The way of an object: what uses it and what it uses, all the way.
   const names = (set) => [...set].map((index) => scene.nodes[index].label).sort();
-  const way = S.highlight(atlas, scene, { ...S.DEFAULTS, sel: scene.nodes[at("Approve a released purchase request")].id });
-  assert.deepEqual(names(way), ["Approve a released purchase request", "Ben (Team lead)", "Purchase Request", "Purchase Request Mgt.", "Purchase Request Setup", "Purchase Requests", "Request Approval Entry", "Request Notifications"]);
-  // The way of an object: what uses it, what it uses, the process tests that touch it, and who performs them.
-  const logic = names(S.highlight(atlas, scene, { ...S.DEFAULTS, sel: scene.nodes[at("Request Notifications")].id }));
-  assert.ok(logic.includes("Approve a released purchase request") && logic.includes("Ben (Team lead)") && logic.includes("Purchase Request"));
-  assert.ok(!logic.includes("Set the highest amount that can be approved") && !logic.includes("Dana (Administrator)"));
+  assert.deepEqual(names(S.highlight(atlas, scene, { ...S.DEFAULTS, sel: scene.nodes[at("Request Notifications")].id })), ["Purchase Request", "Request Notifications"]);
+  const way = names(S.highlight(atlas, scene, { ...S.DEFAULTS, sel: scene.nodes[at("Purchase Request Mgt.")].id }));
+  assert.ok(way.includes("Purchase Requests") && way.includes("Request Approval Entry") && !way.includes("Request Notifications"));
   // Another lens lights nothing by a selection alone.
   assert.equal(S.highlight(atlas, S.scene(atlas, found, { ...S.DEFAULTS, lens: "system" }), { ...S.DEFAULTS, lens: "system", sel: scene.nodes[at("Request Notifications")].id }), undefined);
 
   // As text it reads in the order of the columns; as a picture the columns have their titles.
   const text = (await renderView(purchasing, { lens: "overview" })).content;
-  assert.match(text, /^BC Atlas Purchasing Example: Overview\n18 nodes, 23 relations\. How it works, from left to right: /u);
-  assert.deepEqual([...text.matchAll(/^(\S[^\n]*)$/gmu)].map(([line]) => line).slice(2), ["People", "Processes", "Screens", "Logic", "Data"]);
+  assert.match(text, /^BC Atlas Purchasing Example: Overview\n9 nodes, 10 relations\. How it works, from left to right: /u);
+  assert.deepEqual([...text.matchAll(/^(\S[^\n]*)$/gmu)].map(([line]) => line).slice(2), ["Screens", "Logic", "Data"]);
   const picture = (await renderView(purchasing, { lens: "overview", format: "svg" })).content;
-  for (const title of ["PEOPLE", "PROCESSES", "SCREENS", "LOGIC", "DATA"]) assert.ok(picture.includes(`>${title}</text>`), title);
+  for (const title of ["SCREENS", "LOGIC", "DATA"]) assert.ok(picture.includes(`>${title}</text>`), title);
   // The columns stand from left to right.
   const x = (label) => Number(picture.match(new RegExp(`<text x="([\\d.-]+)"[^>]*>${label}</text>`, "u"))[1]);
-  assert.ok(x("PEOPLE") < x("PROCESSES") && x("PROCESSES") < x("SCREENS") && x("SCREENS") < x("LOGIC") && x("LOGIC") < x("DATA"));
-  assert.ok(Math.abs(x("Ben \\(Team lead\\)") - x("PEOPLE")) < 40 && Math.abs(x("Request Notifications") - x("LOGIC")) < 40, "each node under the title of its column");
+  assert.ok(x("SCREENS") < x("LOGIC") && x("LOGIC") < x("DATA"));
+  assert.ok(Math.abs(x("Request Notifications") - x("LOGIC")) < 40, "each node under the title of its column");
 
-  // Without process tests the overview is screens, logic, and data.
   const plain = S.scene(await multi.atlas(), S.index(await multi.atlas()), { ...S.DEFAULTS });
   assert.deepEqual(plain.columns.map(({ title }) => title), ["Screens", "Logic", "Data"]);
   assert.ok(plain.nodes.some(({ label }) => label === "Customer"), "what it uses of other apps is part of how it works");
@@ -205,7 +190,7 @@ test("a large project shows areas in the overview, and an area opens to its obje
   const scene = S.scene(atlas, found, { ...S.DEFAULTS });
   assert.deepEqual(scene.columns.map(({ title }) => title), ["Screens", "Logic", "Data"]);
   // One box per area and column, the largest area first in every column.
-  assert.deepEqual(scene.nodes.filter(({ rank }) => rank === 2).sort((a, b) => a.order - b.order).map(({ label }) => label), ["Sales · 10", "Stock · 7", "Finance · 4"]);
+  assert.deepEqual(scene.nodes.filter(({ rank }) => rank === 0).sort((a, b) => a.order - b.order).map(({ label }) => label), ["Sales · 10", "Stock · 7", "Finance · 4"]);
   assert.equal(scene.nodes.length, 9);
   const area = scene.entries.find(({ node }) => node.id === "area::logic::Stock").node;
   assert.deepEqual([area.kind, area.count, area.holder], ["area", 7, "component::Stock"]);
@@ -227,7 +212,7 @@ test("an app, a component, and a namespace open to their objects", async () => {
   assert.match((await renderView(multi, { lens: "system", inside: "component:Core" })).content, /^multi-app: Core\n6 nodes, 9 relations\. The objects of the component Core, and what they do with each other\./u);
   assert.match((await renderView(multi, { lens: "system", inside: "Contoso Core" })).content, /^multi-app: Contoso Core\n6 nodes, 9 relations\. The objects of the app Contoso Core/u);
   // From the overview a component opens to how it works: its screens, its logic, its data.
-  assert.match((await renderView(multi, { inside: "component:Core" })).content, /^multi-app: Core\n6 nodes, 3 relations\. How the component Core works, from left to right: its screens, its logic, its data, and who uses them\.\n\nScreens\n {2}page CON Item Card/u);
+  assert.match((await renderView(multi, { inside: "component:Core" })).content, /^multi-app: Core\n6 nodes, 3 relations\. How the component Core works, from left to right: its screens, its logic, and its data\.\n\nScreens\n {2}page CON Item Card/u);
   const namespace = JSON.parse((await renderView(multi, { lens: "system", inside: "Contoso.Core.Items", format: "json" })).content);
   assert.deepEqual(namespace.nodes.map(({ label }) => label).sort(), ["CON Item", "CON Item Card", "CON Price Group"]);
   assert.equal(namespace.relations.length, 2);
@@ -261,38 +246,29 @@ test("every node leads on, and the way back is a trail", async () => {
   assert.deepEqual(S.lensesOf(atlas, found, item.id).map(({ id }) => id), ["overview", "system", "data", "pages", "visibility", "health"]);
   assert.deepEqual(S.lensesOf(atlas, found, core.id).map(({ id }) => id), ["components"]);
 
-  // A person, a process, a recording: each leads to the lens it lives in, with what is near it.
-  const people = await purchasing.atlas();
-  const kind = (name) => people.nodes.find((candidate) => candidate.kind === name);
-  assert.deepEqual(S.into(people, kind("person"), { ...S.DEFAULTS, lens: "system" }), { lens: "people", inside: "", focus: kind("person").id, depth: "1", sel: kind("person").id, story: "" });
-  assert.equal(S.into(people, kind("process"), { ...S.DEFAULTS }).lens, "processes");
-  assert.equal(S.into(people, kind("process"), { ...S.DEFAULTS }).depth, "2");
-  assert.equal(S.into(people, kind("recording"), { ...S.DEFAULTS }).lens, "sync");
-  // In the overview a person stays in it: the person and what is next to them.
-  assert.equal(S.into(people, kind("person"), { ...S.DEFAULTS }).lens, "overview");
 });
 
 test("a story reads as text and as a document, and each step is a view", async () => {
-  const text = (await renderView(purchasing, { story: "fix" })).content;
-  assert.match(text, /^BC Atlas Purchasing Example: What to fix\n4 findings, the most severe first/u);
-  assert.match(text, /\n1\. error: task-blocked \[error\]\n {3}Ben \(Team lead\) cannot complete "Approve a released purchase request".+Fix: Add to a permission set of the agent: `codeunit "Request Notifications" = X`\n {3}On: Ben \(Team lead\), Approve a released purchase request\n/u);
-  const markdown = (await renderView(purchasing, { story: "process:use-case-purchase-requests", format: "md" })).content;
-  assert.match(markdown, /^# Purchase requests\n\n4 process tests in order.+\n\n_Generated by BC Atlas .+ from the AL source of BC Atlas Purchasing Example\. Do not edit; export it again\._\n\n## 1\. Create a new Purchase Request\n/u);
-  assert.equal(JSON.parse((await renderView(purchasing, { story: "people", format: "json" })).content).steps.length, 4);
+  const text = (await renderView(multi, { story: "fix" })).content;
+  assert.match(text, /^multi-app: What to fix\n1 finding, the most severe first/u);
+  assert.match(text, /\n1\. error: architecture-violation \[error\]\n/u);
+  const markdown = (await renderView(purchasing, { story: "architecture", format: "md" })).content;
+  assert.match(markdown, /^# What to change, and how\n\n8 changes to the architecture.+\n\n_Generated by BC Atlas .+ from the AL source of BC Atlas Purchasing Example\. Do not edit; export it again\._\n\n## 1\. /u);
+  assert.equal(JSON.parse((await renderView(purchasing, { story: "system", format: "json" })).content).steps.length, 11);
 
   // One step: the nodes it is about, in its lens.
-  const step = JSON.parse((await renderView(purchasing, { story: "process:use-case-purchase-requests", step: 2, format: "json" })).content);
-  assert.equal(step.lens, "processes");
-  assert.deepEqual(step.nodes.map(({ label }) => label).sort(), ["Create a new Purchase Request", "Purchase Request", "Purchase Requests"]);
+  const step = JSON.parse((await renderView(multi, { story: "fix", step: 1, format: "json" })).content);
+  assert.equal(step.lens, "health");
+  assert.ok(step.nodes.some(({ label }) => label === "CON Item Sync"));
 
   // Every story as one document: the documentation of the system.
   const documentation = (await renderView(purchasing, { stories: true, format: "md" })).content;
   assert.match(documentation, /^# BC Atlas Purchasing Example\n/u);
-  for (const title of ["What BC Atlas Purchasing Example is", "Purchase requests", "Purchase setup", "What to fix", "What to change, and how", "Who can do what"]) assert.ok(documentation.includes(`\n## ${title}\n`), title);
+  for (const title of ["What BC Atlas Purchasing Example is", "What to change, and how"]) assert.ok(documentation.includes(`\n## ${title}\n`), title);
 
-  await assert.rejects(renderView(purchasing, { story: "nope" }), /unknown story "nope"; this project has: system, process:use-case-purchase-requests, /u);
-  await assert.rejects(renderView(purchasing, { story: "fix", step: 9 }), /--step must be a number from 1 to 4/u);
-  await assert.rejects(renderView(multi, { lens: "people" }), /unknown lens "people"; this project has: overview, system, components, /u, "a lens with nothing in it does not exist for a project");
+  await assert.rejects(renderView(purchasing, { story: "nope" }), /unknown story "nope"; this project has: system, architecture/u);
+  await assert.rejects(renderView(multi, { story: "fix", step: 9 }), /--step must be a number from 1 to 1/u);
+  await assert.rejects(renderView(purchasing, { lens: "health" }), /unknown lens "health"; this project has: overview, system, components, /u, "a lens with nothing in it does not exist for a project");
 });
 
 test("a picture is drawn without a browser, in every form, the same every time", async () => {
@@ -309,7 +285,7 @@ test("a picture is drawn without a browser, in every form, the same every time",
   assert.equal([...flat.matchAll(/<circle /gu)].length, 7, "one dot per node");
   assert.notEqual(flat, await picture({ lens: "data", form: "3d" }), "3D is another picture of the same nodes");
   // Dark, another size, a selection, and what a search finds standing out.
-  const dark = await picture({ lens: "people", form: "diagram", theme: "dark", width: 800, height: 600, select: "person:Ben" });
+  const dark = await picture({ lens: "security", form: "diagram", theme: "dark", width: 800, height: 600, select: "codeunit:50220" });
   assert.match(dark, /viewBox="0 0 800 600"/u);
   assert.match(dark, /<rect width="800" height="600" fill="#16171a"\/>/u);
   const found = await picture({ lens: "system", find: "setup" });
@@ -321,38 +297,16 @@ test("a picture is drawn without a browser, in every form, the same every time",
   const png = (await renderView(purchasing, { lens: "components", form: "diagram", format: "png" })).content;
   assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "a PNG");
   await assert.rejects(renderView(purchasing, { format: "svg", width: 50 }), /--width must be a number of pixels from 200 to 8000/u);
-  await assert.rejects(renderView(purchasing, { story: "fix", format: "csv" }), /a story writes text, md, or json; add --step/u);
+  await assert.rejects(renderView(purchasing, { story: "system", format: "csv" }), /a story writes text, md, or json; add --step/u);
 });
 
 test("a link opens the same view in the app", async () => {
-  const link = (await renderView(purchasing, { lens: "people", form: "diagram", check: true, find: "Ben", format: "link" })).content.trim();
-  assert.equal(link, "#lens=people&form=diagram&q=Ben&check=1");
+  const link = (await renderView(purchasing, { lens: "data", form: "diagram", check: true, find: "Setup", format: "link" })).content.trim();
+  assert.equal(link, "#lens=data&form=diagram&q=Setup&check=1");
   const atlas = await purchasing.atlas();
   const state = viewState(atlas, { inside: "codeunit:50220", form: "3d" });
   assert.equal(atlas.nodes.find(({ id }) => id === state.inside).label, "Purchase Request Mgt.");
   assert.match(S.stateHash(state), /^#form=3d&inside=.+codeunit%3A%3A50220$/u);
-});
-
-test("a run builds its picture step by step: a step shows what the run reached so far", async () => {
-  const atlas = await purchasing.atlas();
-  const ben = atlas.stories.find(({ id }) => id === "run:Ben");
-  const state = { ...S.DEFAULTS, lens: "run", form: "diagram", story: "run:Ben", step: "1" };
-  const scene = S.scene(atlas, S.index(atlas), state);
-  const seen = (step, story = "run:Ben") => scene.entries.filter((entry, at) => S.shown(scene, { ...state, story, step: String(step) }, atlas).nodes[at]).map(({ node }) => node.label).sort();
-  assert.deepEqual(seen(0), ["Ben (Team lead)"]);
-  assert.deepEqual(seen(1), ["Ben (Team lead)", "Create a new Purchase Request", "Purchase Request", "Purchase Requests"]);
-  assert.ok(seen(ben.steps.length - 1).length > seen(1).length);
-  assert.ok(!seen(ben.steps.length - 1).includes("Anna (Employee)"), "a run shows its own person");
-  // A story that does not build shows its lens as it is.
-  assert.equal(seen(0, "people").length, scene.entries.length);
-
-  // The command and the tool draw the same: step 2 holds four nodes, the end holds the whole run.
-  const early = await renderView(purchasing, { story: "run:Ben", step: 2, form: "diagram", format: "svg" });
-  assert.match(early.content, /Create a new Purchase Request/u);
-  assert.doesNotMatch(early.content, /Approve a released|Request Notifications|Anna/u);
-  const end = await renderView(purchasing, { story: "run:Ben", step: ben.steps.length, form: "diagram", format: "svg" });
-  assert.match(end.content, /Request Notifications/u);
-  assert.doesNotMatch(end.content, /Anna|Carla/u);
 });
 
 test("bca view prints to the terminal and writes files by their extension", () => {
@@ -362,18 +316,18 @@ test("bca view prints to the terminal and writes files by their extension", () =
     const overview = run();
     assert.equal(overview.status, 0, overview.stderr);
     assert.match(overview.stdout, /^BC Atlas Purchasing Example: 16 objects in 1 app/u);
-    assert.match(overview.stdout, /\n {2}people {8}14 nodes, 21 relations/u);
+    assert.match(overview.stdout, /\n {2}data {8}7 nodes, 10 relations/u);
 
-    const svg = path.join(directory, "out", "people.svg");
-    const written = run("--lens", "people", "--form", "diagram", "-o", svg);
+    const svg = path.join(directory, "out", "data.svg");
+    const written = run("--lens", "data", "--form", "diagram", "-o", svg);
     assert.equal(written.status, 0, written.stderr);
-    assert.match(written.stderr, /People: 14 node\(s\), 21 relation\(s\)\nWrote /u);
+    assert.match(written.stderr, /Data: 7 node\(s\), 10 relation\(s\)\nWrote /u);
     assert.equal(written.stdout, "");
-    assert.match(readFileSync(svg, "utf8"), /^<svg .*>Ben \(Team lead\)<\/text>/su);
+    assert.match(readFileSync(svg, "utf8"), /^<svg .*>Purchase Request Mgt\.<\/text>/su);
 
     const csv = path.join(directory, "relations.csv");
-    assert.equal(run("--lens", "people", "--rows", "relations", "-o", csv).status, 0);
-    assert.ok(readFileSync(csv, "utf8").includes("Ben (Team lead),Approve a released purchase request,blocked,1"));
+    assert.equal(run("--lens", "data", "--rows", "relations", "-o", csv).status, 0);
+    assert.match(readFileSync(csv, "utf8"), /\nPurchase Request Mgt\.,Purchase Request,(?:reads|writes),\d+/u);
     const png = path.join(directory, "system.png");
     assert.equal(run("--form", "3d", "--check", "-o", png).status, 0);
     assert.equal(readFileSync(png).subarray(1, 4).toString(), "PNG");
@@ -381,11 +335,11 @@ test("bca view prints to the terminal and writes files by their extension", () =
     assert.equal(run("--stories", "-o", docs).status, 0);
     assert.match(readFileSync(docs, "utf8"), /^# BC Atlas Purchasing Example\n/u);
 
-    const json = run("--story", "people", "--format", "json");
-    assert.equal(JSON.parse(json.stdout).id, "people");
+    const json = run("--story", "architecture", "--format", "json");
+    assert.equal(JSON.parse(json.stdout).id, "architecture");
     const wrong = run("--lens", "nope");
     assert.equal(wrong.status, 2);
-    assert.match(wrong.stderr, /unknown lens "nope"; this project has: overview, system, components, .+, requirements, simulation, run, sync\n/u);
+    assert.match(wrong.stderr, /unknown lens "nope"; this project has: overview, system, components, .+, security, visibility\n/u);
     const noFile = run("--format", "png");
     assert.equal(noFile.status, 2);
     assert.match(noFile.stderr, /a PNG needs --output/u);

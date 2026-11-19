@@ -21,8 +21,6 @@ const REWRITES = {
   "README.md": "index.md",
   "examples/README.md": "examples/index.md",
   "examples/report/README.md": "examples/report/index.md",
-  "examples/explorer/README.md": "examples/explorer/index.md",
-  "examples/simulation/README.md": "examples/simulation/index.md",
   // The ontology's IRI is https://schulzoli.github.io/BC-Atlas/ontology.
   "docs/reference/ontology.md": "ontology.md"
 };
@@ -47,7 +45,7 @@ function markdownPages(directory = ROOT, relative = "") {
 
 const PAGES = markdownPages();
 
-/** Site link for a repository Markdown page, e.g. docs/setup.md -> /docs/setup. */
+/** Site link for a repository Markdown page, e.g. docs/layers.md -> /docs/layers. */
 function pageLink(file) {
   const rewritten = REWRITES[file] ?? file;
   return `/${rewritten.replace(/(^|\/)index\.md$/u, "$1").replace(/\.md$/u, "")}`;
@@ -139,7 +137,6 @@ export default defineConfig({
     logo: LOGO,
     nav: [
       { text: "Guide", link: "/docs/getting-started" },
-      { text: "Setup", link: "/docs/setup" },
       { text: "CLI reference", link: "/docs/cli-reference" },
       { text: "Examples", link: "/examples/" },
       { text: "Changelog", link: "/CHANGELOG" }

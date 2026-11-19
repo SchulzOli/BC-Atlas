@@ -13,28 +13,6 @@ The binary is vendored so users do not need a Rust/C++ compiler or a network
 request at runtime. When updating it, run the full AST fixture test suite and
 update the pinned version above.
 
-## graph-viewer.js
-
-The browser bundle of the 3D dependency explorer: 3d-force-graph together
-with three.js and its bloom pass, so the explorer and the library share one
-three.js. Built from the versions in `package.json` (`3d-force-graph`,
-`three`, both MIT).
-
-- Update command: `npm run update:graph-vendor` (after updating either package)
-
-It is vendored so the explorer works offline in every exported HTML file
-without a build step at install time.
-
-## flow-canvas.js, flow-canvas.css
-
-The canvas of the flow builder: [React Flow](https://reactflow.dev)
-(`@xyflow/react`) with React and React DOM (all MIT), behind the small
-interface of `scripts/flow-canvas-entry.js`. The view inlines both files, so
-the builder works offline in VS Code and in every exported HTML file.
-
-- Update command: `npm run update:flow-vendor` (after updating one of the
-  packages or the entry)
-
 ## mcp-app.js
 
 The adapter that lets the BC Atlas view run as an

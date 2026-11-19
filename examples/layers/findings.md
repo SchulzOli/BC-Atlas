@@ -12,9 +12,9 @@
 
 ## Info
 
-- **info** `could-be-internal`: 1 object(s) of Core are used by no other component and could be Access = Internal: codeunit 50010 CON Standard Pricing (bca refactor surface --component "Core")
+- **info** `could-be-internal`: 1 object(s) of Core are used by no other component and could be Access = Internal: codeunit 50010 CON Standard Pricing
   - Source: `.bca.json:4`
-- **info** `could-be-internal`: 2 object(s) of Integration are used by no other component and could be Access = Internal: codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync (bca refactor surface --component "Integration")
+- **info** `could-be-internal`: 2 object(s) of Integration are used by no other component and could be Access = Internal: codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync
   - Source: `.bca.json:6`
 - **info** `foreign-table-write`: table 50000 CON Item of Core is written by Integration (1 object); let Core own the writes behind a codeunit, or move the table
   - On: [CON Item](objects/table-50000-con-item.md)

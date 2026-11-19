@@ -11,11 +11,11 @@ The first argument is neither a command nor an existing path. Run `bca` to see
 all commands. A path alone is not a command: use `bca check <path>` or
 `bca export <path>`, or open the folder in VS Code with the BC Atlas extension.
 
-## "unknown command" for `graph`, `report`, `explore`, `inspect`, ...
+## "unknown command" for `graph`, `report`, `inspect`, ...
 
-These commands are now part of `bca export` and the VS Code extension. See the table
-[Earlier commands](./cli-reference.md#earlier-commands) in the CLI
-reference.
+These commands are now part of `bca export`: `bca export --view report`,
+`bca export --view <view>` (with `--format json` for the model and `--watch`
+to keep a file current), and `bca export --view catalog`.
 
 ## The BC Atlas extension shows nothing
 
@@ -35,8 +35,7 @@ static one in any Markdown viewer and your repository host, and
 ## BC Atlas finds no AL files
 
 Check that the input path contains `.al` files. Check `--include`, `--exclude`,
-`--namespace`, and `--type` filters, and the `exclude` list in `.bca.json`
-(the `.bca.json` written by `bca setup` excludes test folders).
+`--namespace`, and `--type` filters, and the `exclude` list in `.bca.json`.
 
 ## The object view fails
 
@@ -111,11 +110,6 @@ without failing.
 The output directory is replaced atomically. To protect your files, BC Atlas
 refuses to replace a non-empty directory without a generated `index.md`.
 Choose an empty or dedicated `--output-dir`.
-
-## Turn off the update notice
-
-Set `BCA_NO_UPDATE_CHECK=1` (or `NO_UPDATE_NOTIFIER=1`). The notice is never
-shown in CI, Git hooks, `bca run`, or with `--format json`.
 
 ## Generated project documentation is stale
 

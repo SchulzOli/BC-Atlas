@@ -123,16 +123,6 @@
         "category": "BC Atlas"
       },
       {
-        "command": "bcAtlas.setup",
-        "title": "Set Up Automation (Hooks, Pipeline, Schedule)",
-        "category": "BC Atlas"
-      },
-      {
-        "command": "bcAtlas.runTasks",
-        "title": "Run Tasks of a Trigger…",
-        "category": "BC Atlas"
-      },
-      {
         "command": "bcAtlas.selectProject",
         "title": "Select Project…",
         "category": "BC Atlas"
@@ -212,16 +202,6 @@
           "command": "bcAtlas.generateDocs",
           "when": "view == bcAtlas.pages",
           "group": "more@3"
-        },
-        {
-          "command": "bcAtlas.setup",
-          "when": "view == bcAtlas.pages",
-          "group": "more@4"
-        },
-        {
-          "command": "bcAtlas.runTasks",
-          "when": "view == bcAtlas.pages",
-          "group": "more@5"
         },
         {
           "command": "bcAtlas.selectProject",

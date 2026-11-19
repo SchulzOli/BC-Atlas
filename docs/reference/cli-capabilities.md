@@ -7,36 +7,16 @@ Run `npm run docs` after a capability changes.
 
 ## Commands by feature area
 
-### Get started
-
-Set up a project; in VS Code, the BC Atlas extension shows everything in the editor.
-
-| Command | Invocation | Purpose |
-| --- | --- | --- |
-| `setup` | `bca setup [app-root]` | Set up BC Atlas for a project step by step: .bca.json, features, Git hooks, pipelines, schedules, and sync. |
-| `setup.plan` | `bca setup plan [app-root]` | Detect the project and list setup questions with recommended answers. |
-| `setup.apply` | `bca setup apply [app-root]` | Write .bca.json, Git hooks, and a pipeline from setup answers. |
-| `setup.agent` | `bca setup agent [app-root]` | Add a /bca-setup command for your AI agent that runs the guided setup through the CLI. |
-
 ### Analyze
 
-Gate CI on architecture health, keep a target architecture in place, and battle-test the app as your company uses it.
+Gate CI on architecture health, and keep a target architecture in place.
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
 | `check` | `bca check [app-root]` | Score architecture health and fail CI on cycles, policy violations, or diagnostics. |
-| `simulate` | `bca simulate [app-root]` | Battle-test the app as your company uses it: agents with roles, permission sets, and task groups perform the process tests (AL UI tests) step by step; reports who is blocked where and who can do what they must not, explains every permission a step needs, and writes the fit-gap analysis. |
-| `simulate.define` | `bca simulate define [app-root]` | Define the simulation: the company of the battle test. Add or change an agent, a role, a task group, or a requirement, ground a process test on a recording of Business Central, and run the changed simulation at once. Without options it shows the simulation as it is. |
-| `graph.query` | `bca graph query <graph.json>` | Query a saved Atlas graph or nodes/edges snapshot without analyzing AL; retain IDs and evidence as reusable JSON. |
-| `process` | `bca process [app-root]` | How the company works with the app: processes as models in lanes (BPMN), each step done by a role and shown to work by a process test or a recording. Shows the processes of the project ("processes" in .bca.json) and how each runs with the people of the simulation; --mine shows the processes as the process tests and recordings have them. |
-| `process.define` | `bca process define [app-root]` | Define the processes: add or change a process and its steps (title, lane, test, what it comes after), take a mined process as a model, or import one from BPMN 2.0. Without options it shows the processes as they are. |
-| `process.run` | `bca process run [app-root]` | Test and demonstrate the processes: each one step by step with the people of the simulation. Who performs a step, who is stopped and by what, where the work changes hands, what each step does in the app, and what to improve. |
-| `process.export` | `bca process export [app-root]` | Write a process as BPMN 2.0, for other tools: a pool with a lane per role, a user task per step, and an exclusive gateway where the way parts, with the diagram. |
 | `architecture` | `bca architecture [app-root]` | Find a target architecture (components, layers, allowed dependencies), list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
 | `architecture.compare` | `bca architecture compare [app-root]` | The architecture as it is and as it should be, side by side: both scored with the same weighted goals, how the components of one become those of the other, the objects that have to move, and the steps with their commands. |
 | `architecture.templates` | `bca architecture templates [app-root]` | The templates that say what a good architecture is and how much each goal weighs: lists the presets and your own, takes one into use, saves the settings as they are as a new template, or removes one. |
-| `refactor.move` | `bca refactor move [app-root]` | Move an AL object to another component: its file goes to the component's folder (cut out of a shared file), its namespace becomes the component's, and referencing files get the using they need. |
-| `refactor.surface` | `bca refactor surface [app-root]` | Lock the public surface of components: objects no other component uses get Access = Internal, and .bca.json lists what others use in exposes. |
 
 ### Export
 
@@ -44,11 +24,9 @@ Write what the app shows as files, look at any part of it from the terminal, and
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
-| `graph.render` | `bca graph render <graph.json>` | Render a saved graph selection as local SVG/HTML, Graphviz DOT, or reusable JSON without analyzing AL. |
-| `export` | `bca export [app-root]` | Write files: the BC Atlas view as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, or one diagram view. |
+| `export` | `bca export [app-root]` | Write files: the BC Atlas view as one offline HTML file, the Markdown report, the object catalog, or one diagram view. |
 | `view` | `bca view [app-root]` | The BC Atlas view without a window: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. What the toolbar of the app does, from the terminal. |
 | `layers` | `bca layers [app-root]` | The layered documentation, in sync with the source: the system explained from the whole down to each procedure, one page per app, component, namespace, and object, each with a picture. For the source as it is now, and for any commit, tag, or release. |
-| `bundle` | `bca bundle [app-root]` | Everything BC Atlas makes of a project, end to end, as one artifact: validation (the health check), the simulation with a snapshot of every process test, the layered documentation with the view, the narrative pages when a model is set up, and the test results and build outputs it is given. One folder, one ZIP file, one manifest. |
 | `docs.list` | `bca docs list <test-root>` | List documented UI-test scenarios. |
 | `docs.show` | `bca docs show <test-root>` | Show one scenario, its prerequisites, and its diagnostics. |
 | `docs.validate` | `bca docs validate <test-root>` | Validate IDs, tags, links, and prerequisite cycles. |
@@ -57,29 +35,13 @@ Write what the app shows as files, look at any part of it from the terminal, and
 | `docs.unset` | `bca docs unset <test-root>` | Remove documentation metadata from AL source. |
 | `docs.automation` | `bca docs automation <test-root>` | Print a CI pipeline that keeps generated guides in sync. |
 | `docs.glossary` | `bca docs glossary` | List supported documentation tags and prerequisite types. |
-| `ai.status` | `bca ai status [app-root]` | Show what the AI plugin would use: the endpoint, the model, whether a key is set, and what there is to write about. |
-| `ai.context` | `bca ai context [app-root]` | Print the grounding of a subject: the facts BC Atlas read from the source that a model (or a person, or another agent) writes from. Calls no model. |
-| `ai.write` | `bca ai write [app-root]` | Write narrative documentation with the configured model: one page per subject, next to the grounding it was written from. |
 
 ### Integrate
 
-Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents.
+Connect BC Atlas to AI agents.
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
-| `run` | `bca run [app-root]` | Run the features and the flows configured for a trigger (Git hook, pipeline, schedule) and sync their output. |
-| `flow` | `bca flow [app-root]` | Your own workflows: a flow says what to make from the source (the artifacts), when (the triggers), and where to save it. Shows the flows of the project ("flows" in .bca.json); bca flow define changes them, bca run runs them. |
-| `flow.define` | `bca flow define [app-root]` | Define the flows: add or change a flow, its triggers, and its steps (what to make and where to save it), and say how a trigger delivers what was saved. Without options it shows the flows as they are. |
-| `flow.export` | `bca flow export [app-root]` | Export a flow as a pipeline of its own: one workflow file for GitHub Actions, or one pipeline file for Azure Pipelines, that runs the flow on the events of its triggers and delivers what it saves. |
-| `plugins.list` | `bca plugins list [app-root]` | List the plugins of a project: built-in, npm (bc-atlas-plugin-*), .bca.json, and BCA_PLUGINS, with what each contributes. |
-| `plugins.show` | `bca plugins show <plugin-id>` | Show one plugin: manifest, commands, tasks, health rules, MCP tools, hooks, and extension points. |
-| `plugins.doctor` | `bca plugins doctor [app-root]` | Check every plugin: manifest, plugin API version, activation, contributions, and config sections. |
-| `plugins.new` | `bca plugins new <plugin-id>` | Create a plugin from the template: plugin.json, an activate() with a command, a task, a health rule, and a hook, a test, and a README. |
-| `sync.plan` | `bca sync plan [app-root]` | Show what each sync channel would write for a trigger, without writing. |
-| `sync.run` | `bca sync run [app-root]` | Sync Business Central process recordings into documents, UI tests, the architecture layer, and the process index. |
-| `sync.status` | `bca sync status [app-root]` | Show for every sync channel which processes are new, changed, drifted, or removed. |
-| `sync.describe` | `bca sync describe` | List what a sync manifest can use: sources, triggers, conditions, and formats, including those contributed by other plugins. |
-| `update` | `bca update [app-root]` | Check for a new BC Atlas version, show what changed, and update it together with the generated setup files. |
 | `mcp` | `bca mcp` | Start the Model Context Protocol server on stdio for AI agents. |
 
 ## What `bca export` writes
@@ -88,9 +50,7 @@ Connect BC Atlas to Git hooks, pipelines, schedules, and AI agents.
 | --- | --- |
 | `app` | The BC Atlas view as one offline HTML file to share: a toolbar and the graph, with every lens, finding, and story |
 | `report` | Markdown report (README.md) with health, diagrams, and an optional object catalog |
-| `explorer` | Interactive 3D dependency explorer (HTML), replayable over Git history, or its graph as JSON |
 | `catalog` | One linked Markdown page per AL object |
-| `handbook` | System handbook: Markdown pages that explain the system across all objects (events, data, permissions, interfaces, user interface, code health) |
 | `knowledge-graph` | The analyzed project as RDF with the BC Atlas OWL ontology, for knowledge graphs and triple stores: Turtle, RDF/XML (.rdf, .owl), N-Triples, or JSON-LD |
 
 ## Diagram views

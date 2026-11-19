@@ -22,7 +22,7 @@ Markdown output need no compiler, browser, or extra download.
 
 - **In VS Code** (daily work): install the **BC Atlas** extension
   (`SchulzOli.bc-atlas`). It brings the engine with it; nothing else is needed.
-- **On the command line, in Git hooks and pipelines**:
+- **On the command line and in pipelines**:
 
   ```sh
   npm install --global bc-atlas
@@ -37,29 +37,10 @@ Open the folder with your `app.json`. BC Atlas analyzes the source and shows
 health in the status bar, findings in the Problems panel, and CodeLens above
 each object. **BC Atlas: Open** shows the panel: an overview, health
 findings, the architecture (proposed from today's dependencies until you
-adopt one), the 3D dependency explorer, every diagram view, and one page per
-object. It updates when AL files change. See
+adopt one), every lens, and each object from the inside. It updates when AL files change. See
 [BC Atlas for VS Code](./vscode.md).
 
-## 3. Set up the project
-
-```sh
-cd path/to/al-project
-bca setup
-```
-
-`setup` detects your app, UI tests, translations, and Git host, then asks which
-features to automate, which Git hooks (Husky or plain Git) and pipeline
-(GitHub Actions or Azure Pipelines) to use, when to run on a schedule, and how
-generated files stay in sync. It writes `.bca.json`, the hooks, and the
-pipeline. Prefer a conversation? Run `bca setup agent --agent claude` (or
-`copilot`, `cursor`) and use `/bca-setup` in your agent. See
-[Guided setup](./setup.md).
-
-The starter `.bca.json` excludes test folders and links objects to your Git
-host. See [Configuration](./configuration.md).
-
-## 4. Write the overview into the repository
+## 3. Write the overview into the repository
 
 ```sh
 bca export --view report
@@ -81,7 +62,7 @@ To share the BC Atlas view with people who do not use VS Code,
 `bca export -o atlas.html` writes it as one offline HTML file: the graph
 with every lens, finding, and story.
 
-## 5. Guard the architecture in CI
+## 4. Guard the architecture in CI
 
 ```sh
 bca check
@@ -92,22 +73,16 @@ fail level (default: `error`). Use `--fail-on warning` to also block cycles,
 forbidden dependencies, and hot spots. Once you adopt an architecture (in the
 app, or with `bca architecture --propose --write --update-baseline`), `check`
 also fails on new dependencies that point the wrong way. See
-[Architecture health checks](./health-checks.md),
-[Clean architecture](./clean-architecture.md), and
-[Automation](./automation-and-ci.md).
+[Architecture health checks](./health-checks.md) and
+[Clean architecture](./clean-architecture.md).
 
-## 6. Stay up to date
+In a pipeline, install BC Atlas and run the checks as steps:
 
-BC Atlas tells you in the terminal when a new version exists:
-
-```text
-BC Atlas 0.27.0 is available (you have 0.26.0). Run "bca update" to see what's new.
+```sh
+npm install --global bc-atlas
+bca check --format sarif -o bca.sarif
+bca layers --check
 ```
-
-`bca update` shows the release notes, asks before installing, and moves your
-Git hooks, VS Code tasks, and pipeline to the new version. Teams on GitHub can
-let Dependabot propose updates instead. See
-[Staying up to date](./setup.md#staying-up-to-date).
 
 ## Go deeper
 
@@ -120,8 +95,6 @@ let Dependabot propose updates instead. See
 | Keep a diagram file current while coding | `bca export --view module -o modules.svg --watch` | [CLI reference](./cli-reference.md#export) |
 | Feed the model to a script | `bca export --view project --format json > model.json` | [CLI reference](./cli-reference.md#export) |
 | Turn UI tests into user guides | `bca docs generate ./test --output-dir docs/guides` | [AL UI-test documentation](./al-ui-test-documentation.md) |
-| Say what is generated, when, and where it is saved | **Flow** in the BC Atlas view, or `bca flow define` | [Flows](./flows.md) |
-| See how the company works with the app, and where it stops or waits | **Flow → Open the process builder**, or `bca process --mine` and `bca process run` | [Processes](./processes.md) |
 | Let an AI agent use BC Atlas | `bca mcp` | [Agent integration](./agent-integration.md) |
 
 ## Run from a checkout

@@ -195,13 +195,13 @@ test("overview help groups every command by feature area", () => {
     const result = spawnSync(process.execPath, [cli, ...args], { encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /^BC Atlas \d/u);
-    for (const heading of ["Get started", "Analyze", "Export", "Integrate"]) {
+    for (const heading of ["Analyze", "Export", "Integrate"]) {
       assert.match(result.stdout, new RegExp(`^${heading}$`, "mu"));
     }
-    for (const command of ["setup", "check", "simulate", "architecture", "refactor", "graph", "export", "view", "layers", "bundle", "docs", "run", "flow", "process", "update", "mcp"]) {
+    for (const command of ["check", "architecture", "export", "view", "layers", "docs", "mcp"]) {
       assert.match(result.stdout, new RegExp(`^  ${command} `, "mu"));
     }
-    for (const removed of ["init", "watch", "explore", "inspect", "codegraph", "capabilities"]) {
+    for (const removed of ["init", "watch", "explore", "inspect", "codegraph", "capabilities", "setup", "simulate", "refactor", "graph", "bundle", "run", "flow", "process", "update", "plugins"]) {
       assert.doesNotMatch(result.stdout, new RegExp(`^  ${removed} `, "mu"));
     }
     assert.doesNotMatch(result.stdout, /\bserve\b/u);
@@ -493,7 +493,7 @@ test("check reports explicitly selected context responsibilities and validates t
   }
 });
 
-test("setup writes a starter configuration that export and check accept", () => {
+test("export and check read .bca.json: what it excludes is not analyzed", () => {
   const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
   const fixtures = fileURLToPath(new URL("./fixtures", import.meta.url));
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-init-"));
@@ -504,14 +504,7 @@ test("setup writes a starter configuration that export and check accept", () => 
     mkdirSync(path.join(directory, "test"));
     writeFileSync(path.join(directory, "test", "Ignored.al"), "codeunit 50199 IgnoredTest { Subtype = Test; }\n");
 
-    const created = spawnSync(process.execPath, [
-      cli, "setup", "apply", directory, "--features", "check", "--hooks", "none", "--ci", "none", "--schedule", "none", "--editor", "none", "--updates", "none"
-    ], { encoding: "utf8" });
-    assert.equal(created.status, 0, created.stderr);
-    const config = JSON.parse(readFileSync(path.join(directory, ".bca.json"), "utf8"));
-    assert.equal(config.title, "BC Atlas Fixture architecture");
-    assert.deepEqual(config.exclude, ["test/**"]);
-    assert.equal(config.check.failOn, "error");
+    writeFileSync(path.join(directory, ".bca.json"), JSON.stringify({ title: "BC Atlas Fixture architecture", exclude: ["test/**"], check: { failOn: "error" } }, null, 2));
 
     const model = JSON.parse(spawnSync(process.execPath, [cli, "export", directory, "--view", "project", "-f", "json"], { encoding: "utf8" }).stdout);
     assert.ok(!model.objects.some(({ name }) => name === "IgnoredTest"));
@@ -622,19 +615,16 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
   assert.equal(contract.name, "bc-atlas");
   assert.equal(contract.transport.stdout, "json");
   assert.deepEqual(contract.exitCodes, { success: 0, operation: 1, usage: 2 });
-  assert.deepEqual(contract.areas.map(({ id }) => id), ["start", "analyze", "export", "integrate"]);
+  assert.deepEqual(contract.areas.map(({ id }) => id), ["analyze", "export", "integrate"]);
   assert.ok(contract.commands.every(({ area }) => contract.areas.some(({ id }) => id === area)));
   assert.deepEqual([...new Set(contract.commands.map(({ id }) => id.split(".")[0]))],
-    ["setup", "check", "simulate", "graph", "process", "architecture", "refactor", "export", "view", "layers", "bundle", "docs", "run", "flow", "plugins", "sync", "ai", "update", "mcp"]);
-  assert.deepEqual(contract.commands.filter(({ id }) => id.startsWith("sync.")).map(({ argv, plugin }) => `${argv.join(" ")} (${plugin})`),
-    ["bca sync plan [app-root] (sync)", "bca sync run [app-root] (sync)", "bca sync status [app-root] (sync)", "bca sync describe (sync)"],
-    "commands of the built-in sync plugin, from its plugin.json");
+    ["check", "architecture", "export", "view", "layers", "docs", "mcp"]);
   assert.ok(contract.commands.some(({ argv }) =>
     argv.join(" ") === "bca docs validate <test-root>"));
   assert.ok(!contract.commands.some(({ id }) => id === "app"), "the app lives in the VS Code extension");
   const exporter = contract.commands.find(({ id }) => id === "export");
   assert.equal(exporter.options.view.default, "app");
-  assert.ok(["app", "report", "explorer", "catalog", "project", "workflow"].every((view) => exporter.options.view.enum.includes(view)));
+  assert.ok(["app", "report", "catalog", "knowledge-graph", "project", "workflow"].every((view) => exporter.options.view.enum.includes(view)));
   assert.equal(exporter.options.output.short, "-o");
   assert.equal(exporter.options.rootProcedure.cli, "--root-procedure");
   assert.deepEqual(exporter.options.callDirection.enum, ["incoming", "outgoing", "both"]);
@@ -644,7 +634,7 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
   assert.equal(exporter.options.sourceRef.cli, "--source-ref");
   assert.equal(exporter.options.noLegend.type, "boolean");
   assert.equal(exporter.options.watch.type, "boolean");
-  assert.equal(exporter.options.history.type, "boolean");
+  assert.equal(exporter.options.history, undefined);
   const set = contract.commands.find(({ id }) => id === "docs.set");
   assert.equal(set.options.expectedHash.cli, "--expected-hash");
   assert.equal(set.options.dryRun.cli, "--dry-run");

@@ -4,9 +4,9 @@
 
 ![Overview](overview.svg)
 
-How it works, from left to right: who uses it, what they do, on which screens, with which logic, in which data.
+How it works, from left to right: the screens, the logic behind them, and the data.
 
-Read from the objects of the AL source and what they do with each other, the process tests, and the people of `simulation` in .bca.json.
+Read from the objects of the AL source and what they do with each other.
 
 | Node | Kind | Group | Relations |
 | --- | --- | --- | ---: |

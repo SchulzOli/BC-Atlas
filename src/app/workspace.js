@@ -14,11 +14,9 @@ import { dependencyMatrix } from "../blueprint/drilldown.js";
 import { planExtraction } from "../blueprint/extract.js";
 import { runHealthCheck } from "../commands/check.js";
 import { writeArchitectureConfig } from "../commands/blueprint.js";
-import { findGitRoot } from "../automation/git.js";
-import { findUiTests } from "../automation/setup.js";
-import { loadCorpus } from "../docs/model.js";
+import { findGitRoot } from "../git.js";
+import { findUiTests, loadCorpus } from "../docs/model.js";
 import { openParseCache } from "../parse-cache.js";
-import { simulate } from "../simulation/index.js";
 import { explainPlacement, placementIndex } from "../blueprint/explain.js";
 import { proposalSettings } from "../blueprint/settings.js";
 import { commonSources, createAtlas, createInside, sourceUrl } from "./atlas.js";
@@ -174,132 +172,6 @@ export class Workspace {
         }
       }))
     };
-  }
-
-  /**
-   * The battle test (src/simulation): agents with the company's roles perform
-   * the process tests. Undefined without documented UI tests.
-   */
-  battleTest({ language } = {}) {
-    return this.remember(`battle-test:${language ?? ""}`, async () => {
-      const docs = await this.docs();
-      if (!docs) return undefined;
-      const { cache } = await this.health();
-      const { options } = await this.model();
-      return simulate(this.input, {
-        ...this.values,
-        tests: path.resolve(options.projectRoot, options.simulation?.tests ?? docs.path),
-        language: language ?? options.simulation?.language
-      }, { cache, parseCache: await this.parseCache() });
-    });
-  }
-
-  /**
-   * Builds the bundle (src/commands/bundle.js) next to the project.
-   * @returns { folder, passed, steps }
-   */
-  async bundle({ output = "bc-atlas-bundle" } = {}) {
-    const { options } = await this.model();
-    const { createBundle } = await import("../commands/bundle.js");
-    const result = await createBundle(this.input, { ...this.values, output: path.resolve(options.projectRoot, output) });
-    return { folder: path.relative(options.projectRoot, result.output).replaceAll("\\", "/"), passed: result.passed, steps: result.manifest.steps };
-  }
-
-  /**
-   * Changes the simulation (src/simulation/define.js) in .bca.json and runs it.
-   * @param change { operations, init, dryRun }
-   * @returns { file, written, derived, definition, line, passed }
-   */
-  async defineSimulation({ operations = [], init = false, dryRun = false } = {}) {
-    const { options } = await this.model();
-    const docs = await this.docs();
-    const { defineSimulation } = await import("../simulation/define.js");
-    const { simulationResultLine } = await import("../simulation/report.js");
-    const result = await defineSimulation(this.input, {
-      ...this.values,
-      tests: path.resolve(options.projectRoot, options.simulation?.tests ?? docs?.path ?? "."),
-      operations,
-      init,
-      dryRun
-    }, { parseCache: await this.parseCache() });
-    if (result.written) this.reset();
-    return { file: result.file, written: result.written, derived: result.derived, definition: result.definition, line: simulationResultLine(result.report), passed: result.report.passed };
-  }
-
-  /**
-   * Forgets the graph, and keeps the analysis it is made from. For what changes the graph and not
-   * the analysis: the flows, the processes, and the telemetry of .bca.json.
-   */
-  forgetAtlas() {
-    this.memo.delete("atlas");
-    this.updatedAt = new Date().toISOString();
-    return { updatedAt: this.updatedAt };
-  }
-
-  /** Where the project and its .bca.json are, as the analysis found them. */
-  async configured() {
-    const { context } = await this.assessment();
-    return { root: context.projectRoot ?? context.options.projectRoot, config: context.config?.path };
-  }
-
-  /**
-   * Changes the flows (src/flows) in .bca.json.
-   * @param change { operations, dryRun }
-   * @returns { file, written, changed, flows }
-   */
-  async defineFlows({ operations = [], dryRun = false } = {}) {
-    const { root, config } = await this.configured();
-    const { defineFlows } = await import("../flows/index.js");
-    const result = await defineFlows(root, { operations, dryRun, config });
-    // The flows are no part of the analysis: only the graph that shows them is read again.
-    if (result.written) this.forgetAtlas();
-    return { file: result.file, written: result.written, changed: result.changed, flows: result.flows, rerouted: result.rerouted };
-  }
-
-  /**
-   * Changes the processes (src/process) in .bca.json.
-   * @returns { file, written, changed, processes }
-   */
-  async defineProcesses({ operations = [], dryRun = false } = {}) {
-    const { root, config } = await this.configured();
-    const { defineProcesses } = await import("../process/index.js");
-    const result = await defineProcesses(root, { operations, dryRun, config });
-    // The processes are run on the simulation that is there: only the graph is read again.
-    if (result.written) this.forgetAtlas();
-    return result;
-  }
-
-  /** Keeps how the flow builder lays the flows out (src/flows/canvas.js). It changes no analysis. */
-  async saveFlowCanvas(canvas = {}) {
-    const { root } = await this.configured();
-    const { writeFlowCanvas } = await import("../flows/index.js");
-    const { written } = await writeFlowCanvas(root, canvas);
-    // The atlas holds the canvas: the next one read has this one.
-    if (written) this.memo.delete("atlas");
-    return { written };
-  }
-
-  /**
-   * Runs one flow now, as `bca run --flow <id>` does.
-   * @returns { passed, flow, steps: [{ what, to, ok, summary }], outputs }
-   */
-  async runFlow({ flow } = {}) {
-    if (!flow) throw new Error("say which flow to run");
-    const { root, config } = await this.configured();
-    const { runAutomation } = await import("../automation/run.js");
-    const result = await runAutomation(root, { flows: [flow], config });
-    return { passed: result.passed, flow, steps: result.flows[0]?.steps ?? [], outputs: result.outputs };
-  }
-
-  /**
-   * Writes the workflow of one flow for GitHub Actions (src/flows/export.js).
-   * @returns { path, action, written, events, delivery }
-   */
-  async exportFlow({ flow, to = "github", force = false } = {}) {
-    const { root, config } = await this.configured();
-    const { exportFlow } = await import("../flows/index.js");
-    const { content: _content, file: _file, ...result } = await exportFlow(root, { flow, to, force, config });
-    return result;
   }
 
   /**

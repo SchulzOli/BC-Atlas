@@ -1,9 +1,0 @@
-{
-  "al.codeAnalyzers": [
-    "${CodeCop}",
-    "${UICop}",
-    "${PerTenantExtensionCop}"
-  ],
-  "al.enableCodeAnalysis": true,
-  "al.packageCachePath": "./.alpackages"
-}

@@ -219,10 +219,7 @@ Steps
        bca architecture --propose --write
   2. Move 1 object to Core
      1 from Permissions. Removes 3 dependencies that today's structure does not allow.
-       bca refactor move --object permissionset:50000 --to "Core"
   3. Move 2 objects to Sales
-       bca refactor move --object codeunit:50200 --to "Sales"
-       bca refactor move --object table:50200 --to "Sales"
   ...
 ```
 
@@ -264,10 +261,9 @@ same grouping as another one, so you see why the winner won.
   made of are listed as gone, with where their objects go.
 - **Moves.** A component of the target takes the place of the component of
   today most of its objects come from; a component of today is the home of
-  one target component only. Every other object is a move, with the command
-  that performs it, the dependencies of today it removes that are not
-  allowed (`resolves`), and the coupling it brings inside its new component
-  (`gain`). The list holds the 50 most valuable moves (`--limit`, 0 for all);
+  one target component only. Every other object is a move, with the
+  dependencies of today it removes that are not allowed (`resolves`), and
+  the coupling it brings inside its new component (`gain`). The list holds the 50 most valuable moves (`--limit`, 0 for all);
   `movesTotal` counts all.
 - **Distance.** The share of objects that move. It is what `fewMoves` scores.
 
@@ -281,9 +277,7 @@ The steps come in the order to take them:
 2. **Move objects**, one step per target component. First the components
    whose moves remove the most dependencies that are not allowed today, then
    the ones that bring the most coupling inside, then the larger ones. Inside
-   a step the moves are ordered the same way. `bca refactor move` shows a
-   diff and writes with `--apply`
-   ([Clean architecture](./clean-architecture.md)).
+   a step the moves are ordered the same way.
 3. **Resolve what the target still does not allow.** Moving objects does not
    remove a dependency that points the wrong way between two components;
    that needs a change in the code. The step names the strategies;
@@ -313,6 +307,3 @@ the weight of every goal, and compare. Each step lists its commands to copy;
   only at the total.
 - The steps do not predict the score after each step; only the two states
   are scored.
-- `bca refactor move` moves a file to the folder and namespace the other
-  objects of the target component have. For a component that is new, give
-  the folder yourself (`--folder`).

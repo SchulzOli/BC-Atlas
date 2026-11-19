@@ -7,8 +7,7 @@ BC Atlas engine and runs it on VS Code's own Node.js runtime, in a background
 process, so the editor stays responsive while large apps are analyzed.
 
 Install **BC Atlas** (`SchulzOli.bc-atlas`) from the Extensions view, or
-from a `.vsix` file with **Extensions: Install from VSIX…**. `bca setup` with
-VS Code tasks also recommends it in `.vscode/extensions.json`.
+from a `.vsix` file with **Extensions: Install from VSIX…**.
 
 ## The BC Atlas view
 
@@ -28,20 +27,15 @@ with their titles:
 
 | Column | Holds |
 | --- | --- |
-| **People** | Who uses the app: the agents of the [simulation](./battle-test.md). There when the project has process tests. |
-| **Processes** | What they do: the process tests, in the order of the process. A test someone is stopped at is red. |
-| **Screens** | Where they do it: pages and reports. |
+| **Screens** | What people work with: pages and reports. |
 | **Logic** | What runs behind the screens: codeunits, queries, XMLports, interfaces. |
 | **Data** | Where it ends up: tables. |
 
 - **Lines are quiet.** A line leads from what uses to what is used, each
   pair once, with no arrow and no color, because every line runs from a
-  column on the left to one on the right. Only a person who is stopped has
-  a red line to the process test.
-- **Click anything to see its way.** A process test lights who performs it
-  and everything it touches, down to the tables. An object lights what
-  uses it and what it uses, all the way, the process tests that touch it,
-  and who performs them. Everything else steps back.
+  column on the left to one on the right.
+- **Click anything to see its way.** An object lights what uses it and
+  what it uses, all the way. Everything else steps back.
 - **What is not part of how it works is not in it:** permission sets,
   enums, and test codeunits. They are in the lenses made for them.
 - **A large project shows areas.** Above 48 objects a box is an area (a
@@ -49,23 +43,19 @@ with their titles:
   objects, or tables it holds, the largest first, and a line carries how
   many relations it stands for. Double-click an area for how it works
   inside, object by object.
-- Without process tests the overview is Screens, Logic, and Data.
 
 `bca view --lens overview` writes the same as text, in the order of the
-columns, and `-o overview.svg` draws it. `--select "task:<process test>"`
-gives the way of that process test.
+columns, and `-o overview.svg` draws it.
 
 | In the toolbar | Does |
 | --- | --- |
-| **Lens** (the name next to the project) | What the graph shows: a part of the one graph. The menu lists the lenses by what they answer: how it works, structure, parts, people and rules, quality. See [Lenses](#lenses). |
+| **Lens** (the name next to the project) | What the graph shows: a part of the one graph. The menu lists the lenses by what they answer: how it works, structure, parts, quality. See [Lenses](#lenses). |
 | The **trail** next to it | Where you are once you went into something: `Components › Core › CON Item`. Every part of the way is one click back, and **‹** goes one step up. |
-| **2D**, **Diagram**, **3D** | The form. The same nodes as a graph in a plane, as boxes in layers in the direction of their relations, or as a graph in space. Any lens in any form; a lens opens in the form it reads best in (the overview, processes, people, and components as a diagram). |
+| **2D**, **Diagram**, **3D** | The form. The same nodes as a graph in a plane, as boxes in layers in the direction of their relations, or as a graph in space. Any lens in any form; a lens opens in the form it reads best in (the overview and the components as a diagram). |
 | **Find** | Lights up the nodes whose name, type, component, namespace, or ID matches. **Enter** goes to the next match, **Shift+Enter** to the one before. |
 | **Check** | Puts a ring on every node with a finding, in the color of the worst one. The number is the errors and warnings. |
 | **Story** | Walks through the graph step by step. See [Stories](#stories). |
-| **Simulate** | Who uses the app: the company of the [battle test](./battle-test.md#define-the-simulation), its agents and roles, and a form to define each. A change runs the simulation again. What stops the simulation is listed at the top, one click from the person it is about. **Run, step by step** plays the [run](./battle-test.md#a-run-step-by-step) of one person on the graph: each step shows where the person is, and the picture is built by it. **Build the bundle** writes [everything as one artifact](./bundle.md) next to the project. There when the project has process tests. |
 | **Architecture** | Why the components are what they are, how well the architecture meets the goals of the template in use (each goal with its score and weight), the templates, and the [current and the target architecture](./target-architecture.md) side by side: choose the two states and the weights, compare, copy the command of a step, and make the target the architecture of the project. |
-| **Flow** | Your own workflows: a builder for [flows](./flows.md). A flow says what to make from the source (its steps, one artifact each), when (the triggers), and where to save each artifact. A change is written to `.bca.json`; **Open the builder** shows them on a [canvas](./flows.md#the-canvas-place-and-wire) of nodes to place and wire freely. **Open the process builder** builds [processes](./processes.md) in lanes (BPMN): take one as the process tests have it, drag tests into the lanes of the roles, wire the steps, and **Play** it with the people of the simulation. **Run now** runs a flow at once, and **For GitHub Actions** writes it as a workflow of its own. |
 | **View** | Color, size, and grouping of the nodes; arrange again; reset. |
 | **Export** | Saves what you see. See [Export](#export). |
 | **Live** | What the graph is read from, and reading it again. See [In step with the source](#in-step-with-the-source). |
@@ -79,9 +69,8 @@ On the graph:
   opens to its objects and what they do with each other. An object opens to
   its procedures, triggers, and events, and what each of them does with
   other objects. A procedure goes to its line in the source. Anything else
-  (a person, a process test, a requirement, a recording, an object of
-  another app) goes to the lens it lives in and shows it with what is next
-  to it.
+  (an object of another app, a rule of the health check) goes to the lens
+  it lives in and shows it with what is next to it.
 - **See in** on the card lists the other lenses a node is in. Choose one and
   the lens changes around the node: it stays selected and in the middle.
 - **Drag** a node to put it where you want it, the background to move the
@@ -110,7 +99,7 @@ select an object in one, switch, and it is still selected.
 
 | Lens | Nodes | Relations | Same as |
 | --- | --- | --- | --- |
-| Overview | people, process tests, screens, logic, and data, in columns | does, stopped at, uses | `bca view --lens overview` |
+| Overview | screens, logic, and data, in columns | uses | `bca view --lens overview` |
 | System | every AL object | everything objects do with each other | `bca export --view project` |
 | Components | the components of the architecture, by layer | dependencies between them: allowed, not declared, or the wrong way | `bca architecture` |
 | Apps | the apps of the workspace and the apps they depend on | declared, implicit, and undeclared dependencies | |
@@ -123,25 +112,8 @@ select an object in one, switch, and it is still selected.
 | Permissions | permission sets and what they cover | permits, includes | |
 | Visibility | every object, colored public, internal, or local | everything | `bca export --view visibility` |
 | Findings | the rules of the health check and the objects they found | one per finding, in its severity | `bca check` |
-| Processes | the process tests, in order, and the objects each touches | step, next, touches | `bca docs generate` |
-| People | who performs which process test with which permission sets | performs, blocked, must not, holds | `bca simulate` |
-| Requirements | what the company needs and the process tests that prove it | proven by | `bca simulate` |
-| Simulation | the company as one picture: people, their roles, the process tests, requirements, and the recordings the tests stand on | has role, does, forbids, blocked, proven by, grounds | `bca simulate define` |
-| Process models | the [processes](./processes.md) as they are drawn: every step in the lane of its role, what it comes after, and the test that shows it works; green where the lane gets through, red where the process stops | in lane, begins with, leads to, shown by | `bca process run` |
-| Flows | your own [workflows](./flows.md): the trigger that starts a flow, the artifacts it makes, and where each is saved | starts, makes, saved to | `bca view --lens flows` |
-| Run | the canvas the simulation runs on: who performs which process test, and the objects each step touches | performs, blocked, next, touches | `bca view --story run:<person>` |
 
-| Recordings | what was recorded in Business Central, the channels that sync it, and the objects each recording runs through | syncs, not synced, runs through, changes | `bca sync status` |
-
-A lens with nothing in it is left out: Processes, People, and Requirements
-need documented UI tests ([Battle test](./battle-test.md)), Findings needs a
-finding, Recordings needs a `sync` section in `.bca.json`
-([BC Atlas Sync](../plugins/sync/README.md)).
-
-Recordings is the lens of the built-in plugin `sync`. Lenses, nodes,
-findings, and stories of plugins come after those of BC Atlas and behave
-the same, in the view and in `bca view`; see
-[Plugins](./plugins.md#what-a-plugin-adds-to-the-graph).
+A lens with nothing in it is left out: Findings needs a finding.
 
 ### Stories
 
@@ -153,12 +125,9 @@ nodes it is about, which stand out while the rest steps back. **←** and
 | Story | Tells | Use it to |
 | --- | --- | --- |
 | What the system is | Apps, components, what everything depends on, the data, events, contracts, the user interface, permissions, health | explain and demonstrate the system |
-| One per process | The process tests in order, step by step, each on the objects it touches and with the permissions it needs | document a process, and test it: a blocked step says so |
-| Who can do what | Every agent of the company with roles, permission sets, what they can do, and what blocks them | review roles and permissions |
 | What to fix | Every finding, the most severe first, on the nodes it is about, with the fix | work through the health check |
-| Dependencies the wrong way | Every work item of the architecture with the steps to resolve it | reach the target architecture |
+| What to change, and how | Every change to the architecture the analysis finds, the most important first, with the steps | reach the target architecture |
 
-So the same graph is the documentation, the test, and the demonstration:
 **Export › Documentation** writes every story as one Markdown document.
 
 ### Export
@@ -255,10 +224,8 @@ changes nothing.
 | BC Atlas: Run Health Check | Analyzes again and fills the Problems panel. |
 | BC Atlas: Show the Components | The Components lens as a diagram: the configured architecture, or a proposal when there is none. |
 | BC Atlas: Accept Current Violations in the Baseline | Like `bca architecture --update-baseline`. |
-| BC Atlas: Export… | Writes the view as one offline HTML file, the Markdown report, the 3D explorer, the object catalog, the system handbook, a diagram, or the knowledge graph in RDF and OWL (`bca export`). |
+| BC Atlas: Export… | Writes the view as one offline HTML file, the Markdown report, the object catalog, a diagram, or the knowledge graph in RDF and OWL (`bca export`). |
 | BC Atlas: Generate Documentation from UI Tests… | Markdown, HTML, DITA, Azure DevOps CSV, or BPMN (`bca docs generate`). |
-| BC Atlas: Set Up Automation | `.bca.json`, Git hooks, pipeline, and schedule, in a terminal (`bca setup`). |
-| BC Atlas: Run Tasks of a Trigger… | What a hook, the pipeline, or the schedule runs (`bca run`). |
 | BC Atlas: Select Project… | The app, or a folder above several apps, to analyze. |
 | BC Atlas: Analyze Again, Show Output | |
 
@@ -343,9 +310,6 @@ objects). It is small, a few hundred kilobytes for thousands of objects,
 and it cannot change files. A link with its address opens the same picture
 for everyone who has the file.
 
-The timeline of the dependencies over Git history is the 3D explorer's:
-`bca export --view explorer --history` ([Dependency explorer](./dependency-explorer.md)).
-
 ## Large projects
 
 The first analysis of the Base Application with the System Application and
@@ -376,8 +340,8 @@ extension, and bundles both with esbuild: the extension becomes
 `dist/extension.js`, and each engine entry it starts (the analysis worker, the
 view, the CLI, the MCP server) becomes one file with its dependencies.
 Only resvg and web-tree-sitter stay packages, because they load their
-WebAssembly from next to themselves; the 3D explorer's browser bundle and the
-diagram font are in the engine's `vendor/` folder. The `.vsix` holds about 45
+WebAssembly from next to themselves; the diagram font is in the engine's
+`vendor/` folder. The `.vsix` holds about 45
 files.
 
 ```sh

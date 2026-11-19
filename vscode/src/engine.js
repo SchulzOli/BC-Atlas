@@ -108,7 +108,7 @@ class Engine {
 function runCli(args, { cwd, nodePath, log = () => {} } = {}) {
   const { command, env } = runtime(nodePath);
   return new Promise((resolve, reject) => {
-    const child = spawn(command, [enginePath("src", "cli.js"), ...args], { cwd, env: { ...process.env, ...env, BCA_NO_UPDATE_CHECK: "1" } });
+    const child = spawn(command, [enginePath("src", "cli.js"), ...args], { cwd, env: { ...process.env, ...env } });
     let output = "";
     const collect = (chunk) => {
       output += chunk;

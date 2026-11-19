@@ -1,10 +1,9 @@
 // The atlas: everything BC Atlas reads from the AL source as ONE graph.
 //
 // The source code is the only fact. Apps, components, namespaces, objects,
-// health rules, process tests, the people who perform them, and the
-// requirements they prove are nodes; what they do with each other are
+// and health rules are nodes; what they do with each other are
 // relations. A lens selects a part of that graph (the data, the events, the
-// architecture, the findings, a process), a story walks through it step by
+// architecture, the findings), a story walks through it step by
 // step, and a finding points at the nodes it is about. The one view of the
 // app (src/app/ui) draws any lens as a 2D graph, a diagram, or a 3D graph.
 //
@@ -20,13 +19,6 @@ import { architectureForView } from "./architecture.js";
 import path from "node:path";
 import { dependencyMatrix } from "../blueprint/drilldown.js";
 import { RELATION_STYLES, TYPE_STYLES } from "../d2.js";
-import { pluginAtlas } from "../plugins/atlas.js";
-import { definitionOf } from "../simulation/define.js";
-import { describeFlows } from "../flows/index.js";
-import { renderBpmn } from "../docs/render/bpmn.js";
-import { bpmnProcess, processesConfig, STEP_STATUS } from "../process/index.js";
-import { describeProcesses } from "../process/project.js";
-import { span } from "../process/telemetry.js";
 import { analyzeVisibility, LEVEL_COLORS } from "../visibility.js";
 
 const NEUTRAL = "#64748B";
@@ -35,19 +27,7 @@ const KIND_COLORS = {
   app: "#0072B2",
   component: "#4E5D78",
   module: "#4E5D78",
-  rule: "#B7791F",
-  process: "#15803D",
-  task: "#0891B2",
-  person: "#7C3AED",
-  role: "#4F46E5",
-  requirement: "#A21CAF",
-  model: "#15803D",
-  activity: "#0891B2",
-  lane: "#4F46E5",
-  trigger: "#B7791F",
-  flow: "#2563EB",
-  artifact: "#0F766E",
-  place: "#64748B"
+  rule: "#B7791F"
 };
 // Relations the atlas adds to those of the AL source (src/d2.js).
 const ATLAS_RELATIONS = {
@@ -61,32 +41,7 @@ const ATLAS_RELATIONS = {
   error: { color: SEVERITY_COLORS.error },
   warning: { color: SEVERITY_COLORS.warning },
   info: { color: SEVERITY_COLORS.info },
-  step: { color: "#15803D" },
-  next: { color: "#15803D", dash: true },
-  touches: { color: "#0891B2" },
-  performs: { color: "#15803D" },
-  "has role": { color: "#7C3AED" },
-  does: { color: "#15803D", dash: true },
-  forbids: { color: "#B91C1C", dash: true },
-  grants: { color: "#64748B", dash: true },
-  grounds: { color: "#0F766E" },
-  blocked: { color: SEVERITY_COLORS.error },
-  "must not": { color: NEUTRAL, dash: true },
-  "can, but must not": { color: SEVERITY_COLORS.error, dash: true },
-  holds: { color: "#7C3AED" },
-  source: { color: "#31783B" },
-  "proven by": { color: "#A21CAF" },
-  "in lane": { color: "#4F46E5" },
-  "begins with": { color: "#15803D" },
-  "leads to": { color: "#0891B2" },
-  "leads back to": { color: "#B7791F", dash: true },
-  "shown by": { color: "#A21CAF", dash: true },
-  starts: { color: "#B7791F" },
-  makes: { color: "#2563EB" },
-  then: { color: "#2563EB" },
-  "if it fails": { color: "#C0392B", dash: true },
-  "in any case": { color: "#64748B", dash: true },
-  "saved to": { color: "#0F766E" }
+  source: { color: "#31783B" }
 };
 
 
@@ -98,7 +53,7 @@ const ATLAS_RELATIONS = {
  * `from` keeps only relations that start at an object of these types.
  */
 export const LENSES = [
-  { id: "overview", title: "Overview", section: "How it works", hint: "how it works, from who uses it to the data", summary: "How it works, from left to right: who uses it, what they do, on which screens, with which logic, in which data.", flow: true, form: "diagram", kinds: ["object", "task", "person"], needs: [], relations: "*", group: "kind", color: "type", reads: "the objects of the AL source and what they do with each other, the process tests, and the people of `simulation` in .bca.json" },
+  { id: "overview", title: "Overview", section: "How it works", hint: "how it works, from the screens to the data", summary: "How it works, from left to right: the screens, the logic behind them, and the data.", flow: true, form: "diagram", kinds: ["object"], relations: "*", group: "kind", color: "type", reads: "the objects of the AL source and what they do with each other" },
   { id: "system", title: "System", section: "Structure", hint: "every object and every relation", summary: "Every object and every relation between them.", kinds: ["object"], relations: "*", group: "component", color: "type", reads: "the objects of the AL source and all their relations: calls, data access, events, extensions, permissions" },
   { id: "components", title: "Components", section: "Structure", hint: "the layers and their dependencies", form: "diagram", summary: "The components in their layers and the dependencies between them, allowed or the wrong way.", kinds: ["component"], relations: ["depends on", "wrong way", "not declared"], group: "layer", color: "kind", reads: "the components of `architecture` in .bca.json (or the proposal), and the relations between the objects assigned to them" },
   { id: "apps", title: "Apps", section: "Structure", hint: "the apps and what they use of each other", form: "diagram", summary: "The apps of the workspace, the apps they depend on, and what they use of each other.", kinds: ["app"], relations: ["declared", "implicit", "undeclared", "unresolved"], group: "origin", color: "kind", reads: "`app.json` of every app, its `dependencies`, and the relations between objects of different apps" },
@@ -108,16 +63,9 @@ export const LENSES = [
   { id: "events", title: "Events", section: "Parts", hint: "publishers and subscribers", summary: "Event publishers and their subscribers.", kinds: ["object"], relations: ["publishes", "subscribes", "events"], connected: true, group: "component", color: "type", reads: "`[IntegrationEvent]`, `[BusinessEvent]`, and `[EventSubscriber]` procedures" },
   { id: "contracts", title: "Contracts", section: "Parts", hint: "interfaces and what implements them", summary: "Interfaces and what implements them.", kinds: ["object"], relations: ["implements", "selects"], connected: true, types: ["interface"], group: "component", color: "type", reads: "`interface` objects, `implements`, and the `Implementation` of enum values" },
   { id: "pages", title: "Pages", section: "Parts", hint: "pages, reports, and what they show", summary: "Pages and reports, and what they show, run, and contain.", kinds: ["object"], relations: "*", connected: true, from: ["page", "pageextension", "pagecustomization", "report", "reportextension"], types: ["page", "report"], group: "component", color: "type", reads: "pages, page extensions, reports, their source tables, parts, and actions" },
-  { id: "security", title: "Permissions", section: "People and rules", hint: "permission sets and what they permit", summary: "Permission sets and what they permit and include.", kinds: ["object"], relations: ["permits", "includes"], connected: true, types: ["permissionset"], group: "component", color: "type", reads: "`permissionset` objects, their `Permissions`, and `IncludedPermissionSets`" },
+  { id: "security", title: "Permissions", section: "Parts", hint: "permission sets and what they permit", summary: "Permission sets and what they permit and include.", kinds: ["object"], relations: ["permits", "includes"], connected: true, types: ["permissionset"], group: "component", color: "type", reads: "`permissionset` objects, their `Permissions`, and `IncludedPermissionSets`" },
   { id: "visibility", title: "Visibility", section: "Quality", hint: "public, internal, or local", summary: "What is public, internal, or local, and what could be narrower.", kinds: ["object"], relations: "*", group: "component", color: "level", reads: "the `Access` property and the uses found from other apps and objects" },
-  { id: "health", title: "Findings", section: "Quality", hint: "the rules and what they found", summary: "The rules of the health check and the objects they found.", kinds: ["rule", "object"], relations: ["error", "warning", "info"], connected: true, group: "kind", color: "severity", reads: "the findings of `bca check` (rules, AL compiler, analyzers) and the objects they are on" },
-  { id: "processes", title: "Processes", section: "How it works", hint: "the process tests, step by step", form: "diagram", summary: "The process tests step by step, and the objects each one touches.", kinds: ["process", "task", "object"], relations: ["step", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the AL UI tests with `[SCENARIO]`, and the code behind every step" },
-  { id: "people", title: "People", section: "People and rules", hint: "who performs what, and what blocks them", form: "diagram", summary: "Who performs which process test with which permission sets, and what blocks them.", kinds: ["person", "task", "object"], relations: ["performs", "blocked", "must not", "can, but must not", "holds"], connected: true, group: "kind", color: "kind", reads: "the roles and agents of `simulation` in .bca.json, their permission sets, and the process tests" },
-  { id: "requirements", title: "Requirements", section: "People and rules", hint: "what the company needs, and its proof", form: "diagram", summary: "What the company needs, and the process tests that prove it.", kinds: ["requirement", "task"], relations: ["proven by"], group: "kind", color: "status", reads: "the `requirements` of `simulation` in .bca.json and the process tests" },
-  { id: "simulation", title: "Simulation", section: "People and rules", hint: "the company that uses the app", form: "diagram", summary: "The company that uses the app: its people and roles, the process tests each role does or must not do, the recordings they stand on, and the requirements they prove.", kinds: ["person", "role", "task", "requirement", "recording"], needs: ["person", "role"], relations: ["has role", "does", "forbids", "blocked", "can, but must not", "proven by", "grounds"], group: "kind", color: "status", reads: "the `simulation` section of .bca.json (or the [PERMISSIONS] of the process tests), the process tests, and the recordings of the sync plugin" },
-  { id: "models", title: "Process models", section: "People and rules", hint: "how the company works, lane by lane", form: "diagram", summary: "The processes as they are drawn: every step in the lane of the role that does it, what it comes after, and the process test or recording that shows it works. A step is green when its lane gets through it, red where the process stops.", kinds: ["model", "lane", "role", "activity", "task"], needs: ["model"], relations: ["in lane", "begins with", "leads to", "leads back to", "shown by"], connected: true, group: "kind", color: "status", reads: "the `processes` of .bca.json, run with the roles and agents of `simulation`, the process tests, and the recordings" },
-  { id: "flows", title: "Flows", section: "People and rules", hint: "what is made from the source, when, and where it is saved", form: "diagram", summary: "Your own workflows, from left to right: the trigger that starts a flow, the artifacts it makes from the source, which comes after which, and where each is saved.", kinds: ["trigger", "flow", "artifact", "place"], needs: ["flow"], relations: ["starts", "makes", "then", "if it fails", "in any case", "saved to"], group: "kind", color: "kind", reads: "the `flows` of .bca.json, and the sync modes of `automation.triggers`" },
-  { id: "run", title: "Run", section: "How it works", hint: "the simulation at work", form: "diagram", summary: "The canvas the simulation runs on: who performs which process test, and the objects each step touches.", kinds: ["person", "task", "object"], needs: ["person"], relations: ["performs", "blocked", "can, but must not", "next", "touches"], connected: true, group: "kind", color: "kind", reads: "the agents of `simulation` in .bca.json, the process tests, and what each step of a test needs" }
+  { id: "health", title: "Findings", section: "Quality", hint: "the rules and what they found", summary: "The rules of the health check and the objects they found.", kinds: ["rule", "object"], relations: ["error", "warning", "info"], connected: true, group: "kind", color: "severity", reads: "the findings of `bca check` (rules, AL compiler, analyzers) and the objects they are on" }
 ];
 
 const plural = (count, word, many = `${word}s`) => `${Number(count).toLocaleString("en-US")} ${count === 1 ? word : many}`;
@@ -158,13 +106,10 @@ function builder() {
   const relationIndex = new Map();
   const edges = [];
   const seen = new Map();
-  // Colors of relations a plugin brings along.
-  const styles = new Map();
   return {
     nodes,
     relations,
     edges,
-    style: (kind, style) => styles.set(kind, style),
     has: (id) => index.has(id),
     at: (id) => index.get(id),
     node(node) {
@@ -180,7 +125,7 @@ function builder() {
       if (a === undefined || b === undefined || a === b) return;
       if (!relationIndex.has(kind)) {
         relationIndex.set(kind, relations.length);
-        const style = ATLAS_RELATIONS[kind] ?? RELATION_STYLES[kind] ?? styles.get(kind) ?? { color: NEUTRAL };
+        const style = ATLAS_RELATIONS[kind] ?? RELATION_STYLES[kind] ?? { color: NEUTRAL };
         relations.push({ kind, color: style.color, ...(style.dash ? { dash: true } : {}) });
       }
       const relation = relationIndex.get(kind);
@@ -350,396 +295,6 @@ async function health(workspace, graph, findings) {
   return report;
 }
 
-/** The process tests, the people who perform them, and the requirements they prove. */
-async function processes(workspace, graph, findings) {
-  const battle = await workspace.battleTest().catch(() => undefined);
-  if (!battle) return undefined;
-  // `page 50210 Purchase Requests` names an object by type and ID.
-  const byNumber = new Map();
-  for (const node of graph.nodes) if (node.kind === "object" && node.objectId) byNumber.set(`${node.type}:${node.objectId}`, node.id);
-  const objectOf = (need) => byNumber.get(`${need.type}:${need.id}`);
-  // How far a process test or a process gets: it works, it stops, or nobody can say.
-  const STATUS = { done: "#15803D", runs: "#15803D", fit: "#15803D", blocked: SEVERITY_COLORS.error, waiting: SEVERITY_COLORS.warning, unstaffed: SEVERITY_COLORS.warning, unverified: SEVERITY_COLORS.warning };
-  const taskStatus = new Map((battle.processes ?? []).flatMap((process) => (process.steps ?? []).map((step) => [step.task, step.status])));
-
-  for (const task of battle.tasks ?? []) {
-    graph.node(compact({
-      id: `task::${task.id}`,
-      kind: "task",
-      label: task.title,
-      color: taskStatus.get(task.id) && taskStatus.get(task.id) !== "done" ? STATUS[taskStatus.get(task.id)] ?? KIND_COLORS.task : KIND_COLORS.task,
-      status: taskStatus.get(task.id),
-      about: task.goal,
-      steps: task.steps?.length,
-      file: task.source?.file,
-      procedure: task.source?.procedure
-    }));
-    for (const step of task.steps ?? []) {
-      for (const need of step.needs ?? []) {
-        const object = objectOf(need);
-        if (object) graph.edge(`task::${task.id}`, object, "touches");
-      }
-    }
-  }
-  for (const process of battle.processes ?? []) {
-    graph.node(compact({ id: `process::${process.id}`, kind: "process", label: process.title, color: process.status === "blocked" ? STATUS.blocked : KIND_COLORS.process, status: process.status, handovers: process.handovers }));
-    let previous;
-    for (const step of process.steps ?? []) {
-      graph.edge(`process::${process.id}`, `task::${step.task}`, "step");
-      if (previous) graph.edge(`task::${previous}`, `task::${step.task}`, "next");
-      previous = step.task;
-    }
-  }
-  // The roles of the company: what they hold, do, and must not do, as it is defined.
-  for (const role of battle.roles ?? []) {
-    const id = `role::${role.name}`;
-    graph.node(compact({ id, kind: "role", label: role.name, color: KIND_COLORS.role, about: role.description, permissionSets: role.permissionSets?.join(", "), taskGroups: role.taskGroups?.join(", ") }));
-    for (const set of role.permissionSets ?? []) {
-      const object = graph.nodes.find((node) => node.kind === "object" && node.type === "permissionset" && String(node.label).toLowerCase() === String(set).toLowerCase());
-      if (object) graph.edge(id, object.id, "grants");
-    }
-    for (const task of role.tasks ?? []) if (graph.at(`task::${task}`) !== undefined) graph.edge(id, `task::${task}`, "does");
-    for (const task of role.mustNot ?? []) if (graph.at(`task::${task}`) !== undefined) graph.edge(id, `task::${task}`, "forbids");
-  }
-  for (const agent of battle.agents ?? []) {
-    const id = `person::${agent.name}`;
-    const blocked = (agent.attempts ?? []).some(({ expected, outcome }) => (expected === "complete" && outcome !== "completed") || (expected === "deny" && outcome !== "denied"));
-    graph.node(compact({
-      id,
-      kind: "person",
-      label: agent.roles?.length ? `${agent.name} (${agent.roles.join(", ")})` : agent.name,
-      color: blocked ? SEVERITY_COLORS.error : KIND_COLORS.person,
-      roles: agent.roles?.join(", "),
-      permissionSets: agent.permissionSets?.map(({ name }) => name).join(", ")
-    }));
-    for (const set of agent.permissionSets ?? []) {
-      const object = byNumber.get(`permissionset:${set.id}`);
-      if (object) graph.edge(id, object, "holds");
-    }
-    for (const role of agent.roles ?? []) if (graph.at(`role::${role}`) !== undefined) graph.edge(id, `role::${role}`, "has role");
-    for (const attempt of agent.attempts ?? []) {
-      const kind = attempt.expected === "deny"
-        ? (attempt.outcome === "denied" ? "must not" : "can, but must not")
-        : (attempt.outcome === "completed" ? "performs" : "blocked");
-      graph.edge(id, `task::${attempt.task}`, kind);
-    }
-  }
-  for (const requirement of battle.fitGap?.requirements ?? []) {
-    const id = `requirement::${requirement.id}`;
-    graph.node(compact({
-      id,
-      kind: "requirement",
-      label: `${requirement.id}: ${requirement.title}`,
-      color: requirement.status === "fit" ? STATUS.fit : SEVERITY_COLORS.warning,
-      status: requirement.label ?? requirement.status,
-      about: requirement.action
-    }));
-    for (const task of requirement.tasks ?? []) graph.edge(id, `task::${task.id ?? task}`, "proven by");
-  }
-  for (const finding of battle.findings ?? []) {
-    const agent = finding.agent ? graph.nodes.findIndex((node) => node.kind === "person" && (node.label === finding.agent || node.label.startsWith(`${finding.agent} (`))) : -1;
-    const task = finding.task ? graph.nodes.findIndex((node) => node.kind === "task" && node.label === finding.task) : -1;
-    findings.push(compact({
-      severity: finding.severity,
-      rule: finding.code,
-      message: finding.message,
-      fix: finding.action,
-      nodes: [agent, task].filter((position) => position >= 0),
-      origin: "battle test"
-    }));
-  }
-  return battle;
-}
-
-/**
- * Grounding: a process test stands on a recording of the same process in Business Central
- * (a fact snapshot of the sync plugin). The test says what should happen, the recording what
- * did; where the two differ is a finding.
- * @param settings the simulation section: grounding { <document ID>: <recording> }; without an
- *   entry, a test is grounded on the recording that has its title
- */
-function grounding(graph, findings, settings = {}) {
-  const tasks = graph.nodes.filter((node) => node.kind === "task");
-  const recordings = graph.nodes.filter((node) => node.kind === "recording");
-  if (!tasks.length) return;
-  const plain = (text) => String(text).toLowerCase().replace(/[^a-z0-9]+/gu, " ").trim();
-  const explicit = new Map(Object.entries(settings.grounding ?? {}).map(([task, snapshot]) => [plain(task), snapshot]));
-  const targets = (from, kind) => new Set(graph.edges.filter(([a, , relation]) => a === from && graph.relations[relation].kind === kind).map(([, to]) => to));
-  const names = (indexes) => [...indexes].map((index) => graph.nodes[index].label).sort().join(", ");
-  for (const task of tasks) {
-    const wanted = explicit.get(plain(task.id.slice("task::".length)));
-    const recording = wanted
-      ? recordings.find((node) => node.id === `sync::recording::${wanted}` || plain(node.label) === plain(wanted) || plain(node.id.split("::").at(-1)) === plain(wanted))
-      : recordings.find((node) => plain(node.label) === plain(task.label));
-    if (!recording) {
-      if (wanted) {
-        findings.push({ severity: "warning", rule: "grounding-missing", message: `The process test "${task.label}" is grounded on the recording "${wanted}", which is not among the recordings of the project.`, fix: "Record the process in Business Central and sync it (`bca sync run`), or change the grounding with `bca simulate define --ground`.", nodes: [graph.at(task.id)], origin: "battle test" });
-      }
-      if (recordings.length || wanted) task.grounded = "no";
-      continue;
-    }
-    graph.edge(recording.id, task.id, "grounds");
-    task.grounded = recording.label;
-    const touched = targets(graph.at(task.id), "touches");
-    const ran = targets(graph.at(recording.id), "runs through");
-    const beyond = [...ran].filter((index) => !touched.has(index));
-    const unseen = [...touched].filter((index) => !ran.has(index));
-    if (beyond.length || unseen.length) {
-      findings.push({
-        severity: "info",
-        rule: "grounding-differs",
-        message: `The recording "${recording.label}" and the process test "${task.label}" differ: ${[beyond.length ? `what ran in Business Central went through ${names(beyond)}, which the test does not touch` : "", unseen.length ? `the test touches ${names(unseen)}, which the recording did not run through` : ""].filter(Boolean).join("; ")}.`,
-        fix: "Extend the process test so it covers what really runs, or record the process again if the app changed since.",
-        nodes: [graph.at(task.id), graph.at(recording.id), ...beyond, ...unseen],
-        origin: "battle test"
-      });
-    }
-  }
-}
-
-/**
- * The processes of the project (src/process): each model with its steps in their lanes, what
- * shows that a step works, and how the model runs with the people of the simulation.
- * @returns { menu, stories } what the builder of the view shows and changes, and a walk through each model
- */
-async function models(workspace, graph, findings, assessment, battle) {
-  const root = assessment.context.projectRoot ?? assessment.context.options.projectRoot;
-  let described;
-  try {
-    // What is generated from the source asks nobody: telemetry from a file, never from Application Insights.
-    described = await describeProcesses(root, { config: assessment.context.config?.path }, { report: battle ?? null, live: false });
-  } catch (error) {
-    findings.push({ severity: "error", rule: "processes-invalid", message: `The processes of .bca.json are not valid: ${error.message.replace(/^processes: /u, "")}`, fix: "Correct \"processes\" in .bca.json; bca process says what is wrong.", nodes: [], origin: "process" });
-    return { stories: [] };
-  }
-  const COLORS = { runs: "#15803D", blocked: SEVERITY_COLORS.error, unknown: SEVERITY_COLORS.error, "other-lane": SEVERITY_COLORS.warning, unstaffed: SEVERITY_COLORS.warning, unproven: SEVERITY_COLORS.warning };
-  const stories = [];
-  const laneNode = (name) => {
-    // A lane that is a role of the company is that role; any other is only a lane.
-    if (graph.has(`role::${name}`)) return `role::${name}`;
-    graph.node({ id: `lane::${name}`, kind: "lane", label: name || "No lane", color: KIND_COLORS.lane, about: "A lane that is no role of the company: nobody can be tried in it." });
-    return `lane::${name}`;
-  };
-  for (const run of described.runs) {
-    const id = `model::${run.id}`;
-    graph.node(compact({ id, kind: "model", label: run.title, color: run.passed ? KIND_COLORS.model : SEVERITY_COLORS.error, status: run.passed ? "runs" : "stops", steps: run.steps.length, handovers: run.handovers, about: `The process \`${run.id}\`: ${plural(run.steps.length, "step")} in ${plural(run.lanes.length, "lane")}, ${plural(run.handovers, "handover")}. Walk it with \`bca process run --process ${run.id}\`.` }));
-    const node = (step) => `activity::${run.id}::${step.id}`;
-    for (const step of run.steps) {
-      graph.node(compact({
-        id: node(step),
-        kind: "activity",
-        label: step.title,
-        color: COLORS[step.status],
-        status: step.status,
-        about: `${step.lane || "Nobody"}: ${STEP_STATUS[step.status]}.${step.performers.length ? ` ${step.status === "runs" || step.status === "other-lane" ? "Performed" : "Tried"} by ${list(step.performers.map(({ agent }) => agent))}.` : ""}${step.missing.length ? ` Missing: ${list(step.missing)}.` : ""}${step.timing ? ` In the telemetry ${plural(step.timing.count, "time")} in ${plural(step.timing.cases, "case")}, ${span(step.timing.duration.avg)} on average.` : ""}`,
-        roles: step.lane || undefined
-      }));
-      graph.edge(laneNode(step.lane), node(step), "in lane");
-      if (!step.after.length) graph.edge(id, node(step), "begins with");
-      if (step.test && graph.has(`task::${step.test}`)) graph.edge(node(step), `task::${step.test}`, "shown by");
-    }
-    for (const step of run.steps) for (const wire of step.after) graph.edge(`activity::${run.id}::${wire.step}`, node(step), wire.back ? "leads back to" : "leads to");
-    for (const finding of run.findings) {
-      findings.push(compact({ severity: finding.severity, rule: finding.rule, message: finding.message, fix: finding.fix, nodes: [graph.at(finding.step ? `activity::${run.id}::${finding.step}` : id)].filter((index) => index !== undefined), origin: "process" }));
-    }
-    // The run as a walk: step by step, who does it, and how far the process gets.
-    const at = (ids) => ids.map((key) => graph.at(key)).filter((index) => index !== undefined);
-    stories.push({
-      id: `model:${run.id}`,
-      kind: "process",
-      title: `${run.title}: step by step`,
-      summary: `${run.passed ? "The process runs" : "The process stops"}: ${plural(run.steps.length, "step")}, ${plural(run.handovers, "handover")}, ${plural(run.findings.length, "thing", "things")} to improve.`,
-      steps: [
-        ...[...run.steps].sort((a, b) => a.order - b.order).map((step) => ({
-          title: step.title,
-          text: [
-            `**${step.lane || "Nobody"}**: ${STEP_STATUS[step.status]}.`,
-            step.after.some(({ back }) => !back) ? `Comes after ${list(step.after.filter(({ back }) => !back).map((wire) => `${run.steps.find(({ id: own }) => own === wire.step).title}${wire.when ? ` (${wire.when})` : ""}`))}${step.handover ? ": the work changes hands" : ""}.` : "It starts the process.",
-            step.performers.length ? `${step.status === "runs" || step.status === "other-lane" ? "Performed" : "Tried"} by ${list(step.performers.map(({ agent, roles }) => `${agent} (${roles.join(", ")})`))}.` : "",
-            step.touches.objects.length ? `In the app: ${plural(step.touches.steps, "click")}, opens ${step.touches.opens}, runs ${step.touches.runs}, reads ${step.touches.reads}, writes ${step.touches.writes}.` : "",
-            step.missing.length ? `Missing: ${step.missing.map((line) => `\`${line}\``).join(", ")}.` : "",
-            step.timing ? `In the telemetry it is done ${plural(step.timing.count, "time")} in ${plural(step.timing.cases, "case")} and takes ${span(step.timing.duration.avg)} on average${step.timing.repeated ? `; in ${plural(step.timing.repeated, "case")} it is done again` : ""}.` : "",
-            ...(run.timing?.ways ?? []).filter((way) => way.into === step.id && way.from !== step.id).map((way) => `After ${run.steps.find(({ id: own }) => own === way.from)?.title ?? way.from} the work waits ${span(way.wait.avg)} on average.`)
-          ].filter(Boolean).join(" "),
-          lens: "models",
-          nodes: at([node(step), laneNode(step.lane), ...(step.test ? [`task::${step.test}`] : [])]),
-          status: step.status === "blocked" || step.status === "unknown" ? "error" : undefined
-        })),
-        ...(run.findings.length ? [{
-          title: "What to improve",
-          text: run.findings.map((finding) => `${finding.message}${finding.fix ? ` ${finding.fix}` : ""}`).join(" "),
-          lens: "models",
-          nodes: at(run.findings.map((finding) => (finding.step ? `activity::${run.id}::${finding.step}` : id)))
-        }] : [])
-      ]
-    });
-  }
-  // BPMN 2.0 of each model, for the builder to save.
-  const version = (await workspace.overview()).version;
-  const bpmn = Object.fromEntries(processesConfig({ processes: described.processes }).filter(({ steps }) => steps.length).map((process) => [process.id, renderBpmn(bpmnProcess(process), { version, note: `The process "${process.id}" of .bca.json, written by BC Atlas. Change the process and export it again.` })]));
-  const { schema: _schema, ...menu } = described;
-  return { menu: { ...menu, bpmn, statuses: STEP_STATUS }, stories };
-}
-
-/**
- * The flows of the project (src/flows): the trigger that starts each, the artifacts it makes, and
- * where each is saved, as nodes of the graph.
- * @returns what the Flow menu of the view shows and changes: { flows, triggers, syncModes, artifacts }
- */
-async function flows(graph, findings, assessment) {
-  const root = assessment.context.projectRoot ?? assessment.context.options.projectRoot;
-  let described;
-  try {
-    described = await describeFlows(root, { config: assessment.context.config?.path });
-  } catch (error) {
-    findings.push({ severity: "error", rule: "flows-invalid", message: `The flows of .bca.json are not valid: ${error.message.replace(/^flows: /u, "")}`, fix: "Correct \"flows\" in .bca.json; bca flow says what is wrong.", nodes: [], origin: "flows" });
-    return undefined;
-  }
-  const { file: _file, schema: _schema, ...menu } = described;
-  const catalog = new Map(described.artifacts.map((artifact) => [artifact.id, artifact]));
-  for (const flow of described.flows) {
-    const id = `flow::${flow.id}`;
-    graph.node(compact({ id, kind: "flow", label: flow.title, color: KIND_COLORS.flow, about: `The flow \`${flow.id}\`: ${plural(flow.steps.length, "step")}. ${flow.when.length ? `Runs on ${list(flow.when)}.` : "Runs only by name."} Run it with \`bca run --flow ${flow.id}\`.`, runsOn: flow.when.join(", ") || undefined, steps: flow.steps.length }));
-    for (const trigger of flow.when) {
-      const settings = described.triggers[trigger];
-      graph.node(compact({ id: `trigger::${trigger}`, kind: "trigger", label: trigger, color: KIND_COLORS.trigger, about: `${settings.summary}.${settings.configured || trigger === "manual" ? "" : " Nothing calls it yet: `bca setup` installs the hook or the pipeline."}`, delivery: `${settings.sync}: ${described.syncModes[settings.sync]}`, status: settings.configured || trigger === "manual" ? undefined : "not installed" }));
-      graph.edge(`trigger::${trigger}`, id, "starts");
-    }
-    const unstable = [];
-    flow.steps.forEach((step, index) => {
-      const artifact = catalog.get(step.what);
-      const { what, to, id: name, after = [], ...options } = step;
-      const detail = options.lens ?? options.story ?? options.view;
-      const node = `artifact::${flow.id}::${index + 1}`;
-      graph.node(compact({ id: node, kind: "artifact", label: `${artifact?.title ?? what}${detail ? `: ${detail}` : ""}`, color: KIND_COLORS.artifact, about: artifact?.summary, type: what, options: Object.entries(options).map(([key, value]) => `${key}=${value}`).join(", ") || undefined, saves: to, status: artifact?.gate ? "gate" : undefined }));
-      // A step starts with the flow, or comes after others: if they passed, failed, or in any case.
-      if (!after.length) graph.edge(id, node, "makes");
-      if (to) {
-        graph.node({ id: `place::${to}`, kind: "place", label: to, color: KIND_COLORS.place, about: artifact?.target === "folder" ? "A folder of the project." : "A file of the project." });
-        graph.edge(node, `place::${to}`, "saved to");
-      }
-      if (artifact?.stable === false) unstable.push(node);
-    });
-    flow.steps.forEach((step, index) => {
-      for (const wire of step.after ?? []) {
-        const before = flow.steps.findIndex((other) => other.id === (wire.step ?? wire));
-        graph.edge(`artifact::${flow.id}::${before + 1}`, `artifact::${flow.id}::${index + 1}`, { failed: "if it fails", always: "in any case" }[wire.if] ?? "then");
-      }
-    });
-    // What holds the time it was made differs on every run: verify would report it every time.
-    const verified = flow.when.filter((trigger) => described.triggers[trigger].sync === "verify");
-    if (unstable.length && verified.length) {
-      findings.push({ severity: "warning", rule: "flow-never-in-sync", message: `The flow ${flow.id} runs on ${list(verified)}, which verifies what was saved, but it makes an artifact that differs on every run.`, fix: "Deliver that trigger as an artifact, or move the step to a flow of its own.", nodes: unstable.map((node) => graph.at(node)), origin: "flows" });
-    }
-  }
-  return menu;
-}
-
-/**
- * What the plugins of the project add (src/plugins/atlas.js): nodes, relations, lenses,
- * findings, and stories of what the AL source cannot show.
- * @returns { lenses, stories } to append to those of BC Atlas
- */
-async function contributions(workspace, graph, findings, assessment) {
-  const lenses = [];
-  const stories = [];
-  const numbered = new Map();
-  for (const node of graph.nodes) if (node.kind === "object" && node.objectId) numbered.set(`${node.type}:${node.objectId}`, node.id);
-  const named = (type, name) => graph.nodes.find((node) => node.kind === "object" && node.type === type && String(node.label).toLowerCase() === String(name).toLowerCase())?.id;
-  const context = {
-    atlas: { nodes: graph.nodes, relations: graph.relations, edges: graph.edges },
-    /** The node id of an AL object by type and ID or name, or nothing. */
-    object: (type, idOrName) => numbered.get(`${String(type).toLowerCase()}:${idOrName}`) ?? named(String(type).toLowerCase(), idOrName)
-  };
-  const root = assessment.context.projectRoot ?? assessment.context.options.projectRoot;
-  for (const { plugin, contribution, error } of await pluginAtlas({ root, configPath: assessment.context.config?.path }, context)) {
-    if (error) {
-      findings.push({ severity: "warning", rule: "plugin-atlas-failed", message: `Plugin ${plugin} could not add to the atlas: ${error}`, nodes: [], origin: plugin });
-      continue;
-    }
-    for (const [kind, style] of Object.entries(contribution.styles ?? {})) graph.style(kind, style);
-    for (const node of contribution.nodes ?? []) {
-      if (!node?.id || !node.kind || !node.label) continue;
-      graph.node(compact({ color: NEUTRAL, ...node, plugin }));
-    }
-    for (const { from, to, kind, weight } of contribution.relations ?? []) graph.edge(from, to, kind, weight ?? 1);
-    const at = (ids) => [...new Set((ids ?? []).map((id) => graph.at(id)).filter((index) => index !== undefined))];
-    for (const finding of contribution.findings ?? []) {
-      const nodes = at(finding.nodes);
-      // The same finding as a health rule of the plugin: one finding, now on its nodes.
-      const known = findings.find(({ rule, message }) => rule === finding.rule && message === finding.message);
-      if (known) known.nodes = [...new Set([...known.nodes, ...nodes])];
-      else findings.push(compact({ severity: finding.severity ?? "info", rule: finding.rule, message: finding.message, fix: finding.fix, nodes, origin: plugin }));
-    }
-    for (const lens of contribution.lenses ?? []) {
-      if (!lens?.id || LENSES.some(({ id }) => id === lens.id) || lenses.some(({ id }) => id === lens.id)) continue;
-      lenses.push({ group: "kind", color: "kind", reads: `the plugin ${plugin}`, ...lens, plugin });
-    }
-    for (const story of contribution.stories ?? []) {
-      if (!story?.id || !story.steps?.length) continue;
-      stories.push({ kind: "process", ...story, plugin, steps: story.steps.map((step) => ({ ...step, nodes: at(step.nodes) })) });
-    }
-  }
-  return { lenses, stories };
-}
-
-/**
- * The runs of the simulation: one per person, step by step through the process tests the person
- * is assigned. Every step says where it is (the test, the objects the step needs) and how it
- * ends for this person: done, stopped here with what is missing, or not reached. A run builds
- * its picture: what a step has not reached yet does not show.
- */
-function runs(graph, battle) {
-  if (!battle) return [];
-  const byNumber = new Map();
-  for (const node of graph.nodes) if (node.kind === "object" && node.objectId) byNumber.set(`${node.type}:${node.objectId}`, node.id);
-  const order = new Map((battle.tasks ?? []).map((task, index) => [task.id, index]));
-  const tasks = new Map((battle.tasks ?? []).map((task) => [task.id, task]));
-  const indexes = (ids) => [...new Set(ids.map((id) => graph.at(id)).filter((index) => index !== undefined))];
-  return (battle.agents ?? []).map((agent) => {
-    const person = `person::${agent.name}`;
-    const assigned = (agent.attempts ?? []).filter(({ expected }) => expected === "complete").sort((a, b) => order.get(a.task) - order.get(b.task));
-    if (!assigned.length || graph.at(person) === undefined) return undefined;
-    const who = agent.roles?.length ? `${agent.name} (${agent.roles.join(", ")})` : agent.name;
-    const sets = (agent.permissionSets ?? []).map(({ name }) => name);
-    const steps = [{
-      title: who,
-      text: `${agent.name} ${agent.roles?.length ? `has the role ${agent.roles.join(" and ")}` : "has no role"}${sets.length ? `, with the permission sets ${sets.join(", ")}` : ""}, and is assigned ${assigned.length} process test${assigned.length === 1 ? "" : "s"}: ${assigned.map(({ title }) => title).join("; ")}.`,
-      lens: "run",
-      nodes: indexes([person])
-    }];
-    for (const attempt of assigned) {
-      const task = tasks.get(attempt.task);
-      for (const step of task?.steps ?? []) {
-        const stopped = attempt.blockedAt === step.index;
-        const reached = !attempt.blockedAt || step.index <= attempt.blockedAt;
-        const missing = (attempt.missing ?? []).filter((item) => item.step === step.index);
-        const end = stopped
-          ? `${agent.name} is stopped here: ${missing.map((item) => `${item.right} on ${item.object} is missing (${item.because})`).join("; ") || "a permission is missing"}.${attempt.missingPermissions?.length ? ` Add to a permission set: ${attempt.missingPermissions.map((line) => `\`${line}\``).join(", ")}.` : ""}`
-          : reached ? `${agent.name} can do this.` : `Not reached: ${agent.name} was stopped at step ${attempt.blockedAt}.`;
-        steps.push({
-          title: `${attempt.title} · step ${step.index}`,
-          text: `${step.text} ${end}`,
-          lens: "run",
-          nodes: indexes([person, `task::${attempt.task}`, ...(step.needs ?? []).map((need) => byNumber.get(`${need.type}:${need.id}`)).filter(Boolean)]),
-          status: stopped ? "blocked" : reached ? "done" : "waiting"
-        });
-      }
-    }
-    const completed = assigned.filter(({ outcome }) => outcome === "completed").length;
-    steps.push({
-      title: `${agent.name}: ${completed} of ${assigned.length} done`,
-      text: `${agent.name} completes ${completed} of ${assigned.length} assigned process test${assigned.length === 1 ? "" : "s"}.${assigned.filter(({ outcome }) => outcome === "blocked").map(({ title, blockedAt }) => ` "${title}" stops at step ${blockedAt}.`).join("")}`,
-      lens: "run",
-      // The end of the run is the whole picture it built.
-      nodes: [...new Set(steps.flatMap(({ nodes }) => nodes))],
-      ...(completed < assigned.length ? { status: "blocked" } : { status: "done" })
-    });
-    return { id: `run:${agent.name}`, kind: "run", build: true, title: `${agent.name} at work`, summary: `${who} performs ${assigned.length} assigned process test${assigned.length === 1 ? "" : "s"}, step by step: where each step goes, and where it stops.`, steps };
-  }).filter(Boolean);
-}
-
-/** What the list of changes says when it is empty. */
 export const NOTHING_TO_CHANGE = "No app uses another without declaring it, no components depend on each other in a circle, no dependency points the wrong way, and no table is written from outside its component.";
 
 /**
@@ -886,7 +441,7 @@ function changes({ graph, assessment }) {
   // 6. What is public and used by nobody outside its component.
   for (const check of outcome.checks ?? []) {
     if (check.rule !== "could-be-internal") continue;
-    const [, count, names] = check.message.match(/^(\d+) object\(s\) of .+? could be Access = Internal: (.+?) \(bca /u) ?? [];
+    const [, count, names] = check.message.match(/^(\d+) object\(s\) of .+? could be Access = Internal: (.+)$/u) ?? [];
     if (!count) continue;
     result.push({
       id: `surface:${check.component}`,
@@ -894,8 +449,8 @@ function changes({ graph, assessment }) {
       title: `Make ${plural(Number(count), "object")} of ${check.component} internal`,
       why: `Nothing outside ${check.component} uses ${names}. As long as ${Number(count) === 1 ? "it is" : "they are"} public, other apps can start to depend on ${Number(count) === 1 ? "it" : "them"}, and every change is a breaking one.`,
       how: [
-        `\`bca refactor surface --component "${check.component}"\` shows the change: Access = Internal on these objects, and what others use listed under \`exposes\` in .bca.json.`,
-        "Add `--apply` to write it."
+        "Set `Access = Internal` on these objects.",
+        "List what other components use under `exposes` of the component in .bca.json."
       ],
       effort: "S",
       optional: true,
@@ -926,10 +481,9 @@ function changes({ graph, assessment }) {
 }
 
 /** The stories: walks through the graph that explain, document, test, and demonstrate the system. */
-function stories({ graph, findings, report, assessment, battle, title, changed = [], lensIds = new Set() }) {
+function stories({ graph, findings, report, assessment, title, changed = [], lensIds = new Set() }) {
   const result = [];
   const { nodes, edges, relations } = graph;
-  const at = (id) => graph.at(id);
   const objects = nodes.map((node, index) => ({ node, index })).filter(({ node }) => node.kind === "object" && !node.external);
   const relationOf = (kind) => relations.findIndex((relation) => relation.kind === kind);
   const ends = (kinds) => {
@@ -950,19 +504,17 @@ function stories({ graph, findings, report, assessment, battle, title, changed =
   const byType = new Map();
   for (const { node } of objects) byType.set(node.type, (byType.get(node.type) ?? 0) + 1);
   const apps = nodes.map((node, index) => ({ node, index })).filter(({ node }) => node.kind === "app" && !node.external);
-  // First how it works: who does what, on which screens, with which logic, in which data.
+  // First how it works: the screens, the logic behind them, and the data.
   const own = objects.filter(({ node }) => !node.test);
   const of = (...types) => own.filter(({ node }) => types.includes(node.type)).length;
   const parts = [
-    [nodes.filter(({ kind }) => kind === "person").length, "person", "people"],
-    [nodes.filter(({ kind }) => kind === "task").length, "process test"],
     [of("page", "pageextension", "pagecustomization", "report", "reportextension", "requestpage"), "screen"],
     [of("codeunit", "query", "xmlport", "interface"), "logic object"],
     [of("table", "tableextension"), "table"]
   ].filter(([count]) => count);
   tour.push({
     title: "How it works",
-    text: `From left to right: ${parts.map(([count, one, many]) => plural(count, one, many)).join(", ")}. ${parts[0][1] === "person" ? "People perform the process tests on the screens; the " : parts[0][1] === "process test" ? "The process tests run on the screens; the " : "The "}screens run the logic, and the logic reads and writes the data. A line leads from what uses to what is used.`,
+    text: `From left to right: ${parts.map(([count, one, many]) => plural(count, one, many)).join(", ")}. The screens run the logic, and the logic reads and writes the data. A line leads from what uses to what is used.`,
     lens: "overview",
     nodes: []
   });
@@ -1014,44 +566,6 @@ function stories({ graph, findings, report, assessment, battle, title, changed =
   });
   result.push({ id: "system", kind: "tour", title: `What ${title} is`, summary: "The system from the outside in: how it works, then its apps, components, hubs, data, events, the user interface, and its health.", steps: tour });
 
-  // 2. One story per process: the process tests in order, step by step.
-  for (const process of battle?.processes ?? []) {
-    const steps = [];
-    for (const step of process.steps ?? []) {
-      const task = battle.tasks.find(({ id }) => id === step.task);
-      if (!task) continue;
-      const position = at(`task::${task.id}`);
-      const performers = (step.performers ?? []).map((performer) => performer.agent ?? performer.name ?? performer).filter((value) => typeof value === "string");
-      steps.push({
-        title: task.title,
-        text: `${task.goal ?? ""}${performers.length ? ` Performed by ${list(performers)}.` : ""}${step.status && step.status !== "done" ? ` Status: ${step.status}.` : ""}`.trim(),
-        lens: "processes",
-        nodes: [position],
-        status: step.status
-      });
-      for (const action of task.steps ?? []) {
-        const touched = [...new Set((action.needs ?? []).map((need) => graph.nodes.findIndex((node) => node.kind === "object" && node.type === need.type && node.objectId === need.id)).filter((index) => index >= 0))];
-        const why = [...new Set((action.needs ?? []).map(({ object, right, because }) => `${right} on ${object} (${because})`))];
-        steps.push({
-          title: `${task.title} · step ${action.index}`,
-          text: `${action.text}${why.length ? ` Needs: ${list(why, 3)}.` : ""}`,
-          lens: "processes",
-          nodes: [position, ...touched]
-        });
-      }
-    }
-    if (steps.length) {
-      result.push({
-        id: `process:${process.id}`,
-        kind: "process",
-        title: process.title,
-        summary: `${plural(process.steps?.length ?? 0, "process test")} in order, step by step, with the objects each step touches${process.status === "blocked" ? "; someone is blocked" : ""}.`,
-        status: process.status,
-        steps
-      });
-    }
-  }
-
   // 3. What to fix, one finding at a time.
   const serious = findings.filter(({ severity }) => severity !== "info");
   const fixes = (serious.length ? serious : findings).slice(0, 40);
@@ -1067,7 +581,7 @@ function stories({ graph, findings, report, assessment, battle, title, changed =
         .map((finding) => ({
           title: `${finding.severity}: ${finding.rule}`,
           text: `${finding.message}${finding.fix ? ` Fix: ${finding.fix}` : ""}`,
-          lens: finding.origin === "battle test" ? "people" : "health",
+          lens: "health",
           nodes: finding.nodes,
           status: finding.severity
         }))
@@ -1101,33 +615,6 @@ function stories({ graph, findings, report, assessment, battle, title, changed =
     });
   }
 
-  // 5. The people: what each one can do, and what stops them.
-  if (battle?.agents?.length) {
-    result.push({
-      id: "people",
-      kind: "process",
-      title: "Who can do what",
-      summary: "Every agent of the company with their roles, permission sets, and process tests.",
-      steps: battle.agents.map((agent) => {
-        const attempts = agent.attempts ?? [];
-        const done = attempts.filter(({ expected, outcome }) => expected === "complete" && outcome === "completed");
-        const blocked = attempts.filter(({ expected, outcome }) => expected === "complete" && outcome !== "completed");
-        const leak = attempts.filter(({ expected, outcome }) => expected === "deny" && outcome !== "denied");
-        return {
-          title: agent.roles?.length ? `${agent.name} (${agent.roles.join(", ")})` : agent.name,
-          text: [
-            `Holds ${list((agent.permissionSets ?? []).map(({ name }) => name)) || "no permission set"}.`,
-            done.length ? `Can: ${list(done.map(({ title: task }) => task))}.` : "",
-            blocked.length ? `Blocked: ${blocked.map((attempt) => `${attempt.title} (${list(attempt.missingPermissions ?? [], 2) || "missing permissions"})`).join("; ")}.` : "",
-            leak.length ? `Can, but must not: ${list(leak.map(({ title: task }) => task))}.` : ""
-          ].filter(Boolean).join(" "),
-          lens: "people",
-          nodes: [at(`person::${agent.name}`), ...attempts.map(({ task }) => at(`task::${task}`))].filter((index) => index !== undefined),
-          status: blocked.length || leak.length ? "error" : undefined
-        };
-      })
-    });
-  }
   return result;
 }
 
@@ -1140,12 +627,6 @@ export async function createAtlas(workspace) {
   const findings = [];
   const { model, assessment } = await structure(workspace, graph);
   const report = await health(workspace, graph, findings);
-  const battle = await processes(workspace, graph, findings);
-  const added = await contributions(workspace, graph, findings, assessment);
-  const defined = await flows(graph, findings, assessment);
-  const modeled = await models(workspace, graph, findings, assessment, battle);
-  const simulationSettings = assessment.context.options?.simulation ?? {};
-  if (battle) grounding(graph, findings, simulationSettings);
   const overview = await workspace.overview();
 
   // A lens with nothing in it is left out.
@@ -1155,15 +636,10 @@ export async function createAtlas(workspace) {
   const between = new Set(graph.edges.filter(([from, to]) => graph.nodes[from].kind === "object" && graph.nodes[to].kind === "object").map(([, , relation]) => relation));
   const betweenObjects = graph.relations.filter((_, relation) => between.has(relation)).map(({ kind }) => kind);
   const lenses = LENSES.filter((lens) => {
-    const special = lens.needs ?? lens.kinds.filter((kind) => kind !== "object" && kind !== "task");
-    if (special.length ? !special.every((kind) => kinds.has(kind)) : !kinds.has(lens.kinds[0])) return false;
+    if (!lens.kinds.every((kind) => kinds.has(kind))) return false;
     return lens.relations === "*" || !lens.connected || lens.relations.some((kind) => present.has(kind));
   })
-    .map((lens) => ({ ...lens, relations: lens.relations === "*" ? betweenObjects : lens.relations.filter((kind) => present.has(kind)) }))
-    // The lenses of plugins, when they have something to show.
-    .concat(added.lenses
-      .map((lens) => ({ ...lens, relations: lens.relations.filter((kind) => present.has(kind)) }))
-      .filter((lens) => lens.kinds.some((kind) => kinds.has(kind)) && lens.relations.length));
+    .map((lens) => ({ ...lens, relations: lens.relations === "*" ? betweenObjects : lens.relations.filter((kind) => present.has(kind)) }));
 
   const changed = changes({ graph, assessment });
   return {
@@ -1179,26 +655,13 @@ export async function createAtlas(workspace) {
       relations: report.summary.relationships,
       health: { passed: report.passed, failOn: report.failOn, ...report.counts },
       // With how much of the coupling stays inside the components, in percent.
-      architecture: { ...overview.architecture, ...(assessment.result?.summary?.coupling?.share === undefined ? {} : { inside: Math.round(assessment.result.summary.coupling.share * 100) }) },
-      ...(battle ? { battle: { passed: battle.passed, ...battle.summary, company: battle.company?.name } } : {})
+      architecture: { ...overview.architecture, ...(assessment.result?.summary?.coupling?.share === undefined ? {} : { inside: Math.round(assessment.result.summary.coupling.share * 100) }) }
     },
     sources: commonSources({ model, assessment }),
     config: overview.config,
     levels: Object.fromEntries(Object.entries(LEVEL_COLORS).map(([level, { color }]) => [level, color])),
-    // The simulation as it is defined, and what a definition can name: for the Simulate menu of the view.
-    ...(battle ? { simulation: {
-      derived: Boolean(battle.company?.derived),
-      definition: battle.company?.derived ? { ...definitionOf(battle), ...(simulationSettings.grounding ? { grounding: simulationSettings.grounding } : {}) } : Object.fromEntries(["company", "taskGroups", "roles", "agents", "requirements", "grounding"].filter((key) => simulationSettings[key] !== undefined).map((key) => [key, simulationSettings[key]])),
-      tasks: (battle.tasks ?? []).map(({ id, title, features }) => ({ id, title, features })),
-      permissionSets: graph.nodes.filter((node) => node.kind === "object" && node.type === "permissionset").map(({ label }) => label).sort(),
-      recordings: graph.nodes.filter((node) => node.kind === "recording").map(({ id, label }) => ({ id: id.split("::").at(-1), label }))
-    } } : {}),
     // Why the components are what they are, the goals, the templates, and current against target: for the Architecture menu.
     architecture: architectureForView(assessment, { compare: !overview.live }),
-    // The flows as they are defined, and what a step can make: for the Flow menu of the view.
-    ...(defined ? { flows: defined } : {}),
-    // The processes as they are drawn, how each runs, and the processes as the tests have them: for the builder.
-    ...(modeled.menu ? { processes: modeled.menu } : {}),
     nodes: graph.nodes,
     relations: graph.relations,
     edges: graph.edges,
@@ -1206,15 +669,7 @@ export async function createAtlas(workspace) {
     findings,
     // What to change in the architecture, and how: the most important first.
     changes: changed,
-    stories: [
-      ...stories({ graph, findings, report, assessment, battle, title: overview.title, changed, lensIds: new Set(lenses.map(({ id }) => id)) }),
-      // The runs of the simulation, when its canvas is among the lenses.
-      ...(lenses.some(({ id }) => id === "run") ? runs(graph, battle) : []),
-      // A walk through each process model.
-      ...(lenses.some(({ id }) => id === "models") ? modeled.stories : []),
-      // A step of a plugin's story names a lens of the atlas, its own or one of BC Atlas.
-      ...added.stories.filter((story) => story.steps.every(({ lens }) => lenses.some(({ id }) => id === lens)))
-    ]
+    stories: stories({ graph, findings, report, assessment, title: overview.title, changed, lensIds: new Set(lenses.map(({ id }) => id)) })
   };
 }
 

@@ -6,18 +6,7 @@ Command-line options override configuration values.
 
 ## Create a configuration
 
-Run `bca setup` in the folder that contains `app.json`. It writes a starter
-`.bca.json` with your app name, excluded test folders, source links for your
-Git host, and default `check` and `report` sections, and asks which
-automation you want. For the file alone, answer `none` to the automation
-questions or run:
-
-```sh
-bca setup apply ./app --hooks none --ci none --editor none --schedule none --dry-run
-bca setup apply ./app --hooks none --ci none --editor none --schedule none
-```
-
-The complete reference is [`.bca.example.json`](../.bca.example.json). A
+Create `.bca.json` next to `app.json`. The complete reference is [`.bca.example.json`](../.bca.example.json). A
 minimal file looks like this:
 
 ```json
@@ -274,60 +263,5 @@ lists what can be chosen. See
 [the documentation profile](./layers.md#what-is-written-and-how-the-documentation-profile)
 for each key, the sections of each kind of page, and what `language`
 translates.
-
-## Automate it
-
-`bca setup` adds an `automation` section that says which features run on Git
-hooks, in pipelines, and on a schedule, and how generated files are synced:
-
-```json
-{
-  "automation": {
-    "hooks": "husky",
-    "ci": "github",
-    "triggers": {
-      "pre-commit": { "tasks": ["check"], "sync": "none" },
-      "pre-push": { "tasks": ["report", "docs"], "sync": "verify" },
-      "ci": { "tasks": ["check", "report", "docs"], "sync": "verify" },
-      "schedule": { "cron": "0 6 * * 1", "tasks": ["report", "docs"], "sync": "pull-request" }
-    }
-  },
-  "docs": { "tests": "test", "export": ["markdown", "html"], "outputDir": "docs/guides" }
-}
-```
-
-See [Guided setup](./setup.md) and [Automation](./automation-and-ci.md).
-
-## Your own workflows and processes
-
-Three sections are built in the view (the **Flow** menu and its builder), from
-the terminal, or by an agent, and can be written by hand as well:
-
-```json
-{
-  "flows": [
-    { "id": "docs", "when": ["pre-push", "ci"], "steps": [
-      { "id": "gate", "what": "check" },
-      { "what": "layers", "to": "docs/system", "after": ["gate"] }
-    ] }
-  ],
-  "processes": [
-    { "id": "purchase-requests", "title": "Purchase requests", "steps": [
-      { "id": "create", "title": "Create a request", "lane": "Employee", "test": "purchase-request-create" },
-      { "id": "approve", "title": "Approve it", "lane": "Team lead", "test": "purchase-request-approve", "after": ["create"] }
-    ] }
-  ],
-  "processTelemetry": { "path": "telemetry", "case": "requestNo" }
-}
-```
-
-| Section | Says | Guide |
-| --- | --- | --- |
-| `flows` | What to make from the source (the artifacts), when (the triggers), and where to save it; steps can come after others, if they passed, failed, or always. `bca run` runs them. | [Flows](./flows.md) |
-| `processes` | How the company works with the app: steps in the lanes of the roles that do them, each with the process test or recording that shows it works. `bca process` mines, runs, and exports them. | [Processes](./processes.md) |
-| `processTelemetry` | Where the telemetry of Business Central is (exports of Application Insights), and which field carries the case: the time of the processes. | [Its time: telemetry](./processes.md#its-time-telemetry) |
-
-Where the nodes of the flows are on the canvas of the builder is not in
-`.bca.json` but next to it, in `.bca/flow-canvas.json`.
 
 See the [CLI reference](./cli-reference.md#configuration-file) for all properties.
