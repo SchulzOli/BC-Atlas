@@ -826,16 +826,13 @@
    "id": "overview",
    "title": "Overview",
    "section": "How it works",
-   "hint": "how it works, from who uses it to the data",
-   "summary": "How it works, from left to right: who uses it, what they do, on which screens, with which logic, in which data.",
+   "hint": "how it works, from the screens to the data",
+   "summary": "How it works, from left to right: the screens, the logic behind them, and the data.",
    "flow": true,
    "form": "diagram",
    "kinds": [
-    "object",
-    "task",
-    "person"
+    "object"
    ],
-   "needs": [],
    "relations": [
     "relates",
     "source",
@@ -849,7 +846,7 @@
    ],
    "group": "kind",
    "color": "type",
-   "reads": "the objects of the AL source and what they do with each other, the process tests, and the people of `simulation` in .bca.json"
+   "reads": "the objects of the AL source and what they do with each other"
   },
   {
    "id": "system",
@@ -1044,7 +1041,7 @@
   {
    "id": "security",
    "title": "Permissions",
-   "section": "People and rules",
+   "section": "Parts",
    "hint": "permission sets and what they permit",
    "summary": "Permission sets and what they permit and include.",
    "kinds": [
@@ -1121,7 +1118,7 @@
   {
    "severity": "info",
    "rule": "could-be-internal",
-   "message": "1 object(s) of Core are used by no other component and could be Access = Internal: codeunit 50010 CON Standard Pricing (bca refactor surface --component \"Core\")",
+   "message": "1 object(s) of Core are used by no other component and could be Access = Internal: codeunit 50010 CON Standard Pricing",
    "nodes": [
     25
    ],
@@ -1132,7 +1129,7 @@
   {
    "severity": "info",
    "rule": "could-be-internal",
-   "message": "2 object(s) of Integration are used by no other component and could be Access = Internal: codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync (bca refactor surface --component \"Integration\")",
+   "message": "2 object(s) of Integration are used by no other component and could be Access = Internal: codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync",
    "nodes": [
     25
    ],
@@ -1341,8 +1338,8 @@
    "title": "Make 1 object of Core internal",
    "why": "Nothing outside Core uses codeunit 50010 CON Standard Pricing. As long as it is public, other apps can start to depend on it, and every change is a breaking one.",
    "how": [
-    "`bca refactor surface --component \"Core\"` shows the change: Access = Internal on these objects, and what others use listed under `exposes` in .bca.json.",
-    "Add `--apply` to write it."
+    "Set `Access = Internal` on these objects.",
+    "List what other components use under `exposes` of the component in .bca.json."
    ],
    "effort": "S",
    "optional": true,
@@ -1358,8 +1355,8 @@
    "title": "Make 2 objects of Integration internal",
    "why": "Nothing outside Integration uses codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync. As long as they are public, other apps can start to depend on them, and every change is a breaking one.",
    "how": [
-    "`bca refactor surface --component \"Integration\"` shows the change: Access = Internal on these objects, and what others use listed under `exposes` in .bca.json.",
-    "Add `--apply` to write it."
+    "Set `Access = Internal` on these objects.",
+    "List what other components use under `exposes` of the component in .bca.json."
    ],
    "effort": "S",
    "optional": true,
@@ -1597,7 +1594,7 @@
     },
     {
      "title": "Make 1 object of Core internal",
-     "text": "Nothing outside Core uses codeunit 50010 CON Standard Pricing. As long as it is public, other apps can start to depend on it, and every change is a breaking one. How: `bca refactor surface --component \"Core\"` shows the change: Access = Internal on these objects, and what others use listed under `exposes` in .bca.json. Add `--apply` to write it. Effort: S.",
+     "text": "Nothing outside Core uses codeunit 50010 CON Standard Pricing. As long as it is public, other apps can start to depend on it, and every change is a breaking one. How: Set `Access = Internal` on these objects. List what other components use under `exposes` of the component in .bca.json. Effort: S.",
      "lens": "visibility",
      "nodes": [
       21,
@@ -1607,7 +1604,7 @@
     },
     {
      "title": "Make 2 objects of Integration internal",
-     "text": "Nothing outside Integration uses codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync. As long as they are public, other apps can start to depend on them, and every change is a breaking one. How: `bca refactor surface --component \"Integration\"` shows the change: Access = Internal on these objects, and what others use listed under `exposes` in .bca.json. Add `--apply` to write it. Effort: S.",
+     "text": "Nothing outside Integration uses codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync. As long as they are public, other apps can start to depend on them, and every change is a breaking one. How: Set `Access = Internal` on these objects. List what other components use under `exposes` of the component in .bca.json. Effort: S.",
      "lens": "visibility",
      "nodes": [
       23,

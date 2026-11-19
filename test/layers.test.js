@@ -11,7 +11,6 @@ import { fileURLToPath } from "node:url";
 
 import { buildLayers, compareStates, LAYERS_SCHEMA } from "../src/app/layers.js";
 import { Workspace } from "../src/app/workspace.js";
-import { taskOutputs, TASKS } from "../src/automation/config.js";
 import { createCapabilities, findCommand } from "../src/capabilities.js";
 import { syncLayers } from "../src/commands/layers.js";
 
@@ -257,29 +256,10 @@ test("two states of the source are compared by what BC Atlas reads from them", a
   assert.match(changes.findings.fixed[0], /^error architecture-violation: /u);
 });
 
-test("layers is a command with options for every setting, and a task of bca run", () => {
+test("layers is a command with options for every setting", () => {
   const command = findCommand(createCapabilities("0.0.0"), "layers");
   for (const option of ["output", "at", "releases", "last", "refresh", "check", "pictures", "view", "format"]) assert.ok(command.options[option], option);
   assert.deepEqual(command.options.pictures.enum, ["auto", "all", "none"]);
-  assert.ok(TASKS.layers);
-  assert.deepEqual(taskOutputs("layers", {}), ["docs/layers"]);
-  assert.deepEqual(taskOutputs("layers", { layers: { outputDir: "docs/system" } }), ["docs/system"]);
-
-  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-layers-run-"));
-  try {
-    cpSync(multi, directory, { recursive: true });
-    const config = JSON.parse(readFileSync(path.join(directory, ".bca.json"), "utf8"));
-    writeFileSync(path.join(directory, ".bca.json"), JSON.stringify({ ...config, layers: { outputDir: "docs/system", pictures: "none" } }, null, 2));
-    const run = bca(["run", ".", "--tasks", "layers", "--format", "json"], { cwd: directory });
-    assert.equal(run.status, 0, run.stderr);
-    const result = JSON.parse(run.stdout).results[0];
-    assert.equal(result.task, "layers");
-    assert.match(result.summary, /^\d+ written, 0 removed, 0 unchanged$/u);
-    assert.ok(existsSync(path.join(directory, "docs", "system", "README.md")));
-    assert.ok(!existsSync(path.join(directory, "docs", "system", "system.svg")), "layers.pictures none");
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
 });
 
 test("the pages of the example in the repository link to files that are in the repository", () => {

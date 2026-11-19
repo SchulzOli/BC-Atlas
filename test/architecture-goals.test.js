@@ -367,13 +367,11 @@ function checkShape(result, model) {
     assert.equal(result.sides.current.result.assignment.get(move.object.id), move.from);
     assert.equal(result.sides.target.result.assignment.get(move.object.id), move.to);
     assert.notEqual(move.from, move.to);
-    assert.equal(move.command, `bca refactor move --object ${object.type}:${object.id ?? `"${object.name}"`} --to "${move.to}"`);
     assert.ok(result.target.components.some(({ name }) => name === move.to));
   }
   // Steps: moves grouped by target component, in the order to take them, ending with the check.
   const moveSteps = result.steps.filter(({ component }) => component);
   assert.equal(moveSteps.reduce((total, step) => total + step.objects, 0), result.movesTotal);
-  assert.deepEqual(moveSteps.flatMap(({ commands }) => commands).sort(), result.moves.map(({ command }) => command).sort());
   for (let index = 1; index < moveSteps.length; index++) {
     const [previous, step] = [moveSteps[index - 1], moveSteps[index]];
     assert.ok(previous.resolves > step.resolves || (previous.resolves === step.resolves && previous.gain >= step.gain), "most valuable step first");
@@ -446,7 +444,6 @@ test("moves objects from where they are today to where the target wants them (mo
   assert.equal(limited.moves.length, 1);
   assert.equal(limited.movesTotal, result.movesTotal);
   assert.deepEqual(limited.moves[0], result.moves[0]);
-  assert.equal(limited.steps.filter(({ component }) => component).reduce((total, step) => total + (step.omitted ?? 0), 0), result.movesTotal - 1);
   for (let index = 1; index < result.moves.length; index++) {
     const [previous, move] = [result.moves[index - 1], result.moves[index]];
     assert.ok(previous.resolves > move.resolves || (previous.resolves === move.resolves && previous.gain >= move.gain));

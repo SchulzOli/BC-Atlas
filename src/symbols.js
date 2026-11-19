@@ -212,7 +212,7 @@ async function packagesIn(folder) {
  */
 // Parsed packages by file, path relative to the root, size, and modification
 // time: a Base Application takes seconds to unzip and parse, and every page
-// of the app (health, architecture, explorer) loads the same packages.
+// of the app (health, architecture, the view) loads the same packages.
 const packageCache = new Map();
 
 async function readPackage(packageFile, reportedPath) {

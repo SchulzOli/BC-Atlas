@@ -1,4 +1,4 @@
-// Names for components, app candidates, explorer clusters, and the groups
+// Names for components, app candidates, and the groups
 // inside a component: one place that says what a group is called, where the
 // name came from, and how two groups that would get the same name are told
 // apart. Every name carries its `naming` record:
@@ -13,8 +13,8 @@
 //                wanted the same name
 //   was          the name before architecture.proposal.naming.rename
 //
-// Names are compared without case, like `component:` selectors and
-// `bca refactor move --to` look them up. A clash is resolved by meaning
+// Names are compared without case, as `component:` selectors and
+// `dependsOn` look them up. A clash is resolved by meaning
 // first: the parent namespace segment or folder ("Sales Setup" and
 // "Purchase Setup"), then the app or module ("Setup (Contoso Sales)"), then
 // other words the objects share, and a number only when nothing else is left.

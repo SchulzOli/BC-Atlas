@@ -5,33 +5,23 @@ export const SECTIONS = [
   ["Start here", [
     ["Getting started", "getting-started.md"],
     ["BC Atlas for VS Code", "vscode.md"],
-    ["Guided setup (wizard or AI agent)", "setup.md"],
     ["Configuration", "configuration.md"]
   ]],
   ["Analyze", [
     ["Clean architecture: find, resolve, enforce", "clean-architecture.md"],
     ["Current and target architecture: goals, templates, compare", "target-architecture.md"],
-    ["Split a monolith into apps", "modularization.md"],
     ["Architecture health checks", "health-checks.md"],
-    ["Battle test: simulate the use in your company", "battle-test.md"],
-    ["Processes: how the company works with the app", "processes.md"]
   ]],
   ["Export", [
     ["Architecture reports", "reports.md"],
     ["Architecture diagrams and views", "architecture-diagrams.md"],
-    ["Dependency explorer (3D, timeline)", "dependency-explorer.md"],
     ["Code Graph as Markdown", "code-graph-markdown-design.md"],
-    ["System handbook", "handbook.md"],
     ["Layered documentation, in sync with the source", "layers.md"],
-    ["The bundle: everything as one artifact", "bundle.md"],
     ["Documentation from AL UI tests", "al-ui-test-documentation.md"],
     ["Knowledge graph (RDF and OWL)", "knowledge-graph.md"]
   ]],
   ["Integrate", [
     ["AL toolchain: compiler, analyzers, AL settings", "al-toolchain.md"],
-    ["Automation: hooks, schedules, and pipelines", "automation-and-ci.md"],
-    ["Flows: your own workflows", "flows.md"],
-    ["Plugins (and the built-in sync plugin)", "plugins.md"],
     ["Agent integration and MCP", "agent-integration.md"],
     ["MCP JSON example", "examples/mcp.json"]
   ]],
@@ -43,12 +33,8 @@ export const SECTIONS = [
   ]],
   ["Generated examples", [
     ["Architecture report (warehouse example)", "../examples/report/README.md"],
-    ["System handbook (warehouse example)", "../examples/handbook/README.md"],
     ["Layered documentation (three-app example)", "../examples/layers/README.md"],
     ["User guides from AL UI tests (warehouse example)", "../examples/docs/index.md"],
-    ["Battle test (purchasing example)", "../examples/simulation/README.md"],
-    ["A run of the simulation, step by step (purchasing example)", "../examples/simulation/run-ben.md"],
-    ["Dependency explorer (multi-app example)", "../examples/explorer/README.md"],
     ["Knowledge graph (warehouse example)", "../examples/knowledge-graph/warehouse-app.ttl"]
   ]]
 ];

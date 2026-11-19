@@ -12,7 +12,6 @@ import { parseCallGraph, parseErrorLog, readErrorLogs, runAlTools } from "../src
 import { dependencyOrder, packageCacheFolders, readAlWorkspace } from "../src/al/settings.js";
 import { analyzerPaths, findAlExtension, findAlToolchain, fromExtension, fromPath } from "../src/al/toolchain.js";
 import { analyze } from "../src/analyzer.js";
-import { githubWorkflow, azurePipeline } from "../src/automation/pipelines.js";
 import { assessHealth, formatHealthMarkdown, formatHealthText } from "../src/health.js";
 import { resolveModel } from "../src/resolver.js";
 import { renderSarif } from "../src/sarif.js";
@@ -468,25 +467,6 @@ test("bca check imports an error log from any AL build and writes SARIF", () => 
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }
-});
-
-test("generated pipelines install the AL compiler", () => {
-  const triggers = { ci: { tasks: ["check"], sync: "verify" } };
-  assert.match(githubWorkflow({ appPath: ".", version: "1.0.0", triggers, alTools: true }),
-    /Install the AL compiler[\s\S]*dotnet tool install --global Microsoft\.Dynamics\.BusinessCentral\.Development\.Tools/u);
-  assert.doesNotMatch(githubWorkflow({ appPath: ".", version: "1.0.0", triggers }), /dotnet tool/u);
-  assert.match(azurePipeline({ appPath: ".", version: "1.0.0", triggers, alTools: true }), /task\.prependpath\]\$HOME\/\.dotnet\/tools/u);
-});
-
-test("generated pipelines keep the BC Atlas cache between runs", () => {
-  const triggers = { ci: { tasks: ["check"], sync: "verify" } };
-  const github = githubWorkflow({ appPath: ".", version: "1.0.0", triggers });
-  assert.match(github, /uses: actions\/cache@v\d+\n\s+with:\n\s+path: \$\{\{ runner\.temp \}\}\/bc-atlas-cache/u);
-  assert.match(github, /BCA_CACHE_DIR: \$\{\{ runner\.temp \}\}\/bc-atlas-cache\n\s+run: npx/u);
-  assert.ok(github.indexOf("actions/cache") < github.indexOf("Run BC Atlas"), "the cache is restored before the run");
-  const azure = azurePipeline({ appPath: ".", version: "1.0.0", triggers });
-  assert.match(azure, /task: Cache@2[\s\S]*path: \$\(Pipeline\.Workspace\)\/bc-atlas-cache/u);
-  assert.match(azure, /displayName: Run BC Atlas\n\s+env:\n\s+BCA_CACHE_DIR: \$\(Pipeline\.Workspace\)\/bc-atlas-cache/u);
 });
 
 // Runs only where Microsoft's AL toolchain is installed (dotnet tool

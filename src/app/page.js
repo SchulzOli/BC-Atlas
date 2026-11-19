@@ -6,7 +6,7 @@ import { gzipSync } from "node:zlib";
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 const read = (name) => readFileSync(new URL(`./ui/${name}`, import.meta.url), "utf8");
 const theme = () => readFileSync(new URL("../ui/theme.css", import.meta.url), "utf8");
-// The canvas of the builder: React Flow, built into vendor/ by scripts/build-flow-vendor.js.
+// Browser bundles built into vendor/ (the MCP App adapter).
 const vendor = (name) => readFileSync(new URL(`../../vendor/${name}`, import.meta.url), "utf8");
 
 const escapeHtml = (value) => String(value).replace(/[&<>"]/gu, (character) =>
@@ -48,9 +48,9 @@ export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
     .replace('<html lang="en">', () => (mode === "vscode" ? '<html lang="en" data-host="vscode">' : mode === "mcp" ? '<html lang="en" data-host="mcp">' : '<html lang="en">'))
     .replace("__TITLE__", () => escapeHtml(title))
     .replace("__GENERATOR__", () => `BC Atlas ${pkg.version}`)
-    .replace("/*__STYLE__*/", () => `${vendor("flow-canvas.css")}\n${theme()}\n${read("atlas.css")}`)
+    .replace("/*__STYLE__*/", () => `${theme()}\n${read("atlas.css")}`)
     .replace("__BOOT__", () => boot)
     // The graph and the scene register themselves before the view starts.
     // As an MCP App, the host is the MCP server: its adapter (scripts/mcp-app-entry.js) comes first.
-    .replace("/*__APP__*/", () => `${mode === "mcp" ? `${vendor("mcp-app.js").replaceAll("</script", "<\\/script")}\n` : ""}${vendor("flow-canvas.js").replaceAll("</script", "<\\/script")}\n${read("graph.js")}\n${read("scene.js")}\n${read("atlas.js")}`);
+    .replace("/*__APP__*/", () => `${mode === "mcp" ? `${vendor("mcp-app.js").replaceAll("</script", "<\\/script")}\n` : ""}${read("graph.js")}\n${read("scene.js")}\n${read("atlas.js")}`);
 }

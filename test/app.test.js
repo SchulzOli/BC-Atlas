@@ -91,7 +91,7 @@ test("the service answers the view and the editor from one analysis", async () =
   assert.deepEqual(configured.matrix.order, ["Integration", "Sales", "Core"]);
   assert.equal(configured.matrix.cells[2][0].allowed, false, "Core may not use Integration");
   assert.deepEqual((await service.call("lenses")).slice(0, 3), [
-    { id: "overview", title: "Overview", summary: "How it works, from left to right: who uses it, what they do, on which screens, with which logic, in which data." },
+    { id: "overview", title: "Overview", summary: "How it works, from left to right: the screens, the logic behind them, and the data." },
     { id: "system", title: "System", summary: "Every object and every relation between them." },
     { id: "components", title: "Components", summary: "The components in their layers and the dependencies between them, allowed or the wrong way." }
   ]);
@@ -176,7 +176,7 @@ test("the atlas is everything read from the source as one graph", async () => {
   assert.deepEqual(wrongWay.how, ["Add Core to dependsOn of Integration in .bca.json (and to app.json when they are separate apps).", "Or: go through a component you already depend on (effort M)."]);
   assert.deepEqual(wrongWay.nodes.map((index) => atlas.nodes[index].label), ["CON Item Sync", "CON Item"]);
   assert.deepEqual([wrongWay.file, wrongWay.line], ["integration/ItemSync.al", 6]);
-  assert.match(atlas.changes[5].how[0], /^`bca refactor surface --component "Core"` shows the change/u);
+  assert.equal(atlas.changes[5].how[0], "Set `Access = Internal` on these objects.");
   const story = atlas.stories.find(({ id }) => id === "architecture");
   assert.deepEqual([story.title, story.steps.length, story.steps[0].title, story.steps[0].status, story.steps[6].status], ["What to change, and how", 7, undeclared.title, "error", "info"]);
   assert.match(story.steps[2].text, /does not allow\. How: Add Core to dependsOn of Integration in \.bca\.json .+ Effort: S\.$/u);
@@ -191,94 +191,6 @@ test("the atlas is everything read from the source as one graph", async () => {
   const does = inside.edges.filter(([from, to]) => from === inside.nodes[0].id && to === item.id).map(([, , relation]) => inside.relations[relation].kind).sort();
   assert.deepEqual(does, ["reads", "writes"], "the procedure reads and writes the table");
   await assert.rejects(service.call("inside", { id: "nope" }), /object not found/u);
-});
-
-test("process tests are nodes, lenses, findings, and stories of the same graph", async () => {
-  const service = createService(new Workspace(path.join(root, "examples", "purchasing-app"), {}, { live: false }));
-  const atlas = await service.call("atlas");
-  const count = (kind) => atlas.nodes.filter((node) => node.kind === kind).length;
-  assert.deepEqual({ process: count("process"), task: count("task"), person: count("person"), requirement: count("requirement") }, { process: 2, task: 5, person: 4, requirement: 6 });
-  // After the lenses of BC Atlas come those of plugins: here the recordings of the sync plugin.
-  assert.deepEqual(atlas.lenses.map(({ id }) => id).slice(-6), ["processes", "people", "requirements", "simulation", "run", "sync"]);
-  assert.equal(atlas.summary.battle.company, "Contoso GmbH");
-
-  const index = (label) => atlas.nodes.findIndex((node) => node.label === label);
-  const related = (from, to) => atlas.edges.filter(([a, b]) => a === index(from) && b === index(to)).map(([, , relation]) => atlas.relations[relation].kind);
-  // A process test touches the objects its steps need; people perform it, or are blocked.
-  assert.deepEqual(related("Create a new Purchase Request", "Purchase Requests"), ["touches"]);
-  assert.deepEqual(related("Purchase requests", "Create a new Purchase Request"), ["step"]);
-  assert.deepEqual(related("Create a new Purchase Request", "Release a purchase request so that it can be approved"), ["next"]);
-  assert.deepEqual(related("Anna (Employee)", "Create a new Purchase Request"), ["performs"]);
-  assert.deepEqual(related("Anna (Employee)", "Approve a released purchase request"), ["must not"]);
-  assert.deepEqual(related("Ben (Team lead)", "Approve a released purchase request"), ["blocked"]);
-  assert.deepEqual(related("Anna (Employee)", "PR - REQUEST"), ["holds"]);
-  assert.equal(atlas.nodes[index("Approve a released purchase request")].status, "blocked");
-
-  // What blocks someone is a finding on that person and that process test.
-  const blocked = atlas.findings.find(({ rule }) => rule === "task-blocked");
-  assert.deepEqual(blocked.nodes.map((node) => atlas.nodes[node].label), ["Ben (Team lead)", "Approve a released purchase request"]);
-  assert.match(blocked.fix, /codeunit "Request Notifications" = X/u);
-
-  // A process is a story: its tests in order, step by step, each on the objects it touches.
-  const story = atlas.stories.find(({ id }) => id === "process:use-case-purchase-requests");
-  assert.equal(story.kind, "process");
-  assert.equal(story.steps[0].title, "Create a new Purchase Request");
-  const step = story.steps[1];
-  assert.equal(step.title, "Create a new Purchase Request · step 1");
-  assert.match(step.text, /^Choose the .+ icon, enter Purchase Requests.+Needs: execute on page 50210 Purchase Requests \(the user opens the page\)/u);
-  assert.deepEqual(step.nodes.map((node) => atlas.nodes[node].label), ["Create a new Purchase Request", "Purchase Requests", "Purchase Request"]);
-  assert.ok(story.steps.every(({ lens }) => lens === "processes"));
-  const people = atlas.stories.find(({ id }) => id === "people");
-  assert.match(people.steps.find(({ title }) => title === "Ben (Team lead)").text, /Blocked: Approve a released purchase request \(/u);
-
-  // Without process tests there are no such nodes, lenses, or stories.
-  const plain = await createService(new Workspace(workspace)).call("atlas");
-  assert.ok(!plain.nodes.some(({ kind }) => ["process", "task", "person", "requirement"].includes(kind)));
-  assert.ok(!plain.lenses.some(({ id }) => ["processes", "people", "requirements", "run"].includes(id)));
-  assert.ok(!plain.stories.some(({ kind }) => kind === "run"));
-});
-
-test("a run of the simulation goes step by step and builds its picture as it goes", async () => {
-  const service = createService(new Workspace(path.join(root, "examples", "purchasing-app"), {}, { live: false }));
-  const atlas = await service.call("atlas");
-  const labels = (nodes) => nodes.map((node) => atlas.nodes[node].label);
-  // One run per person with process tests to do.
-  const runs = atlas.stories.filter(({ kind }) => kind === "run");
-  assert.deepEqual(runs.map(({ id, title, build }) => [id, title, build]), [["run:Anna", "Anna at work", true], ["run:Ben", "Ben at work", true], ["run:Carla", "Carla at work", true], ["run:Dana", "Dana at work", true]]);
-  const ben = runs[1];
-  assert.ok(ben.steps.every(({ lens }) => lens === "run"));
-  // It starts at the person, then every step of every assigned test in order, on the objects that step needs.
-  assert.deepEqual(labels(ben.steps[0].nodes), ["Ben (Team lead)"]);
-  assert.match(ben.steps[0].text, /^Ben has the role Team lead, with the permission sets PR - REQUEST, PR - APPROVE, and is assigned 3 process tests: /u);
-  assert.equal(ben.steps[1].title, "Create a new Purchase Request · step 1");
-  assert.deepEqual(labels(ben.steps[1].nodes), ["Ben (Team lead)", "Create a new Purchase Request", "Purchase Requests", "Purchase Request"]);
-  assert.match(ben.steps[1].text, /Ben can do this\.$/u);
-  // Where the person is stopped, the step says what is missing and what to add; what follows is not reached.
-  const stopped = ben.steps.findIndex(({ status }) => status === "blocked");
-  assert.equal(ben.steps[stopped].title, "Approve a released purchase request · step 3");
-  assert.match(ben.steps[stopped].text, /Ben is stopped here: execute on codeunit 50222 Request Notifications is missing .+ Add to a permission set: `codeunit "Request Notifications" = X`\.$/u);
-  assert.deepEqual(ben.steps.slice(1, -1).map(({ status }) => status).slice(stopped - 1), ["blocked", "waiting"]);
-  assert.match(ben.steps[stopped + 1].text, /Not reached: Ben was stopped at step 3\.$/u);
-  // The end is the whole picture the run built.
-  const end = ben.steps.at(-1);
-  assert.deepEqual([end.title, end.status], ["Ben: 2 of 3 done", "blocked"]);
-  assert.deepEqual([...end.nodes].sort((a, b) => a - b), [...new Set(ben.steps.slice(0, -1).flatMap(({ nodes }) => nodes))].sort((a, b) => a - b));
-  assert.equal(runs[0].steps.at(-1).status, "done");
-});
-
-test("the view builds the bundle next to the project", async () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-app-bundle-"));
-  try {
-    cpSync(path.join(root, "examples", "purchasing-app"), directory, { recursive: true });
-    const service = createService(new Workspace(directory, { compiler: "off" }, { live: false }));
-    const result = await service.call("bundle");
-    assert.equal(result.folder, "bc-atlas-bundle");
-    assert.equal(result.passed, false, "someone is stopped in the example");
-    assert.deepEqual(result.steps.map(({ id }) => id), ["check", "simulate", "snapshots", "runs", "docs", "narrative", "tests", "build"]);
-    for (const file of ["bc-atlas-bundle/README.md", "bc-atlas-bundle/docs/stories/run-ben.md", "bc-atlas-bundle.zip"]) assert.ok(existsSync(path.join(directory, file)), file);
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
 });
 
 test("adopting an architecture writes .bca.json and the baseline", async () => {
@@ -377,45 +289,6 @@ test("in VS Code the view inherits the editor's color theme", () => {
   assert.match(exported, /<html lang="en">/u, "an exported file keeps the BC Atlas design");
 });
 
-test("recordings of Business Central are nodes, a lens, findings, and a story of the same graph", async () => {
-  const example = path.join(root, "examples", "purchasing-app");
-  const atlas = await createService(new Workspace(example, {}, { live: false })).call("atlas");
-  const labels = (kind) => atlas.nodes.filter((node) => node.kind === kind).map(({ label, status }) => `${label} (${status})`);
-  assert.deepEqual(labels("channel"), ["processes (in sync)"]);
-  assert.deepEqual(labels("recording"), ["Approve a released purchase request (in sync)", "Create a new Purchase Request (in sync)"]);
-  const lens = atlas.lenses.find(({ id }) => id === "sync");
-  assert.deepEqual([lens.title, lens.plugin, lens.color], ["Recordings", "sync", "status"]);
-  const index = (label, kind) => atlas.nodes.findIndex((node) => node.label === label && node.kind === kind);
-  const related = (from, to) => atlas.edges.filter(([a, b]) => a === from && b === to).map(([, , relation]) => atlas.relations[relation].kind);
-  const approve = index("Approve a released purchase request", "recording");
-  // What was recorded runs through objects of the source: the same nodes every other lens shows.
-  assert.deepEqual(related(index("processes", "channel"), approve), ["syncs"]);
-  assert.deepEqual(related(approve, atlas.nodes.findIndex((node) => node.label === "Purchase Request Mgt.")), ["runs through"]);
-  assert.deepEqual(related(approve, atlas.nodes.findIndex((node) => node.label === "Request Approval Entry" && node.type === "table")), ["runs through", "changes"]);
-  const story = atlas.stories.find(({ id }) => id === "sync");
-  assert.deepEqual([story.title, story.plugin, story.steps.length], ["What runs in Business Central", "sync", 7]);
-  assert.ok(story.steps.every((step) => step.lens === "sync" && step.nodes.every((node) => atlas.nodes[node])));
-  assert.ok(!atlas.findings.some(({ rule }) => rule === "sync-outdated"), "everything is in sync");
-
-  // A recording that changed since the last sync waits for it: a status, a relation, and one finding on its node.
-  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-sync-view-"));
-  try {
-    cpSync(example, directory, { recursive: true });
-    const file = path.join(directory, "recordings", "approve-a-released-purchase-request.json");
-    writeFileSync(file, readFileSync(file, "utf8").replace("pr-approve-3", "pr-approve-4"));
-    const changed = await createService(new Workspace(directory, {}, { live: false })).call("atlas");
-    const recording = changed.nodes.findIndex((node) => node.kind === "recording" && node.label === "Approve a released purchase request");
-    assert.notEqual(changed.nodes[recording].status, "in sync");
-    assert.equal(changed.nodes.find((node) => node.kind === "channel").status, "1 to sync");
-    assert.ok(changed.edges.some(([, to, relation]) => to === recording && changed.relations[relation].kind === "not synced"));
-    const outdated = changed.findings.filter(({ rule }) => rule === "sync-outdated");
-    assert.equal(outdated.length, 1, "the health rule and the atlas of the plugin report it once");
-    assert.ok(outdated[0].nodes.includes(recording));
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
 test("the app is one view: a toolbar and the graph", () => {
   const html = renderAppHtml({ mode: "vscode", csp: "default-src 'none'" });
   const body = html.slice(html.indexOf("<body>"), html.indexOf("<script>"));
@@ -430,12 +303,7 @@ test("the app is one view: a toolbar and the graph", () => {
   // The picture after a step starts from the picture before it.
   assert.match(html, /const before = graph\?\.snapshot\(\);[\s\S]{0,260}from: before,/u);
   assert.deepEqual([...body.matchAll(/data-form="(\w+)"/gu)].map(([, form]) => form), ["2d", "diagram", "3d"], "any part of the graph in three forms");
-  assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "simulate", "architecture", "flow", "view", "export", "sync"]);
-  // Simulate stands next to Story, and is there when the project has process tests.
-  assert.match(body, /id="story-button"[^\n]+\n\s*<button class="tool menu" id="simulate-button" data-menu="simulate"[^>]* hidden>Simulate<\/button>/u);
-  assert.match(html, /call\("defineSimulation", \{ operations: \[operation\] \}\)/u, "a change is an operation, applied and run again");
-  assert.match(html, /data-sim-run=/u, "a run of the simulation starts from the Simulate menu");
-  assert.match(html, /call\("bundle"\)/u, "and so does the build of the bundle");
+  assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "architecture", "view", "export", "sync"]);
   // What floats on the graph starts hidden: the legend, the selected node, the story.
   for (const id of ["legend", "inspector", "story"]) assert.match(body, new RegExp(`id="${id}" class="float"[^>]* hidden>`, "u"));
   assert.match(html, /root\.BCA_GRAPH = \{ create, drawing, seed, step, random, layered \}/u, "the graph is part of the file");
@@ -556,7 +424,7 @@ test("the view is the same page in VS Code, as an MCP App, and as a file: every 
   const service = createService(new Workspace(fileURLToPath(new URL("../examples/warehouse-app", import.meta.url)), {}, { live: true }));
   const called = [...new Set([...readFileSync(new URL("../src/app/ui/atlas.js", import.meta.url), "utf8").matchAll(/\bcall\("(\w+)"/gu)].map(([, method]) => method))];
   const hostOnly = ["openFile", "saveFile"];
-  assert.ok(called.length > 10);
+  assert.ok(called.length > 5);
   for (const method of called) assert.ok(service.methods.includes(method) || hostOnly.includes(method), `the view calls ${method}, which no host answers`);
   // Both hosts answer the two that are theirs.
   const extension = readFileSync(new URL("../vscode/src/extension.js", import.meta.url), "utf8");

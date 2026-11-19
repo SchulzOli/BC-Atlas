@@ -57,8 +57,6 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     assert.deepEqual(
       tools.map(({ name }) => name).sort(),
       [
-        "bc_atlas_ai_context",
-        "bc_atlas_ai_write",
         "bc_atlas_app",
         "bc_atlas_app_call",
         "bc_atlas_architecture",
@@ -66,7 +64,6 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_architecture_compare",
         "bc_atlas_architecture_explain",
         "bc_atlas_architecture_templates",
-        "bc_atlas_bundle",
         "bc_atlas_capabilities",
         "bc_atlas_check",
         "bc_atlas_docs_edit",
@@ -75,28 +72,11 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_docs_list",
         "bc_atlas_docs_show",
         "bc_atlas_docs_validate",
-        "bc_atlas_explore",
         "bc_atlas_extraction_plan",
-        "bc_atlas_flow_define",
-        "bc_atlas_flow_export",
         "bc_atlas_generate_diagram",
-        "bc_atlas_graph_query",
-        "bc_atlas_graph_render",
-        "bc_atlas_handbook",
         "bc_atlas_inspect",
         "bc_atlas_layers",
-        "bc_atlas_process",
-        "bc_atlas_process_define",
-        "bc_atlas_refactor_move",
-        "bc_atlas_refactor_surface",
         "bc_atlas_report",
-        "bc_atlas_run",
-        "bc_atlas_setup_apply",
-        "bc_atlas_setup_plan",
-        "bc_atlas_simulate",
-        "bc_atlas_simulation_define",
-        "bc_atlas_sync_status",
-        "bc_atlas_update_check",
         "bc_atlas_view"
       ]
     );
@@ -114,25 +94,6 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     assert.ok(model.files > 0);
     assert.ok(model.objects.length > 0);
 
-    const handbook = await client.callTool({
-      name: "bc_atlas_handbook",
-      arguments: { path: path.join(root, "examples", "warehouse-app"), page: "data", language: "de" }
-    });
-    assert.equal(handbook.isError, undefined);
-    const { pages } = JSON.parse(handbook.content[0].text);
-    assert.deepEqual(pages.map(({ page }) => page), ["data"]);
-    assert.match(pages[0].markdown, /Geschrieben von/u, "an agent reads who writes each table");
-
-    const battle = await client.callTool({
-      name: "bc_atlas_simulate",
-      arguments: { path: path.join(root, "examples", "purchasing-app"), agent: "Ben" }
-    });
-    assert.equal(battle.isError, undefined);
-    const simulation = JSON.parse(battle.content[0].text);
-    assert.equal(simulation.passed, false);
-    assert.deepEqual(simulation.agents.map(({ name }) => name), ["Ben"], "agent returns one agent's details");
-    assert.deepEqual(simulation.agents[0].attempts.find(({ outcome }) => outcome === "blocked").missingPermissions, ['codeunit "Request Notifications" = X']);
-    assert.ok(simulation.tasks.every(({ steps }) => steps === undefined), "process tests are listed; their steps come with task");
     // The view without a window: what there is to see, a lens, an opened object, a story, a picture.
     // The view as an MCP App: a tool that shows it, the page as a ui:// resource, and the requests of the page.
     {
@@ -162,8 +123,6 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         const atlas = await ask("atlas");
         assert.ok(atlas.live && atlas.nodes.length && atlas.architecture.score.total > 0);
         assert.ok((await ask("compareArchitecture", { to: "proposal" })).criteria.length);
-        assert.equal((await ask("defineFlows", { operations: [{ op: "set", flow: "docs", title: "Docs" }, { op: "step", flow: "docs", what: "catalog" }] })).written, true);
-        assert.deepEqual(JSON.parse(readFileSync(path.join(copy, ".bca.json"), "utf8")).flows.map(({ id }) => id), ["docs"]);
         // What the view exports is saved into the project; a chat client has no editor to open a file in.
         assert.deepEqual(await ask("saveFile", { name: "../../picture.svg", content: "<svg/>" }), { path: ".bca/exports/picture.svg" });
         assert.equal(readFileSync(path.join(copy, ".bca", "exports", "picture.svg"), "utf8"), "<svg/>");
@@ -204,7 +163,7 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         assert.equal(compared.template.name, "house");
         assert.equal(compared.criteria.find(({ id }) => id === "fewMoves").weight, 7);
         assert.ok(compared.candidates.length > 1 && compared.candidates.some(({ chosen }) => chosen));
-        assert.ok(compared.steps.length && compared.moves.every(({ command }) => command.startsWith("bca refactor move")));
+        assert.ok(compared.steps.length && compared.moves.every(({ object, from, to }) => object.id && from && to));
         assert.match((await ask("bc_atlas_architecture_compare", { to: "best", format: "markdown" })).markdown, /Current and target/u);
 
         const planned = await ask("bc_atlas_architecture_adopt", { to: "proposal" });
@@ -224,13 +183,12 @@ test("serves BC Atlas tools over MCP stdio", async () => {
 
     const view = async (args) => client.callTool({ name: "bc_atlas_view", arguments: { path: path.join(root, "examples", "purchasing-app"), ...args } });
     const overview = JSON.parse((await view({})).content[0].text);
-    assert.deepEqual(overview.lenses.slice(-6).map(({ id, nodes }) => [id, nodes]), [["processes", 15], ["people", 14], ["requirements", 11], ["simulation", 21], ["run", 17], ["sync", 9]]);
+    assert.deepEqual(overview.lenses.map(({ id }) => id), ["overview", "system", "components", "apps", "modules", "data", "calls", "events", "pages", "security", "visibility"]);
     assert.equal(overview.nodes, undefined, "not every node of the project at once");
-    const people = JSON.parse((await view({ lens: "people", focus: "person:Ben" })).content[0].text);
-    assert.ok(people.relations.some(({ kind }) => kind === "blocked"));
-    assert.equal(people.nodes.find(({ label }) => label === "Ben (Team lead)").findings[0].rule, "task-blocked");
+    const data = JSON.parse((await view({ lens: "data", focus: "table:50200" })).content[0].text);
+    assert.ok(data.relations.some(({ kind }) => kind === "writes"));
     assert.match((await view({ inside: "codeunit:50220", format: "text" })).content[0].text, /^BC Atlas Purchasing Example: Inside Purchase Request Mgt\./u);
-    assert.equal(JSON.parse((await view({ story: "fix" })).content[0].text).steps.length, 4);
+    assert.equal(JSON.parse((await view({ story: "architecture" })).content[0].text).steps.length, 8);
     // The documentation of a repository in sync with the source, with what to change and how.
     const layerPages = path.join(os.tmpdir(), `bc-atlas-mcp-layers-${process.pid}`);
     try {
@@ -258,36 +216,6 @@ test("serves BC Atlas tools over MCP stdio", async () => {
     const noFile = await view({ lens: "data", format: "png" });
     assert.equal(noFile.isError, true);
     assert.match(noFile.content[0].text, /a png picture needs output/u);
-
-    // Defining the simulation: the same operations as the Simulate menu and bca simulate define.
-    const copy = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-mcp-simulation-"));
-    try {
-      cpSync(path.join(root, "examples", "purchasing-app"), copy, { recursive: true });
-      const define = async (args) => JSON.parse((await client.callTool({ name: "bc_atlas_simulation_define", arguments: { path: copy, ...args } })).content[0].text);
-      const shown = await define({});
-      assert.deepEqual([shown.written, shown.derived, shown.definition.agents.map(({ name }) => name)], [false, false, ["Anna", "Ben", "Carla", "Dana"]]);
-      const tried = await define({ dryRun: true, operations: [{ op: "set", kind: "agent", name: "Eve", roles: ["Purchaser"], mustNot: ["Approval"] }] });
-      assert.equal(tried.written, false);
-      assert.ok(tried.definition.agents.some(({ name }) => name === "Eve"));
-      assert.ok(!JSON.parse(readFileSync(path.join(copy, ".bca.json"), "utf8")).simulation.agents.some(({ name }) => name === "Eve"), "a dry run writes nothing");
-      // The fix an agent would make: give the team lead what the blocked step needs, and ask again.
-      const before = shown.result.findings.filter(({ code }) => code === "forbidden-task-possible").length;
-      const fixed = await define({ operations: [{ op: "remove", kind: "agent", name: "Dana" }] });
-      assert.equal(fixed.written, true);
-      assert.equal(fixed.result.findings.filter(({ code }) => code === "forbidden-task-possible").length, before - 1);
-      const wrong = await client.callTool({ name: "bc_atlas_simulation_define", arguments: { path: copy, operations: [{ op: "remove", kind: "role", name: "Nobody" }] } });
-      assert.equal(wrong.isError, true);
-      assert.match(wrong.content[0].text, /there is no role "Nobody" to remove/u);
-    } finally {
-      rmSync(copy, { recursive: true, force: true });
-    }
-
-    const unknownAgent = await client.callTool({
-      name: "bc_atlas_simulate",
-      arguments: { path: path.join(root, "examples", "purchasing-app"), agent: "Nobody" }
-    });
-    assert.equal(unknownAgent.isError, true);
-    assert.match(unknownAgent.content[0].text, /agent "Nobody" was not found; known: Anna, Ben, Carla, Dana/u);
 
     const health = await client.callTool({
       name: "bc_atlas_check",
@@ -347,23 +275,6 @@ test("serves BC Atlas tools over MCP stdio", async () => {
       rule === "context-responsibility" && category === "lazy-reads" && severity === "info"
     ));
 
-    const move = await client.callTool({
-      name: "bc_atlas_refactor_move",
-      arguments: {
-        path: path.join(root, "examples", "monolith"),
-        object: "codeunit:50001",
-        to: "Warehouse",
-        folder: "src/Warehouse",
-        namespace: "Contoso.Warehouse",
-        dryRun: true
-      }
-    });
-    assert.equal(move.isError, undefined, move.content[0]?.text);
-    const movePlan = JSON.parse(move.content[0].text);
-    assert.equal(movePlan.to.component, "Warehouse");
-    assert.equal(movePlan.to.file, "src/Warehouse/WarehouseHooks.Codeunit.al");
-    assert.equal(movePlan.to.namespace, "Contoso.Warehouse");
-    assert.equal(movePlan.applied, false);
   } finally {
     await client.close();
     rmSync(config, { force: true });

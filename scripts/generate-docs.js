@@ -17,8 +17,8 @@ const sections = SECTIONS;
 const toc = [
   "# BC Atlas documentation",
   "",
-  "BC Atlas is a VS Code extension and a small CLI organized into four feature",
-  "areas: get started, analyze, export, and integrate. This table of contents",
+  "BC Atlas is a VS Code extension and a small CLI organized into three feature",
+  "areas: analyze, export, and integrate. This table of contents",
   "follows the same structure. The generated CLI capability reference comes",
   "directly from the source code.",
   "",

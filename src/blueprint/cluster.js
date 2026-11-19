@@ -211,7 +211,7 @@ const APP_RESOLUTION = 0.3;
  *   placement: { step, detail } (why the object is in this cluster, see placement.js),
  *   thresholds (the size-dependent numbers that applied to this app or module) }
  */
-// The explorer and the architecture proposal cluster the same apps, and after
+// The view and the architecture proposal cluster the same apps, and after
 // a saved file most apps and modules are unchanged: results are kept by a
 // fingerprint of everything they depend on.
 const clusterCache = new Map();

@@ -177,22 +177,6 @@ export function ruleFor(source, target, settings) {
 
 const EFFORT_RANK = { S: 0, M: 1, L: 2 };
 
-/** An object selector for the command line: codeunit:50100, or interface:"Name" for objects without an ID. */
-function selector(object) {
-  return `${object.type}:${object.objectId ?? `"${object.label}"`}`;
-}
-
-/** The bca refactor command that performs a work item's move, for the strategies that are moves. */
-function refactorCommand(item) {
-  if (["move-extension", "move-subscriber", "move-object-up"].includes(item.strategy) && item.targetComponent !== "(none)") {
-    return `bca refactor move --object ${selector(item.source)} --to "${item.targetComponent}"`;
-  }
-  if (item.strategy === "move-object-down" && item.violations === 1 && item.target) {
-    return `bca refactor move --object ${selector(item.target)} --to "${item.sourceComponent}"`;
-  }
-  return undefined;
-}
-
 /**
  * One work item per source object, target component, and strategy: "move the
  * grants of D365 READ for 892 Sales objects" instead of 892 single findings.
@@ -252,8 +236,6 @@ function groupWorkItems(violations, inputs) {
       steps: item.steps,
       alternatives: item.alternatives
     };
-    const command = refactorCommand(item);
-    if (command) item.command = command;
   }
   return [...items.values()].sort((a, b) =>
     b.violations - a.violations || EFFORT_RANK[a.effort] - EFFORT_RANK[b.effort] || a.id.localeCompare(b.id));

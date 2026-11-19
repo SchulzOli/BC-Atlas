@@ -15,13 +15,12 @@ const { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, wri
 const path = require("node:path");
 const esbuild = require("esbuild");
 
-// Started by the extension (worker, page, CLI, MCP server) or by the engine (update check).
-const ENGINE_ENTRIES = ["src/cli.js", "src/mcp.js", "src/app/worker.js", "src/app/page.js", "src/update-worker.js"];
+// Started by the extension (worker, page, CLI, MCP server).
+const ENGINE_ENTRIES = ["src/cli.js", "src/mcp.js", "src/app/worker.js", "src/app/page.js"];
 // Browser scripts and styles the engine inlines into pages; they are read, not imported.
-const ENGINE_ASSETS = ["src/app/ui/", "src/graph/viewer/", "src/ui/"];
+const ENGINE_ASSETS = ["src/app/ui/", "src/ui/"];
 // Load files relative to themselves (the wasm of resvg and tree-sitter), so
-// they stay as they are. The 3D explorer's browser bundle and the diagram
-// font are in vendor/.
+// they stay as they are. The diagram font is in vendor/.
 const EXTERNAL = ["@resvg/resvg-wasm", "web-tree-sitter"];
 
 const toPosix = (value) => value.split(path.sep).join("/");

@@ -337,16 +337,16 @@ test("profiles: a named set of settings over the ones of layers, each in a folde
   }
 });
 
-test("a profile works on a project with processes, people, and a simulation", async () => {
+test("a profile narrows the pages, the scope, the language, and the names of another project", async () => {
   const { files, manifest } = await build({
-    pages: { lenses: ["processes", "people"], stories: ["run-*", "system"] },
+    pages: { lenses: ["data", "security"], stories: ["system"] },
     scope: { components: ["Request"], exclude: ["*Test*"] },
     sections: { object: ["Inside", "Uses", "Used by"], story: [] },
     language: "de",
     names: { objects: "objekte/{component}/{type}-{name}.md", stories: "rundgaenge/{id}.md" }
   }, {}, purchasing);
-  assert.deepEqual([...files.keys()].filter((file) => file.startsWith("lenses/")), ["lenses/processes.md", "lenses/people.md"]);
-  assert.ok(files.has("rundgaenge/system.md") && files.has("rundgaenge/run-anna.md") && !files.has("rundgaenge/fix.md"));
+  assert.deepEqual([...files.keys()].filter((file) => file.startsWith("lenses/")), ["lenses/data.md", "lenses/security.md"]);
+  assert.ok(files.has("rundgaenge/system.md") && !files.has("rundgaenge/architecture.md"));
   assert.ok(manifest.counts.objects > 0 && manifest.counts.objects < 16 && manifest.counts.components === 1);
   assert.ok([...files.keys()].filter((file) => file.startsWith("objekte/")).every((file) => file.startsWith("objekte/request/")));
   // A story without sections is its title and what stands above its steps.

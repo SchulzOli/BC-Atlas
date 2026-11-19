@@ -477,7 +477,7 @@ async function assertReplaceable(directory) {
 /**
  * The catalog's objects and the page of each (relative to the catalog
  * folder), exactly as generateCodeGraph writes them, so other documents (the
- * handbook) can link to object pages.
+ * report) can link to object pages.
  */
 export async function catalogLayout(input, values = {}, { cache } = {}) {
   const architecture = await createArchitectureModel(input, { ...values, view: "project" }, { cache });

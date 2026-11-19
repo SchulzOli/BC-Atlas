@@ -36,13 +36,13 @@ Shown: `CON Sales Quote`, `CON Quote Export`.
 
 ## 6. Make 1 object of Core internal
 
-Nothing outside Core uses codeunit 50010 CON Standard Pricing. As long as it is public, other apps can start to depend on it, and every change is a breaking one. How: `bca refactor surface --component "Core"` shows the change: Access = Internal on these objects, and what others use listed under `exposes` in .bca.json. Add `--apply` to write it. Effort: S.
+Nothing outside Core uses codeunit 50010 CON Standard Pricing. As long as it is public, other apps can start to depend on it, and every change is a breaking one. How: Set `Access = Internal` on these objects. List what other components use under `exposes` of the component in .bca.json. Effort: S.
 
 Shown: `Core`, `CON Standard Pricing`.
 
 ## 7. Make 2 objects of Integration internal
 
-Nothing outside Integration uses codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync. As long as they are public, other apps can start to depend on them, and every change is a breaking one. How: `bca refactor surface --component "Integration"` shows the change: Access = Internal on these objects, and what others use listed under `exposes` in .bca.json. Add `--apply` to write it. Effort: S.
+Nothing outside Integration uses codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync. As long as they are public, other apps can start to depend on them, and every change is a breaking one. How: Set `Access = Internal` on these objects. List what other components use under `exposes` of the component in .bca.json. Effort: S.
 
 Shown: `Integration`, `CON Quote Export`, `CON Item Sync`.
 

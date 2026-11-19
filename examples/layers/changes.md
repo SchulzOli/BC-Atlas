@@ -81,8 +81,8 @@ Not wrong as it is; worth it when the time is there.
 
 **How.**
 
-1. `bca refactor surface --component "Core"` shows the change: Access = Internal on these objects, and what others use listed under `exposes` in .bca.json.
-2. Add `--apply` to write it.
+1. Set `Access = Internal` on these objects.
+2. List what other components use under `exposes` of the component in .bca.json.
 
 Effort: small. On: [Core](components/core.md), [CON Standard Pricing](objects/codeunit-50010-con-standard-pricing.md).
 
@@ -92,8 +92,8 @@ Effort: small. On: [Core](components/core.md), [CON Standard Pricing](objects/co
 
 **How.**
 
-1. `bca refactor surface --component "Integration"` shows the change: Access = Internal on these objects, and what others use listed under `exposes` in .bca.json.
-2. Add `--apply` to write it.
+1. Set `Access = Internal` on these objects.
+2. List what other components use under `exposes` of the component in .bca.json.
 
 Effort: small. On: [Integration](components/integration.md), [CON Quote Export](objects/codeunit-50200-con-quote-export.md), [CON Item Sync](objects/codeunit-50201-con-item-sync.md).
 

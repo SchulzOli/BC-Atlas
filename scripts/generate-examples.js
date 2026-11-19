@@ -68,7 +68,6 @@ for (const [name, image] of [["project", "project-view"], ["workflow", "workflow
 }
 
 await run(["export", input, "--view", "report", "-o", path.join("examples", "report"), "--codegraph"]);
-await run(["export", input, "--view", "handbook", "-o", path.join("examples", "handbook"), "--catalog", path.join("examples", "report", "objects")]);
 await run([
   "docs", "generate", input,
   "--app", input,
@@ -76,17 +75,8 @@ await run([
   "--output-dir", path.join("examples", "docs")
 ]);
 
-// The battle test of the purchasing example. Its findings are the point of
-// the example, so the failed result (exit code 1) is expected.
-const purchasing = path.join(root, "examples", "purchasing-app");
 // The layered documentation of the example with three apps: the system down to each procedure.
 await run(["layers", path.join("examples", "multi-app"), "-o", path.join("examples", "layers")]);
-await run(["simulate", purchasing, "-o", path.join("examples", "simulation", "README.md")], { exitCodes: [1] });
-await run(["simulate", purchasing, "-o", path.join("examples", "simulation", "README.de.md"), "--language", "de"], { exitCodes: [1] });
-// A run of the simulation: Ben at work, step by step, and the picture where he is stopped and at the end.
-await run(["view", purchasing, "--story", "run:Ben", "-o", path.join("examples", "simulation", "run-ben.md")]);
-await run(["view", purchasing, "--story", "run:Ben", "--step", "13", "--form", "diagram", "-o", path.join("examples", "simulation", "run-ben-stopped.svg")]);
-await run(["view", purchasing, "--story", "run:Ben", "--step", "15", "--form", "diagram", "-o", path.join("examples", "simulation", "run-ben.svg")]);
 
 // The knowledge graph of the warehouse example, with a fixed date so it only changes with the source.
 process.env.SOURCE_DATE_EPOCH = "1735689600";
@@ -97,12 +87,3 @@ for (const format of ["ttl", "owl"]) {
   console.log(`Wrote examples/knowledge-graph/warehouse-app.${format} (${result.triples} triples)`);
 }
 delete process.env.SOURCE_DATE_EPOCH;
-
-const { createExplorerExample } = await import("./explorer-example.js");
-const explorer = await createExplorerExample(root);
-await fs.mkdir(path.join(root, "examples", "explorer"), { recursive: true });
-await fs.writeFile(
-  path.join(root, "examples", "explorer", "dependencies.json"),
-  `${JSON.stringify(explorer, null, 2)}\n`
-);
-console.log("Wrote examples/explorer/dependencies.json");

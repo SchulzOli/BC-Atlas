@@ -31,9 +31,7 @@
     <span class="spacer"></span>
     <button class="tool" id="check-button" aria-pressed="false" title="Show the findings on the graph (C)">Check<span class="count" id="check-count" hidden></span></button>
     <button class="tool menu" id="story-button" data-menu="story" aria-haspopup="true" aria-expanded="false" title="Walk through the graph step by step">Story</button>
-    <button class="tool menu" id="simulate-button" data-menu="simulate" aria-haspopup="true" aria-expanded="false" title="Who uses the app: define the people, roles, and process tests, and run them" hidden>Simulate</button>
     <button class="tool menu" id="architecture-button" data-menu="architecture" aria-haspopup="true" aria-expanded="false" title="Why the components are what they are, the goals and their weights, and the architecture as it is next to the one it should be">Architecture</button>
-    <button class="tool menu" id="flow-button" data-menu="flow" aria-haspopup="true" aria-expanded="false" title="Your own workflows: what to make from the source, when, and where to save it" hidden>Flow</button>
     <button class="tool menu" id="view-button" data-menu="view" aria-haspopup="true" aria-expanded="false" title="Color, size, and grouping">View</button>
     <button class="tool menu" id="export-button" data-menu="export" aria-haspopup="true" aria-expanded="false" title="Save what you see">Export</button>
     <button class="tool status" id="sync-button" data-menu="sync" aria-haspopup="true" aria-expanded="false" title="What the graph is read from"><i class="dot" aria-hidden="true"></i><span id="sync-text">Reading</span></button>
@@ -50,7 +48,6 @@
       <button data-zoom="fit" title="Show everything (0)" aria-label="Show everything"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     </div>
     <section id="story" class="float" aria-label="Story" aria-live="polite" hidden></section>
-    <section id="board" class="float" aria-label="Flow builder" hidden></section>
   </main>
 </div>
 <div id="popover" hidden></div>

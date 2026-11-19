@@ -1,7 +1,7 @@
 // ELK layouts on disk, keyed by the exact graph ELK receives. ELK is
 // deterministic, so the same graph always gets the same layout; for a
 // diagram of a few hundred objects that layout takes seconds, while reading
-// it back takes milliseconds. A Git hook, `bca run`, or an export of an
+// it back takes milliseconds. A Git hook, a pipeline, or an export of an
 // unchanged view therefore lays out only what changed. Entries live in the
 // BC Atlas cache folder (BCA_CACHE_DIR, default <temp>/bc-atlas) under
 // layout/; BCA_LAYOUT_CACHE=off turns the cache off.

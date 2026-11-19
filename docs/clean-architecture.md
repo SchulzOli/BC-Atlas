@@ -253,8 +253,8 @@ A component is named after what most of its objects share:
 4. an app or module that stays one component keeps its name; the shared core
    is `Shared`.
 
-Names are unique, compared without case, because `component:` selectors and
-`bca refactor move --to` look a component up that way. `Sales` and `sales`
+Names are unique, compared without case, because `component:` selectors
+look a component up that way. `Sales` and `sales`
 are one name, also for the components you write into `.bca.json`.
 
 When two components would get the same name, they are told apart by what
@@ -526,16 +526,16 @@ checks are not baselined; configure their severity in `severities`.
 | `declared-component-cycle` | warning | `dependsOn` entries that form a cycle; such components cannot become separate apps. |
 | `component-too-large` | warning | A component with more objects than `maxObjects`. |
 | `unstable-dependency` | info | A component that depends on a less stable one (stable dependencies principle, see [Metrics](#metrics)). |
-| `could-be-internal` | info | Objects of a component that no other component uses and that could be `Access = Internal` (`bca refactor surface`). |
+| `could-be-internal` | info | Objects of a component that no other component uses and that could be `Access = Internal`. |
 | `public-surface-change` | warning | A change that breaks components using the public surface recorded in `.bca-surface.json` (`bca architecture --update-surface`). |
-| `foreign-table-write` | info | A table that other components write; see [data ownership](./modularization.md). Points at the table. |
+| `foreign-table-write` | info | A table that other components write. Points at the table. |
 
 Checks of the configuration point at the component in `.bca.json`, so editors
 and code scanning show them there.
 
-To take a component out as an app of its own, plan the extraction and perform
-the moves with `bca architecture --extract` and `bca refactor move`; see
-[Split a monolith into apps](./modularization.md).
+To take a component out as an app of its own, plan the extraction with
+`bca architecture --extract <component>`: blockers, dependencies, `app.json`,
+tables whose data moves, and steps.
 
 ### Metrics
 
@@ -570,8 +570,8 @@ team accepts for now. `bca check` then:
 - reports the [checks of the architecture](#checks-of-the-architecture):
   cycles, objects without a component, and mistakes in the configuration.
 
-Add `bca check` to your pipeline (`bca setup` configures it) and the
-architecture cannot erode silently. Commit `.bca.json` and the baseline.
+Add `bca check` to your pipeline and the architecture cannot erode
+silently. Commit `.bca.json` and the baseline.
 
 ## 5. See it
 
@@ -579,23 +579,10 @@ In VS Code, the **Components** lens of the BC Atlas view shows the
 components in their layers and the dependencies between them, allowed (blue)
 or the wrong way (red); as a diagram it reads from the top layer to the
 bottom one. The **System** lens groups every object by its component and
-marks what points the wrong way, the story **Dependencies the wrong way**
+marks what points the wrong way, the story **What to change, and how**
 walks through the work items with the steps to resolve each, and **Live**
 saves a proposal or accepts today's violations
 ([VS Code](./vscode.md#change-the-architecture-from-the-view)).
-
-The 3D explorer (`bca export --view explorer`) shows the architecture as
-soon as `.bca.json` defines one, or with `--propose`:
-
-- a **Components** level with allowed (green) and wrong-way (red) component
-  dependencies; select a component and choose **Show its objects**;
-- on the object level, every violating dependency in red, and its resolution
-  in the details;
-- an **Architecture** panel with the largest work items; click one to jump to
-  its object;
-- with `--history`, the number of violations per commit as a red line over the
-  timeline, so you can see when the architecture eroded or improved;
-- the layout **Architecture layers as floors** stacks the components by layer.
 
 ## Example: the Base Application
 

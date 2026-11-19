@@ -1,5 +1,5 @@
 // `bca export`: writes what the app shows as files. One command for the
-// view as one offline file, the Markdown report, single diagrams, the 3D explorer, the
+// view as one offline file, the Markdown report, single diagrams, the
 // object catalog, and the resolved model as JSON.
 import { watch as fsWatch } from "node:fs";
 import fs from "node:fs/promises";
@@ -7,14 +7,12 @@ import path from "node:path";
 import { createArchitectureModel, positiveInteger } from "../architecture.js";
 import { VIEWS } from "../capabilities.js";
 import { generateCodeGraph } from "../codegraph.js";
-import { generateHandbook } from "../handbook.js";
 import { renderSnapshotHtml } from "../app/snapshot.js";
 import { Workspace } from "../app/workspace.js";
 import { healthResultLine } from "../health.js";
 import { displayPath, resolveOutput, writeArchitecture } from "../output.js";
 import { UsageError } from "../cli/errors.js";
 import { writeKnowledgeGraph } from "../knowledge/index.js";
-import { writeExplorer } from "./explore.js";
 import { generateReport } from "./report.js";
 
 const DIAGRAM_VIEWS = new Set(VIEWS.map(([id]) => id));
@@ -22,10 +20,8 @@ const DIAGRAM_VIEWS = new Set(VIEWS.map(([id]) => id));
 // Formats each kind of export accepts; the first one is the default.
 const FORMATS = {
   app: ["html"],
-  explorer: ["html", "json"],
   report: ["svg", "d2"],
   catalog: ["md"],
-  handbook: ["md"],
   "knowledge-graph": ["ttl", "rdf", "owl", "nt", "jsonld"],
   diagram: ["svg", "d2", "json", "png", "pdf"]
 };
@@ -34,7 +30,7 @@ const kindOf = (view) => (DIAGRAM_VIEWS.has(view) ? "diagram" : view);
 
 function checkFormat(view, format) {
   const kind = kindOf(view);
-  if (!FORMATS[kind]) throw new UsageError(`unknown view "${view}"; use app, report, explorer, catalog, handbook, knowledge-graph, or one of ${[...DIAGRAM_VIEWS].join(", ")}`);
+  if (!FORMATS[kind]) throw new UsageError(`unknown view "${view}"; use app, report, catalog, knowledge-graph, or one of ${[...DIAGRAM_VIEWS].join(", ")}`);
   if (format && !FORMATS[kind].includes(format)) {
     throw new UsageError(`--view ${view} writes ${FORMATS[kind].join(" or ")}, not ${format}`);
   }
@@ -49,26 +45,6 @@ async function exportApp(input, values, log) {
   const { title, summary } = snapshot.atlas;
   log(`${title}: ${summary.objects} object(s), health ${summary.health.passed ? "passed" : "failed"}, ${summary.architecture.violations} wrong-way dependency(ies).`);
   return [output];
-}
-
-async function exportExplorer(input, values, log) {
-  const started = Date.now();
-  const { document, file } = await writeExplorer(input, values, {
-    onFrame: (frame, index, total) => log(
-      `Frame ${index + 1}/${total}: ${frame.id} ${frame.date.slice(0, 10)} (${Math.round((Date.now() - started) / 1000)} s)`
-    )
-  });
-  const objects = document.levels.object;
-  const crossApp = objects.edges.filter(({ scope }) => scope === "inter-app").length;
-  const undeclared = document.levels.app.edges.filter(({ dependency }) => dependency === "undeclared").length;
-  const frames = document.timeline.frames.length;
-  log(
-    `${document.lens.title}: ${objects.nodes.length} object(s), ${objects.edges.length} dependency edge(s), ` +
-    `${crossApp} across apps, ${document.levels.app.nodes.length} app(s)` +
-    `${undeclared ? `, ${undeclared} undeclared app dependency(ies)` : ""}` +
-    `${frames > 1 ? `; ${frames} frame(s) ${{ prs: "by pull request", releases: "by release" }[document.timeline.by] ?? "by commit"}, ${document.timeline.commits} commit(s)` : ""}.`
-  );
-  return [file];
 }
 
 async function exportReport(input, values, log) {
@@ -102,19 +78,13 @@ async function exportDiagram(input, values, log) {
   return files;
 }
 
-async function exportHandbook(input, values, log) {
-  const result = await generateHandbook(input, { ...values, outputDir: values.output ?? "docs/handbook" });
-  log(`Handbook: ${result.pages.length} page(s) about ${result.objects} object(s) in ${displayPath(result.outputDirectory)}.`);
-  return [path.join(result.outputDirectory, "README.md")];
-}
-
 async function exportKnowledgeGraph(input, values, log) {
   const result = await writeKnowledgeGraph(input, values);
   log(`Knowledge graph: ${result.objects} object(s), ${result.relations} relation(s), ${result.triples} triple(s) as ${result.format}.`);
   return [result.file];
 }
 
-const EXPORTERS = { app: exportApp, explorer: exportExplorer, report: exportReport, catalog: exportCatalog, handbook: exportHandbook, "knowledge-graph": exportKnowledgeGraph, diagram: exportDiagram };
+const EXPORTERS = { app: exportApp, report: exportReport, catalog: exportCatalog, "knowledge-graph": exportKnowledgeGraph, diagram: exportDiagram };
 
 /** Writes one export; returns the files written. */
 export async function runExport(input, values = {}, { log = () => {} } = {}) {

@@ -10,7 +10,6 @@ import { assessArchitecture, evaluateArchitecture, proposeArchitecture } from ".
 import { compareWithBaseline, createBaseline } from "../src/blueprint/baseline.js";
 import { subgroups } from "../src/blueprint/cluster.js";
 import { compileSelector, componentMatcher } from "../src/blueprint/components.js";
-import { createGraphDocument } from "../src/graph/document.js";
 import { architectureJson, formatArchitectureMarkdown, formatArchitectureText } from "../src/blueprint/report.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -720,26 +719,6 @@ test("--write saves a proposal to .bca.json", () => {
     assert.equal(result.status, 0, result.stderr);
     const saved = JSON.parse(readFileSync(path.join(directory, ".bca.json"), "utf8")).architecture;
     assert.deepEqual(saved.components.map(({ name }) => name), ["Contoso Core", "Contoso Sales", "Contoso Integration"]);
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
-test("the explorer shows components and violations per frame", async () => {
-  const directory = copyWorkspace(LAYERED);
-  try {
-    const document = await createGraphDocument(directory);
-    assert.equal(document.architecture.mode, "configured");
-    assert.equal(document.architecture.summary.violations, 1);
-    assert.deepEqual(document.levels.component.edges.map(({ id, dependency }) => [id, dependency]).sort(), [
-      ["component::Integration->component::Core", "violation"],
-      ["component::Integration->component::Sales", "allowed"],
-      ["component::Sales->component::Core", "allowed"]
-    ]);
-    const edge = document.levels.object.edges.find(({ violation }) => violation);
-    assert.equal(edge.violation.strategy, "declare-dependency");
-    assert.equal(document.timeline.frames.at(-1).violations, 1);
-    assert.ok(document.levels.object.nodes.filter(({ origin }) => origin === "workspace").every(({ component }) => component));
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

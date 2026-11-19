@@ -148,3 +148,37 @@ export function scenarioSummary(scenario) {
     links: scenario.value.links
   };
 }
+const IGNORED_FOLDERS = new Set([".git", ".alpackages", ".vscode", "node_modules", ".snapshots", "docs", ".husky", ".github"]);
+
+async function directories(root, depth = 0, relative = "") {
+  if (depth > 3) return [];
+  const entries = await fs.readdir(path.join(root, relative), { withFileTypes: true }).catch(() => []);
+  const found = [];
+  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+    if (!entry.isDirectory() || IGNORED_FOLDERS.has(entry.name)) continue;
+    const child = relative ? `${relative}/${entry.name}` : entry.name;
+    found.push(child, ...await directories(root, depth + 1, child));
+  }
+  return found;
+}
+
+/** Finds the folder with the most documented UI-test scenarios. */
+export async function findUiTests(root, gitRoot) {
+  const candidates = new Set(["."]);
+  for (const directory of await directories(root)) if (/test/iu.test(path.basename(directory))) candidates.add(directory);
+  if (gitRoot && gitRoot !== root) {
+    for (const directory of await directories(gitRoot)) {
+      if (/test/iu.test(path.basename(directory))) candidates.add(path.relative(root, path.join(gitRoot, directory)).replaceAll("\\", "/") || ".");
+    }
+  }
+  let best = { path: undefined, scenarios: 0 };
+  for (const candidate of candidates) {
+    const corpus = await loadCorpus(path.join(root, candidate)).catch(() => undefined);
+    const count = corpus?.scenarios.length ?? 0;
+    // Prefer the most specific folder when counts tie.
+    if (count > best.scenarios || (count && count === best.scenarios && candidate.length > (best.path ?? "").length)) {
+      best = { path: candidate, scenarios: count };
+    }
+  }
+  return best;
+}

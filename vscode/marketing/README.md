@@ -38,7 +38,7 @@ width around it.
 | Navy | `#0b1432` → `#17306b` | Icon tile, Marketplace banner, hero background. |
 | Teal | `#5eead4` | The apex node; highlights such as "Clean architecture". |
 | Sky | `#7dd3fc` → `#4b7cf7` | Gradient of the "A" in the icon. |
-| Allowed / against the architecture | green / `#ef4444` red | Only for dependencies, as in the explorer. |
+| Allowed / against the architecture | green / `#ef4444` red | Only for dependencies. |
 
 **Type:** Inter (Inter Display for big headlines).
 
@@ -63,7 +63,7 @@ width around it.
 ### Screenshots
 
 All show the BC Atlas view on the example apps of this repository
-(`examples/purchasing-app`: 16 objects, process tests, and a company;
+(`examples/purchasing-app`: 16 objects;
 `examples/multi-app`: three apps with a configured architecture), in the
 dark design of an exported file.
 
@@ -73,9 +73,7 @@ dark design of an exported file.
 | `diagram.png` | The Data lens as a diagram. |
 | `space.png` | The System lens in 3D with the findings as rings. |
 | `inside.png` | A codeunit from the inside: its procedures and events, and what each does. |
-| `story.png` | A process story at the step that is blocked. |
 | `components.png` | The Components lens as a diagram, with the dependency the wrong way. |
-| `people.png` | The People lens: agents, process tests, and permission sets. |
 
 To retake them: `node vscode/marketing/screenshots.mjs` (needs Playwright
 with Chromium). It also writes `docs/generated/images/view.png`, the picture
@@ -130,7 +128,7 @@ in the README of the repository, in the light design.
 5. **Release.** Tag the release and paste the changelog into the GitHub
    release, with `social-preview.jpg` on top.
 6. **Announce** with the posts below, each with `social-preview.jpg` or a
-   screenshot. A short screen recording of the 3D explorer (rotate, click a
+   screenshot. A short screen recording of the view in 3D (rotate, click a
    red link, open the object) works best on LinkedIn.
 
 ## Launch copy

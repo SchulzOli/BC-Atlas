@@ -30,22 +30,11 @@ function topLevelName(definition) {
 // One-line summaries for the overview; the full purpose is in each command's help.
 const SHORT = {
   check: "Gate CI on architecture health: cycles, policies, architecture violations, diagnostics",
-  simulate: "Battle-test the app as your company uses it: roles, permission sets, process tests, fit-gap",
-  process: "How the company works with the app: processes in lanes (BPMN), mined, run with its people, improved (define, run, export)",
   architecture: "Find a target architecture, resolve what stands in its way, and enforce it with a baseline",
-  refactor: "Move objects between components, lock a component's public surface (move, surface)",
-  export: "Write files: the pages as one offline HTML file, report, explorer, catalog, or one diagram",
-  graph: "Query and render saved graphs without analyzing AL (query, render)",
-  run: "Run the features and flows configured for a Git hook, pipeline, or schedule",
-  flow: "Your own workflows: what to make from the source, when, and where to save it (define, export)",
-  update: "Update BC Atlas together with the generated setup files",
+  export: "Write files: the view as one offline HTML file, report, catalog, or one diagram",
   mcp: "Start the Model Context Protocol server for AI agents",
   view: "The view without a window: any lens, story, or object as text, JSON, CSV, Markdown, SVG, or PNG",
   layers: "The documentation, in sync with the source: how it works, how it is connected, what to change and how",
-  bundle: "Everything as one artifact: validation, simulation, documentation, test results, build outputs",
-  ai: "What the AI plugin would use: the endpoint, the model, and what there is to write about",
-  plugins: "List the plugins of a project and what each contributes",
-  sync: "Show what each sync channel would write for a trigger, without writing"
 };
 
 export function overviewHelp(capabilities) {
@@ -74,9 +63,7 @@ export function overviewHelp(capabilities) {
       seen.add(name);
       rows.push(name === "docs"
         ? ["docs", "Turn AL UI tests into user guides and test cases (list, validate, generate, ...)"]
-        : name === "setup"
-          ? ["setup", "Set up a project: .bca.json, Git hooks, pipelines, schedules (plan, apply, agent)"]
-          : [name, SHORT[name] ?? definition.purpose.replace(/\.$/u, "")]);
+        : [name, SHORT[name] ?? definition.purpose.replace(/\.$/u, "")]);
     }
     lines.push(area.title, ...aligned(rows), "");
   }
@@ -92,7 +79,6 @@ export function overviewHelp(capabilities) {
     "",
     "Next steps",
     "  bca check ./app            health and architecture gate for an AL project",
-    "  bca setup                  choose features, Git hooks, pipelines, and schedules",
     "  bca help <command>         show options and examples for one command",
     "  bca help --format json     print the machine-readable command contract",
     "",

@@ -31,7 +31,7 @@ const several = (value) => [value ?? []].flat().flatMap((item) => String(item).s
 
 /**
  * The node a selector names: an id, `codeunit:50100`, `table:Sales Header`,
- * `person:Anna`, or a name. Workspace objects come before those of other apps.
+ * or a name. Workspace objects come before those of other apps.
  */
 function findNode(atlas, selector, what) {
   const exact = atlas.nodes.find(({ id }) => id === selector);

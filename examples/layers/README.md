@@ -60,7 +60,7 @@ The other sides of the same system: each lens is a part of the one graph.
 
 | Lens | Nodes | Relations | Shows |
 | --- | ---: | ---: | --- |
-| [Overview](lenses/overview.md) | 12 | 9 | How it works, from left to right: who uses it, what they do, on which screens, with which logic, in which data. |
+| [Overview](lenses/overview.md) | 12 | 9 | How it works, from left to right: the screens, the logic behind them, and the data. |
 | [System](lenses/system.md) | 13 | 30 | Every object and every relation between them. |
 | [Components](lenses/components.md) | 3 | 3 | The components in their layers and the dependencies between them, allowed or the wrong way. |
 | [Apps](lenses/apps.md) | 4 | 4 | The apps of the workspace, the apps they depend on, and what they use of each other. |

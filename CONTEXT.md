@@ -22,17 +22,14 @@ A normalized table-data grant, execute grant, permission-set inclusion, or permi
 **Health Finding**:
 A rule result (error, warning, or info) derived from the project-view **Architecture Model**, such as a dependency cycle, a forbidden dependency, or a fan-in hot spot.
 
-**Graph Document**:
-The temporal graph behind the dependency explorer (`bca export --view explorer --format json`): an object level and an app level, each node and edge with presence spans across timeline frames.
-
 **Lens**:
-One relationship family (first: dependency) projected from the **Architecture Model** into a **Graph Document**.
+One part of the one graph the view shows, such as data, calls, or events, projected from the **Architecture Model**.
 
 **Dependency Class**:
 How a dependency relates to app boundaries: intra-app, declared, implicit, undeclared, or unresolved.
 
 **Feature Area**:
-One of the five groups that organize every command: get started, visualize, analyze, document, and integrate.
+One of the three groups that organize every command: analyze, export, and integrate.
 
 ## Relationships
 

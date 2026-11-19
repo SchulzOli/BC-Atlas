@@ -43,11 +43,6 @@ export function createService(workspace) {
       if (!object) throw new Error("object not found");
       return object;
     },
-    battleTest: async ({ language } = {}) => {
-      const report = await workspace.battleTest({ language: language || undefined });
-      if (!report) throw new Error("no process tests found");
-      return report;
-    },
     atlas: () => workspace.atlas(),
     // What the graph can show, without analyzing anything.
     lenses: () => LENSES.map(({ id, title, summary }) => ({ id, title, summary })),
@@ -66,25 +61,12 @@ export function createService(workspace) {
     compareArchitecture: (params = {}) => workspace.compareArchitecture(params),
     adoptTarget: (params = {}) => workspace.adoptTarget(params),
     architectureTemplate: (params = {}) => workspace.architectureTemplate(params),
-    // The Simulate menu of the view: operations on the simulation section, applied and run at once.
-    defineSimulation: (params = {}) => workspace.defineSimulation(params),
-    // Build from the Simulate menu: everything the simulation shows, as one artifact.
-    bundle: (params = {}) => workspace.bundle(params),
-    // The Flow menu of the view: operations on the flows, and a run of one flow.
-    defineFlows: (params = {}) => workspace.defineFlows(params),
-    runFlow: (params = {}) => workspace.runFlow(params),
-    exportFlow: (params = {}) => workspace.exportFlow(params),
-    saveFlowCanvas: (params = {}) => workspace.saveFlowCanvas(params),
-    // The Process mode of the builder: operations on the processes.
-    defineProcesses: (params = {}) => workspace.defineProcesses(params),
     updateProposal: (params = {}) => workspace.updateProposal({
       keep: params.keep,
       release: params.release || undefined,
       exclude: params.exclude || undefined,
       include: params.include || undefined
     }),
-    // The graph again, on the analysis that is there: after a change to the flows or the processes.
-    forgetAtlas: () => workspace.forgetAtlas(),
     refresh: () => {
       workspace.reset();
       return { generation: workspace.generation, updatedAt: workspace.updatedAt };

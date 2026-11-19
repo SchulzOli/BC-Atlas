@@ -6,6 +6,42 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Removed
+
+BC Atlas goes back to its core: read the AL source, show the architecture,
+check it, and document it. Everything else is gone.
+
+- **Commands:** `bca setup`, `bca run`, `bca simulate`, `bca process`,
+  `bca flow`, `bca bundle`, `bca refactor`, `bca graph`, `bca update`,
+  `bca plugins`, and the plugin commands `bca sync` and `bca ai`.
+- **Exports:** `bca export --view explorer` (the standalone 3D explorer with
+  its Git timeline) and `--view handbook`; `--handbook` of the report. The
+  view keeps its 3D form.
+- **The view:** the lenses Processes, People, Requirements, Simulation,
+  Process models, Flows, and Run; the Simulate and Flow menus; the flow and
+  process builders; the stories of processes, people, and runs. The overview
+  is three columns: screens, logic, data.
+- **The plugin system**, with the built-in plugins `sync` and `ai`.
+- **BC OpenBridge** (`openbridge/`).
+- **Automation:** generated Git hooks, pipelines, schedules, and VS Code
+  tasks, the GitHub Action (`action.yml`), the update notice, and Dependabot
+  set-up. In a pipeline, call `bca check` and `bca layers --check` directly.
+- **MCP tools** of all of the above: `bc_atlas_setup_plan`,
+  `bc_atlas_setup_apply`, `bc_atlas_run`, `bc_atlas_update_check`,
+  `bc_atlas_simulate`, `bc_atlas_simulation_define`, `bc_atlas_bundle`,
+  `bc_atlas_process`, `bc_atlas_process_define`, `bc_atlas_flow_define`,
+  `bc_atlas_flow_export`, `bc_atlas_refactor_move`,
+  `bc_atlas_refactor_surface`, `bc_atlas_explore`, `bc_atlas_graph_query`,
+  `bc_atlas_graph_render`, `bc_atlas_handbook`.
+- **Settings** in `.bca.json`: `plugins`, `simulation`, `processes`,
+  `processTelemetry`, `flows`, `automation`, `handbook`, `report.handbook`.
+  They are ignored when present.
+
+### Changed
+
+- Work items and the comparison of current and target architecture no longer
+  name a `bca refactor move` command; they say which object moves where.
+
 ## 0.27.0 - 2026-11-17
 
 ### Added
@@ -201,7 +237,7 @@ follows [Semantic Versioning](https://semver.org/).
   - **BPMN 2.0** out (`bca process export`, **BPMN** in the builder) and
     in (`bca process define --import`).
   - The MCP tools `bc_atlas_process` and `bc_atlas_process_define`.
-  - [Guide](./docs/processes.md).
+  - Guide.
 
 - **Flows: your own workflows.** A flow says what to make from the source,
   when, and where to save it: an id, the triggers it runs on, and steps,
@@ -260,7 +296,7 @@ follows [Semantic Versioning](https://semver.org/).
     Flow menu has the same as **Export → For GitHub Actions**, and agents
     the MCP tool `bc_atlas_flow_export`.
   - The MCP tool **`bc_atlas_flow_define`**, and `flows` on `bc_atlas_run`.
-  - [Guide](./docs/flows.md).
+  - Guide.
 
 ## 0.22.0 - 2026-11-12
 
@@ -328,7 +364,7 @@ follows [Semantic Versioning](https://semver.org/).
   JUnit or xUnit XML) and build outputs (`--include`) it is given.
   `bundle.json` names the commit, every step with its result, and every file
   with its hash. Exit code 1 when a step failed; the bundle is written all
-  the same. MCP tool `bc_atlas_bundle`. See [The bundle](./docs/bundle.md).
+  the same. MCP tool `bc_atlas_bundle`. See The bundle.
 - **Simulate on recordings.** With `simulation.recordings` (or
   `--recordings`) the agents perform the recordings of Business Central as
   well. What really ran says what it takes: Execute on the pages,
@@ -385,7 +421,7 @@ follows [Semantic Versioning](https://semver.org/).
   written by a language model, from facts.** BC Atlas itself still calls no
   model. The plugin `ai` is the one place one is called, through one
   OpenAI-compatible endpoint, so a gateway routes to any model of any
-  provider. See [BC Atlas AI](./plugins/ai/README.md).
+  provider. See BC Atlas AI.
   - `bca ai context` prints the **grounding** of a subject (the system, or a
     process of the battle test): steps with what each needs, who performs
     or is blocked, requirements, what the recording of Business Central
@@ -405,7 +441,7 @@ follows [Semantic Versioning](https://semver.org/).
   add or change an agent, a role, a task group, or a requirement, remove
   one, ground a process test on a recording. Each change runs the simulation
   at once, and what is not valid never reaches `.bca.json`. See
-  [Define the simulation](./docs/battle-test.md#define-the-simulation).
+  Define the simulation.
   - **Simulate**, a menu next to Story in the toolbar of the view: the
     company, its agents and roles, and a form for each; **Define…** on the
     card of a person, a role, or a requirement. In VS Code a change is
@@ -506,7 +542,7 @@ follows [Semantic Versioning](https://semver.org/).
   put nodes, relations, lenses, findings, and stories into the one graph;
   they show in the view, in `bca view`, in the MCP tool `bc_atlas_view`,
   and in every export, like those of BC Atlas. See
-  [What a plugin adds to the graph](./docs/plugins.md#what-a-plugin-adds-to-the-graph).
+  What a plugin adds to the graph.
   `bca view --lens` accepts the lenses of plugins.
 - **Recordings of Business Central are in the view.** The built-in plugin
   `sync` adds the lens **Recordings**: the channels, every recorded process
@@ -543,7 +579,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Plugins** (plugin API 1, [docs](docs/plugins.md)): a plugin declares in
+- **Plugins** (plugin API 1): a plugin declares in
   `plugin.json` what it contributes — commands (`bca <plugin> <command>`),
   tasks for `bca run` (placed with before/after, outputs included in verify,
   stage, artifacts, and pull requests), health rules for `bca check`, MCP
@@ -621,9 +657,9 @@ follows [Semantic Versioning](https://semver.org/).
   `[PERMISSIONS]` in the tests is a role. Text, Markdown, or JSON, in English
   or German. Also a task of `bca run` (`simulate`, report in
   `docs/simulation`), a page of **Docs** in VS Code and the offline app, and
-  the MCP tool `bc_atlas_simulate`. See [Battle test](./docs/battle-test.md)
+  the MCP tool `bc_atlas_simulate`. See Battle test
   and the new purchasing example (`examples/purchasing-app`,
-  [report](./examples/simulation/README.md)).
+  report).
 - The model keeps which rights a permission grants only indirectly
   (`indirectRights`: `tabledata "X" = Ri` reads directly and inserts
   indirectly).
@@ -1205,7 +1241,7 @@ extension, whose previous release was 0.9.0.
   has settled. The filters start collapsed (☰ or `F`) so the graph has the
   whole window.
 - Tools to split a monolith into apps (see the new guide
-  [Split a monolith into apps](./docs/modularization.md) and the example
+  Split a monolith into apps and the example
   `examples/monolith`):
   - **Data ownership:** for every table that other components use, who
     owns, writes, reads, relates to, and extends it; `bca check` reports
