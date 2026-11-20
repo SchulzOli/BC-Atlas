@@ -34,7 +34,7 @@ class Engine {
    * @param project folder to analyze
    * @param options { paths, projectRoot, config } for the workspace
    * @param settings { nodePath, log, onEvent } onEvent receives messages the
-   *   worker sends on its own, such as { event: "changed" } after the AL compiler
+   *   worker sends on its own, such as { event: "changed" }
    */
   constructor(project, options, { nodePath, log = () => {}, onEvent = () => {} } = {}) {
     this.project = project;

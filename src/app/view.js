@@ -75,8 +75,8 @@ export function viewState(atlas, options = {}) {
     state.lens = options.lens ?? atlas.lenses[0].id;
     if (options.inside) {
       const node = findNode(atlas, options.inside, "--inside");
-      if (!["object", "app", "component", "module"].includes(node.kind) || node.external) {
-        throw new UsageError(`--inside needs an object, an app, a component, or a namespace of the workspace; "${options.inside}" is ${node.external ? "in another app" : `a ${node.kind}`}. Use --focus for it and what is near it`);
+      if (!["object", "app", "module"].includes(node.kind) || node.external) {
+        throw new UsageError(`--inside needs an object, an app, or a namespace of the workspace; "${options.inside}" is ${node.external ? "in another app" : `a ${node.kind}`}. Use --focus for it and what is near it`);
       }
       state.inside = node.id;
     }
@@ -124,7 +124,7 @@ function overviewText(atlas, found) {
   const storyWidth = width(atlas.stories.map(({ id }) => id));
   return [
     `${atlas.title}: ${plural(summary.objects, "object")} in ${plural(summary.apps, "app")}, ${plural(summary.relations, "relation")}.`,
-    `Health ${summary.health.passed ? "passed" : "failed"}: ${plural(summary.health.error, "error")}, ${plural(summary.health.warning, "warning")}, ${summary.health.info} info. Architecture (${summary.architecture.mode}): ${plural(summary.architecture.components, "component")}, ${plural(summary.architecture.violations, "dependency", "dependencies")} the wrong way.`,
+    `Health ${summary.health.passed ? "passed" : "failed"}: ${plural(summary.health.error, "error")}, ${plural(summary.health.warning, "warning")}, ${summary.health.info} info.`,
     "",
     "Lenses (bca view --lens <id>)",
     ...atlas.lenses.map((lens, at) => `  ${lens.id.padEnd(lensWidth)}  ${`${plural(scenes[at].entries.length, "node")}, ${plural(scenes[at].edges.length, "relation")}`.padEnd(28)}  ${lens.summary}`),

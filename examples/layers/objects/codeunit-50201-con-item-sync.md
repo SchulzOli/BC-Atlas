@@ -1,15 +1,14 @@
 # codeunit 50201 CON Item Sync
 
-[System](../README.md) › [Contoso Integration](../apps/contoso-integration.md) › [Integration](../components/integration.md) › [Contoso.Integration](../namespaces/contoso-integration.md)
+[System](../README.md) › [Contoso Integration](../apps/contoso-integration.md) › [Contoso.Integration](../namespaces/contoso-integration.md)
 
-The codeunit CON Item Sync of the app Contoso Integration, in the component Integration, has 1 member in 10 lines. It reads, uses, writes 1 other object, and nothing in this workspace uses it.
+The codeunit CON Item Sync of the app Contoso Integration has 1 member in 10 lines. It reads, uses, writes 1 other object, and nothing in this workspace uses it.
 
 | Fact | Value |
 | --- | --- |
 | Type | codeunit |
 | ID | 50201 |
 | App | Contoso Integration |
-| Component | Integration |
 | Namespace | Contoso.Integration |
 | Visibility | public; can be internal |
 | Lines | 10 |
@@ -23,7 +22,7 @@ The codeunit CON Item Sync of the app Contoso Integration, in the component Inte
 
 ## Inside
 
-Layer 5: its procedures, triggers, and events, and what each of them does.
+Layer 4: its procedures, triggers, and events, and what each of them does.
 
 | Member | Kind | Lines | Complexity | Does |
 | --- | --- | ---: | ---: | --- |
@@ -35,19 +34,8 @@ Layer 5: its procedures, triggers, and events, and what each of them does.
 - **uses** [table 50000 CON Item](table-50000-con-item.md)
 - **writes** [table 50000 CON Item](table-50000-con-item.md)
 
-## What to change here
-
-- 3. CON Item Sync: declare the dependency; it points inward (small)
-- 4. Let Core own the writes to table 50000 CON Item (medium)
-- 7. Make 2 objects of Integration internal (small)
-
-Why and how: [What to change, and how](../changes.md).
-
 ## Findings
 
-- **error** `architecture-violation`: codeunit CON Item Sync (Integration) depends on 1 object(s) in Core; declare the dependency; it points inward (declare-dependency)
-  - On: [CON Item Sync](codeunit-50201-con-item-sync.md)
-  - Source: `integration/ItemSync.al:10`
 - **info** `undocumented-public-api`: codeunit 50201 CON Item Sync: 1 public procedure(s) without a /// summary: Sync
   - On: [CON Item Sync](codeunit-50201-con-item-sync.md)
   - Source: `integration/ItemSync.al:8`

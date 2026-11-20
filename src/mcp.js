@@ -10,23 +10,12 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import * as z from "zod/v4";
 
-import { createArchitectureModel } from "./architecture.js";
-import { createCapabilities, FAIL_LEVELS, REPORT_VIEWS, VIEW_FORMATS, VIEW_FORMS, VIEW_LENSES, VIEWS as VIEW_CATALOG } from "./capabilities.js";
+import { createCapabilities, FAIL_LEVELS, REPORT_LENSES, VIEW_FORMATS, VIEW_FORMS, VIEW_LENSES } from "./capabilities.js";
 import { runHealthCheck } from "./commands/check.js";
 import { writeView } from "./commands/view.js";
 import { viewOverview } from "./app/view.js";
-import { assessArchitecture } from "./blueprint/index.js";
-import { architectureJson } from "./blueprint/report.js";
-import { planExtraction } from "./blueprint/extract.js";
-import { explainComponent, explainPlacement, findObject } from "./blueprint/explain.js";
-import { compareArchitecture, formatCompareMarkdown } from "./blueprint/compare.js";
-import { CRITERIA, DEFAULT_GOALS } from "./blueprint/goals.js";
-import { PLACEMENT_STEPS } from "./blueprint/placement.js";
-import { listTemplates, removeTemplate, resolveTemplate, saveTemplate, useTemplate } from "./blueprint/templates.js";
-import { architectureContext } from "./blueprint/index.js";
-import { adoptTarget } from "./commands/architecture-target.js";
 import { generateReport } from "./commands/report.js";
-import { resolveOutput, writeArchitecture } from "./output.js";
+import { loadProject } from "./project.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
 import { documentationGlossary } from "./docs/tags.js";
 import { DOCUMENT_MODES, EXPORT_FORMATS, exportDocumentation } from "./docs/export.js";
@@ -35,54 +24,18 @@ import { createService } from "./app/service.js";
 import { Workspace } from "./app/workspace.js";
 
 const pkg = JSON.parse(await fs.readFile(new URL("../package.json", import.meta.url)));
-const VIEWS = VIEW_CATALOG.map(([id]) => id);
 
-const architectureFields = {
+// What every tool that reads a project takes.
+const projectFields = {
   path: z.string().min(1).describe("AL file or project directory"),
-  projectRoot: z.string().min(1).optional().describe(
-    "App or multi-app workspace root; path becomes the rendered folder focus"
-  ),
-  view: z.enum(VIEWS).optional(),
-  object: z.string().optional(),
-  objectInboundDepth: z.number().int().nonnegative().optional(),
-  objectOutboundDepth: z.number().int().nonnegative().optional(),
-  members: z.array(z.enum(["fields", "actions", "triggers", "events", "procedures"])).optional(),
-  scope: z.array(z.string()).optional(),
-  focus: z.string().optional(),
-  entry: z.array(z.string()).optional(),
+  projectRoot: z.string().min(1).optional().describe("App or multi-app workspace root; path becomes the focus"),
   namespace: z.array(z.string()).optional(),
   type: z.array(z.string()).optional(),
   include: z.array(z.string()).optional(),
   exclude: z.array(z.string()).optional(),
-  groupBy: z.enum(["namespace", "folder", "type", "role"]).optional(),
-  moduleDepth: z.union([z.literal("auto"), z.number().int().positive()]).optional(),
-  folderDepth: z.number().int().positive().optional(),
-  includeUnresolvedCalls: z.boolean().optional(),
-  rootProcedure: z.array(z.string()).optional(),
-  callDepth: z.number().int().nonnegative().optional(),
-  callDirection: z.enum(["incoming", "outgoing", "both"]).optional(),
-  expandProcedures: z.boolean().optional(),
-  expandFrameworkCalls: z.boolean().optional(),
-  workflowDepth: z.number().int().positive().optional(),
-  workflowMaxNodes: z.number().int().positive().optional(),
-  workflowEdgeTypes: z.array(z.enum(["calls", "events", "writes", "reads"])).optional(),
-  maxEdges: z.number().int().positive().optional(),
-  direction: z.enum(["right", "down", "left", "up"]).optional(),
-  title: z.string().optional(),
-  sourceUrl: z.string().optional(),
-  sourceRef: z.string().optional(),
-  sourcePathPrefix: z.string().optional(),
-  noLegend: z.boolean().optional(),
-  details: z.boolean().optional(),
-  noExternal: z.boolean().optional(),
-  config: z.string().optional(),
-  strict: z.boolean().optional()
+  paths: z.array(z.string()).optional().describe("Only analyze AL files below these project-relative folders or globs"),
+  config: z.string().optional()
 };
-
-function architectureOptions(args) {
-  const { path: _path, output: _output, format: _format, ...values } = args;
-  return values;
-}
 
 function text(value) {
   return {
@@ -103,20 +56,6 @@ function tool(handler) {
   };
 }
 
-async function generateDiagram(args) {
-  const architecture = await createArchitectureModel(args.path, architectureOptions(args));
-  const target = resolveOutput({ output: args.output, format: args.format ?? "svg" });
-  const { files } = await writeArchitecture(architecture, target);
-  return {
-    output: target.finalOutput,
-    files,
-    format: target.format,
-    analyzedFiles: architecture.model.files,
-    nodes: architecture.model.objects.length,
-    edges: architecture.model.edges.length
-  };
-}
-
 // The BC Atlas view as an MCP App (SEP-1865, io.modelcontextprotocol/ui): the page, and one
 // workspace per project so that the page asks on an analysis that is there, as in VS Code.
 export const APP_URI = "ui://bc-atlas/view.html";
@@ -128,35 +67,6 @@ function appService(input) {
   return { root, service: appServices.get(root) };
 }
 
-// What is preferred in an architecture: the template and the weights of the goals (src/blueprint/goals.js, templates.js).
-const goalFields = {
-  template: z.string().optional().describe("The template that says what a good architecture is: balanced, follow-structure, by-coupling, layered, modular-monolith, small-steps, or one of the project's own (bc_atlas_architecture_templates)"),
-  weights: z.record(z.string(), z.number().min(0)).optional().describe("How much each goal weighs, on top of the template, e.g. { \"layering\": 5, \"fewMoves\": 3 }; 0 leaves a goal out. Goals: cohesion, modularity, layering, acyclic, ownership, extractable, stability, size, followNamespaces, followFolders, followApps, fewMoves"),
-  size: z.object({ min: z.number().int().min(1).optional(), max: z.number().int().min(1).optional() }).optional().describe("The size a component should have, in objects")
-};
-// How a proposal groups objects into components.
-const proposalFields = {
-  groupBy: z.enum(["auto", "coupling", "namespace", "folder", "module", "app"]).optional(),
-  depth: z.number().int().positive().optional(),
-  minObjects: z.number().int().positive().optional(),
-  startFrom: z.array(z.enum(["namespace", "folder"])).optional(),
-  ignore: z.array(z.string()).optional(),
-  granularity: z.number().positive().optional(),
-  sharedCore: z.boolean().optional()
-};
-
-const projectFields = {
-  path: architectureFields.path,
-  projectRoot: architectureFields.projectRoot,
-  namespace: architectureFields.namespace,
-  type: architectureFields.type,
-  include: architectureFields.include,
-  exclude: architectureFields.exclude,
-  config: architectureFields.config,
-  compiler: z.string().optional().describe("AL compiler: auto (AL Language extension or AL Development Tools when installed), off, or a path"),
-  compilerLog: z.string().optional().describe("Import diagnostics from an AL compiler error log file or folder")
-};
-
 export function createMcpServer(version = pkg.version) {
   const server = new McpServer({ name: "bc-atlas", version });
 
@@ -167,50 +77,17 @@ export function createMcpServer(version = pkg.version) {
   }, tool(async () => createCapabilities(version)));
 
   server.registerTool("bc_atlas_inspect", {
-    description: "Analyze AL source and return a selected architecture model as JSON.",
-    inputSchema: z.object(architectureFields),
+    description: "Analyze AL source and return the resolved model as JSON: every object with its members, every relation with its evidence, the diagnostics, and the insights (hubs, cycles). Large for a large project; bc_atlas_view returns a part of it.",
+    inputSchema: z.object({ ...projectFields, strict: z.boolean().optional() }),
     annotations: { readOnlyHint: true, idempotentHint: true }
-  }, tool(async (args) => (await createArchitectureModel(args.path, architectureOptions(args))).model));
-
-  server.registerTool("bc_atlas_generate_diagram", {
-    description: "Analyze AL source and write a D2, JSON, or SVG architecture file.",
-    inputSchema: z.object({
-      ...architectureFields,
-      output: z.string().min(1).describe("Output file path"),
-      format: z.enum(["d2", "json", "svg"]).default("svg")
-    }),
-    annotations: { idempotentHint: true }
-  }, tool(generateDiagram));
-
-  server.registerTool("bc_atlas_architecture", {
-    description: "Find or check the target architecture: components, layers, allowed dependencies, every dependency that points the wrong way grouped into work items with a resolution strategy (declare-dependency, move-extension, move-subscriber, move-permissions, move-field-to-extension, move-object-down, extract-interface, raise-event, ...); data ownership (which components write, read, or extend each table), checks of the architecture, clean-architecture metrics, and which components can become apps of their own. Proposes an architecture when .bca.json defines none.",
-    inputSchema: z.object({
-      ...projectFields,
-      propose: z.boolean().optional().describe("Propose an architecture even when .bca.json defines one"),
-      groupBy: z.enum(["auto", "coupling", "namespace", "folder", "module", "app"]).optional().describe("auto or coupling: the typed, weighted relations decide; namespace or folder: the code structure decides, objects without it follow their relations; module or app: one component each"),
-      depth: z.number().int().positive().optional(),
-      minObjects: z.number().int().positive().optional().describe("Merge smaller groups into the component they depend on most"),
-      startFrom: z.array(z.enum(["namespace", "folder"])).optional().describe("Existing structures that compete with the relations as a starting point; [] for relations only"),
-      ignore: z.array(z.string()).optional().describe("Relation kinds that never shape a component, e.g. [\"permits\", \"includes\", \"uses\"]"),
-      granularity: z.number().positive().optional().describe("Above 1: more, smaller components; below 1: fewer, larger ones"),
-      sharedCore: z.boolean().optional().describe("Pull objects that many components use into a shared core"),
-      ...goalFields,
-      paths: z.array(z.string()).optional(),
-      limit: z.number().int().positive().default(50).describe("Most work items to return")
-    }),
-    annotations: { readOnlyHint: true, idempotentHint: true }
-  }, tool(async ({ path: input, limit, ...values }) => {
-    const report = architectureJson(await assessArchitecture(input, values));
-    const { violations, ...rest } = report;
-    return { ...rest, workItems: report.workItems.slice(0, limit), violationCount: violations.length };
-  }));
+  }, tool(async ({ path: input, ...values }) => (await loadProject(input, values)).model));
 
   // ------------------------------------------------------------- MCP App
   // The BC Atlas view inside the chat (MCP Apps, io.modelcontextprotocol/ui): the same page the
   // VS Code extension shows. bc_atlas_app opens it; the page asks for everything else through
   // bc_atlas_app_call, which only the page can call.
   server.registerResource("BC Atlas view", APP_URI, {
-    description: "The BC Atlas view: the graph of the project with its lenses, findings, stories, and the architecture.",
+    description: "The BC Atlas view: the graph of the project with its lenses, findings, and stories.",
     mimeType: APP_MIME
   }, async () => {
     const { renderAppHtml } = await import("./app/page.js");
@@ -219,12 +96,12 @@ export function createMcpServer(version = pkg.version) {
 
   server.registerTool("bc_atlas_app", {
     title: "BC Atlas view",
-    description: "Show the BC Atlas view to the user, inside the chat: the interactive graph of the project with every lens, the findings, the stories, and the Architecture menu (goals, templates, why each component is what it is, current against target). It is the same view the VS Code extension shows, and the user can work in it: change flows, compare architectures, adopt a target. Use it when the user wants to see or explore something rather than read about it; lens, story, inside, and select choose what it opens on. In a client that does not render MCP Apps the tool returns a summary of the project and the address of what would be shown; use bc_atlas_view there.",
+    description: "Show the BC Atlas view to the user, inside the chat: the interactive graph of the project with every lens, the findings, and the stories. It is the same view the VS Code extension shows. Use it when the user wants to see or explore something rather than read about it; lens, story, inside, and select choose what it opens on. In a client that does not render MCP Apps the tool returns a summary of the project and the address of what would be shown; use bc_atlas_view there.",
     inputSchema: z.object({
-      path: architectureFields.path,
-      lens: z.string().optional().describe("The lens to open: overview, system, components, apps, data, calls, events, health, ... (bc_atlas_view lists them)"),
-      story: z.string().optional().describe("A story to open instead: system, architecture, fix, ..."),
-      inside: z.string().optional().describe("Open inside this node: an object, an app, a component (component::Sales), or a namespace"),
+      path: projectFields.path,
+      lens: z.string().optional().describe("The lens to open: overview, system, apps, data, calls, events, health, ... (bc_atlas_view lists them)"),
+      story: z.string().optional().describe("A story to open instead: system or fix"),
+      inside: z.string().optional().describe("Open inside this node: an object, an app, or a namespace"),
       select: z.string().optional().describe("Select this node, by id")
     }),
     annotations: { readOnlyHint: true, idempotentHint: true },
@@ -237,8 +114,7 @@ export function createMcpServer(version = pkg.version) {
       path: root,
       address: address === "#" ? "" : address,
       title: overview.title,
-      health: { passed: overview.health?.passed, ...(overview.health?.counts ?? {}) },
-      architecture: overview.architecture
+      health: { passed: overview.health?.passed, ...(overview.health?.counts ?? {}) }
     };
     return { content: [{ type: "text", text: `The BC Atlas view of ${overview.title} is shown to the user${address === "#" ? "" : ` (${address})`}.\n${JSON.stringify(summary, null, 2)}` }], structuredContent: summary };
   });
@@ -274,126 +150,11 @@ export function createMcpServer(version = pkg.version) {
     }
   });
 
-  server.registerTool("bc_atlas_architecture_explain", {
-    description: "Why the architecture is what it is. With an object (a name, an ID, or type:name): the component it is in, the step that placed it there with its numbers (coupling, shared core, a small group that joined, a neighbour by namespace, folder, or ID, a permission set that follows what it grants, kept, declared, ...), the selector that assigns it, its coupling to every component, and a move when it works more with another. With the name of a component: what it is named after, how its objects came to it (count per step), what they agree on (namespace, folder, name prefix), how much of its coupling stays inside, the thresholds that applied, its members with their step, its neighbours, and which setting would change it. Without either: every component with its reasons, and the vocabulary of steps. Use it before proposing a refactoring, and to answer why a component exists.",
-    inputSchema: z.object({
-      ...projectFields,
-      object: z.string().optional().describe("An object: codeunit:50100, table:Sales Doc, a name, or an ID"),
-      component: z.string().optional().describe("A component name from bc_atlas_architecture"),
-      propose: z.boolean().optional().describe("Explain the proposal even when .bca.json defines an architecture"),
-      ...proposalFields,
-      ...goalFields,
-      limit: z.number().int().positive().default(30).describe("Most members of a component to list"),
-      paths: z.array(z.string()).optional()
-    }),
-    annotations: { readOnlyHint: true, idempotentHint: true }
-  }, tool(async ({ path: input, object, component, limit, ...values }) => {
-    const assessment = await assessArchitecture(input, values);
-    if (object) {
-      const matches = findObject(assessment.levels, object);
-      if (!matches.length) throw new Error(`no object "${object}" in the analyzed source`);
-      return { objects: matches.map(({ id }) => explainPlacement(assessment, id)), steps: PLACEMENT_STEPS };
-    }
-    if (component) {
-      const explanation = explainComponent(assessment, component, { limit });
-      if (!explanation) throw new Error(`no component "${component}"; the components are ${assessment.result.components.map(({ name }) => name).join(", ")}`);
-      return { ...explanation, stepsVocabulary: PLACEMENT_STEPS };
-    }
-    return {
-      mode: assessment.proposal ? "proposal" : "configured",
-      template: assessment.template.template,
-      components: assessment.result.components.map(({ name }) => {
-        const { members: _members, ...explanation } = explainComponent(assessment, name, { limit: 1 });
-        return explanation;
-      }),
-      steps: PLACEMENT_STEPS,
-      basis: assessment.proposal?.basis
-    };
-  }));
-
-  server.registerTool("bc_atlas_architecture_compare", {
-    description: "The architecture as it is and as it should be (current and target state), to plan a refactoring. Both are scored from 0 to 100 with the same weighted goals (cohesion, modularity, layering, no cycles, data ownership, extractable, stable dependencies, size, follows namespaces, folders, apps, few moves), each goal with what it measured. Returns how the components of the current state become those of the target (same, renamed, reshaped, split, merged, new, gone), the objects that have to move, and the steps in order. from: structure (the namespaces, folders, and apps the source has today; default), configured, proposal, best. to: configured (default when .bca.json has components), proposal, best (default otherwise: up to 8 proposals scored with the goals, all listed with their settings and scores, the best wins), structure. Choose what is preferred with template (bc_atlas_architecture_templates lists them) and weights. Read-only; bc_atlas_architecture_adopt makes the target the architecture of the project.",
-    inputSchema: z.object({
-      ...projectFields,
-      from: z.enum(["structure", "configured", "proposal", "best"]).optional(),
-      to: z.enum(["structure", "configured", "proposal", "best"]).optional(),
-      ...proposalFields,
-      ...goalFields,
-      limit: z.number().int().min(0).default(50).describe("Most moves to list; 0 for all"),
-      format: z.enum(["json", "markdown"]).default("json").describe("markdown: the comparison as a page to show a person"),
-      paths: z.array(z.string()).optional()
-    }),
-    annotations: { readOnlyHint: true, idempotentHint: true }
-  }, tool(async ({ path: input, format, ...values }) => {
-    const result = await compareArchitecture(input, values);
-    return format === "markdown" ? { markdown: formatCompareMarkdown(result), summary: result.summary } : result;
-  }));
-
-  server.registerTool("bc_atlas_architecture_adopt", {
-    description: "Make a target architecture the architecture of the project: writes its components (name, the selectors that assign objects, layer, what each may depend on) to the architecture section of .bca.json, keeping every other setting. From then on bc_atlas_architecture and bc_atlas_check measure the source against it. The target is chosen like in bc_atlas_architecture_compare: to proposal or best, with template, weights, and the proposal settings. dryRun (default) returns what would be written; call again with dryRun false after the user agreed.",
-    inputSchema: z.object({
-      ...projectFields,
-      to: z.enum(["proposal", "best", "structure"]).default("best"),
-      ...proposalFields,
-      ...goalFields,
-      dryRun: z.boolean().default(true),
-      paths: z.array(z.string()).optional()
-    }),
-    annotations: { readOnlyHint: false, idempotentHint: true }
-  }, tool(async ({ path: input, dryRun, ...values }) => {
-    const result = await compareArchitecture(input, { ...values, limit: 0 });
-    const saved = await adoptTarget(input, values, result, { dryRun });
-    return { ...saved, dryRun, target: result.target, summary: result.summary, candidates: result.candidates };
-  }));
-
-  server.registerTool("bc_atlas_architecture_templates", {
-    description: "The templates that say what a good architecture is for this team and how much each goal weighs. action list (default): the presets (balanced, follow-structure, by-coupling, layered, modular-monolith, small-steps) and the project's own, each with its goal weights and proposal settings, the one in use, the goals that can be weighed with what each means and how it is measured, and the default weights. show: one template with everything it inherits. save: the settings as they are (the template in use, .bca.json, and values: template, weights, size, and proposal settings) as a new template of the project, or a given definition (template: { title, summary, extends, goals: { weights, size }, proposal }); with file it is written to a JSON file several repositories can share. use: take a template into use (architecture.template in .bca.json). remove: remove one of the project's own. save, use, and remove change .bca.json; dryRun (default) writes nothing.",
-    inputSchema: z.object({
-      path: architectureFields.path,
-      projectRoot: architectureFields.projectRoot,
-      config: architectureFields.config,
-      action: z.enum(["list", "show", "save", "use", "remove"]).default("list"),
-      name: z.string().optional().describe("show, save, use, remove: the template"),
-      title: z.string().optional().describe("save: its title"),
-      summary: z.string().optional().describe("save: when to use it"),
-      from: z.string().optional().describe("save: \"current\" (default) for the settings as they are, or the name of a template to copy"),
-      template: z.record(z.string(), z.unknown()).optional().describe("save: the definition to save as it is, instead of the settings as they are"),
-      values: z.object({ ...proposalFields, ...goalFields }).optional().describe("save: settings on top of those in use, as in bc_atlas_architecture_compare"),
-      file: z.string().optional().describe("save: write the template to this JSON file; .bca.json keeps the path"),
-      use: z.boolean().optional().describe("save: also take it into use"),
-      dryRun: z.boolean().default(true)
-    }),
-    annotations: { readOnlyHint: false, idempotentHint: true }
-  }, tool(async ({ path: input, action, name, dryRun, config, projectRoot, ...rest }) => {
-    const context = await architectureContext(input, { config, projectRoot });
-    const root = context.projectRoot;
-    const architecture = context.options.architecture ?? {};
-    if (action === "list") {
-      return { templates: listTemplates(root, architecture), criteria: CRITERIA.map(({ id, title, meaning, measured }) => ({ id, title, meaning, measured })), defaults: DEFAULT_GOALS };
-    }
-    if (!name) throw new Error(`${action} needs "name": the template`);
-    if (action === "show") return resolveTemplate(root, architecture, name);
-    if (action === "save") return { ...(await saveTemplate(root, { name, title: rest.title, summary: rest.summary, from: rest.from ?? "current", template: rest.template, values: rest.values ?? {}, file: rest.file, use: Boolean(rest.use), config, dryRun })), dryRun };
-    if (action === "use") return { ...(await useTemplate(root, { name, config, dryRun })), dryRun };
-    return { ...(await removeTemplate(root, { name, config, dryRun })), dryRun };
-  }));
-
-  server.registerTool("bc_atlas_extraction_plan", {
-    description: "Plan extracting one component of the architecture as an app of its own: objects and files to move, the components it uses and that use it, blockers (wrong-way dependencies, internal objects, mutual dependencies) with their work items, the app.json it needs (dependencies, idRanges, internalsVisibleTo), tables whose data must move (ObsoleteState PendingMove/Moved with MovedTo/MovedFrom), permission sets to split, and the steps in order.",
-    inputSchema: z.object({
-      ...projectFields,
-      component: z.string().min(1).describe("Component name from bc_atlas_architecture"),
-      paths: z.array(z.string()).optional()
-    }),
-    annotations: { readOnlyHint: true, idempotentHint: true }
-  }, tool(async ({ path: input, component, ...values }) => planExtraction(await assessArchitecture(input, values), component)));
-
   server.registerTool("bc_atlas_check", {
-    description: "Assess architecture health: cycles, policy violations, fan-in/fan-out hot spots, diagnostics, and unresolved references; with the AL compiler installed, also compiler and code-analyzer findings.",
+    description: "Assess the health of the code: cycles, forbidden dependencies, fan-in/fan-out hot spots, undocumented public API, diagnostics, and unresolved references.",
     inputSchema: z.object({
       ...projectFields,
       failOn: z.enum(FAIL_LEVELS).optional(),
-      analyzers: z.array(z.string()).optional().describe("Code analyzers for the AL compile, e.g. CodeCop, UICop"),
       maxFanIn: z.number().int().positive().optional(),
       maxFanOut: z.number().int().positive().optional()
     }),
@@ -401,51 +162,48 @@ export function createMcpServer(version = pkg.version) {
   }, tool(async ({ path: input, ...values }) => (await runHealthCheck(input, values)).report));
 
   server.registerTool("bc_atlas_report", {
-    description: "Write a Markdown architecture report with an overview, health summary, and diagrams for several views.",
+    description: "Write a Markdown report (README.md) with the numbers of the project, a picture of each lens, and the health summary.",
     inputSchema: z.object({
       ...projectFields,
       outputDir: z.string().min(1).default("docs/atlas"),
-      views: z.array(z.enum([...REPORT_VIEWS, "call", "visibility"])).optional(),
-      format: z.enum(["svg", "d2"]).default("svg"),
-      codegraph: z.boolean().optional(),
+      lenses: z.array(z.string()).optional().describe(`The lenses to draw (default ${REPORT_LENSES.join(", ")}); one the project does not have is left out`),
       json: z.boolean().optional(),
       title: z.string().optional()
     }),
     annotations: { idempotentHint: true }
-  }, tool(async ({ path: input, views, ...values }) => {
-    const result = await generateReport(input, { ...values, views: views?.join(",") });
+  }, tool(async ({ path: input, lenses, ...values }) => {
+    const result = await generateReport(input, { ...values, lenses: lenses?.join(",") });
     return {
       readme: result.readme,
       outputDirectory: result.outputDirectory,
       passed: result.health.passed,
       counts: result.health.counts,
-      diagrams: result.diagrams.map(({ view, skipped, tooLarge, nodes, edges }) => ({ view, skipped, d2Only: tooLarge || undefined, nodes, edges }))
+      pictures: result.pictures.map(({ lens, file, nodes, relations }) => ({ lens, file, nodes, relations }))
     };
   }));
 
   server.registerTool("bc_atlas_view", {
-    description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, components, namespaces, objects, health rules, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (overview: how it works, in columns from who uses the app over the process tests, screens, and logic to the data, each relation from left to right; system, components, data, calls, events, health, processes, people, ..., and the lenses of plugins, such as sync for what was recorded in Business Central) returns that part of the graph: nodes with their facts and findings, and relations. inside goes into one node: an object opens to its procedures and what each does, an app, a component, or a namespace to how it works (with lens system: to its objects and everything they do with each other); focus returns a node and what is near it; story returns a generated walk through the graph (what the system is, a process step by step, what to fix, or run:<agent>: one person of the simulation performing the assigned process tests, each step [done], [blocked] with what is missing, or [waiting]; with step, the picture as that step built it). format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",
+    description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, namespaces, objects, health rules, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (overview: how it works, in columns from the screens over the logic to the data; system, apps, modules, data, calls, events, contracts, pages, security, visibility, health) returns that part of the graph: nodes with their facts and findings, and relations. inside goes into one node: an object opens to its procedures and what each does, an app or a namespace to its objects; focus returns a node and what is near it; story returns a generated walk through the graph (system: what the system is; fix: what to fix). format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",
     inputSchema: z.object({
-      path: architectureFields.path,
-      projectRoot: architectureFields.projectRoot,
-      config: architectureFields.config,
-      compiler: projectFields.compiler,
-      paths: z.array(z.string()).optional().describe("Only analyze AL files below these project-relative folders or globs"),
+      path: projectFields.path,
+      projectRoot: projectFields.projectRoot,
+      config: projectFields.config,
+      paths: projectFields.paths,
       lens: z.string().optional().describe(`The part of the graph to return: ${VIEW_LENSES.join(", ")}; health needs a finding`),
-      inside: z.string().optional().describe("Go into this node: an object (codeunit:50100, table:Sales Header, or a name), or an app, a component (component:Core), or a namespace"),
+      inside: z.string().optional().describe("Go into this node: an object (codeunit:50100, table:Sales Header, or a name), or an app or a namespace"),
       focus: z.string().optional().describe("Only this node and what is near it: a name, an ID, or a selector such as table:Customer"),
       depth: z.number().int().positive().optional().describe("Steps from the focus node (default 1)"),
-      find: z.string().optional().describe("Only nodes whose name, type, component, namespace, or ID match (in a picture they stand out)"),
+      find: z.string().optional().describe("Only nodes whose name, type, namespace, or ID match (in a picture they stand out)"),
       hide: z.array(z.string()).optional().describe("Kinds of node to leave out: codeunit, table, other apps, ..."),
       off: z.array(z.string()).optional().describe("Kinds of relation to leave out: uses, reads, permits, ..."),
       check: z.boolean().optional().describe("Text: the findings with their fixes below each node. Picture: a ring on every node with a finding"),
-      story: z.string().optional().describe("A story by id (system, fix, architecture)"),
+      story: z.string().optional().describe("A story by id (system, fix)"),
       step: z.number().int().positive().optional().describe("One step of the story, from 1: the nodes it is about"),
       stories: z.boolean().optional().describe("Every story as one document"),
       form: z.enum(VIEW_FORMS).optional().describe("Form of a picture (default 2d)"),
-      color: z.enum(["type", "component", "namespace", "app", "level", "findings"]).optional(),
+      color: z.enum(["type", "namespace", "app", "level", "findings"]).optional(),
       size: z.enum(["relations", "usedBy", "uses", "lines", "complexity", "objects", "findings"]).optional(),
-      group: z.enum(["component", "namespace", "app", "kind", "none"]).optional(),
+      group: z.enum(["namespace", "app", "kind", "none"]).optional(),
       select: z.string().optional().describe("The selected node of a picture"),
       theme: z.enum(["light", "dark"]).optional(),
       width: z.number().int().optional(),
@@ -467,12 +225,11 @@ export function createMcpServer(version = pkg.version) {
   }));
 
   server.registerTool("bc_atlas_layers", {
-    description: "Write the documentation of a repository, in sync with the source, for one app or many: README.md (how it works, where to start), architecture.md (how the apps and components are connected: dependencies, layers, cycles, shared tables), changes.md (what to change in the architecture and how: each change with why, the steps, and the effort, the most important first), and one page per app, component, namespace, and object, each with a picture. Returns where the pages are, whether they were in sync, and the changes. With check it writes nothing and inSync says whether the pages match the source (for a pipeline). For the changes alone, without writing files, use bc_atlas_view with story architecture.",
+    description: "Write the documentation of a repository, in sync with the source, for one app or many: README.md (how it works, where to start), architecture.md (how the apps and namespaces are connected), findings.md, and one page per app, namespace, and object, each with a picture. Returns where the pages are and whether they were in sync. With check, nothing is written.",
     inputSchema: z.object({
-      path: architectureFields.path,
-      projectRoot: architectureFields.projectRoot,
-      config: architectureFields.config,
-      compiler: projectFields.compiler,
+      path: projectFields.path,
+      projectRoot: projectFields.projectRoot,
+      config: projectFields.config,
       output: z.string().min(1).optional().describe("Folder of the pages (default: layers.outputDir in .bca.json, else docs/layers)"),
       check: z.boolean().optional().describe("Write nothing; report whether the pages are in sync with the source"),
       pictures: z.enum(["auto", "all", "none"]).optional().describe("Pictures of single objects: auto (up to 400 objects), all, or none"),
@@ -485,14 +242,13 @@ export function createMcpServer(version = pkg.version) {
     return {
       output,
       ...(profile ? { profile } : {}),
-      start: current && !current.fixed.readme ? undefined : `${output}/${current?.fixed.readme ?? "README.md"}`,
+      start: current.fixed.readme ? `${output}/${current.fixed.readme}` : undefined,
       check,
       inSync,
-      counts: current?.manifest.counts,
-      files: current?.files,
-      written: current?.written.length,
-      removed: current?.removed.length,
-      changes: (current?.atlas.changes ?? []).map(({ title, kind, why, how, effort, optional }) => ({ title, kind, why, how, effort, ...(optional ? { optional } : {}) }))
+      counts: current.manifest.counts,
+      files: current.files,
+      written: current.written.length,
+      removed: current.removed.length
     };
   }));
 

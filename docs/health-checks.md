@@ -1,7 +1,7 @@
 # Architecture health checks
 
-`bca check` turns the architecture model into a short list of findings and an
-exit code, so architecture rules can block a pull request like a failing test.
+`bca check` turns the analyzed project into a short list of findings and an
+exit code, so dependency rules can block a pull request like a failing test.
 
 ```sh
 bca check ./app
@@ -12,31 +12,27 @@ BC Atlas health check - BC Atlas Warehouse Example 1.0.0.0
 
   Files          4
   Objects        9 (codeunit 3, enum 1, interface 1, page 1, ...)
-  Relationships  26 (uses 8, permits 5, writes 5, reads 4, ...)
+  Relationships  28 (uses 8, permits 6, writes 5, reads 4, ...)
   Unresolved     0
   Cycles         0
 
 Most connected objects
-  codeunit 50101 Warehouse Processor               in   3  out   2
+  codeunit 50101 Warehouse Processor               in   4  out   2
   ...
 
 Findings
-  INFO   1 object(s) without relationships: codeunit 50120 Warehouse Notifications
+  INFO   codeunit 50101 Warehouse Processor: 2 public procedure(s) without a /// summary: Process, Process (Inventory.al:35)
+  INFO   interface Handles Warehouse Activity: 1 public procedure(s) without a /// summary: Process (Inventory.al:5)
 
-Result: PASSED - 0 error(s), 0 warning(s), 1 info (fail on: error)
+Result: PASSED - 0 error(s), 0 warning(s), 2 info (fail on: error)
 ```
 
 ## Rules
 
 | Rule | Default severity | Trigger |
 | --- | --- | --- |
-| `parse-error` | error | tree-sitter could not parse a file. With the AL compiler, its syntax errors replace this rule. |
-| AL compiler and analyzer rules (`AL0185`, `AA0137`, `AW0005`, ...) | from the compiler or rule set | Compiler errors and warnings and CodeCop, UICop, AppSourceCop, and PerTenantExtensionCop findings, with the exact range and the Microsoft help link, when the [AL toolchain](./al-toolchain.md) is installed or `--compiler-log` imports an error log. |
+| `parse-error` | error | tree-sitter could not parse a file. |
 | `forbidden-dependency` | from the policy | A dependency matches a `forbiddenDependencies` rule. |
-| `architecture-violation` | from `architecture.severity` | A dependency against the layers or `dependsOn` of the [target architecture](./clean-architecture.md); `violation` names the exact rule (`outward-dependency`, `same-layer-dependency`, `undeclared-component-dependency`, `layer-skip-dependency`). |
-| `internal-access` | from `architecture.severity` | A component uses an object of another component that is not in its `exposes`, or that is `Access = Internal` in another app (or in any other component with `architecture.internalAccess: "component"`). |
-| `dependency-rule` | from the rule | A dependency breaks one of the `architecture.rules`; `policy` names the rule. |
-| architecture checks (`component-cycle`, `empty-component`, `unused-selector`, `unused-component-dependency`, `inconsistent-component-dependency`, `declared-component-cycle`, `component-too-large`, `unstable-dependency`, `foreign-table-write`, `could-be-internal`, `public-surface-change`, `unassigned-objects`) | see [Checks of the architecture](./clean-architecture.md#checks-of-the-architecture) | The architecture as a whole and its configuration. |
 | other diagnostics | warning or error | Analysis diagnostics such as unreadable symbol packages. |
 | `dependency-cycle` | warning | Objects depend on each other in a cycle. Configure with `check.cycles`. |
 | `high-fan-in` | warning | More than `maxFanIn` distinct objects depend on one object. |
@@ -56,10 +52,7 @@ so a large app does not flood the results. Set it to `error`, `warning`,
 ```
 
 BC Atlas does not repeat what the AL analyzers check: DataClassification,
-ToolTips, `ObsoleteTag` and `ObsoleteReason`, or cyclomatic complexity. With
-the AL compiler available, `bca check` runs it with the analyzers of
-`al.codeAnalyzers` (CodeCop, UICop, AppSourceCop, PerTenantExtensionCop, or
-LinterCop) and reports their diagnostics.
+ToolTips, `ObsoleteTag` and `ObsoleteReason`, or cyclomatic complexity.
 
 `contract-fallback` is based on supported source structure, not a proof of
 runtime behavior or a business obligation. Direct `Error` calls,
@@ -100,10 +93,8 @@ bca check --format sarif -o bca.sarif    # GitHub code scanning, Azure DevOps
 ```
 
 The JSON report contains `passed`, `failOn`, `thresholds`, `summary`
-(apps, files, objects, relationships, object and relationship counts, and
-`compiler` when the AL toolchain ran), `counts`, `hubs`, and `findings`.
-Findings from the AL compiler also carry `column`, `endLine`, `endColumn`,
-`helpLink`, and `origin: "al"`.
+(apps, files, objects, relationships, unresolved references, cycles, and
+object and relationship counts), `counts`, `hubs`, and `findings`.
 
 Findings are ordered deterministically by severity, rule, then message. CLI
 JSON and the MCP `bc_atlas_check` tool return the same canonical health report;

@@ -12,10 +12,6 @@ The app Contoso Sales holds 4 objects (1 codeunit, 1 page, 1 permissionset, 1 ta
 
 ![Contoso Sales](contoso-sales.svg)
 
-## Components
-
-[Sales](../components/sales.md)
-
 ## Namespaces
 
 [Contoso.Sales.Quotes](../namespaces/contoso-sales-quotes.md)
@@ -28,12 +24,6 @@ The app Contoso Sales holds 4 objects (1 codeunit, 1 page, 1 permissionset, 1 ta
 
 - declared [Contoso Integration](contoso-integration.md)
 
-## What to change here
-
-- 5. Let Sales own the writes to table 50100 CON Sales Quote (medium)
-
-Why and how: [What to change, and how](../changes.md).
-
 ## Objects
 
 | Object | Type | ID | Namespace | Lines | Uses | Used by | Findings |
@@ -41,13 +31,10 @@ Why and how: [What to change, and how](../changes.md).
 | [CON Quote Mgt.](../objects/codeunit-50100-con-quote-mgt.md) | codeunit | 50100 | Contoso.Sales.Quotes | 16 | 2 | 3 | 1 (info) |
 | [CON Sales Quote](../objects/page-50100-con-sales-quote.md) | page | 50100 | Contoso.Sales.Quotes | 32 | 2 | 1 |  |
 | [CON Sales](../objects/permissionset-50100-con-sales.md) | permissionset | 50100 | Contoso.Sales.Quotes | 7 | 3 | 0 |  |
-| [CON Sales Quote](../objects/table-50100-con-sales-quote.md) | table | 50100 | Contoso.Sales.Quotes | 17 | 1 | 4 | 1 (info) |
+| [CON Sales Quote](../objects/table-50100-con-sales-quote.md) | table | 50100 | Contoso.Sales.Quotes | 17 | 1 | 4 |  |
 
 ## Findings
 
-- **info** `foreign-table-write`: table 50100 CON Sales Quote of Sales is written by Integration (1 object); let Sales own the writes behind a codeunit, or move the table
-  - On: [CON Sales Quote](../objects/table-50100-con-sales-quote.md)
-  - Source: `sales/Quotes.al:6`
 - **info** `undocumented-public-api`: codeunit 50100 CON Quote Mgt.: 1 public procedure(s) without a /// summary: Recalculate
   - On: [CON Quote Mgt.](../objects/codeunit-50100-con-quote-mgt.md)
   - Source: `sales/Quotes.al:26`

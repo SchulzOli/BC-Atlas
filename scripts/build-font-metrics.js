@@ -1,7 +1,7 @@
 // Writes src/diagram/metrics.js: the advance widths of Liberation Sans
 // (vendor/fonts), which has the metrics of Helvetica and Arial. Diagrams size
-// their boxes with it, so SVG (Arial, Helvetica, Liberation Sans), PNG
-// (rendered with the vendored font), and PDF (Helvetica) all fit their text.
+// their boxes with it, so SVG (Arial, Helvetica, Liberation Sans) and PNG
+// (rendered with the vendored font) both fit their text.
 //
 //   npm run update:font-metrics
 import { readFileSync, writeFileSync } from "node:fs";

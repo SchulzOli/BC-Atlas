@@ -1,15 +1,14 @@
 # codeunit 50200 CON Quote Export
 
-[System](../README.md) › [Contoso Integration](../apps/contoso-integration.md) › [Integration](../components/integration.md) › [Contoso.Integration](../namespaces/contoso-integration.md)
+[System](../README.md) › [Contoso Integration](../apps/contoso-integration.md) › [Contoso.Integration](../namespaces/contoso-integration.md)
 
-The codeunit CON Quote Export of the app Contoso Integration, in the component Integration, has 1 member in 15 lines. It calls, reads, uses, writes 3 other objects, and nothing in this workspace uses it.
+The codeunit CON Quote Export of the app Contoso Integration has 1 member in 15 lines. It calls, reads, uses, writes 3 other objects, and nothing in this workspace uses it.
 
 | Fact | Value |
 | --- | --- |
 | Type | codeunit |
 | ID | 50200 |
 | App | Contoso Integration |
-| Component | Integration |
 | Namespace | Contoso.Integration |
 | Visibility | public; can be internal |
 | Lines | 15 |
@@ -23,7 +22,7 @@ The codeunit CON Quote Export of the app Contoso Integration, in the component I
 
 ## Inside
 
-Layer 5: its procedures, triggers, and events, and what each of them does.
+Layer 4: its procedures, triggers, and events, and what each of them does.
 
 | Member | Kind | Lines | Complexity | Does |
 | --- | --- | ---: | ---: | --- |
@@ -35,13 +34,6 @@ Layer 5: its procedures, triggers, and events, and what each of them does.
 - **reads** table Customer (other app)
 - **uses** [codeunit 50100 CON Quote Mgt.](codeunit-50100-con-quote-mgt.md), [table 50100 CON Sales Quote](table-50100-con-sales-quote.md), table Customer (other app)
 - **writes** [table 50100 CON Sales Quote](table-50100-con-sales-quote.md)
-
-## What to change here
-
-- 5. Let Sales own the writes to table 50100 CON Sales Quote (medium)
-- 7. Make 2 objects of Integration internal (small)
-
-Why and how: [What to change, and how](../changes.md).
 
 ## Findings
 

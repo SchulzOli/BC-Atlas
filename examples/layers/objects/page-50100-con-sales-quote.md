@@ -1,15 +1,14 @@
 # page 50100 CON Sales Quote
 
-[System](../README.md) › [Contoso Sales](../apps/contoso-sales.md) › [Sales](../components/sales.md) › [Contoso.Sales.Quotes](../namespaces/contoso-sales-quotes.md)
+[System](../README.md) › [Contoso Sales](../apps/contoso-sales.md) › [Contoso.Sales.Quotes](../namespaces/contoso-sales-quotes.md)
 
-The page CON Sales Quote of the app Contoso Sales, in the component Sales, has 1 member in 32 lines. It calls, source, uses 2 other objects, and 1 object uses it.
+The page CON Sales Quote of the app Contoso Sales has 1 member in 32 lines. It calls, source, uses 2 other objects, and 1 object uses it.
 
 | Fact | Value |
 | --- | --- |
 | Type | page |
 | ID | 50100 |
 | App | Contoso Sales |
-| Component | Sales |
 | Namespace | Contoso.Sales.Quotes |
 | Visibility | public |
 | Lines | 32 |
@@ -22,7 +21,7 @@ The page CON Sales Quote of the app Contoso Sales, in the component Sales, has 1
 
 ## Inside
 
-Layer 5: its procedures, triggers, and events, and what each of them does.
+Layer 4: its procedures, triggers, and events, and what each of them does.
 
 | Member | Kind | Lines | Complexity | Does |
 | --- | --- | ---: | ---: | --- |

@@ -13,17 +13,16 @@
   const RANK = { error: 3, warning: 2, info: 1 };
   // Calm colors that stay apart for people who see colors differently.
   const PALETTE = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#7C3AED", "#4E5D78", "#A23636", "#14766E", "#8B7400", "#A21CAF"];
-  const KIND_NAMES = { object: "Object", app: "App", component: "Component", module: "Namespace", rule: "Rule", member: "Member", area: "Area" };
+  const KIND_NAMES = { object: "Object", app: "App", module: "Namespace", rule: "Rule", member: "Member", area: "Area" };
   const DEFAULTS = Object.freeze({ lens: "overview", form: "", q: "", sel: "", focus: "", depth: "1", check: "", story: "", step: "0", color: "", size: "", group: "", off: "", hide: "", inside: "" });
   const FORMS = Object.freeze(["2d", "diagram", "3d"]);
-  const COLORS = Object.freeze(["type", "component", "namespace", "app", "level", "findings"]);
+  const COLORS = Object.freeze(["type", "namespace", "app", "level", "findings"]);
   const SIZES = Object.freeze(["relations", "usedBy", "uses", "lines", "complexity", "objects", "findings"]);
-  const GROUPS = Object.freeze(["component", "namespace", "app", "kind", "none"]);
+  const GROUPS = Object.freeze(["namespace", "app", "kind", "none"]);
 
-  // What an app, a component, and a namespace hold: the objects that name them.
+  // What an app and a namespace hold: the objects that name them.
   const HOLDERS = {
     app: (node, holder) => node.app === holder.label,
-    component: (node, holder) => node.component === holder.label,
     module: (node, holder) => node.namespace === holder.label && (!holder.app || node.app === holder.app)
   };
 
@@ -34,7 +33,7 @@
     { key: "logic", title: "Logic", one: "logic object", of: (node) => node.kind === "object" && ["codeunit", "query", "xmlport", "interface"].includes(node.type) },
     { key: "data", title: "Data", one: "table", of: (node) => node.kind === "object" && ["table", "tableextension"].includes(node.type) }
   ];
-  /** Above this many objects the overview shows areas (components, namespaces, or apps) in place of single objects. */
+  /** Above this many objects the overview shows areas (namespaces or apps) in place of single objects. */
   const FLOW_OBJECTS = 48;
   /** A column of the overview holds at most this many areas; the smallest are one box. */
   const FLOW_AREAS = 12;
@@ -65,8 +64,9 @@
       const severity = node.kind === "rule" ? node.severity : at >= 0 ? found.worst(at) : undefined;
       return { key: severity ?? "none", label: severity ?? "no finding", color: SEVERITY[severity] ?? NEUTRAL };
     }
-    if (["component", "namespace", "app", "layer"].includes(mode)) {
-      const value = node[mode] ?? (node.kind === "module" && mode === "namespace" ? node.label : undefined);
+    if (["namespace", "app"].includes(mode)) {
+      // A namespace of another app is not one of this workspace.
+      const value = node.external && mode === "namespace" ? undefined : node[mode] ?? (node.kind === "module" && mode === "namespace" ? node.label : undefined);
       return { key: value ?? "none", label: value ?? (node.external ? "other apps" : `no ${mode}`), color: undefined };
     }
     if (node.kind === "area") return { key: node.column, label: `${node.column}, by area`, color: node.color };
@@ -106,7 +106,7 @@
     let title = lens.title;
     let summary = lens.summary;
     const opened = within && state.inside && position.has(state.inside);
-    // An app, a component, or a namespace that is gone into: its objects.
+    // An app or a namespace that is gone into: its objects.
     const holder = !opened && state.inside && position.has(state.inside) ? atlas.nodes[position.get(state.inside)] : undefined;
     const holds = holder && HOLDERS[holder.kind];
     // What the overview adds to a node: its column, and its place in it.
@@ -128,14 +128,14 @@
       let finish = () => {};
       if (objects > FLOW_OBJECTS) {
         const own = atlas.nodes.filter((node, at) => column[at] >= 0 && !node.external);
-        const by = ["component", "namespace", "app"].find((key) => new Set(own.map((node) => node[key] ?? "")).size > 1) ?? "component";
+        const by = ["namespace", "app"].find((key) => new Set(own.map((node) => node[key] ?? "")).size > 1) ?? "namespace";
         areaOf = (node) => (node.external ? "Other apps" : node[by] ?? `No ${by}`);
         const size = FLOW.map(() => new Map());
         atlas.nodes.forEach((node, at) => { if (column[at] >= 0) size[column[at]].set(areaOf(node), (size[column[at]].get(areaOf(node)) ?? 0) + 1); });
         const kept = size.map((areas) => new Set([...areas].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, areas.size > FLOW_AREAS ? FLOW_AREAS - 1 : FLOW_AREAS).map(([name]) => name)));
         const named = areaOf;
         areaOf = (node, at) => (kept[column[at]].has(named(node)) ? named(node) : "");
-        const holderKind = { component: "component", namespace: "module", app: "app" }[by];
+        const holderKind = { namespace: "module", app: "app" }[by];
         const areas = new Map();
         const areaAt = (at) => {
           const node = atlas.nodes[at];
@@ -297,7 +297,7 @@
     // The overview groups by its columns, in their order.
     const byColumn = columns && !state.group;
     const columnOf = (node) => FLOW[ranks.get(node.id)?.rank ?? ranks.get(node.id)]?.title ?? "";
-    const groupOf = (node) => (byColumn ? columnOf(node) : groupBy === "none" ? "" : groupBy === "kind" ? kindOf(node) : node[groupBy] ?? (node.external ? "Other apps" : node.kind === "object" ? "" : node.kind));
+    const groupOf = (node) => (byColumn ? columnOf(node) : groupBy === "none" ? "" : groupBy === "kind" ? kindOf(node) : (node.external && groupBy === "namespace" ? undefined : node[groupBy]) ?? (node.external ? "Other apps" : node.kind === "object" ? "" : node.kind));
     const groups = [...new Set(shownEntries.map(({ node }) => String(groupOf(node))))].sort((a, b) => (byColumn ? FLOW.findIndex(({ title: name }) => name === a) - FLOW.findIndex(({ title: name }) => name === b) : a.localeCompare(b)));
     const groupPosition = new Map(groups.map((group, at) => [group, at]));
     const mode = state.color || (opened || holds ? "type" : lens.color);
@@ -361,7 +361,7 @@
   function matches(view, query) {
     const wanted = String(query ?? "").trim().toLowerCase();
     if (!wanted) return [];
-    return view.entries.map(({ node }, at) => ([node.label, node.type, node.kind, node.component, node.namespace, node.app, node.objectId]
+    return view.entries.map(({ node }, at) => ([node.label, node.type, node.kind, node.namespace, node.app, node.objectId]
       .some((value) => String(value ?? "").toLowerCase().includes(wanted)) ? at : -1)).filter((at) => at >= 0);
   }
 
@@ -492,7 +492,7 @@
   }
 
   /**
-   * Where going into a node leads: an object opens to its procedures; an app, a component, or a
+   * Where going into a node leads: an object opens to its procedures; an app or a
    * namespace to its objects; anything else to itself and what is near it, in the lens it lives in.
    * @returns the change of state, or nothing for a node that has no inside (a procedure: its source)
    */
@@ -531,9 +531,6 @@
     const node = (id) => (found.position.has(id) ? atlas.nodes[found.position.get(id)] : undefined);
     const inner = node(state.inside);
     if (inner) {
-      // An object is in its component, when the project has components.
-      const component = inner.kind === "object" && inner.component ? atlas.nodes.find(({ kind, label }) => kind === "component" && label === inner.component) : undefined;
-      if (component) crumbs.push({ label: component.label, change: { inside: component.id, focus: "", sel: component.id, story: "" } });
       crumbs.push({ label: inner.label, change: { inside: inner.id, focus: "", story: "" } });
     }
     const near = node(state.focus);

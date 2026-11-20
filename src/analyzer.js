@@ -1510,8 +1510,8 @@ async function readAppManifest(file, root, cache) {
 
 /**
  * Parses every AL file below `input`. Pass a shared `parseCache` Map to reuse
- * parse results for unchanged file content across calls (history replay,
- * watch), preloaded `symbols` to skip reading .alpackages again, and a
+ * parse results for unchanged file content across calls (the editor, --watch),
+ * preloaded `symbols` to skip reading .alpackages again, and a
  * `fileFilter` for root-relative paths to analyze part of a large repository.
  */
 export async function analyze(input, { parseCache, symbols: preloadedSymbols, fileFilter, al } = {}) {

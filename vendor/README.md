@@ -30,6 +30,6 @@ as `ui://bc-atlas/view.html`.
 Liberation Sans Regular and Bold (SIL Open Font License 1.1, see
 `fonts/LICENSE-LiberationSans.txt`), which has the metrics of Arial and
 Helvetica. PNG diagrams are rendered with it, and `src/diagram/metrics.js`
-holds its glyph widths so SVG, PNG, and PDF diagrams size their boxes alike.
+holds its glyph widths so SVG and PNG pictures size their boxes alike.
 
 - Update command: `npm run update:font-metrics` (after replacing a font file)

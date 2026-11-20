@@ -9,14 +9,11 @@ Run `npm run docs` after a capability changes.
 
 ### Analyze
 
-Gate CI on architecture health, and keep a target architecture in place.
+Gate CI on the health of the code: cycles, forbidden dependencies, hot spots, and diagnostics.
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
-| `check` | `bca check [app-root]` | Score architecture health and fail CI on cycles, policy violations, or diagnostics. |
-| `architecture` | `bca architecture [app-root]` | Find a target architecture (components, layers, allowed dependencies), list every dependency that points the wrong way with how to resolve it, and enforce it with a baseline. |
-| `architecture.compare` | `bca architecture compare [app-root]` | The architecture as it is and as it should be, side by side: both scored with the same weighted goals, how the components of one become those of the other, the objects that have to move, and the steps with their commands. |
-| `architecture.templates` | `bca architecture templates [app-root]` | The templates that say what a good architecture is and how much each goal weighs: lists the presets and your own, takes one into use, saves the settings as they are as a new template, or removes one. |
+| `check` | `bca check [app-root]` | Assess the health of the code and fail CI on cycles, forbidden dependencies, or diagnostics. |
 
 ### Export
 
@@ -24,9 +21,9 @@ Write what the app shows as files, look at any part of it from the terminal, and
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
-| `export` | `bca export [app-root]` | Write files: the BC Atlas view as one offline HTML file, the Markdown report, the object catalog, or one diagram view. |
+| `export` | `bca export [app-root]` | Write files: the BC Atlas view as one offline HTML file, the Markdown report, or the knowledge graph. |
 | `view` | `bca view [app-root]` | The BC Atlas view without a window: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. What the toolbar of the app does, from the terminal. |
-| `layers` | `bca layers [app-root]` | The layered documentation, in sync with the source: the system explained from the whole down to each procedure, one page per app, component, namespace, and object, each with a picture. For the source as it is now, and for any commit, tag, or release. |
+| `layers` | `bca layers [app-root]` | The layered documentation, in sync with the source: the system explained from the whole down to each procedure, one page per app, namespace, and object, each with a picture. |
 | `docs.list` | `bca docs list <test-root>` | List documented UI-test scenarios. |
 | `docs.show` | `bca docs show <test-root>` | Show one scenario, its prerequisites, and its diagnostics. |
 | `docs.validate` | `bca docs validate <test-root>` | Validate IDs, tags, links, and prerequisite cycles. |
@@ -49,35 +46,30 @@ Connect BC Atlas to AI agents.
 | `--view` | Writes |
 | --- | --- |
 | `app` | The BC Atlas view as one offline HTML file to share: a toolbar and the graph, with every lens, finding, and story |
-| `report` | Markdown report (README.md) with health, diagrams, and an optional object catalog |
-| `catalog` | One linked Markdown page per AL object |
+| `report` | Markdown report (README.md) with the numbers, a picture of each lens, and the health |
 | `knowledge-graph` | The analyzed project as RDF with the BC Atlas OWL ontology, for knowledge graphs and triple stores: Turtle, RDF/XML (.rdf, .owl), N-Triples, or JSON-LD |
 
-## Diagram views
+## Lenses of the view
 
-| View | Shows |
-| --- | --- |
-| `project` | AL objects grouped into role lanes (Data, UI, Services, ...) |
-| `module` | Aggregated namespace or folder dependencies |
-| `object` | One object with incoming and outgoing neighbors |
-| `data` | Tables with reads, writes, relations, and extensions |
-| `call` | Procedure and trigger call graph |
-| `boundary` | Dependencies crossing a namespace, folder, app, or object |
-| `contracts` | Interfaces and their direct or enum implementations |
-| `events` | Event publishers and subscribers |
-| `ui` | Pages, source tables, parts, actions, and navigation |
-| `workflow` | Calls, events, and data mutations traced from entry points |
-| `visibility` | What is public, internal, or local: objects, procedures, events, and fields in three levels, and what each can be |
+What `bca view --lens` and the view show; a lens with nothing in it does not exist for a project.
+
+- `overview`
+- `system`
+- `apps`
+- `modules`
+- `data`
+- `calls`
+- `events`
+- `contracts`
+- `pages`
+- `security`
+- `visibility`
+- `health`
 
 ## Export formats
 
 - `html`
 - `md`
-- `d2`
-- `json`
-- `svg`
-- `png`
-- `pdf`
 - `ttl`
 - `rdf`
 - `owl`

@@ -5,20 +5,15 @@
 
 const MODULES = {
   check: ["../commands/check.js", "checkCommand"],
-  architecture: ["../commands/blueprint.js", "architectureCommand"],
   export: ["../commands/export.js", "exportCommand"],
   view: ["../commands/view.js", "viewCommand"],
-  layers: ["../commands/layers.js", "layersCommand"],
-  "architecture.compare": ["../commands/architecture-target.js", "compareCommand"],
-  "architecture.templates": ["../commands/architecture-target.js", "templatesCommand"]
+  layers: ["../commands/layers.js", "layersCommand"]
 };
 
 // Literal specifiers, so bundlers (the VS Code extension) see every module.
 const IMPORTS = {
   "../commands/check.js": () => import("../commands/check.js"),
   "../commands/layers.js": () => import("../commands/layers.js"),
-  "../commands/blueprint.js": () => import("../commands/blueprint.js"),
-  "../commands/architecture-target.js": () => import("../commands/architecture-target.js"),
   "../commands/export.js": () => import("../commands/export.js"),
   "../commands/view.js": () => import("../commands/view.js")
 };

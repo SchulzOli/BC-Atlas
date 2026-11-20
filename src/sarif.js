@@ -1,5 +1,4 @@
-// SARIF 2.1.0 for `bca check --format sarif`: BC Atlas findings and AL
-// compiler/analyzer diagnostics in one run, for GitHub code scanning
+// SARIF 2.1.0 for `bca check --format sarif`: BC Atlas findings for GitHub code scanning
 // (github/codeql-action/upload-sarif) and the Azure DevOps SARIF viewer.
 import { pathToFileURL } from "node:url";
 
@@ -7,13 +6,12 @@ const LEVEL = { error: "error", warning: "warning", info: "note" };
 const RULE_HELP = "https://schulzoli.github.io/BC-Atlas/docs/health-checks";
 
 function ruleFor(finding) {
-  const al = finding.origin === "al";
   return Object.fromEntries(Object.entries({
     id: finding.rule,
     name: finding.rule,
-    shortDescription: { text: al ? finding.message.replace(/^[A-Z]+\d+: /u, "") : finding.rule.replaceAll("-", " ") },
-    helpUri: finding.helpLink ?? (al ? undefined : RULE_HELP),
-    properties: { tags: [al ? "al-compiler" : "bc-atlas"] }
+    shortDescription: { text: finding.rule.replaceAll("-", " ") },
+    helpUri: RULE_HELP,
+    properties: { tags: ["bc-atlas"] }
   }).filter(([, value]) => value !== undefined));
 }
 
@@ -72,7 +70,6 @@ export function renderSarif(report, { root, fallbackFile = "app.json", version }
     });
     const properties = Object.fromEntries(Object.entries({
       basis: finding.basis,
-      architectureOrigin: finding.architectureOrigin,
       resolution: finding.resolution,
       limitations: finding.limitations
     }).filter(([, value]) => value !== undefined));

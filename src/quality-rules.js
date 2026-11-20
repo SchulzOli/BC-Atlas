@@ -1,13 +1,13 @@
 // Rules for bca check that read what characterizes objects (metadata.js) and
 // that no AL analyzer (CodeCop, UICop, AppSourceCop, PerTenantExtensionCop,
-// LinterCop) reports already:
+// LinterCop) reports:
 //
 //   undocumented-public-api   public procedures of public codeunits and
 //                             interfaces without a /// summary
 //
 // DataClassification, ToolTips, ObsoleteTag and ObsoleteReason, and
-// cyclomatic complexity are left to the analyzers: bca check runs the AL
-// compiler with the analyzers of al.codeAnalyzers and reports what they find.
+// cyclomatic complexity are left to those analyzers, which the AL Language
+// extension and the AL compiler run.
 //
 // One finding per object, listing what it concerns, so a large app does not
 // produce thousands of lines. check.severities sets each rule to error,

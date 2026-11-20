@@ -26,7 +26,7 @@ const { values } = parseArgs({
 });
 const modules = Number(values.modules);
 const perModule = Number(values["per-module"]);
-const commands = values.command ?? ["check", "export --view report", "export --view project --format svg"];
+const commands = values.command ?? ["check", "export --view report", "export"];
 const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
 
 /** One file per object, as AL projects usually are; IDs from 50000. */

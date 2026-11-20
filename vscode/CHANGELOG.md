@@ -8,6 +8,13 @@
   with their builders, and the commands **Set Up Automation** and **Run Tasks
   of a Trigger**. The export no longer offers the 3D explorer file and the
   handbook. The overview is three columns: screens, logic, data.
+- Removed the target architecture: the Components lens, the **Architecture**
+  menu, and the commands **Show the Components** and **Accept Current
+  Violations in the Baseline**. Objects are grouped by namespace.
+- Removed the AL compiler and code analyzers (`bcAtlas.alCompiler`,
+  `bcAtlas.alAnalyzers`); the AL Language extension reports those itself.
+- The export offers the view as one file, the Markdown report, and the
+  knowledge graph.
 
 ## 0.27.0
 

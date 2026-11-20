@@ -39,8 +39,8 @@ with their titles:
 - **What is not part of how it works is not in it:** permission sets,
   enums, and test codeunits. They are in the lenses made for them.
 - **A large project shows areas.** Above 48 objects a box is an area (a
-  component, a namespace, or an app) with the number of screens, logic
-  objects, or tables it holds, the largest first, and a line carries how
+  namespace or an app) with the number of screens, logic objects, or tables
+  it holds, the largest first, and a line carries how
   many relations it stands for. Double-click an area for how it works
   inside, object by object.
 
@@ -50,12 +50,11 @@ columns, and `-o overview.svg` draws it.
 | In the toolbar | Does |
 | --- | --- |
 | **Lens** (the name next to the project) | What the graph shows: a part of the one graph. The menu lists the lenses by what they answer: how it works, structure, parts, quality. See [Lenses](#lenses). |
-| The **trail** next to it | Where you are once you went into something: `Components › Core › CON Item`. Every part of the way is one click back, and **‹** goes one step up. |
-| **2D**, **Diagram**, **3D** | The form. The same nodes as a graph in a plane, as boxes in layers in the direction of their relations, or as a graph in space. Any lens in any form; a lens opens in the form it reads best in (the overview and the components as a diagram). |
-| **Find** | Lights up the nodes whose name, type, component, namespace, or ID matches. **Enter** goes to the next match, **Shift+Enter** to the one before. |
+| The **trail** next to it | Where you are once you went into something: `Apps › Contoso Core › CON Item`. Every part of the way is one click back, and **‹** goes one step up. |
+| **2D**, **Diagram**, **3D** | The form. The same nodes as a graph in a plane, as boxes in layers in the direction of their relations, or as a graph in space. Any lens in any form; a lens opens in the form it reads best in (the overview and the apps as a diagram). |
+| **Find** | Lights up the nodes whose name, type, namespace, or ID matches. **Enter** goes to the next match, **Shift+Enter** to the one before. |
 | **Check** | Puts a ring on every node with a finding, in the color of the worst one. The number is the errors and warnings. |
 | **Story** | Walks through the graph step by step. See [Stories](#stories). |
-| **Architecture** | Why the components are what they are, how well the architecture meets the goals of the template in use (each goal with its score and weight), the templates, and the [current and the target architecture](./target-architecture.md) side by side: choose the two states and the weights, compare, copy the command of a step, and make the target the architecture of the project. |
 | **View** | Color, size, and grouping of the nodes; arrange again; reset. |
 | **Export** | Saves what you see. See [Export](#export). |
 | **Live** | What the graph is read from, and reading it again. See [In step with the source](#in-step-with-the-source). |
@@ -65,8 +64,8 @@ On the graph:
 - **Click** a node to select it. A card says what it is, its facts, its
   findings with how to fix them, and its relations in this lens; click a
   relation to go to the node at its other end.
-- **Double-click** a node to go into it. An app, a component, or a namespace
-  opens to its objects and what they do with each other. An object opens to
+- **Double-click** a node to go into it. An app or a namespace opens to
+  its objects and what they do with each other. An object opens to
   its procedures, triggers, and events, and what each of them does with
   other objects. A procedure goes to its line in the source. Anything else
   (an object of another app, a rule of the health check) goes to the lens
@@ -84,7 +83,7 @@ Keys: `/` find, `1` `2` `3` the form, `[` `]` the lens before and after,
 
 Nothing jumps. A node that is in the picture before and after a step stays
 where it is, and the rest comes and goes around it: when the lens changes,
-when you go into a component or come back, when the source changes. Between
+when you go into an app or come back, when the source changes. Between
 2D, Diagram, and 3D the nodes glide to their new places and the camera
 turns. The picture fits next to the card of the selected node, not under
 it. Every step to another place (a lens, something you went into, a
@@ -97,21 +96,20 @@ motion" set in the operating system, the next picture stands at once.
 A lens is a part of the one graph. Nodes keep their identity across lenses:
 select an object in one, switch, and it is still selected.
 
-| Lens | Nodes | Relations | Same as |
+| Lens | Nodes | Relations | `bca view --lens` |
 | --- | --- | --- | --- |
-| Overview | screens, logic, and data, in columns | uses | `bca view --lens overview` |
-| System | every AL object | everything objects do with each other | `bca export --view project` |
-| Components | the components of the architecture, by layer | dependencies between them: allowed, not declared, or the wrong way | `bca architecture` |
-| Apps | the apps of the workspace and the apps they depend on | declared, implicit, and undeclared dependencies | |
-| Modules | namespaces | what they use of each other | `bca export --view module` |
-| Data | tables and the code that touches them | reads, writes, relates, extends | `bca export --view data` |
-| Calls | objects | calls and runs | `bca export --view call` |
-| Events | publishers and subscribers | publishes, subscribes | `bca export --view events` |
-| Contracts | interfaces and what implements them | implements, selects | `bca export --view contracts` |
-| Pages | pages, reports, and what they show | source tables, parts, actions | `bca export --view ui` |
-| Permissions | permission sets and what they cover | permits, includes | |
-| Visibility | every object, colored public, internal, or local | everything | `bca export --view visibility` |
-| Findings | the rules of the health check and the objects they found | one per finding, in its severity | `bca check` |
+| Overview | screens, logic, and data, in columns | uses | `overview` |
+| System | every AL object | everything objects do with each other | `system` |
+| Apps | the apps of the workspace and the apps they depend on | declared, implicit, and undeclared dependencies | `apps` |
+| Modules | namespaces | what they use of each other | `modules` |
+| Data | tables and the code that touches them | reads, writes, relates, extends | `data` |
+| Calls | objects | calls and runs | `calls` |
+| Events | publishers and subscribers | publishes, subscribes | `events` |
+| Contracts | interfaces and what implements them | implements, selects | `contracts` |
+| Pages | pages, reports, and what they show | source tables, parts, actions | `pages` |
+| Permissions | permission sets and what they cover | permits, includes | `security` |
+| Visibility | every object, colored public, internal, or local | everything | `visibility` |
+| Findings | the rules of the health check and the objects they found | one per finding, in its severity | `health` |
 
 A lens with nothing in it is left out: Findings needs a finding.
 
@@ -124,9 +122,8 @@ nodes it is about, which stand out while the rest steps back. **←** and
 
 | Story | Tells | Use it to |
 | --- | --- | --- |
-| What the system is | Apps, components, what everything depends on, the data, events, contracts, the user interface, permissions, health | explain and demonstrate the system |
+| What the system is | How it works, the apps, what everything depends on, the data, events, contracts, the user interface, permissions, health | explain and demonstrate the system |
 | What to fix | Every finding, the most severe first, on the nodes it is about, with the fix | work through the health check |
-| What to change, and how | Every change to the architecture the analysis finds, the most important first, with the steps | reach the target architecture |
 
 **Export › Documentation** writes every story as one Markdown document.
 
@@ -149,15 +146,15 @@ the step of a story) is in its address, so a link opens the same picture.
 ### In step with the source
 
 - **The graph follows the source.** Save an AL file, `app.json`,
-  `.bca.json`, or the baseline, and the source is read again; the view keeps
-  its lens, form, and selection.
+  or `.bca.json`, and the source is read again; the view keeps its lens,
+  form, and selection.
 - **The graph follows the editor.** The object of the file that comes to the
   front is the selected node (`bcAtlas.followEditor`).
 - **The editor follows the graph.** **Go to source** on the card of a node
   opens its file at its line.
 - **Live** in the toolbar says what the graph is read from: the AL files and
-  objects, the apps, the symbol packages, the AL compiler, and `.bca.json`,
-  and what the lens reads of them. **Read the source again** analyzes at
+  objects, the apps, the symbol packages, and `.bca.json`, and what the lens
+  reads of them. **Read the source again** analyzes at
   once.
 
 The view takes its design from your VS Code color theme: background, text,
@@ -165,49 +162,13 @@ borders, accent, selection, error and warning colors, and the editor's
 fonts, including high contrast and custom themes. An exported file
 (`bca export`) keeps the BC Atlas design with its light and dark mode.
 
-### Change the architecture from the view
-
-**Live** also holds what the view may write back:
-
-- **Keep these components**, when no architecture is configured: saves the
-  proposal the Components lens shows (components, layers, allowed
-  dependencies) to `.bca.json` and accepts today's wrong-way dependencies in
-  `.bca-architecture-baseline.json`, like
-  `bca architecture --propose --write --update-baseline`.
-- **Accept the wrong-way dependencies**, when one is configured: updates the
-  baseline, like `bca architecture --update-baseline`. Afterwards
-  `bca check` fails only on new ones.
-
-Both ask twice before anything is written. Another grouping, depth, or
-granularity of the proposal is set with `architecture.proposal` in
-`.bca.json` or with `bca architecture --propose`; see
-[Clean architecture](./clean-architecture.md) for the rules behind it.
-
-### Why a component is what it is
-
-Select a component in the graph: **Why this component** in its panel says what
-it is named after, how its objects came to it, what they agree on (namespace,
-folder, name prefix), and how much of its coupling stays inside. Select an
-object: **Why in …** says which step placed it in its component and what that
-step looked at; for a configured architecture, the selector that assigns it.
-The **Architecture** menu lists every component with its first reason and
-takes you to it.
-
-In the same menu, **Current and target…** compares two states of the
-architecture with weights you set, **Template** takes a preset or one of your
-own into use, and **Save as a template** keeps the weights you compared with
-under a name of your own. A template and the target are written to
-`.bca.json`. An exported file shows the comparison it was exported with and
-changes nothing.
-
 ## In the editor
 
-- **Problems panel**: every health and architecture finding with a location,
-  at its file and line. AL compiler and analyzer findings are left to the AL
-  Language extension, which reports them itself.
-- **CodeLens** above each object declaration: how often it is used, what it
-  uses, its component, and its dependencies against the architecture. Click
-  it to select the object in the view.
+- **Problems panel**: every health finding with a location, at its file and
+  line.
+- **CodeLens** above each object declaration: how often it is used and how
+  much it uses (`used by 3 · uses 5`). Click it to select the object in the
+  view.
 - **Context menu in AL files**: **Show This Object** (selected in the
   graph), **Show This Object in 3D** (it and its neighbors), **Show This
   Object from the Inside** (its procedures, as a diagram).
@@ -222,9 +183,7 @@ changes nothing.
 | --- | --- |
 | BC Atlas: Open, Open a Lens… | Shows the view, or the view with one lens. |
 | BC Atlas: Run Health Check | Analyzes again and fills the Problems panel. |
-| BC Atlas: Show the Components | The Components lens as a diagram: the configured architecture, or a proposal when there is none. |
-| BC Atlas: Accept Current Violations in the Baseline | Like `bca architecture --update-baseline`. |
-| BC Atlas: Export… | Writes the view as one offline HTML file, the Markdown report, the object catalog, a diagram, or the knowledge graph in RDF and OWL (`bca export`). |
+| BC Atlas: Export… | Writes the view as one offline HTML file, the Markdown report, or the knowledge graph in RDF and OWL (`bca export`). |
 | BC Atlas: Generate Documentation from UI Tests… | Markdown, HTML, DITA, Azure DevOps CSV, or BPMN (`bca docs generate`). |
 | BC Atlas: Select Project… | The app, or a folder above several apps, to analyze. |
 | BC Atlas: Analyze Again, Show Output | |
@@ -233,15 +192,15 @@ changes nothing.
 
 The extension registers the BC Atlas MCP server with VS Code, so agents in
 the editor (for example GitHub Copilot in agent mode) can use the BC Atlas
-tools: check the health and the architecture, propose one, write reports and
-diagrams, and work with the UI-test documentation. See
+tools: check the health, read any lens or story of the view, write the report
+and the layered documentation, and work with the UI-test documentation. See
 [Agent integration](./agent-integration.md).
 
 ### The same view in the chat
 
 The MCP server the extension registers also shows this view inside the chat,
 as an [MCP App](./agent-integration.md#the-view-in-the-chat-mcp-app): ask the
-agent to show the components, a lens, or the architecture, and the graph
+agent to show a lens, an object, or a story, and the graph
 appears in the conversation, in VS Code and in every other client that
 renders MCP Apps. Both are released together and are one page.
 
@@ -255,26 +214,18 @@ renders MCP Apps. Both are released together and are one page.
 | `bcAtlas.codeLens` | `true` | CodeLens above AL objects. |
 | `bcAtlas.followEditor` | `true` | Select the object of the active editor in the graph. |
 | `bcAtlas.nodePath` | empty | Node.js 22 or later for the engine. Empty uses the runtime built into VS Code (1.101 or later). |
-| `bcAtlas.alCompiler` | `auto` | Microsoft's AL compiler: `auto` uses the AL Language extension's (or the AL Development Tools), `off` only BC Atlas's own analysis, or a path. |
-| `bcAtlas.alAnalyzers` | `[]` | Code analyzers for that compile, e.g. `CodeCop`. Empty: `al.codeAnalyzers` when `al.enableCodeAnalysis` is on. |
 
 ## With the AL Language extension
 
-BC Atlas works next to Microsoft's AL Language extension and uses it:
+BC Atlas works next to Microsoft's AL Language extension:
 
-- the AL compiler of the extension resolves every call and reports compiler
-  and code-analyzer findings, which the Findings lens and **Check** show. It
-  runs in the background after each change; the view shows the last results
-  at once and refreshes when the compiler is done;
-- BC Atlas reads the editor's `al.*` settings: `al.packageCachePath` for
-  symbols, `al.codeAnalyzers` with `al.enableCodeAnalysis`, `al.ruleSetPath`,
-  and `al.assemblyProbingPaths`. Only values someone set count, with VS Code's
-  precedence: user, workspace, workspace folder, then each project's own
+- BC Atlas reads the editor's `al.packageCachePath` to find the symbol
+  packages. Only a value someone set counts, with VS Code's precedence: user,
+  workspace, workspace folder, then each project's own
   `.vscode/settings.json`;
-- **AL: Download Symbols**, a new `.app`, or changed `al.*` settings start a
-  new analysis, so BC Atlas stays in step with the code and its symbols.
-
-See [AL toolchain](./al-toolchain.md).
+- **AL: Download Symbols**, a new `.app`, or a changed `al.packageCachePath`
+  starts a new analysis, so BC Atlas stays in step with the code and its
+  symbols.
 
 ## Without VS Code, and without a window
 
@@ -315,8 +266,7 @@ for everyone who has the file.
 The first analysis of the Base Application with the System Application and
 Business Foundation (about 9,500 objects) takes about two minutes; afterwards
 the view opens in about a second. BC Atlas keeps the parse results of every
-file on disk (in `BCA_CACHE_DIR`, default `<temp>/bc-atlas`, next to the AL
-compiler's results), so reopening a project or saving a file parses only the
+file on disk (in `BCA_CACHE_DIR`, default `<temp>/bc-atlas`), so reopening a project or saving a file parses only the
 files that changed.
 
 The graph draws thousands of nodes: a synthetic app of 3,150 objects with

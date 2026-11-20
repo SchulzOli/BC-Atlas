@@ -36,26 +36,22 @@ width around it.
 | --- | --- | --- |
 | Accent blue | `#2f6fe0` (dark UI: `#5b8def`) | Buttons, links, the small mark. The panel's `--accent`. |
 | Navy | `#0b1432` → `#17306b` | Icon tile, Marketplace banner, hero background. |
-| Teal | `#5eead4` | The apex node; highlights such as "Clean architecture". |
+| Teal | `#5eead4` | The apex node; highlights. |
 | Sky | `#7dd3fc` → `#4b7cf7` | Gradient of the "A" in the icon. |
-| Allowed / against the architecture | green / `#ef4444` red | Only for dependencies. |
 
 **Type:** Inter (Inter Display for big headlines).
 
 **Taglines:**
 
-- See your architecture, find what stands in its way, and keep it clean,
-  right in VS Code.
-- Clean architecture for Business Central, in your editor.
-- Split the big app: see which parts could be apps today, and what is in the
-  way for the rest.
+- See your Business Central apps as one graph, read from the source, right
+  in VS Code.
 
 ## Marketplace listing
 
 | Field | Value |
 | --- | --- |
 | Display name | BC Atlas: AL Architecture & Dependencies |
-| Short description | Business Central AL apps as one graph, read from the source: one view in 2D, as a diagram, or in 3D, clean-architecture checks with fixes, stories that document and test, health in the Problems panel, CodeLens, and an MCP server for AI agents. |
+| Short description | Business Central AL apps as one graph, read from the source: one view in 2D, as a diagram, or in 3D, health checks with fixes, stories that walk through the system, findings in the Problems panel, CodeLens, and an MCP server for AI agents. |
 | Categories | Visualization, Linters, AI, Programming Languages |
 | Banner | `#0b1432`, dark theme |
 | Pricing | Free |
@@ -64,16 +60,16 @@ width around it.
 
 All show the BC Atlas view on the example apps of this repository
 (`examples/purchasing-app`: 16 objects;
-`examples/multi-app`: three apps with a configured architecture), in the
+`examples/multi-app`: three apps), in the
 dark design of an exported file.
 
 | Screenshot | Shows |
 | --- | --- |
-| `view.png` | The System lens in 2D with Check on and a codeunit selected: the card with its facts and relations. |
+| `view.png` | The overview with a codeunit selected: its way from the screen to the tables is lit. |
 | `diagram.png` | The Data lens as a diagram. |
 | `space.png` | The System lens in 3D with the findings as rings. |
+| `apps.png` | The Apps lens as a diagram: what each app uses of the others, declared or not. |
 | `inside.png` | A codeunit from the inside: its procedures and events, and what each does. |
-| `components.png` | The Components lens as a diagram, with the dependency the wrong way. |
 
 To retake them: `node vscode/marketing/screenshots.mjs` (needs Playwright
 with Chromium). It also writes `docs/generated/images/view.png`, the picture
@@ -124,50 +120,43 @@ in the README of the repository, in the light design.
    `social-preview.jpg`. Set the repository description to the short
    description above, the website to the documentation, and the topics
    `business-central`, `al`, `dynamics-365`, `vscode-extension`,
-   `clean-architecture`, `dependency-graph`, `mcp`.
+   `dependency-graph`, `mcp`.
 5. **Release.** Tag the release and paste the changelog into the GitHub
    release, with `social-preview.jpg` on top.
 6. **Announce** with the posts below, each with `social-preview.jpg` or a
    screenshot. A short screen recording of the view in 3D (rotate, click a
-   red link, open the object) works best on LinkedIn.
+   node, open the object) works best on LinkedIn.
 
 ## Launch copy
 
 ### One line (140 characters)
 
-> BC Atlas for VS Code: see the architecture of your Business Central apps,
-> every wrong-way dependency, and how to fix it. Free, MIT.
+> BC Atlas for VS Code: see your Business Central apps as one graph, what is
+> wrong with them, and how to fix it. Free, MIT.
 
 ### X / Bluesky / Mastodon
 
 > BC Atlas is now a VS Code extension 🚀
 >
-> Open an AL app and see its architecture: dependencies in 3D, every
-> wrong-way dependency as a work item with the fix, findings in the Problems
-> panel, CodeLens above every object, and an MCP server for Copilot.
+> Open an AL app and see it as one graph: in 2D, as a diagram, or in 3D,
+> findings with the fix in the Problems panel, CodeLens above every object,
+> and an MCP server for Copilot.
 >
 > Free and MIT. #BusinessCentral #MSDyn365BC #ALLang
 
 ### LinkedIn (English)
 
-> **Which part of your Business Central app could become an app of its own
-> today, and what is in the way for the rest?**
+> **How does your Business Central app work, and what depends on what?**
 >
-> BC Atlas answers that in VS Code. Open an AL project and it proposes a
-> layered architecture from today's dependencies, or checks the one you
-> define. Every dependency that points the wrong way becomes a work item that
-> says what to do in AL terms: move a subscriber, move a field into a table
-> extension, extract an interface.
->
-> On Microsoft's Shopify Connector (514 objects): 28 components in 12 layers,
-> 658 wrong-way dependencies, 232 work items, and 2 components that could
-> become apps right away.
+> BC Atlas answers that in VS Code. Open an AL project and it reads the
+> source into one graph: every object, what it does with the others, and
+> what is wrong with it.
 >
 > What you get:
-> 🧭 the architecture with layers, work items, and a baseline that only shrinks
-> 🌐 dependencies in 3D, replayed commit by commit, per pull request, or per release
+> 🧭 how it works, from the screens over the logic to the data
+> 🌐 the same graph in 2D, as a diagram, or in 3D
 > 🩺 health findings in the Problems panel, CodeLens above every object
-> 🤖 an MCP server, so Copilot can pick a work item, apply it, and check again
+> 🤖 an MCP server, so Copilot can read the graph, fix a finding, and check again
 > ✅ the same rules as `bca check` in your pipeline
 >
 > It runs locally, sends no telemetry, and is free and MIT-licensed.
@@ -175,51 +164,42 @@ in the README of the repository, in the light design.
 > 👉 Search for "BC Atlas" in the VS Code extensions, or see
 > https://schulzoli.github.io/BC-Atlas/
 >
-> #BusinessCentral #MSDyn365BC #ALLang #CleanArchitecture #VSCode
+> #BusinessCentral #MSDyn365BC #ALLang #VSCode
 
 ### LinkedIn (Deutsch)
 
-> **Welcher Teil eurer Business-Central-App könnte heute schon eine eigene App
-> sein, und was steht beim Rest im Weg?**
+> **Wie funktioniert eure Business-Central-App, und was hängt wovon ab?**
 >
 > BC Atlas beantwortet das direkt in VS Code. AL-Projekt öffnen, und BC Atlas
-> schlägt aus den heutigen Abhängigkeiten eine Schichtenarchitektur vor oder
-> prüft die, die ihr festlegt. Jede Abhängigkeit in die falsche Richtung wird
-> zu einem Arbeitspaket mit dem konkreten Schritt in AL: Subscriber
-> verschieben, Feld in eine Table Extension auslagern, Interface extrahieren.
->
-> Am Shopify Connector von Microsoft (514 Objekte): 28 Komponenten in 12
-> Schichten, 658 Abhängigkeiten in die falsche Richtung, 232 Arbeitspakete,
-> und 2 Komponenten, die sofort eigene Apps sein könnten.
+> liest den Quellcode in einen Graphen: jedes Objekt, was es mit den anderen
+> macht, und was daran nicht stimmt.
 >
 > Was drin ist:
-> 🧭 Architektur mit Schichten, Arbeitspaketen und einer Baseline, die nur schrumpft
-> 🌐 Abhängigkeiten in 3D, abspielbar pro Commit, Pull Request oder Release
+> 🧭 wie es funktioniert, von den Seiten über die Logik bis zu den Daten
+> 🌐 derselbe Graph in 2D, als Diagramm oder in 3D
 > 🩺 Befunde im Problems-Panel, CodeLens über jedem Objekt
-> 🤖 ein MCP-Server, damit Copilot ein Arbeitspaket umsetzt und erneut prüft
+> 🤖 ein MCP-Server, damit Copilot den Graphen liest, einen Befund behebt und erneut prüft
 > ✅ dieselben Regeln wie `bca check` in der Pipeline
 >
 > Läuft lokal, ohne Telemetrie, kostenlos und MIT-lizenziert.
 >
 > 👉 In VS Code nach "BC Atlas" suchen, oder https://schulzoli.github.io/BC-Atlas/
 >
-> #BusinessCentral #MSDyn365BC #ALLang #CleanArchitecture #VSCode
+> #BusinessCentral #MSDyn365BC #ALLang #VSCode
 
 ### Community post (Reddit, BC forums, Discord)
 
-> **BC Atlas: a free VS Code extension to see and enforce the architecture of
-> AL apps**
+> **BC Atlas: a free VS Code extension to see the architecture of AL apps**
 >
-> I built BC Atlas to answer "how do we split this app?" without drawing
+> I built BC Atlas to answer "how does this app work?" without drawing
 > boxes by hand. It parses AL with tree-sitter-al, resolves objects, calls,
 > events, data access, and permissions, and then:
 >
-> - proposes a layered architecture (by module, namespace, or folder) and
->   lists every wrong-way dependency with a concrete fix;
-> - shows dependencies in 3D (objects, apps, components) with a timeline per
->   commit, pull request, or release;
+> - shows them as one graph (objects, apps, namespaces) in 2D, as a diagram,
+>   or in 3D;
 > - puts findings in the Problems panel and CodeLens above objects;
-> - enforces it in CI with `bca check` and a baseline;
+> - gates CI on them with `bca check`;
+> - writes documentation that stays in sync with the source (`bca layers`);
 > - exposes it all to AI agents through MCP.
 >
 > It runs locally and is MIT-licensed. Feedback and issues welcome:

@@ -73,7 +73,7 @@ test("the knowledge graph is the same graph in Turtle, RDF/XML, OWL, N-Triples, 
   }
 });
 
-test("the knowledge graph has the ontology, the apps, components, objects, members, and relations", async () => {
+test("the knowledge graph has the ontology, the apps, objects, members, and relations", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-kg-"));
   try {
     const { file } = await writeKnowledgeGraph(workspace, { output: path.join(directory, "graph.ttl") });
@@ -98,7 +98,6 @@ test("the knowledge graph has the ontology, the apps, components, objects, membe
     assert.deepEqual(one(item, `${BCA}objectId`), ["50000"]);
     assert.deepEqual(one(item, `${BCA}inApp`), [core]);
     assert.deepEqual(one(item, `${BCA}inNamespace`), [ids.namespace("Contoso.Core.Items")]);
-    assert.deepEqual(one(item, `${BCA}inComponent`), [ids.component("Core")], "components come from .bca.json");
     assert.deepEqual(one(item, `${BCA}sourceFile`), ["core/Items.al"]);
     const fields = one(item, `${BCA}hasField`);
     assert.ok(fields.includes(`${item}:field:1`));
@@ -114,11 +113,7 @@ test("the knowledge graph has the ontology, the apps, components, objects, membe
     assert.ok(one(relation, `${BCA}operation`).includes("Modify"));
     assert.deepEqual(one(relation, `${BCA}sourceFile`), ["integration/ItemSync.al"]);
 
-    // The configured architecture: what may depend on what, and what does not follow it.
-    assert.deepEqual(one(ids.component("Sales"), `${BCA}mayDependOn`), [ids.component("Core")]);
-    const [violation] = ofType(`${BCA}ArchitectureViolation`);
-    assert.deepEqual(one(violation, `${BCA}violationSource`), [sync]);
-    assert.deepEqual(one(violation, `${BCA}sourceComponent`), [ids.component("Integration")]);
+    assert.deepEqual(ofType(`${BCA}ArchitectureViolation`), []);
 
     // A table the workspace uses but does not declare.
     assert.ok(ofType(`${BCA}ExternalObject`).some((subject) => one(subject, `${RDFS}label`).includes("Customer")));
@@ -188,9 +183,9 @@ test("bca export --view knowledge-graph writes the format of the extension or of
     const rdf = spawnSync(process.execPath, [cli, "export", workspace, "--view", "knowledge-graph", "--format", "rdf", "--base-iri", "https://example.com/bc/", "-o", path.join(directory, "atlas")], { encoding: "utf8", timeout: 120_000 });
     assert.equal(rdf.status, 0, rdf.stderr);
     assert.match(readFileSync(path.join(directory, "atlas.rdf"), "utf8"), /rdf:about="https:\/\/example\.com\/bc\/graph"/u);
-    const wrong = spawnSync(process.execPath, [cli, "export", workspace, "--view", "knowledge-graph", "--format", "svg"], { encoding: "utf8" });
+    const wrong = spawnSync(process.execPath, [cli, "export", workspace, "--view", "knowledge-graph", "--format", "html"], { encoding: "utf8" });
     assert.notEqual(wrong.status, 0);
-    assert.match(wrong.stderr, /--view knowledge-graph writes ttl or rdf or owl or nt or jsonld, not svg/u);
+    assert.match(wrong.stderr, /--view knowledge-graph writes ttl or rdf or owl or nt or jsonld, not html/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

@@ -1,4 +1,4 @@
-// The BC Atlas ontology: OWL classes for apps, namespaces, components, AL
+// The BC Atlas ontology: OWL classes for apps, namespaces, AL
 // objects (one class per object type), their members, and their relations;
 // object properties for every relation kind the analysis finds; and data
 // properties for IDs, names, and source locations. Every export carries the
@@ -32,7 +32,6 @@ export const literal = (value, datatype) => ({ value: String(value), ...(datatyp
 const CLASSES = [
   ["App", "AL app", undefined, "An extension or app with its own app.json."],
   ["Namespace", "AL namespace", undefined, "A namespace declared by AL objects."],
-  ["Component", "Architecture component", undefined, "A component of the target architecture in .bca.json, or of a proposal."],
   ["Object", "AL object", undefined, "An application object such as a table, page, or codeunit."],
   ["ExtensionObject", "AL extension object", "Object", "An object that extends another object: a table, page, report, enum, profile, or permission set extension, or a page customization."],
   ["ExternalObject", "External AL object", "Object", "An object referenced by the workspace but declared elsewhere, for example in the Base Application."],
@@ -41,8 +40,7 @@ const CLASSES = [
   ["Procedure", "Procedure", undefined, "A procedure of an object."],
   ["Trigger", "Trigger", "Procedure", "A trigger of an object, such as OnRun or OnValidate."],
   ["EventPublisher", "Event publisher", "Procedure", "A procedure with an integration or business event attribute."],
-  ["Relation", "Relation", undefined, "One relation found in the source, with its kind, confidence, and location (a qualified form of the direct relation property)."],
-  ["ArchitectureViolation", "Architecture violation", undefined, "A dependency between two objects that points against the architecture."]
+  ["Relation", "Relation", undefined, "One relation found in the source, with its kind, confidence, and location (a qualified form of the direct relation property)."]
 ];
 
 // AL object type -> [class, label, extension]
@@ -76,10 +74,7 @@ export function objectClass(type) {
 const OBJECT_PROPERTIES = [
   ["inApp", "in app", "Object", "App", "The app that declares the object."],
   ["inNamespace", "in namespace", "Object", "Namespace", "The namespace of the object."],
-  ["inComponent", "in component", "Object", "Component", "The architecture component the object belongs to."],
   ["dependsOnApp", "depends on app", "App", "App", "A dependency declared in app.json."],
-  ["mayDependOn", "may depend on", "Component", "Component", "A dependency the architecture allows."],
-  ["dependsOnComponent", "depends on component", "Component", "Component", "A dependency between components that the source has today."],
   ["hasField", "has field", "Object", "Field"],
   ["hasKey", "has key", "Object", "Key"],
   ["hasProcedure", "has procedure", "Object", "Procedure"],
@@ -87,10 +82,6 @@ const OBJECT_PROPERTIES = [
   ["dependsOn", "depends on", "Object", "Object", "Any relation from one object to another; every relation property below is a kind of it."],
   ["relationSource", "relation source", "Relation", "Object"],
   ["relationTarget", "relation target", "Relation", "Object"],
-  ["violationSource", "violation source", "ArchitectureViolation", "Object"],
-  ["violationTarget", "violation target", "ArchitectureViolation", "Object"],
-  ["sourceComponent", "source component", "ArchitectureViolation", "Component"],
-  ["targetComponent", "target component", "ArchitectureViolation", "Component"]
 ];
 
 // [property, label, range, comment]
@@ -114,7 +105,6 @@ const DATA_PROPERTIES = [
   ["dataType", "data type", "string"],
   ["signature", "signature", "string"],
   ["visibility", "visibility", "string", "local, internal, protected, or public."],
-  ["layer", "layer", "integer", "The layer of a component; lower layers may not depend on higher ones."],
   ["relationKind", "relation kind", "string"],
   ["confidence", "confidence", "string", "How the relation was resolved: resolved, syntactic, or ambiguous."],
   ["relationClass", "relation class", "string", "schema or runtime for data relations."],
@@ -122,8 +112,6 @@ const DATA_PROPERTIES = [
   ["dataAccess", "data access", "string", "read, write, or read-write."],
   ["operation", "operation", "string", "A data operation such as Get, Insert, or Modify."],
   ["sourceProcedure", "source procedure", "string", "The procedure the relation is written in."],
-  ["rule", "rule", "string"],
-  ["weight", "weight", "integer", "How many relations a violation stands for."]
 ];
 
 // Relation kinds of the analysis -> [property, label, comment]
@@ -163,7 +151,7 @@ export function* vocabulary({ version, kinds = [], header = true } = {}) {
     types: [`${PREFIXES.owl}Ontology`],
     props: [
       [LABEL, literal("BC Atlas ontology for Business Central AL")],
-      [COMMENT, literal("Apps, namespaces, architecture components, AL objects, their members, and their relations, as found by BC Atlas in AL source.")],
+      [COMMENT, literal("Apps, namespaces, AL objects, their members, and their relations, as found by BC Atlas in AL source.")],
       [`${PREFIXES.owl}versionInfo`, literal(version)],
       [`${PREFIXES.dcterms}license`, iri("https://opensource.org/licenses/MIT")],
       [`${PREFIXES.vann}preferredNamespacePrefix`, literal("bca")],

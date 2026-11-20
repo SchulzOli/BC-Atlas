@@ -1,0 +1,177 @@
+// Reads an AL workspace the way the AL Language extension and ALTool do:
+// app.json per project, `.vscode/settings.json` per project folder, and the
+// `settings` and `folders` of a `.code-workspace` file. Folder settings win
+// over workspace settings, as in VS Code.
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { parseJsonc } from "./jsonc.js";
+
+const SKIPPED = new Set([".git", "node_modules", ".alpackages", ".alcache", ".snapshots", "dist", "out", ".output", ".bca"]);
+
+async function readJson(file, { jsonc = false } = {}) {
+  try {
+    const text = await fs.readFile(file, "utf8");
+    return jsonc ? parseJsonc(text) : JSON.parse(text.replace(/^﻿/u, ""));
+  } catch {
+    return undefined;
+  }
+}
+
+async function isDirectory(directory) {
+  try {
+    return (await fs.stat(directory)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/** Folders with an app.json below `root`; a nested app.json is a module of the outer app. */
+export async function findAppFolders(root) {
+  const folders = [];
+  async function visit(directory) {
+    let entries;
+    try {
+      entries = await fs.readdir(directory, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    if (entries.some((entry) => entry.isFile() && entry.name.toLowerCase() === "app.json")) {
+      folders.push(directory);
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory() && !SKIPPED.has(entry.name) && !entry.name.startsWith(".")) {
+        await visit(path.join(directory, entry.name));
+      }
+    }
+  }
+  await visit(root);
+  return folders.sort();
+}
+
+/** The `.code-workspace` file of a root: the configured one, else the only or first one. */
+export async function findWorkspaceFile(root, configured) {
+  if (configured) return path.resolve(root, configured);
+  try {
+    const files = (await fs.readdir(root)).filter((name) => name.toLowerCase().endsWith(".code-workspace")).sort();
+    return files.length ? path.join(root, files[0]) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function list(value) {
+  if (value === undefined || value === null || value === "") return [];
+  return (Array.isArray(value) ? value : [value]).map(String).filter(Boolean);
+}
+
+/**
+ * Expands the VS Code variables that appear in `al.*` path settings:
+ * `${workspaceFolder}` and `${workspaceRoot}` (the folder the setting belongs
+ * to), `${userHome}`, `${env:NAME}`, and a leading `~`. Analyzer names such as
+ * `${CodeCop}` and `${AnalyzerFolder}` are left for the toolchain.
+ */
+export function expandVariables(value, { workspaceFolder, env = process.env, home = os.homedir() } = {}) {
+  if (Array.isArray(value)) return value.map((item) => expandVariables(item, { workspaceFolder, env, home }));
+  if (typeof value !== "string") return value;
+  return value
+    .replace(/\$\{(workspaceFolder|workspaceRoot)\}/gu, (match) => workspaceFolder ?? match)
+    .replace(/\$\{userHome\}/gu, home)
+    .replace(/\$\{env:([^}]+)\}/gu, (_, name) => env[name] ?? "")
+    .replace(/^~(?=$|[\\/])/u, home);
+}
+
+// The one AL setting BC Atlas reads: where the symbol packages are.
+const PATH_SETTINGS = new Set(["packageCachePath"]);
+
+function alSettings(values = {}, workspaceFolder) {
+  const pick = (key) => {
+    const value = values[`al.${key}`];
+    return PATH_SETTINGS.has(key) ? expandVariables(value, { workspaceFolder }) : value;
+  };
+  const packageCachePath = pick("packageCachePath");
+  return packageCachePath === undefined ? {} : { packageCachePath };
+}
+
+/**
+ * Settings that apply to one AL project. Relative paths resolve against the
+ * project folder, as the AL Language extension resolves them.
+ */
+export function projectSettings(folder, ...layers) {
+  const merged = Object.assign({}, ...layers.filter(Boolean));
+  const resolve = (value) => path.resolve(folder, value);
+  return { packageCachePaths: list(merged.packageCachePath ?? ".alpackages").map(resolve) };
+}
+
+/** Expands the path settings of a layer keyed without the `al.` prefix. */
+function expandLayer(layer, workspaceFolder) {
+  if (!layer) return undefined;
+  return Object.fromEntries(Object.entries(layer).map(([key, value]) =>
+    [key, PATH_SETTINGS.has(key) ? expandVariables(value, { workspaceFolder }) : value]));
+}
+
+/**
+ * The AL projects below `root` with their manifests and settings.
+ * @param options { workspaceFile, settings, editorSettings }
+ *   settings override every layer (CLI and MCP callers);
+ *   editorSettings are the values an editor knows that the files below `root`
+ *   may not hold, lowest first: { user, workspace, workspaceFolder } as VS
+ *   Code's `inspect()` reports them. They rank below a project's own
+ *   `.vscode/settings.json`, as in VS Code, and never carry defaults.
+ */
+export async function readAlWorkspace(root, { workspaceFile, settings, editorSettings = {} } = {}) {
+  const absoluteRoot = path.resolve(root);
+  const workspacePath = await findWorkspaceFile(absoluteRoot, workspaceFile);
+  const workspace = workspacePath ? await readJson(workspacePath, { jsonc: true }) : undefined;
+  const workspaceSettings = workspace?.settings;
+
+  let folders = await findAppFolders(absoluteRoot);
+  const declared = (workspace?.folders ?? [])
+    .map((folder) => path.resolve(path.dirname(workspacePath), folder.path ?? ""))
+    .filter((folder) => !path.relative(absoluteRoot, folder).startsWith(".."));
+  if (declared.length) {
+    const appFolders = [];
+    for (const folder of declared) appFolders.push(...await findAppFolders(folder));
+    if (appFolders.length) folders = [...new Set(appFolders)].sort();
+  }
+
+  const apps = [];
+  for (const folder of folders) {
+    const manifest = await readJson(path.join(folder, "app.json"));
+    if (!manifest) continue;
+    // ${workspaceFolder} is the folder whose settings name it; in a
+    // .code-workspace file, the project's own folder.
+    const folderSettings = alSettings(await readJson(path.join(folder, ".vscode", "settings.json"), { jsonc: true }), folder);
+    const rootSettings = folder === absoluteRoot
+      ? {}
+      : alSettings(await readJson(path.join(absoluteRoot, ".vscode", "settings.json"), { jsonc: true }), absoluteRoot);
+    apps.push({
+      folder,
+      relative: path.relative(absoluteRoot, folder).replaceAll("\\", "/") || ".",
+      manifest,
+      settings: projectSettings(
+        folder,
+        expandLayer(editorSettings.user, folder),
+        rootSettings,
+        alSettings(workspaceSettings, folder),
+        expandLayer(editorSettings.workspace, folder),
+        expandLayer(editorSettings.workspaceFolder, folder),
+        folderSettings,
+        expandLayer(settings, folder)
+      )
+    });
+  }
+  return { root: absoluteRoot, workspaceFile: workspacePath, apps };
+}
+
+/** Every existing package cache folder of a workspace, for symbol loading. */
+export async function packageCacheFolders(alWorkspace) {
+  const folders = [];
+  for (const app of alWorkspace.apps) {
+    for (const folder of app.settings.packageCachePaths) {
+      if (!folders.includes(folder) && await isDirectory(folder)) folders.push(folder);
+    }
+  }
+  return folders;
+}

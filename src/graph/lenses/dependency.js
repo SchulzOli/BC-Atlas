@@ -1,5 +1,5 @@
 import { normalizeIdentifier } from "../../resolver.js";
-import { createView, subscriberAttribute } from "../../views.js";
+import { resolvedCallEdges, subscriberAttribute } from "../calls.js";
 
 // Relation kinds that make one AL object depend on another. Every kind keeps
 // its own weight on the aggregated edge so the viewer can filter by kind.
@@ -158,14 +158,6 @@ function subscriptionEdges(model, objectIndex) {
   return edges;
 }
 
-/** Resolved procedure calls, aggregated to the owning objects. */
-function callEdges(model) {
-  return createView(model, "call", {})
-    .edges.filter(({ kind, to, confidence }) =>
-      kind === "calls" && to && to !== "call-framework" && confidence === "resolved"
-    );
-}
-
 function createObjectIndex(objects) {
   const index = new Map();
   for (const object of objects) {
@@ -230,7 +222,7 @@ function appNode(app, origin, objectCount = 0) {
 }
 
 /**
- * Builds the dependency lens from a resolved architecture model: an object
+ * Builds the dependency lens from a resolved model: an object
  * level (one node per AL object, one edge per depending pair) and an app level
  * (declared app.json dependencies merged with the observed object references).
  */
@@ -246,7 +238,7 @@ export function dependencyLens(model, { filter = () => true } = {}) {
   const relations = [
     ...model.edges.filter(({ kind }) => DEPENDENCY_KINDS.includes(kind)),
     ...subscriptionEdges(model, objectIndex),
-    ...callEdges(model)
+    ...resolvedCallEdges(model)
   ];
   for (const relation of relations) {
     if (!selected.has(relation.from) || relation.from === relation.to) continue;

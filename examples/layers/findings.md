@@ -2,26 +2,10 @@
 
 [System](README.md) › Findings
 
-1 error, 0 warnings, 11 info.
-
-## Error
-
-- **error** `architecture-violation`: codeunit CON Item Sync (Integration) depends on 1 object(s) in Core; declare the dependency; it points inward (declare-dependency)
-  - On: [CON Item Sync](objects/codeunit-50201-con-item-sync.md)
-  - Source: `integration/ItemSync.al:10`
+0 errors, 0 warnings, 7 info.
 
 ## Info
 
-- **info** `could-be-internal`: 1 object(s) of Core are used by no other component and could be Access = Internal: codeunit 50010 CON Standard Pricing
-  - Source: `.bca.json:4`
-- **info** `could-be-internal`: 2 object(s) of Integration are used by no other component and could be Access = Internal: codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync
-  - Source: `.bca.json:6`
-- **info** `foreign-table-write`: table 50000 CON Item of Core is written by Integration (1 object); let Core own the writes behind a codeunit, or move the table
-  - On: [CON Item](objects/table-50000-con-item.md)
-  - Source: `core/Items.al:3`
-- **info** `foreign-table-write`: table 50100 CON Sales Quote of Sales is written by Integration (1 object); let Sales own the writes behind a codeunit, or move the table
-  - On: [CON Sales Quote](objects/table-50100-con-sales-quote.md)
-  - Source: `sales/Quotes.al:6`
 - **info** `undocumented-public-api`: codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice
   - On: [CON Standard Pricing](objects/codeunit-50010-con-standard-pricing.md)
   - Source: `core/Pricing.al:12`

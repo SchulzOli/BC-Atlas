@@ -2,7 +2,7 @@
 // is written, and how. It is read from "layers" in .bca.json:
 //
 //   pages      which kinds of page, and which pages of a kind
-//   scope      which objects get a page (app, component, namespace, type, exclude)
+//   scope      which objects get a page (app, namespace, type, exclude)
 //   sections   the sections of each kind of page, in their order
 //   titles     other headings
 //   language   "de": the fixed headings and labels in German
@@ -20,47 +20,44 @@ import path from "node:path";
 import { UsageError } from "../cli/errors.js";
 
 /** The kinds of page `pages` and `names` speak of. */
-export const LAYERS_PAGE_KINDS = Object.freeze(["readme", "architecture", "changes", "findings", "apps", "components", "namespaces", "objects", "lenses", "stories"]);
+export const LAYERS_PAGE_KINDS = Object.freeze(["readme", "architecture", "findings", "apps", "namespaces", "objects", "lenses", "stories"]);
 /** The kinds with one page: `pages` takes only true or false for them. */
-const SINGLE = new Set(["readme", "architecture", "changes", "findings"]);
+const SINGLE = new Set(["readme", "architecture", "findings"]);
 /** The kind of page `sections` and the templates speak of, by the kind of `pages`. */
-const SECTION_KIND = Object.freeze({ readme: "readme", architecture: "architecture", changes: "changes", findings: "findings", apps: "app", components: "component", namespaces: "namespace", objects: "object", lenses: "lens", stories: "story" });
+const SECTION_KIND = Object.freeze({ readme: "readme", architecture: "architecture", findings: "findings", apps: "app", namespaces: "namespace", objects: "object", lenses: "lens", stories: "story" });
 /**
  * The sections (H2) each kind of page can have, in the order they are written. A page has a
  * section only when there is something to say in it. The sections of a story are its steps,
  * so they have no fixed names.
  */
 export const LAYERS_SECTIONS = Object.freeze({
-  readme: Object.freeze(["Start here", "Layers", "Apps", "Components", "Namespaces", "Lenses", "Stories", "Findings", "Read from", "History"]),
-  architecture: Object.freeze(["Apps", "Components", "Shared data", "What to change"]),
-  changes: Object.freeze(["Changes", "Options"]),
+  readme: Object.freeze(["Start here", "Layers", "Apps", "Namespaces", "Lenses", "Stories", "Findings", "Read from"]),
+  architecture: Object.freeze(["Apps", "Namespaces"]),
   findings: Object.freeze(["Error", "Warning", "Info"]),
-  app: Object.freeze(["Components", "Namespaces", "Depends on", "Used by", "What to change here", "Objects", "Findings"]),
-  component: Object.freeze(["Depends on", "Used by", "What to change here", "Objects", "Findings"]),
-  namespace: Object.freeze(["Depends on", "Used by", "What to change here", "Objects", "Findings"]),
-  object: Object.freeze(["Inside", "Uses", "Used by", "What to change here", "Findings"]),
+  app: Object.freeze(["Namespaces", "Depends on", "Used by", "Objects", "Findings"]),
+  namespace: Object.freeze(["Depends on", "Used by", "Objects", "Findings"]),
+  object: Object.freeze(["Inside", "Uses", "Used by", "Findings"]),
   lens: Object.freeze(["Findings"]),
   story: null
 });
 export const LAYERS_SECTION_KINDS = Object.freeze(Object.keys(LAYERS_SECTIONS));
 export const LAYERS_LANGUAGES = Object.freeze(["en", "de"]);
-export const LAYERS_SCOPE_KEYS = Object.freeze(["apps", "components", "namespaces", "types", "exclude"]);
+export const LAYERS_SCOPE_KEYS = Object.freeze(["apps", "namespaces", "types", "exclude"]);
 /** What a pattern of `names` can hold; a kind with one page has no placeholders. */
 export const LAYERS_NAME_PLACEHOLDERS = Object.freeze({
   apps: Object.freeze(["name"]),
-  components: Object.freeze(["name"]),
   namespaces: Object.freeze(["name", "app"]),
-  objects: Object.freeze(["name", "type", "id", "app", "component", "namespace"]),
+  objects: Object.freeze(["name", "type", "id", "app", "namespace"]),
   lenses: Object.freeze(["name", "id"]),
   stories: Object.freeze(["name", "id"])
 });
 /** What a template can hold: the parts of a page, and facts about what the page is of. */
-export const LAYERS_TEMPLATE_PLACEHOLDERS = Object.freeze(["title", "summary", "picture", "sections", "footer", "section \"<name>\"", "body \"<name>\"", "name", "type", "id", "app", "component", "namespace", "system"]);
-const TEMPLATE_PARTS = new Set(["title", "summary", "picture", "sections", "footer", "name", "type", "id", "app", "component", "namespace", "system"]);
+export const LAYERS_TEMPLATE_PLACEHOLDERS = Object.freeze(["title", "summary", "picture", "sections", "footer", "section \"<name>\"", "body \"<name>\"", "name", "type", "id", "app", "namespace", "system"]);
+const TEMPLATE_PARTS = new Set(["title", "summary", "picture", "sections", "footer", "name", "type", "id", "app", "namespace", "system"]);
 const TEMPLATE_SECTION_PARTS = new Set(["section", "body"]);
 /** The titles of the pages there is one of, as `titles` names them. The first page has the name of the system. */
-const FIXED_TITLES = Object.freeze({ readme: "README", architecture: "How it is connected", changes: "What to change, and how", findings: "Findings" });
-const PROFILE_KEYS = ["outputDir", "pictures", "history", "view", "pages", "scope", "sections", "titles", "language", "names", "templates"];
+const FIXED_TITLES = Object.freeze({ readme: "README", architecture: "How it is connected", findings: "Findings" });
+const PROFILE_KEYS = ["outputDir", "pictures", "view", "pages", "scope", "sections", "titles", "language", "names", "templates"];
 const DEFAULT_OUTPUT = "docs/layers";
 
 const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -87,7 +84,6 @@ function namePattern(kind, pattern, where) {
   if (typeof pattern !== "string" || !/^[A-Za-z0-9._{}/-]+\.md$/u.test(pattern)) throw new UsageError(`${where} in .bca.json must be a file name that ends with .md, of letters, digits, ".", "-", "_", "/", and placeholders such as {name}`);
   const parts = pattern.split("/");
   if (parts.some((part) => !part || part === "." || part === "..")) throw new UsageError(`${where} in .bca.json must be a path below the folder of the pages: "${pattern}"`);
-  if (parts[0].toLowerCase() === "history") throw new UsageError(`${where} in .bca.json must not be below history/: that folder holds the states of the past`);
   const allowed = LAYERS_NAME_PLACEHOLDERS[kind] ?? [];
   const used = [...pattern.matchAll(/\{([^{}]*)\}/gu)].map(([, name]) => name);
   for (const name of used) if (!allowed.includes(name)) throw new UsageError(`${where} in .bca.json: {${name}} is not known; ${allowed.length ? `${kind} has ${allowed.map((item) => `{${item}}`).join(", ")}` : `${kind} is one page and has no placeholders`}`);
@@ -140,7 +136,7 @@ function normalise(settings, where) {
     if (typeof settings.templates !== "string" || !settings.templates.trim()) throw new UsageError(`${where}.templates in .bca.json must be a folder, relative to the project`);
     profile.templatesDir = settings.templates.trim();
   }
-  for (const key of ["outputDir", "pictures", "history", "view"]) if (settings[key] !== undefined) profile[key] = settings[key];
+  for (const key of ["outputDir", "pictures", "view"]) if (settings[key] !== undefined) profile[key] = settings[key];
   if (profile.outputDir !== undefined && (typeof profile.outputDir !== "string" || !profile.outputDir.trim())) throw new UsageError(`${where}.outputDir in .bca.json must be a folder`);
   return profile;
 }
@@ -149,7 +145,7 @@ function normalise(settings, where) {
  * The profile the settings of "layers" in .bca.json give: checked, and with every key in one form.
  * @param layers the "layers" section, or undefined
  * @param name a profile of layers.profiles; without it, the keys of the section itself
- * @returns { name?, outputDir, pictures?, history?, view?, pages, scope?, sections, titles, language, names, templatesDir?, templates, plain }
+ * @returns { name?, outputDir, pictures?, view?, pages, scope?, sections, titles, language, names, templatesDir?, templates, plain }
  *   plain says that nothing is set that changes the pages. Throws a UsageError that says what is wrong.
  */
 export function layersProfile(layers = {}, name) {
@@ -252,7 +248,6 @@ export function profileInScope(profile, node) {
   if (!scope) return true;
   const name = `${node.type} ${node.objectId ? `${node.objectId} ` : ""}${node.label}`;
   if (scope.apps.length && !matches(scope.apps, node.app)) return false;
-  if (scope.components.length && !matches(scope.components, node.component)) return false;
   if (scope.namespaces.length && !matches(scope.namespaces, node.namespace)) return false;
   if (scope.types.length && !matches(scope.types, node.type)) return false;
   return !matches(scope.exclude, node.label, name);
@@ -260,61 +255,47 @@ export function profileInScope(profile, node) {
 
 // ------------------------------------------------------------------ German
 // The headings and labels buildLayers() writes itself. What it makes from the
-// source (the sentence about a part, the titles and steps of a change, the
+// source (the sentence about a part, the
 // message of a finding, the pages of the lenses and stories) stays as it is.
 const DE_HEADINGS = {
-  "Start here": "Einstieg", Layers: "Ebenen", Apps: "Apps", Components: "Komponenten", Namespaces: "Namespaces", Lenses: "Sichten", Stories: "Rundgänge", Findings: "Befunde",
-  "Read from": "Gelesen aus", History: "Historie", "Shared data": "Geteilte Daten", "What to change": "Was zu ändern ist", "What to change here": "Was hier zu ändern ist",
+  "Start here": "Einstieg", Layers: "Ebenen", Apps: "Apps", Namespaces: "Namespaces", Lenses: "Sichten", Stories: "Rundgänge", Findings: "Befunde",
+  "Read from": "Gelesen aus",
   "Depends on": "Hängt ab von", "Used by": "Verwendet von", Uses: "Verwendet", Inside: "Innenleben", Objects: "Objekte", Error: "Fehler", Warning: "Warnungen", Info: "Hinweise",
-  Changes: "Änderungen", Options: "Optionen", "How it is connected": "Wie es zusammenhängt", "What to change, and how": "Was zu ändern ist, und wie"
+  "How it is connected": "Wie es zusammenhängt"
 };
-const DE_HOLDERS = { App: "App", Component: "Komponente", Namespace: "Namespace" };
+const DE_HOLDERS = { App: "App", Namespace: "Namespace" };
 const DE_COLUMNS = {
-  Fact: "Merkmal", Value: "Wert", Member: "Element", Kind: "Art", Lines: "Zeilen", Complexity: "Komplexität", Does: "Tut", Object: "Objekt", Type: "Typ", Component: "Komponente", Layer: "Ebene",
-  Objects: "Objekte", Instability: "Instabilität", "In a cycle": "In einem Zyklus", "Can be an app": "Kann eine App sein", Inside: "Intern", What: "Was", Count: "Anzahl", Where: "Wo",
-  Lens: "Sicht", Nodes: "Knoten", Node: "Knoten", Group: "Gruppe", Relations: "Beziehungen", Shows: "Zeigt", Source: "Quelle", Change: "Änderung", Effort: "Aufwand",
+  Fact: "Merkmal", Value: "Wert", Member: "Element", Kind: "Art", Lines: "Zeilen", Complexity: "Komplexität", Does: "Tut", Object: "Objekt", Type: "Typ", Layer: "Ebene",
+  Objects: "Objekte", What: "Was", Count: "Anzahl", Where: "Wo",
+  Lens: "Sicht", Nodes: "Knoten", Node: "Knoten", Group: "Gruppe", Relations: "Beziehungen", Shows: "Zeigt", Source: "Quelle",
   "Depends on": "Hängt ab von", "Used by": "Verwendet von", Uses: "Verwendet", Findings: "Befunde"
 };
 /** The cells below these columns that are words of BC Atlas, not of the source. */
 const DE_CELLS = {
-  "Fact|Value": { Type: "Typ", Component: "Komponente", Visibility: "Sichtbarkeit", Lines: "Zeilen", Procedures: "Prozeduren", Complexity: "Komplexität", Uses: "Verwendet", "Used by": "Verwendet von", Source: "Quelle", Layer: "Ebene", Publisher: "Herausgeber", Objects: "Objekte", Instability: "Instabilität", "Can be an app": "Kann eine App sein" },
-  "Layer|What|Count|Where": { Components: "Komponenten", Objects: "Objekte", "Procedures, triggers, and events": "Prozeduren, Trigger und Ereignisse", "this page": "diese Seite", "[below](#apps)": "[unten](#apps)", "[below](#components)": "[unten](#components)", "[below](#namespaces)": "[unten](#namespaces)",
-    "none: no architecture is set or proposed": "keine: es ist keine Architektur festgelegt oder vorgeschlagen", "none: the objects have no namespace": "keine: die Objekte haben keinen Namespace", "from the pages of layers 1 to 3": "über die Seiten der Ebenen 1 bis 3", "inside the page of each object": "auf der Seite jedes Objekts" },
-  "#|Change|Kind|Effort": { Architecture: "Architektur", Cycle: "Zyklus", "Dependency the wrong way": "Abhängigkeit in die falsche Richtung", "Shared data": "Geteilte Daten", "Public surface": "Öffentliche Schnittstelle", small: "klein", medium: "mittel", large: "groß" }
+  "Fact|Value": { Type: "Typ", Visibility: "Sichtbarkeit", Lines: "Zeilen", Procedures: "Prozeduren", Complexity: "Komplexität", Uses: "Verwendet", "Used by": "Verwendet von", Source: "Quelle", Publisher: "Herausgeber", Objects: "Objekte" },
+  "Layer|What|Count|Where": { Objects: "Objekte", "Procedures, triggers, and events": "Prozeduren, Trigger und Ereignisse", "this page": "diese Seite", "[below](#apps)": "[unten](#apps)", "[below](#namespaces)": "[unten](#namespaces)",
+    "none: the objects have no namespace": "keine: die Objekte haben keinen Namespace", "from the pages of layers 1 and 2": "über die Seiten der Ebenen 1 und 2", "inside the page of each object": "auf der Seite jedes Objekts" }
 };
-const DE_CRUMBS = { Lenses: "Sichten", Stories: "Rundgänge", Findings: "Befunde", "How it is connected": "Wie es zusammenhängt", "What to change": "Was zu ändern ist", History: "Historie" };
+const DE_CRUMBS = { Lenses: "Sichten", Stories: "Rundgänge", Findings: "Befunde", "How it is connected": "Wie es zusammenhängt" };
 const DE_LINES = {
-  "The source as it is now.": "Der Quelltext, wie er jetzt ist.",
-  "Layer 5: its procedures, triggers, and events, and what each of them does.": "Ebene 5: seine Prozeduren, Trigger und Ereignisse, und was jedes davon tut.",
+  "Layer 4: its procedures, triggers, and events, and what each of them does.": "Ebene 4: seine Prozeduren, Trigger und Ereignisse, und was jedes davon tut.",
   "The system from the whole down to each procedure. Every page links one layer up and one layer down.": "Das System vom Ganzen bis zur einzelnen Prozedur. Jede Seite verweist eine Ebene nach oben und eine nach unten.",
   "The other sides of the same system: each lens is a part of the one graph.": "Die anderen Seiten desselben Systems: jede Sicht ist ein Teil des einen Graphen.",
   "Walks through the system, step by step.": "Rundgänge durch das System, Schritt für Schritt.",
   "The checks found nothing.": "Die Prüfungen haben nichts gefunden.",
-  "Tables that are written from outside the component they belong to.": "Tabellen, die von außerhalb der Komponente geschrieben werden, zu der sie gehören.",
-  "Not wrong as it is; worth it when the time is there.": "Nicht falsch, wie es ist; lohnt sich, wenn Zeit dafür ist.",
   "An app is what is built and installed as one. A line is what one app uses of another: declared in app.json, undeclared (used, but not named there), or unresolved (not found anywhere).": "Eine App ist, was als Ganzes gebaut und installiert wird. Eine Linie ist, was eine App von einer anderen verwendet: deklariert in app.json, nicht deklariert (verwendet, aber dort nicht genannt) oder nicht aufgelöst (nirgends gefunden).",
-  "Inside: how much of its coupling stays inside the component; the higher, the more it is a part of its own. Instability: 0 when others depend on it and it on nothing, 1 when it depends on others and nothing on it; what is stable should not depend on what is not.": "Intern: wie viel ihrer Kopplung in der Komponente bleibt; je höher, desto mehr ist sie ein eigener Teil. Instabilität: 0, wenn andere von ihr abhängen und sie von nichts, 1, wenn sie von anderen abhängt und nichts von ihr; was stabil ist, soll nicht von dem abhängen, was es nicht ist.",
-  "A component is a part of the system that belongs together; a layer says what may depend on what: a component depends only on components below it. These are proposed from the code, because no architecture is configured: [decide on one](changes.md) to have it checked.": "Eine Komponente ist ein Teil des Systems, der zusammengehört; eine Ebene sagt, was wovon abhängen darf: eine Komponente hängt nur von Komponenten unter ihr ab. Diese sind aus dem Code vorgeschlagen, weil keine Architektur konfiguriert ist: [lege eine fest](changes.md), damit sie geprüft wird.",
-  "A component is a part of the system that belongs together; a layer says what may depend on what: a component depends only on components below it. These are the components of `architecture` in .bca.json; `bca check` fails on a dependency they do not allow.": "Eine Komponente ist ein Teil des Systems, der zusammengehört; eine Ebene sagt, was wovon abhängen darf: eine Komponente hängt nur von Komponenten unter ihr ab. Dies sind die Komponenten von `architecture` in .bca.json; `bca check` schlägt bei einer Abhängigkeit fehl, die sie nicht erlauben.",
-  "[The system as it was](history/README.md) at earlier commits, tags, and releases, and what changed between them.": "[Das System, wie es war](history/README.md), bei früheren Commits, Tags und Releases, und was sich dazwischen geändert hat.",
-  "**How.**": "**Wie.**",
+  "A namespace is how the source itself groups its objects. A line is what the objects of one namespace use of another.": "Ein Namespace ist, wie der Quelltext selbst seine Objekte gruppiert. Eine Linie ist, was die Objekte eines Namespace von einem anderen verwenden.",
   "_Generated by BC Atlas from the AL source. Do not edit; run `bca layers` again._": "_Von BC Atlas aus dem AL-Quelltext erzeugt. Nicht bearbeiten; `bca layers` erneut ausführen._"
 };
 /** Lines of which a part comes from the source. */
 const DE_PATTERNS = [
-  [/^The source as it was at (\*\*.+\*\*) \(commit (`[^`]+`) of ([^)]+)\)\.$/u, "Der Quelltext, wie er bei $1 war (Commit $2 vom $3)."],
   [/^The graph itself is in (\[atlas\.json\]\([^)]*\)), and (\[view\.html\]\([^)]*\)) is the BC Atlas view of it: every lens, finding, and story, to look at and to click through; (\[layers\.json\]\([^)]*\)) lists what this folder holds\.$/u, "Der Graph selbst steht in $1, und $2 ist die BC-Atlas-Ansicht davon: jede Sicht, jeder Befund und jeder Rundgang, zum Ansehen und Durchklicken; $3 listet auf, was dieser Ordner enthält."],
   [/^The graph itself is in (\[atlas\.json\]\([^)]*\)); (\[layers\.json\]\([^)]*\)) lists what this folder holds\.$/u, "Der Graph selbst steht in $1; $2 listet auf, was dieser Ordner enthält."],
-  [/^\*\*Why\.\*\* /u, "**Warum.** "],
-  [/^Why and how: /u, "Warum und wie: "],
-  [/^Effort: (small|medium|large)\./u, (_, effort) => `Aufwand: ${DE_CELLS["#|Change|Kind|Effort"][effort]}.`],
-  [/^(Aufwand: \S+\.) On: /u, "$1 Betrifft: "],
-  [/^(Aufwand: .*) Source: (`[^`]+`\.)$/u, "$1 Quelle: $2"],
   [/^ {2}- Fix: /u, "  - Lösung: "],
   [/^ {2}- On: /u, "  - Betrifft: "],
   [/^ {2}- Source: /u, "  - Quelle: "]
 ];
-const LANGUAGES = { de: { headings: DE_HEADINGS, holders: DE_HOLDERS, columns: DE_COLUMNS, cells: DE_CELLS, crumbs: DE_CRUMBS, lines: DE_LINES, patterns: DE_PATTERNS, layer: "Ebene", layers: { apps: "Apps", components: "Komponenten", namespaces: "Namespaces" } } };
+const LANGUAGES = { de: { headings: DE_HEADINGS, holders: DE_HOLDERS, columns: DE_COLUMNS, cells: DE_CELLS, crumbs: DE_CRUMBS, lines: DE_LINES, patterns: DE_PATTERNS, layer: "Ebene", layers: { apps: "Apps", namespaces: "Namespaces" } } };
 
 const cellsOf = (line) => line.replace(/^\|\s?/u, "").replace(/\s?\|$/u, "").split(" | ");
 const isRule = (line) => /^\|(?: -{3}:? \|)+$/u.test(line ?? "");
@@ -339,7 +320,7 @@ function translate(text, words) {
     columns = undefined;
     if (words.lines[line]) return words.lines[line];
     if (line.startsWith("[System](") && line.includes(" › ")) {
-      return line.split(" › ").map((part) => words.crumbs[part] ?? part.replace(/^Layer (\d): (apps|components|namespaces)$/u, (_, layer, kind) => `${words.layer} ${layer}: ${words.layers[kind]}`)).join(" › ");
+      return line.split(" › ").map((part) => words.crumbs[part] ?? part.replace(/^Layer (\d): (apps|namespaces)$/u, (_, layer, kind) => `${words.layer} ${layer}: ${words.layers[kind]}`)).join(" › ");
     }
     let said = line;
     for (const [pattern, to] of words.patterns) said = said.replace(pattern, to);
@@ -410,10 +391,10 @@ function fileOf(pattern, facts) {
  * Makes the built pages the pages of the profile: leaves out, names, cuts, titles, translates, and
  * lays out, and lets every link and picture follow. A link to a page that is not written becomes its text.
  * @param files Map<path, text> as buildLayers() made it
- * @param pages Map<path, { kind, name, type?, id?, app?, component?, namespace? }>: what each Markdown page is of; kind is a kind of LAYERS_PAGE_KINDS
+ * @param pages Map<path, { kind, name, type?, id?, app?, namespace? }>: what each Markdown page is of; kind is a kind of LAYERS_PAGE_KINDS
  * @param pictures Map<path of a picture, { page, suffix }>: the page each picture belongs to
  * @param options { system }: the name of the system
- * @returns { files: Map<path, text>, fixed: { readme?, architecture?, changes?, findings? } } the paths of the pages there is one of
+ * @returns { files: Map<path, text>, fixed: { readme?, architecture?, findings? } } the paths of the pages there is one of
  */
 export function applyProfile(files, pages, pictures, profile, { system = "" } = {}) {
   const fixedOf = (to) => Object.fromEntries([...pages].filter(([file, page]) => SINGLE.has(page.kind) && to.has(file)).map(([file, page]) => [page.kind, to.get(file)]));
@@ -473,8 +454,8 @@ export function applyProfile(files, pages, pictures, profile, { system = "" } = 
         return anchors.get(hash) ? `[${label}](#${anchor(anchors.get(hash).heading)})` : label;
       }
       const source = path.posix.normalize(path.posix.join(path.posix.dirname(file), where));
-      // What is not a file of the layers (the history next to them) stays where it is.
-      const outside = source.startsWith("../") || source.startsWith("history/") || !files.has(source);
+      // What is not a file of the layers stays where it is.
+      const outside = source.startsWith("../") || !files.has(source);
       if (!outside && !to.has(source)) return image ? "" : label;
       const text = !image && called.get(source)?.[0] === label ? called.get(source)[1] : label;
       return `${image}[${text}](${relative(target, outside ? source : to.get(source))}${hash === undefined ? "" : `#${hash}`})`;
@@ -482,7 +463,7 @@ export function applyProfile(files, pages, pictures, profile, { system = "" } = 
     const made = (block) => relink(words ? translate(block, words) : block).replace(/\n{3,}/gu, "\n\n").replace(/^\n+|\n+$/gu, "");
     const heading = page.kind === "readme" ? profile.titles.README ?? parsed.title
       : FIXED_TITLES[page.kind] ? title(kind, parsed.title)
-        : words && ["app", "component", "namespace"].includes(kind) ? parsed.title.replace(/^(App|Component|Namespace) /u, (_, holder) => `${words.holders[holder]} `) : parsed.title;
+        : words && ["app", "namespace"].includes(kind) ? parsed.title.replace(/^(App|Namespace) /u, (_, holder) => `${words.holders[holder]} `) : parsed.title;
     const parts = { title: heading, summary: made(parsed.summary), plain: made(parsed.plain), picture: made(parsed.picture), footer: made(parsed.footer) };
     const bodies = new Map(sections.map((section) => [section.title, made(section.body)]));
     const whole = (section) => `## ${section.heading}${bodies.get(section.title) ? `\n\n${bodies.get(section.title)}` : ""}`;
@@ -493,7 +474,7 @@ export function applyProfile(files, pages, pictures, profile, { system = "" } = 
     }
     const placed = new Set(template.lines.flat().filter((part) => part.section !== undefined).map((part) => part.section));
     const ownPicture = template.lines.flat().some((part) => part.part === "picture");
-    const facts = { name: page.name, type: page.type, id: page.id, app: page.app, component: page.component, namespace: page.namespace, system };
+    const facts = { name: page.name, type: page.type, id: page.id, app: page.app, namespace: page.namespace, system };
     const value = ({ part, section }) => {
       if (part === "section" || part === "body") {
         const found = sections.find((candidate) => candidate.title === section);

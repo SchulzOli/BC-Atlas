@@ -2,12 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { testing } from "../src/analyzer.js";
-import { createArchitectureModel } from "../src/architecture.js";
-import { renderD2 } from "../src/d2.js";
-import { prepareScene, sceneToSvg } from "../src/diagram/index.js";
+import { loadProject } from "../src/project.js";
 import { resolveModel } from "../src/resolver.js";
-import { createView } from "../src/views.js";
-import { analyzeVisibility, LEVEL_COLORS, reachKind } from "../src/visibility.js";
+import { analyzeVisibility } from "../src/visibility.js";
 
 const multiApp = fileURLToPath(new URL("../examples/multi-app", import.meta.url));
 
@@ -113,51 +110,11 @@ test("a use is as wide as the border it crosses", async () => {
   assert.equal(use("Ledger", "Total").level, "internal", "what a trigger calls is used by its object");
   assert.ok(use("Standard Rule", "Price Rule").kinds.implements);
 
-  const { model } = await createArchitectureModel(multiApp, { view: "visibility" });
-  const crossing = model.visibility.uses.filter(({ level }) => level === "public");
+  const visibility = analyzeVisibility((await loadProject(multiApp)).project);
+  const crossing = visibility.uses.filter(({ level }) => level === "public");
   assert.ok(crossing.length > 0, "uses between the apps of a workspace are public");
   assert.ok(crossing.every(({ from, to }) => from.split("::")[0] !== to.split("::")[0]));
-  const quoteMgt = model.visibility.points.find(({ name: label, kind }) => kind === "object" && label === "CON Quote Mgt.");
+  const quoteMgt = visibility.points.find(({ name: label, kind }) => kind === "object" && label === "CON Quote Mgt.");
   assert.equal(quoteMgt.canBe, undefined, "another app uses it");
-  assert.equal(model.visibility.points.find(({ name: label }) => label === "Recalculate").canBe, undefined);
-});
-
-test("the visibility view draws objects, or every member inside its object, in the level colors", async () => {
-  const { model } = await analysis();
-  const objects = createView(model, "visibility");
-  const calculator = objects.objects.find(({ name }) => name === "Calculator");
-  assert.equal(objects.objects.length, 8);
-  assert.equal(calculator.level, "internal");
-  assert.deepEqual(calculator.notes, ["internal", "members: 3 internal, 1 local", "1 can be narrower"]);
-  assert.ok(objects.edges.every(({ kind }) => kind === reachKind("internal")), "one app: every relation between objects is internal");
-
-  const d2 = renderD2(objects, { groupBy: "namespace" });
-  assert.match(d2, new RegExp(`style.fill: "${LEVEL_COLORS.internal.fill}"`, "u"));
-  assert.match(d2, /public \(other apps\) #D55E00, internal \(this app\) #0072B2, local \(this object\) #009E73/u, "the legend names all three levels");
-  assert.match(d2, /Dashed border: the uses found need less/u);
-
-  const members = createView(model, "visibility", { expandProcedures: true });
-  const hidden = members.objects.find(({ name }) => name === "Hidden");
-  assert.equal(hidden.viewGroup, "codeunit 50101 Calculator (internal)");
-  assert.equal(hidden.level, "local");
-  assert.ok(members.objects.some(({ name, type }) => name === "Mode" && type === "enum"), "an object without members is its own data point");
-  assert.ok(members.edges.some(({ kind }) => kind === reachKind("local")));
-  const prepared = prepareScene(members, { groupBy: "namespace" }, { expand: "all" });
-  const group = prepared.scene.groups.find(({ label }) => label.startsWith("codeunit 50101"));
-  assert.equal(group.stroke, LEVEL_COLORS.internal.color, "the box of an object wears its level");
-  const svg = await sceneToSvg(prepared.scene);
-  assert.ok(svg.includes(`stroke="${LEVEL_COLORS.local.color}"`));
-
-  const focused = createView(model, "visibility", { focus: "Listener" });
-  assert.ok(["Listener", "Publisher"].every((name) => focused.objects.some((object) => object.name === name)), "what matches, and what it is connected to");
-  assert.equal(focused.objects.some(({ name }) => name === "Mode"), false);
-  assert.throws(() => createView(model, "visibility", { focus: "Nowhere" }), /did not match/u);
-});
-
-test("a path filter keeps the uses from outside it", async () => {
-  const { model } = await createArchitectureModel(`${multiApp}/core`, { view: "visibility", projectRoot: multiApp });
-  const pricing = model.visibility.points.find(({ name, kind }) => kind === "object" && name === "CON Pricing Mgt.");
-  assert.ok(pricing, "the objects of the selected folder are the data points");
-  assert.equal(model.visibility.points.some(({ name }) => name === "CON Quote Mgt."), false);
-  assert.equal(model.visibility.points.find(({ name }) => name === "Calculate").canBe, undefined, "the sales app outside the filter calls it");
+  assert.equal(visibility.points.find(({ name: label }) => label === "Recalculate").canBe, undefined);
 });

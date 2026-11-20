@@ -1,7 +1,7 @@
 {
   "name": "bc-atlas",
   "version": "0.27.0",
-  "description": "BC Atlas maps Microsoft Dynamics 365 Business Central AL projects: architecture diagrams, health checks, reports, and documentation generated from source.",
+  "description": "BC Atlas reads Microsoft Dynamics 365 Business Central AL projects and shows, checks, and documents their architecture, straight from source.",
   "homepage": "https://github.com/SchulzOli/BC-Atlas#readme",
   "bugs": {
     "url": "https://github.com/SchulzOli/BC-Atlas/issues"
@@ -46,7 +46,6 @@
   "keywords": [
     "al",
     "business-central",
-    "d2",
     "architecture",
     "dependency-graph",
     "documentation",
@@ -68,8 +67,6 @@
     "@resvg/resvg-wasm": "^2.6.2",
     "elkjs": "^0.12.1",
     "fflate": "^0.8.3",
-    "graphology": "^0.26.0",
-    "graphology-communities-louvain": "^2.0.2",
     "web-tree-sitter": "^0.27.1",
     "zod": "^4.6.7"
   },

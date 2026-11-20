@@ -3,8 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
-import { createArchitectureModel } from "../architecture.js";
-import { assessArchitecture } from "../blueprint/index.js";
+import { loadProject } from "../project.js";
 import { knowledgeGraph } from "./graph.js";
 import { KNOWLEDGE_FORMATS, serializeGraph } from "./serialize.js";
 
@@ -20,17 +19,9 @@ export { KNOWLEDGE_FORMATS };
 export async function writeKnowledgeGraph(input, values = {}) {
   const format = values.format ?? (path.extname(values.output ?? "").slice(1).toLowerCase() || "ttl");
   if (!KNOWLEDGE_FORMATS.includes(format)) throw new Error(`--view knowledge-graph writes ${KNOWLEDGE_FORMATS.join(", ")}, not ${format}`);
-  const projection = await createArchitectureModel(input, { ...values, view: "project", format: undefined });
+  const projection = await loadProject(input, { ...values, format: undefined });
   const { model } = projection;
-  // Components come from .bca.json, or with --propose from a proposal. The
-  // assessment changes the model it reads, so it gets a copy; without an
-  // architecture there is nothing to assess, which spares the Base
-  // Application that copy.
-  const architecture = Boolean(projection.options?.architecture?.components?.length) || Boolean(values.propose);
-  const assessment = architecture
-    ? await assessArchitecture(input, values, { model: structuredClone(model) }).catch(() => undefined)
-    : undefined;
-  // The format wins over the extension, as for diagrams: -o graph --format rdf writes graph.rdf.
+  // The format wins over the extension: -o graph --format rdf writes graph.rdf.
   const requested = path.resolve(values.output ?? `bc-atlas.${format}`);
   const extension = path.extname(requested).slice(1).toLowerCase();
   const file = extension === format ? requested
@@ -46,7 +37,6 @@ export async function writeKnowledgeGraph(input, values = {}) {
   try {
     triples = serializeGraph(format, knowledgeGraph({
       model,
-      assessment,
       baseIri: values.baseIri,
       evidence: !values.noEvidence,
       title: values.title ?? projection.options?.title ?? `${path.basename(path.resolve(input))} knowledge graph`,

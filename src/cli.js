@@ -21,8 +21,6 @@ function resolveCommand(capabilities, args) {
     }
     return { id, args: rest };
   }
-  // A command that also stands alone: bca architecture and bca architecture compare.
-  if (first === "architecture" && findCommand(capabilities, `${first}.${second}`)) return { id: `${first}.${second}`, args: rest };
   if (topLevel.has(first)) return { id: first, args: args.slice(1) };
   if (first && !first.startsWith("-") && existsSync(first)) {
     throw new UsageError(`"${first}" is a path, not a command; try "bca check ${first}" or "bca export ${first}", or open it in VS Code with the BC Atlas extension`);

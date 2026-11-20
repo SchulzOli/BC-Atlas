@@ -9,8 +9,6 @@ const path = require("node:path");
 const { readFileSync } = require("node:fs");
 
 const project = path.resolve(__dirname, "..", "..", "examples", "multi-app");
-// Like the engine tests: results do not depend on an installed AL toolchain.
-process.env.BCA_AL_COMPILER ??= "off";
 const manifest = JSON.parse(readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
 
 function fakeVscode() {
@@ -164,16 +162,16 @@ test("the extension analyzes the workspace and fills the editor and the panel", 
   // The first analysis fills the status bar, Problems, CodeLens, and the side bar.
   // The status bar comes first; Problems follow after one more request.
   const deadline = Date.now() + 60_000;
-  const filled = () => registered.status.text?.includes("error") && [...registered.diagnostics.keys()].some((name) => name.endsWith("ItemSync.al"));
+  const filled = () => registered.status.text?.includes("$(pass)") && [...registered.diagnostics.keys()].some((name) => name.endsWith("ItemSync.al"));
   while (!filled() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 200));
-  assert.equal(registered.status.text, "$(error) BC Atlas: 1 error");
+  assert.equal(registered.status.text, "$(pass) BC Atlas");
   const [file, problems] = [...registered.diagnostics].find(([name]) => name.endsWith("ItemSync.al"));
   assert.equal(path.dirname(file), path.join(project, "integration"));
-  assert.match(problems[0].message, /depends on 1 object\(s\) in Core/u);
+  assert.match(problems[0].message, /public procedure\(s\) without a \/\/\/ summary/u);
 
   const lenses = registered.lenses[0].provideCodeLenses({ uri: { fsPath: path.join(project, "integration", "ItemSync.al") } });
   assert.ok(lenses.length > 0);
-  assert.match(lenses.find(({ command }) => command.title.includes("against the architecture")).command.title, /\$\(warning\) used by \d+ · uses 1 · component Integration · 1 dependency against the architecture/u);
+  assert.match(lenses.at(-1).command.title, /^used by \d+ · uses 1$/u);
   // The side bar holds no list of pages: the panel is one view.
   assert.deepEqual(registered.trees[0].getChildren(), []);
 
@@ -182,19 +180,19 @@ test("the extension analyzes the workspace and fills the editor and the panel", 
   assert.match(definition.args[0], /src[\\/]mcp\.js$/u);
 
   // The panel shows the one view with a strict policy and answers its requests.
-  await registered.commands.get("bcAtlas.open")("#lens=components");
+  await registered.commands.get("bcAtlas.open")("#lens=modules");
   const panel = registered.webviews[0];
   assert.match(panel.webview.html, /Content-Security-Policy" content="default-src 'none'/u);
   assert.match(panel.webview.html, /"mode":"vscode"/u);
-  assert.match(panel.webview.html, /history\.replaceState\(null, "", "#lens=components"\)/u);
+  assert.match(panel.webview.html, /history\.replaceState\(null, "", "#lens=modules"\)/u);
   await panel.receive({ type: "request", id: 7, method: "atlas", params: {} });
   const response = panel.posted.find(({ id }) => id === 7);
-  assert.deepEqual(response.result.lenses.slice(0, 3).map(({ id }) => id), ["overview", "system", "components"]);
+  assert.deepEqual(response.result.lenses.slice(0, 3).map(({ id }) => id), ["overview", "system", "apps"]);
   assert.ok(response.result.stories.length > 0);
   await panel.receive({ type: "request", id: 8, method: "nope", params: {} });
   assert.match(panel.posted.find(({ id }) => id === 8).error, /unknown method/u);
   // What the view tells about its state needs no answer.
-  await panel.receive({ type: "state", lens: "components" });
+  await panel.receive({ type: "state", lens: "modules" });
 
   // Commands about the object at the cursor navigate the panel.
   vscode.window.activeTextEditor = {

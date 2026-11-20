@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import process from "node:process";
 
-import { createCapabilities } from "../src/capabilities.js";
+import { createCapabilities, VIEW_LENSES } from "../src/capabilities.js";
 import { ontologyFile, ontologyMarkdown } from "../src/knowledge/ontology.js";
 import { SECTIONS, WEBSITE } from "./docs-structure.js";
 
@@ -52,7 +52,7 @@ const areaSections = capabilities.areas.flatMap((area) => [
 ]);
 const exporter = capabilities.commands.find(({ id }) => id === "export");
 const exports = capabilities.exports.map(({ id, summary }) => `| \`${id}\` | ${summary} |`);
-const views = capabilities.views.map(({ id, summary }) => `| \`${id}\` | ${summary} |`);
+const lenses = VIEW_LENSES.map((id) => `- \`${id}\``);
 const formats = exporter.options.format.enum.map((format) => `- \`${format}\``);
 
 const capabilityReference = [
@@ -72,11 +72,11 @@ const capabilityReference = [
   "| --- | --- |",
   ...exports,
   "",
-  "## Diagram views",
+  "## Lenses of the view",
   "",
-  "| View | Shows |",
-  "| --- | --- |",
-  ...views,
+  "What `bca view --lens` and the view show; a lens with nothing in it does not exist for a project.",
+  "",
+  ...lenses,
   "",
   "## Export formats",
   "",

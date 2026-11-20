@@ -1,4 +1,4 @@
-import { EXPORTS, FEATURE_AREAS, VIEWS } from "../capabilities.js";
+import { EXPORTS, FEATURE_AREAS } from "../capabilities.js";
 
 const DOCS_URL = "https://github.com/SchulzOli/BC-Atlas/tree/main/docs";
 
@@ -29,17 +29,16 @@ function topLevelName(definition) {
 
 // One-line summaries for the overview; the full purpose is in each command's help.
 const SHORT = {
-  check: "Gate CI on architecture health: cycles, policies, architecture violations, diagnostics",
-  architecture: "Find a target architecture, resolve what stands in its way, and enforce it with a baseline",
-  export: "Write files: the view as one offline HTML file, report, catalog, or one diagram",
+  check: "Gate CI on health: cycles, forbidden dependencies, hot spots, diagnostics",
+  export: "Write files: the view as one offline HTML file, the report, or the knowledge graph",
   mcp: "Start the Model Context Protocol server for AI agents",
   view: "The view without a window: any lens, story, or object as text, JSON, CSV, Markdown, SVG, or PNG",
-  layers: "The documentation, in sync with the source: how it works, how it is connected, what to change and how",
+  layers: "The documentation, in sync with the source: how it works, how it is connected, down to each procedure"
 };
 
 export function overviewHelp(capabilities) {
   const lines = [
-    `BC Atlas ${capabilities.version} - architecture maps, health checks, and documentation for Business Central AL`,
+    `BC Atlas ${capabilities.version} - the architecture of Business Central AL, shown, checked, and documented`,
     "",
     "Usage",
     "  bca <command> [app-root] [options]",
@@ -47,9 +46,9 @@ export function overviewHelp(capabilities) {
     "",
     "Start here, in the folder of your repository (one app or many)",
     ...[
-      ["bca layers", "write the documentation: how it works, how the apps and components are connected, what to change and how"],
+      ["bca layers", "write the documentation: how it works, how the apps and namespaces are connected, down to each procedure"],
       ["bca layers --check", "fail when that documentation is not in sync with the source (a step for a pipeline)"],
-      ["bca view --story architecture", "what to change in the architecture, and how, in the terminal"],
+      ["bca view", "what there is to see, in the terminal: the lenses and stories of the view"],
       ["bca export", "the view as one file to open in a browser: it opens on how it works"]
     ].map(([command, does]) => `  ${command.padEnd(31)}${does}`),
     ""
@@ -69,7 +68,7 @@ export function overviewHelp(capabilities) {
   }
   lines.push(
     "What bca export writes (--view)",
-    ...aligned([...EXPORTS, ...VIEWS].map(([id, summary]) => [id, summary])),
+    ...aligned(EXPORTS.map(([id, summary]) => [id, summary])),
     "",
     "Common options",
     ...aligned([
@@ -78,7 +77,7 @@ export function overviewHelp(capabilities) {
     ]),
     "",
     "Next steps",
-    "  bca check ./app            health and architecture gate for an AL project",
+    "  bca check ./app            health gate for an AL project",
     "  bca help <command>         show options and examples for one command",
     "  bca help --format json     print the machine-readable command contract",
     "",

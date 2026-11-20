@@ -1,6 +1,6 @@
 # Namespace Contoso.Sales.Quotes
 
-[System](../README.md) › Layer 3: namespaces
+[System](../README.md) › Layer 2: namespaces
 
 The namespace Contoso.Sales.Quotes holds 4 objects (1 codeunit, 1 page, 1 permissionset, 1 table). It depends on 2 other namespaces, and 1 other namespace depends on it.
 
@@ -20,26 +20,17 @@ The namespace Contoso.Sales.Quotes holds 4 objects (1 codeunit, 1 page, 1 permis
 
 - depends on [Contoso.Integration](contoso-integration.md)
 
-## What to change here
-
-- 5. Let Sales own the writes to table 50100 CON Sales Quote (medium)
-
-Why and how: [What to change, and how](../changes.md).
-
 ## Objects
 
-| Object | Type | ID | Component | Lines | Uses | Used by | Findings |
-| --- | --- | --- | --- | ---: | ---: | ---: | --- |
-| [CON Quote Mgt.](../objects/codeunit-50100-con-quote-mgt.md) | codeunit | 50100 | Sales | 16 | 2 | 3 | 1 (info) |
-| [CON Sales Quote](../objects/page-50100-con-sales-quote.md) | page | 50100 | Sales | 32 | 2 | 1 |  |
-| [CON Sales](../objects/permissionset-50100-con-sales.md) | permissionset | 50100 | Sales | 7 | 3 | 0 |  |
-| [CON Sales Quote](../objects/table-50100-con-sales-quote.md) | table | 50100 | Sales | 17 | 1 | 4 | 1 (info) |
+| Object | Type | ID | Lines | Uses | Used by | Findings |
+| --- | --- | --- | ---: | ---: | ---: | --- |
+| [CON Quote Mgt.](../objects/codeunit-50100-con-quote-mgt.md) | codeunit | 50100 | 16 | 2 | 3 | 1 (info) |
+| [CON Sales Quote](../objects/page-50100-con-sales-quote.md) | page | 50100 | 32 | 2 | 1 |  |
+| [CON Sales](../objects/permissionset-50100-con-sales.md) | permissionset | 50100 | 7 | 3 | 0 |  |
+| [CON Sales Quote](../objects/table-50100-con-sales-quote.md) | table | 50100 | 17 | 1 | 4 |  |
 
 ## Findings
 
-- **info** `foreign-table-write`: table 50100 CON Sales Quote of Sales is written by Integration (1 object); let Sales own the writes behind a codeunit, or move the table
-  - On: [CON Sales Quote](../objects/table-50100-con-sales-quote.md)
-  - Source: `sales/Quotes.al:6`
 - **info** `undocumented-public-api`: codeunit 50100 CON Quote Mgt.: 1 public procedure(s) without a /// summary: Recalculate
   - On: [CON Quote Mgt.](../objects/codeunit-50100-con-quote-mgt.md)
   - Source: `sales/Quotes.al:26`

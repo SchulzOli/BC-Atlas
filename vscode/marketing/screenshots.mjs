@@ -51,7 +51,7 @@ try {
   await shot(path.join(root, "docs", "generated", "images", "view.png"), purchasing.file, overview, { scheme: "light" });
   await shot(path.join(screenshots, "diagram.png"), purchasing.file, { lens: "data", form: "diagram" });
   await shot(path.join(screenshots, "space.png"), purchasing.file, { lens: "system", form: "3d", check: "1" });
-  await shot(path.join(screenshots, "components.png"), multi.file, { lens: "components", form: "diagram", sel: multi.id("Integration", "component") });
+  await shot(path.join(screenshots, "apps.png"), multi.file, { lens: "apps", form: "diagram", sel: multi.id("Contoso Integration", "app") });
   await shot(path.join(screenshots, "inside.png"), purchasing.file, { inside: purchasing.id("Purchase Request Mgt."), form: "diagram" });
 } finally {
   await browser.close();

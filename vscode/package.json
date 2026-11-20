@@ -1,7 +1,7 @@
 {
   "name": "bc-atlas",
   "displayName": "BC Atlas: AL Architecture & Dependencies",
-  "description": "Business Central AL apps as one graph, read from the source: one view in 2D, as a diagram, or in 3D, clean-architecture checks with fixes, stories that document and test, health in the Problems panel, CodeLens, and an MCP server for AI agents.",
+  "description": "Business Central AL apps as one graph, read from the source: one view in 2D, as a diagram, or in 3D, health checks with fixes, stories that walk through the system, findings in the Problems panel, CodeLens, and an MCP server for AI agents.",
   "version": "0.27.0",
   "publisher": "SchulzOli",
   "license": "MIT",
@@ -37,7 +37,6 @@
     "bc",
     "navision",
     "architecture",
-    "clean architecture",
     "dependencies",
     "dependency graph",
     "3d",
@@ -94,16 +93,6 @@
         "title": "Run Health Check",
         "category": "BC Atlas",
         "icon": "$(pulse)"
-      },
-      {
-        "command": "bcAtlas.proposeArchitecture",
-        "title": "Show the Components",
-        "category": "BC Atlas"
-      },
-      {
-        "command": "bcAtlas.acceptViolations",
-        "title": "Accept Current Violations in the Baseline",
-        "category": "BC Atlas"
       },
       {
         "command": "bcAtlas.refresh",
@@ -189,16 +178,6 @@
           "group": "navigation@3"
         },
         {
-          "command": "bcAtlas.proposeArchitecture",
-          "when": "view == bcAtlas.pages",
-          "group": "more@1"
-        },
-        {
-          "command": "bcAtlas.acceptViolations",
-          "when": "view == bcAtlas.pages",
-          "group": "more@2"
-        },
-        {
           "command": "bcAtlas.generateDocs",
           "when": "view == bcAtlas.pages",
           "group": "more@3"
@@ -253,7 +232,7 @@
         "bcAtlas.problems": {
           "type": "boolean",
           "default": true,
-          "description": "Show health and architecture findings in the Problems panel."
+          "description": "Show health findings in the Problems panel."
         },
         "bcAtlas.followEditor": {
           "type": "boolean",
@@ -263,25 +242,12 @@
         "bcAtlas.codeLens": {
           "type": "boolean",
           "default": true,
-          "description": "Show how often each AL object is used, and its wrong-way dependencies, above its declaration."
+          "description": "Show how often each AL object is used, and how much it uses, above its declaration."
         },
         "bcAtlas.nodePath": {
           "type": "string",
           "default": "",
           "markdownDescription": "Node.js 22 or later to run the BC Atlas engine. Empty: the runtime built into VS Code."
-        },
-        "bcAtlas.alCompiler": {
-          "type": "string",
-          "default": "auto",
-          "markdownDescription": "Microsoft's AL compiler for BC Atlas. `auto`: the compiler of the AL Language extension, else the AL Development Tools (`al`). It resolves every call and reports compiler and code-analyzer findings, in the background after each change. `off`: BC Atlas's own source analysis only. Or a path to `alc`, `al`, or an AL extension folder."
-        },
-        "bcAtlas.alAnalyzers": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [],
-          "markdownDescription": "Code analyzers for that compile, e.g. `CodeCop`, `UICop`, `AppSourceCop`, `PerTenantExtensionCop`. Empty: `al.codeAnalyzers` when `al.enableCodeAnalysis` is on."
         }
       }
     },

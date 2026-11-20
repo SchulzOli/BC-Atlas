@@ -43,84 +43,8 @@ function finding(severity, rule, message, details = {}) {
   return { severity, rule, message, ...details };
 }
 
-// Wrong-way dependencies share one finding rule; the violation names the exact rule.
-const DIRECTION_RULES = new Set(["undeclared-component-dependency", "outward-dependency", "same-layer-dependency", "layer-skip-dependency"]);
-
-function violationMessage({ violation, count, targets }) {
-  const { source, sourceComponent, targetComponent, resolution } = violation;
-  const what = `${source.type} ${source.label} (${sourceComponent})`;
-  const fix = `${resolution.title.toLowerCase()} (${resolution.strategy})`;
-  if (violation.rule === "dependency-rule") {
-    return `${what} breaks rule "${violation.policy}": ${violation.message ?? `depends on ${targets}`}${violation.message ? ` (${targets})` : ""}`;
-  }
-  if (violation.rule === "internal-access") {
-    return `${what} uses ${count} internal object(s) of ${targetComponent} (${targets}); ${fix}`;
-  }
-  if (violation.rule === "layer-skip-dependency") {
-    return `${what} skips a layer: it depends on ${count} object(s) in ${targetComponent}; ${fix}`;
-  }
-  return `${what} depends on ${count} object(s) in ${targetComponent}; ${fix}`;
-}
-
 /**
- * Findings for the target architecture: one per work item that is not in the
- * baseline, progress notes for accepted and fixed violations, and the checks
- * of the architecture as a whole (cycles, configuration, size, stability).
- */
-function architectureFindings({ result, baseline, architecture }) {
-  const severity = architecture.severity ?? "error";
-  if (!SEVERITIES.includes(severity)) throw new Error(`architecture.severity must be one of: ${SEVERITIES.join(", ")}`);
-  const findings = [];
-  const fresh = new Set(baseline.new.map(({ id }) => id));
-  const items = new Map();
-  for (const violation of result.violations.filter(({ id }) => fresh.has(id))) {
-    const key = `${violation.source.id}|${violation.targetComponent}|${violation.rule}|${violation.policy ?? ""}`;
-    const item = items.get(key) ?? { violation, count: 0, names: [], evidence: [], limitations: [] };
-    item.count++;
-    if (item.names.length < 3) item.names.push(`${violation.target.type} ${violation.target.label}`);
-    item.evidence.push(...(violation.evidence ?? []));
-    for (const limitation of violation.limitations ?? []) {
-      if (!item.limitations.includes(limitation)) item.limitations.push(limitation);
-    }
-    items.set(key, item);
-  }
-  for (const { violation, count, names, evidence, limitations } of items.values()) {
-    const targets = `${names.join(", ")}${count > names.length ? `, +${count - names.length} more` : ""}`;
-    const rule = DIRECTION_RULES.has(violation.rule) ? "architecture-violation" : violation.rule;
-    const primaryEvidence = violation.primaryEvidence ?? evidence.find(({ file, line }) => file && line !== undefined);
-    findings.push(finding(violation.severity ?? severity, rule, violationMessage({ violation, count, targets }), {
-      file: primaryEvidence?.file ?? violation.source.file,
-      line: primaryEvidence?.line ?? violation.source.line,
-      strategy: violation.resolution.strategy,
-      resolution: violation.resolution,
-      violation: violation.rule,
-      ...(violation.policy ? { policy: violation.policy } : {}),
-      component: violation.sourceComponent,
-      targetComponent: violation.targetComponent,
-      basis: violation.basis,
-      architectureOrigin: violation.architectureOrigin,
-      primaryEvidence,
-      evidence,
-      limitations
-    }));
-  }
-  if (baseline.known.length) {
-    findings.push(finding("info", "architecture-baseline", `${baseline.known.length} accepted architecture violation(s) remain in the baseline`));
-  }
-  if (baseline.fixed.length) {
-    findings.push(finding("info", "architecture-progress",
-      `${baseline.fixed.length} accepted architecture violation(s) are fixed; run "bca architecture --update-baseline" to lock in the progress`));
-  }
-  for (const { rule, severity: level, message, component, file, line, basis, architectureOrigin, evidence, limitations } of result.checks ?? []) {
-    findings.push(finding(level, rule, message, Object.fromEntries(Object.entries({
-      component, file, line, basis, architectureOrigin, evidence, limitations
-    }).filter(([, value]) => value !== undefined))));
-  }
-  return findings;
-}
-
-/**
- * Builds a health report for a project-view architecture model.
+ * Builds a health report for the model of a project (src/project.js).
  * Thresholds come from CLI options or the `check` section of .bca.json.
  */
 export function assessHealth(model, settings = {}) {
@@ -138,18 +62,15 @@ export function assessHealth(model, settings = {}) {
   const internal = new Set(objects.map(({ key }) => key));
   const findings = [];
 
-  // BC Atlas's own info diagnostics are noise; the AL compiler's are findings.
-  for (const diagnostic of model.diagnostics.filter(({ severity, origin }) => severity !== "info" || origin === "al")) {
-    const al = diagnostic.origin === "al";
-    findings.push(finding(al ? diagnostic.severity : diagnostic.severity === "error" ? "error" : "warning", diagnostic.code,
-      al ? `${diagnostic.code}: ${diagnostic.message}` : diagnostic.message, Object.fromEntries(Object.entries({
+  // Info diagnostics are noise in a health report.
+  for (const diagnostic of model.diagnostics.filter(({ severity }) => severity !== "info")) {
+    findings.push(finding(diagnostic.severity === "error" ? "error" : "warning", diagnostic.code,
+      diagnostic.message, Object.fromEntries(Object.entries({
         file: diagnostic.file,
         line: diagnostic.line,
         column: diagnostic.column,
         endLine: diagnostic.endLine,
-        endColumn: diagnostic.endColumn,
-        helpLink: diagnostic.helpLink,
-        origin: diagnostic.origin
+        endColumn: diagnostic.endColumn
       }).filter(([, value]) => value !== undefined))));
   }
 
@@ -191,7 +112,6 @@ export function assessHealth(model, settings = {}) {
       { targets }));
   }
 
-  if (settings.architecture) findings.push(...architectureFindings(settings.architecture, model));
   findings.push(...analyzeContractFallbacks(model, settings.contractExpectations));
   const contextResponsibilities = analyzeContextResponsibilities(model, settings.contexts);
   findings.push(...contextResponsibilities.findings);
@@ -231,8 +151,7 @@ export function assessHealth(model, settings = {}) {
       unresolved: unresolved.length,
       cycles: model.insights?.cycles?.length ?? 0,
       objectsByType: countBy(objects, ({ type }) => type),
-      relationshipsByKind: countBy(model.edges, ({ kind }) => kind),
-      ...(model.al ? { compiler: compilerSummary(model.al) } : {})
+      relationshipsByKind: countBy(model.edges, ({ kind }) => kind)
     },
     counts,
     hubs,
@@ -247,18 +166,6 @@ function list(counts) {
 
 function appLine(summary) {
   return summary.apps.map(({ name, version }) => version ? `${name} ${version}` : name).join(", ") || "AL project";
-}
-
-function compilerSummary(al) {
-  return Object.fromEntries(Object.entries({
-    tool: al.description,
-    projects: al.projects?.length,
-    failedProjects: al.projects?.filter(({ succeeded }) => !succeeded).map(({ name }) => name),
-    diagnostics: al.diagnostics,
-    imported: al.imported || undefined,
-    resolvedCalls: al.calls?.resolved,
-    builtinCalls: al.calls?.builtin
-  }).filter(([, value]) => value !== undefined));
 }
 
 const MAX_DISPLAY_EVIDENCE = 5;
@@ -305,20 +212,6 @@ function evidenceSummary(item, { markdown = false } = {}) {
   ];
 }
 
-/** One line on what the AL toolchain contributed, for text and Markdown reports. */
-export function compilerLine(compiler) {
-  if (!compiler) return undefined;
-  const parts = [];
-  if (compiler.tool) {
-    const failed = compiler.failedProjects?.length ? `, ${compiler.failedProjects.length} with errors` : "";
-    parts.push(`${compiler.tool}: ${compiler.projects} project(s) compiled${failed}`);
-  }
-  if (compiler.resolvedCalls !== undefined) parts.push(`${compiler.resolvedCalls} call(s) resolved by the compiler`);
-  if (compiler.imported) parts.push("diagnostics imported from an error log");
-  parts.push(`${compiler.diagnostics} compiler diagnostic(s)`);
-  return parts.join("; ");
-}
-
 export function healthResultLine(report) {
   const { counts } = report;
   return `Result: ${report.passed ? "PASSED" : "FAILED"} - ${counts.error} error(s), ${counts.warning} warning(s), ${counts.info} info (fail on: ${report.failOn})`;
@@ -335,7 +228,6 @@ export function formatHealthText(report, { limit = 50 } = {}) {
     `  Relationships  ${summary.relationships} (${list(summary.relationshipsByKind)})`,
     `  Unresolved     ${summary.unresolved}`,
     `  Cycles         ${summary.cycles}`,
-    ...(summary.compiler ? [`  AL compiler    ${compilerLine(summary.compiler)}`] : []),
     ""
   ];
   if (report.hubs.length) {
@@ -349,7 +241,7 @@ export function formatHealthText(report, { limit = 50 } = {}) {
   for (const item of report.findings.slice(0, limit)) {
     const location = item.file ? ` (${item.file}${item.line ? `:${item.line}` : ""})` : "";
     const metadata = item.basis
-      ? ` [basis: ${item.basis}${item.architectureOrigin ? `; architecture origin: ${item.architectureOrigin}` : ""}]`
+      ? ` [basis: ${item.basis}]`
       : "";
     lines.push(`  ${labels[item.severity]}  ${item.message}${location}${metadata}`);
     for (const detail of evidenceSummary(item)) lines.push(`      ${detail}`);
@@ -381,7 +273,6 @@ export function formatHealthMarkdown(report, { heading = "## Architecture health
     `| Relationships | ${summary.relationships} |`,
     `| Unresolved references | ${summary.unresolved} |`,
     `| Dependency cycles | ${summary.cycles} |`,
-    ...(summary.compiler ? [`| AL compiler | ${escapeCell(compilerLine(summary.compiler))} |`] : []),
     ""
   ];
   if (Object.keys(summary.objectsByType).length) {
@@ -399,7 +290,7 @@ export function formatHealthMarkdown(report, { heading = "## Architecture health
     for (const item of report.findings.slice(0, limit)) {
       const location = item.file ? ` (\`${escapeCell(`${item.file}${item.line ? `:${item.line}` : ""}`)}\`)` : "";
       const metadata = item.basis
-        ? `<br>Basis: \`${item.basis}\`${item.architectureOrigin ? `; architecture origin: \`${item.architectureOrigin}\`` : ""}`
+        ? `<br>Basis: \`${item.basis}\``
         : "";
       const evidence = evidenceSummary(item, { markdown: true }).join("<br>");
       lines.push(`| ${icon[item.severity]} | \`${item.rule}\` | ${escapeCell(item.message)}${location}${metadata} | ${evidence} |`);

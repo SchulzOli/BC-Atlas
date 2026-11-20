@@ -403,22 +403,5 @@ code { font-family: var(--mono); font-size: 0.92em; padding: 1px 4px; border-rad
 @media print {
   #bar, #zoom, #popover, #toast { display: none; }
 }
-/* The Architecture menu: goals with their scores, current against target, and why. */
-#popover .compare { width: calc(100% - 16px); margin-left: 8px; border-collapse: collapse; font-size: 12.5px; margin: 4px 0 8px; }
-#popover .compare th { text-align: left; font-weight: 600; color: var(--muted); padding: 2px 6px 2px 0; }
-#popover .compare td { padding: 2px 6px 2px 0; vertical-align: middle; }
-#popover .compare td.up { color: #0f766e; font-weight: 600; }
-#popover .compare td.down { color: #c0392b; font-weight: 600; }
-#popover .meter { display: inline-block; width: 90px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; vertical-align: middle; }
-#popover .meter i { display: block; height: 100%; background: var(--accent); }
-#popover .weights { padding: 0 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin: 4px 0 8px; }
-#popover .weights label { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12.5px; }
-#popover .weights input { width: 48px; height: 24px; padding: 0 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; }
-#popover .steps { margin: 4px 0 8px; padding-left: 18px; font-size: 12.5px; }
-#popover .steps p { margin: 2px 0 4px; color: var(--muted); }
-#popover .command { display: block; width: 100%; margin: 2px 0; padding: 3px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: 11.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-#popover .command:hover { background: var(--hover); }
-#inspector .why { margin: 4px 0 8px; padding-left: 18px; font-size: 12.5px; }
-#inspector .why li { margin: 2px 0; }
 /* As an MCP App the view is a frame inside a chat: it says how tall it wants to be. */
 html[data-host="mcp"], html[data-host="mcp"] body { height: 760px; min-height: 760px; }

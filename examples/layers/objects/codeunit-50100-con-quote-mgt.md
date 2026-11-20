@@ -1,15 +1,14 @@
 # codeunit 50100 CON Quote Mgt.
 
-[System](../README.md) › [Contoso Sales](../apps/contoso-sales.md) › [Sales](../components/sales.md) › [Contoso.Sales.Quotes](../namespaces/contoso-sales-quotes.md)
+[System](../README.md) › [Contoso Sales](../apps/contoso-sales.md) › [Contoso.Sales.Quotes](../namespaces/contoso-sales-quotes.md)
 
-The codeunit CON Quote Mgt. of the app Contoso Sales, in the component Sales, has 2 members in 16 lines. It calls, subscribes, uses, writes 2 other objects, and 3 objects use it.
+The codeunit CON Quote Mgt. of the app Contoso Sales has 2 members in 16 lines. It calls, subscribes, uses, writes 2 other objects, and 3 objects use it.
 
 | Fact | Value |
 | --- | --- |
 | Type | codeunit |
 | ID | 50100 |
 | App | Contoso Sales |
-| Component | Sales |
 | Namespace | Contoso.Sales.Quotes |
 | Visibility | public |
 | Lines | 16 |
@@ -23,7 +22,7 @@ The codeunit CON Quote Mgt. of the app Contoso Sales, in the component Sales, ha
 
 ## Inside
 
-Layer 5: its procedures, triggers, and events, and what each of them does.
+Layer 4: its procedures, triggers, and events, and what each of them does.
 
 | Member | Kind | Lines | Complexity | Does |
 | --- | --- | ---: | ---: | --- |

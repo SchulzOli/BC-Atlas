@@ -1,39 +1,28 @@
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createArchitectureModel } from "../architecture.js";
+import { loadProject } from "../project.js";
 import { CheckFailedError } from "../cli/errors.js";
 import { displayPath } from "../output.js";
 import { assessHealth, formatHealthMarkdown, formatHealthText, healthResultLine } from "../health.js";
-import { assessArchitecture } from "../blueprint/index.js";
 import { renderSarif } from "../sarif.js";
 
+/**
+ * Reads a project and assesses its health.
+ * @returns { loaded, report }: what src/project.js read, and the health report
+ */
 export async function runHealthCheck(input, values = {}, context = {}) {
   // Strict mode becomes a fail threshold so the report is still produced.
-  const cache = context.cache ?? new Map();
-  const architecture = await createArchitectureModel(input, { ...values, view: "project", strict: false }, { ...context, cache });
-  const settings = { ...(architecture.options.check ?? {}) };
+  const loaded = await loadProject(input, { ...values, strict: false }, context);
+  const settings = { ...(loaded.options.check ?? {}) };
   if (values.strict) settings.failOn = "warning";
   for (const name of ["failOn", "maxFanIn", "maxFanOut"]) {
     if (values[name] !== undefined) settings[name] = values[name];
   }
-  // The target architecture from .bca.json is part of the health check.
-  let blueprint;
-  if (architecture.options.architecture?.components?.length) {
-    const model = structuredClone(cache.get(architecture.options.projectRoot));
-    blueprint = await assessArchitecture(input, { ...values, propose: false }, { model });
-    settings.architecture = blueprint;
-  }
-  const report = assessHealth(architecture.model, settings);
-  return { architecture, blueprint, report };
+  return { loaded, report: assessHealth(loaded.model, settings) };
 }
 
 const VERSION = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
-
-/** Progress of the AL compile on stderr, for people at a terminal only. */
-export function terminalProgress() {
-  return process.stderr.isTTY ? (message) => console.error(`${message} ...`) : undefined;
-}
 
 export function renderHealth(report, format, { root, fallbackFile } = {}) {
   if (format === "json") return `${JSON.stringify(report, null, 2)}\n`;
@@ -43,8 +32,8 @@ export function renderHealth(report, format, { root, fallbackFile } = {}) {
 }
 
 export async function checkCommand(input, values) {
-  const { report, architecture } = await runHealthCheck(input, values, { onProgress: terminalProgress() });
-  const { model, options } = architecture;
+  const { report, loaded } = await runHealthCheck(input, values);
+  const { model, options } = loaded;
   const content = renderHealth(report, values.format ?? "text", {
     root: options.projectRoot,
     fallbackFile: model.apps?.[0]?.path ?? "app.json"
@@ -58,5 +47,5 @@ export async function checkCommand(input, values) {
   } else {
     process.stdout.write(content);
   }
-  if (!report.passed) throw new CheckFailedError("architecture health check failed");
+  if (!report.passed) throw new CheckFailedError("health check failed");
 }

@@ -1,30 +1,19 @@
 // One analyzed AL project, shared by the VS Code extension (worker.js) and its
 // static export. The one view reads from here (atlas.js), so the app,
-// `bca check`, `bca architecture`, and `bca export` always show the same.
-import { compareLevels } from "../blueprint/compare.js";
-import { removeTemplate, saveTemplate, useTemplate } from "../blueprint/templates.js";
-import { compareForView } from "./architecture.js";
+// `bca check`, `bca layers`, and `bca export` always show the same.
 import { readFileSync } from "node:fs";
-import fs from "node:fs/promises";
 import path from "node:path";
-import { assessArchitecture } from "../blueprint/index.js";
-import { writeBaseline } from "../blueprint/baseline.js";
-import { architectureJson } from "../blueprint/report.js";
-import { dependencyMatrix } from "../blueprint/drilldown.js";
-import { planExtraction } from "../blueprint/extract.js";
 import { runHealthCheck } from "../commands/check.js";
-import { writeArchitectureConfig } from "../commands/blueprint.js";
 import { findGitRoot } from "../git.js";
 import { findUiTests, loadCorpus } from "../docs/model.js";
 import { openParseCache } from "../parse-cache.js";
-import { explainPlacement, placementIndex } from "../blueprint/explain.js";
-import { proposalSettings } from "../blueprint/settings.js";
+import { projectLevels } from "../project.js";
 import { commonSources, createAtlas, createInside, sourceUrl } from "./atlas.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
 // Options that select what is analyzed; every page shares them.
-const SHARED = ["projectRoot", "config", "namespace", "type", "include", "exclude", "paths", "compiler", "compilerLog", "analyzers", "alSettings", "alEditorSettings", "alExtensionPath"];
+const SHARED = ["projectRoot", "config", "namespace", "type", "include", "exclude", "paths", "alSettings", "alEditorSettings"];
 
 const MAX_EVIDENCE = 3;
 
@@ -37,14 +26,11 @@ export class Workspace {
    * @param input app or workspace folder (the focus when projectRoot is set)
    * @param values the shared CLI options: projectRoot, config, filters, paths
    * @param live whether the files on disk can be opened and changed
-   * @param onAlUpdate called when the AL compiler finished in the background
-   *   with new results (editors); without it, analysis waits for the compiler
    */
-  constructor(input, values = {}, { live = true, onAlUpdate } = {}) {
+  constructor(input, values = {}, { live = true } = {}) {
     this.input = path.resolve(input);
     this.values = pick(values, SHARED);
     this.live = live;
-    this.onAlUpdate = onAlUpdate;
     this.generation = 0;
     this.reset();
   }
@@ -59,7 +45,6 @@ export class Workspace {
 
   /** Forgets every result; the next request analyzes the source again. */
   reset() {
-    this.cache = new Map();
     this.memo = new Map();
     this.generation++;
     this.updatedAt = new Date().toISOString();
@@ -80,42 +65,34 @@ export class Workspace {
 
   health() {
     return this.remember("health", async () => {
-      const cache = this.cache;
       const parseCache = await this.parseCache();
-      const result = await runHealthCheck(this.input, this.values, { cache, parseCache, onAlUpdate: this.onAlUpdate });
+      const result = await runHealthCheck(this.input, this.values, { parseCache });
       // Written in the background; a failed write only costs the next start a parse.
       this.saving = parseCache.save().catch(() => false);
-      return { ...result, cache };
+      return result;
     });
   }
 
-  /** The resolved model behind every page (one parse per generation). */
+  /**
+   * Everything that was read (one parse per generation): the model, the
+   * merged options, and what is selected.
+   */
   async model() {
-    const { architecture, cache } = await this.health();
-    return { model: cache.get(architecture.options.projectRoot), options: architecture.options };
+    const { loaded } = await this.health();
+    return { model: loaded.project, options: loaded.options, context: loaded.context };
+  }
+
+  /** What depends on what, at the level of objects, namespaces, and apps. */
+  levels() {
+    return this.remember("levels", async () => projectLevels((await this.health()).loaded));
   }
 
   async projectRoot() {
     return (await this.model()).options.projectRoot;
   }
 
-  /** The configured architecture, or a proposal when there is none or `propose` is set. */
-  assessment({ propose = false, groupBy, depth, minObjects, startFrom, ignore, granularity, sharedCore } = {}) {
-    // Unset values fall back to architecture.proposal in .bca.json, then the defaults.
-    const settings = { propose: Boolean(propose), groupBy: groupBy || undefined, depth: depth || undefined, minObjects: minObjects || undefined, startFrom, ignore, granularity, sharedCore };
-    return this.remember(`architecture:${JSON.stringify(settings)}`, async () => {
-      // A path selection needs its own parse; otherwise reuse the shared one
-      // as it is: the architecture pages only read it (a test freezes it).
-      const reuse = this.values.paths?.length ? undefined : (await this.model()).model;
-      return assessArchitecture(this.input, { ...this.values, ...settings }, { model: reuse });
-    });
-  }
-
   async overview() {
-    const [{ report }, assessment, docs] = await Promise.all([this.health(), this.assessment(), this.docs()]);
-    const { options } = await this.model();
-    const { summary } = assessment.result;
-    const layers = new Set(assessment.result.components.map(({ layer }) => layer).filter((layer) => layer !== undefined)).size;
+    const [{ report }, docs, { model, options, context }] = await Promise.all([this.health(), this.docs(), this.model()]);
     return {
       title: options.title?.replace(/ architecture$/u, "") ?? (report.summary.apps.length === 1 ? report.summary.apps[0].name : path.basename(this.input)),
       root: this.input,
@@ -126,20 +103,10 @@ export class Workspace {
       updatedAt: this.updatedAt,
       summary: report.summary,
       health: { passed: report.passed, failOn: report.failOn, counts: report.counts, findings: report.findings.slice(0, 6), hubs: report.hubs },
-      architecture: {
-        mode: assessment.proposal ? "proposal" : "configured",
-        components: summary.components,
-        layers,
-        violations: summary.violations,
-        workItems: summary.workItems,
-        extractable: summary.extractable,
-        cycles: summary.cycles,
-        baseline: { new: assessment.baseline.new.length, known: assessment.baseline.known.length, fixed: assessment.baseline.fixed.length }
-      },
       docs: { scenarios: docs?.scenarios ?? 0, path: docs?.path },
       // What every page is read from.
-      sources: commonSources({ model: (await this.model()).model, assessment }),
-      config: assessment.context.config.path ? path.relative(this.input, assessment.context.config.path).replaceAll("\\", "/") || ".bca.json" : undefined
+      sources: commonSources({ model, context }),
+      config: context.config.path ? path.relative(this.input, context.config.path).replaceAll("\\", "/") || ".bca.json" : undefined
     };
   }
 
@@ -151,134 +118,10 @@ export class Workspace {
     };
   }
 
-  /** The architecture page: the assessment without the per-dependency list. */
-  async architecture(settings = {}) {
-    const assessment = await this.assessment(settings);
-    const { violations, unassigned, ...json } = architectureJson(assessment);
-    return {
-      ...json,
-      configured: Boolean(assessment.context.options.architecture?.components?.length),
-      // Where dependencies should be (the rules) and where they are (object links).
-      matrix: dependencyMatrix(assessment),
-      unassigned: unassigned.slice(0, 200),
-      workItems: json.workItems.map((item) => ({ ...item, evidence: item.evidence.slice(0, MAX_EVIDENCE) })),
-      violationCount: violations.length,
-      // One extraction plan per component; components without objects of their own have none.
-      extractions: Object.fromEntries(assessment.result.components.flatMap(({ name }) => {
-        try {
-          return [[name, planExtraction(assessment, name)]];
-        } catch {
-          return [];
-        }
-      }))
-    };
-  }
-
-  /**
-   * The architecture as it is next to the one it should be, on the analysis that is there.
-   * @param values { from, to, template, weights, size } and the settings of the proposal
-   */
-  async compareArchitecture(values = {}) {
-    const assessment = await this.assessment();
-    return compareForView(compareLevels(assessment.levels, { root: assessment.context.projectRoot, architecture: assessment.context.options.architecture ?? {}, values }));
-  }
-
-  /** Makes the target of a comparison the architecture of the project. */
-  async adoptTarget(values = {}) {
-    const assessment = await this.assessment();
-    const result = compareLevels(assessment.levels, { root: assessment.context.projectRoot, architecture: assessment.context.options.architecture ?? {}, values: { ...values, limit: 0 } });
-    const file = assessment.context.config.path ?? path.join(assessment.context.projectRoot, ".bca.json");
-    let config = {};
-    try {
-      config = JSON.parse(await fs.readFile(file, "utf8"));
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
-    config.architecture = { ...(config.architecture ?? {}), ...result.sides.target.architecture };
-    await fs.writeFile(file, `${JSON.stringify(config, null, 2)}\n`);
-    this.reset();
-    return { file, components: result.target.components.length };
-  }
-
-  /**
-   * The templates of the project: take one into use, save the settings as a new one, or remove one.
-   * @param params { action: "use" | "save" | "remove", name, title, summary, values: { template, weights, size, ... } }
-   */
-  async architectureTemplate({ action, name, title, summary, values = {} } = {}) {
-    const assessment = await this.assessment();
-    const root = assessment.context.projectRoot;
-    const config = assessment.context.config.path;
-    const result = action === "save" ? await saveTemplate(root, { name, title, summary, values, use: true, config })
-      : action === "remove" ? await removeTemplate(root, { name, config })
-        : await useTemplate(root, { name: name || undefined, config });
-    this.reset();
-    return { name: result.name, file: result.templateFile ?? result.file, written: result.written };
-  }
-
-  /** Saves a proposal as the configured architecture (and optionally accepts today's violations). */
-  async adoptArchitecture(settings = {}, { updateBaseline = true } = {}) {
-    const assessment = await this.assessment({ ...settings, propose: true });
-    const file = await writeArchitectureConfig(assessment);
-    if (updateBaseline) await writeBaseline(assessment.context.baselineFile, assessment.result.violations);
-    this.reset();
-    return { file, accepted: updateBaseline ? assessment.result.violations.length : 0 };
-  }
-
-  /**
-   * Changes what the proposal takes into account, in architecture.proposal of
-   * .bca.json: keep a component as it is (or release it), exclude an object
-   * from shaping components (or include it again).
-   * @param change { keep: { name, match, description }, release: name, exclude: selector, include: selector }
-   */
-  async updateProposal(change = {}) {
-    const assessment = await this.assessment();
-    const file = assessment.context.config.path ?? path.join(assessment.context.projectRoot, ".bca.json");
-    let config = {};
-    try {
-      config = JSON.parse(await fs.readFile(file, "utf8"));
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
-    const proposal = { ...(config.architecture?.proposal ?? {}) };
-    const keep = [...(proposal.keep ?? [])];
-    const exclude = [proposal.exclude ?? []].flat();
-    if (change.keep) {
-      if (!change.keep.name || ![change.keep.match].flat().filter(Boolean).length) throw new Error("keep needs a name and match selectors");
-      const index = keep.findIndex(({ name }) => name === change.keep.name);
-      const entry = { name: change.keep.name, match: [change.keep.match].flat(), ...(change.keep.description ? { description: change.keep.description } : {}) };
-      if (index >= 0) keep[index] = entry;
-      else keep.push(entry);
-    }
-    if (change.release) keep.splice(0, keep.length, ...keep.filter(({ name }) => name !== change.release));
-    if (change.exclude && !exclude.includes(change.exclude)) exclude.push(change.exclude);
-    if (change.include) exclude.splice(0, exclude.length, ...exclude.filter((selector) => selector !== change.include));
-    if (keep.length) proposal.keep = keep;
-    else delete proposal.keep;
-    if (exclude.length) proposal.exclude = exclude;
-    else delete proposal.exclude;
-    // Fails before anything is written when the result is not valid.
-    proposalSettings({ ...(config.architecture ?? {}), proposal });
-    config.architecture = { ...(config.architecture ?? {}), proposal };
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(file, `${JSON.stringify(config, null, 2)}\n`);
-    this.reset();
-    return { file, keep: keep.map(({ name }) => name), exclude };
-  }
-
-  async updateBaseline() {
-    const assessment = await this.assessment();
-    if (assessment.proposal) throw new Error("no architecture is configured yet; adopt a proposal first");
-    await writeBaseline(assessment.context.baselineFile, assessment.result.violations);
-    this.reset();
-    return { file: assessment.context.baselineFile, accepted: assessment.result.violations.length };
-  }
-
-  /** Every object with its links, component, and violations, keyed by graph node ID. */
+  /** Every object with its links, keyed by graph node ID. */
   objectIndex() {
     return this.remember("objects", async () => {
-      const [{ model, options }, assessment] = await Promise.all([this.model(), this.assessment()]);
-      const { levels, result } = assessment;
-      let placements;
+      const [{ model, options }, levels] = await Promise.all([this.model(), this.levels()]);
       const raw = new Map(model.objects.map((object) => [object.key, object]));
       const nodes = new Map(levels.object.nodes.map((node) => [node.id, node]));
       const links = new Map([...nodes.keys()].map((id) => [id, { uses: [], usedBy: [] }]));
@@ -286,12 +129,6 @@ export class Workspace {
         const link = { kinds: edge.kinds, weight: edge.weight, dependency: edge.dependency, evidence: (edge.evidence ?? []).slice(0, MAX_EVIDENCE) };
         links.get(edge.source)?.uses.push({ ...link, id: edge.target });
         links.get(edge.target)?.usedBy.push({ ...link, id: edge.source });
-      }
-      const violations = new Map();
-      for (const violation of result.violations) {
-        const list = violations.get(violation.source.id) ?? [];
-        list.push(violation);
-        violations.set(violation.source.id, list);
       }
       // Findings and the model may differ in path separators on Windows.
       const posix = (file) => file?.replaceAll("\\", "/");
@@ -312,10 +149,8 @@ export class Workspace {
         file: node.file,
         line: node.line,
         origin: node.origin,
-        component: result.assignment.get(node.id),
         uses: links.get(node.id).uses.length,
-        usedBy: links.get(node.id).usedBy.length,
-        violations: violations.get(node.id)?.length ?? 0
+        usedBy: links.get(node.id).usedBy.length
       });
       const list = [...nodes.values()].filter(({ origin }) => origin === "workspace").map(summary);
       const detail = (id) => {
@@ -329,14 +164,8 @@ export class Workspace {
           ...summary(node),
           uses: links.get(id).uses.map(describe).sort((a, b) => b.weight - a.weight),
           usedBy: links.get(id).usedBy.map(describe).sort((a, b) => b.weight - a.weight),
-          violations: (violations.get(id) ?? []).map(({ rule, target, targetComponent, kinds, resolution, evidence }) => ({
-            rule, target, targetComponent, kinds, evidence: evidence.slice(0, MAX_EVIDENCE),
-            resolution: { strategy: resolution.strategy, title: resolution.title, effort: resolution.effort, steps: resolution.steps }
-          })),
           properties: (object?.properties ?? []).map(({ name, value }) => ({ name, value })),
           metadata: object?.metadata,
-          // Why it is in its component: the selector and its coupling to each component.
-          placement: explainPlacement(assessment, id, (placements ??= placementIndex(assessment))),
           members: object ? {
             fields: members(object.fields, ({ name, number, type, kind }) => ({ name, number, type, kind })),
             keys: members(object.keys, (key) => ({ name: key.name, fields: key.fields })),

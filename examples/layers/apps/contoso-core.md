@@ -12,10 +12,6 @@ The app Contoso Core holds 6 objects (2 codeunits, 2 tables, 1 interface, 1 page
 
 ![Contoso Core](contoso-core.svg)
 
-## Components
-
-[Core](../components/core.md)
-
 ## Namespaces
 
 [Contoso.Core.Items](../namespaces/contoso-core-items.md), [Contoso.Core.Pricing](../namespaces/contoso-core-pricing.md)
@@ -25,15 +21,6 @@ The app Contoso Core holds 6 objects (2 codeunits, 2 tables, 1 interface, 1 page
 - declared [Contoso Sales](contoso-sales.md)
 - undeclared [Contoso Integration](contoso-integration.md)
 
-## What to change here
-
-- 1. Declare that Contoso Integration depends on Contoso Core (small)
-- 3. CON Item Sync: declare the dependency; it points inward (small)
-- 4. Let Core own the writes to table 50000 CON Item (medium)
-- 6. Make 1 object of Core internal (small)
-
-Why and how: [What to change, and how](../changes.md).
-
 ## Objects
 
 | Object | Type | ID | Namespace | Lines | Uses | Used by | Findings |
@@ -42,14 +29,11 @@ Why and how: [What to change, and how](../changes.md).
 | [CON Pricing Mgt.](../objects/codeunit-50011-con-pricing-mgt.md) | codeunit | 50011 | Contoso.Core.Pricing | 17 | 1 | 1 | 1 (info) |
 | [CON Price Calculation](../objects/interface-con-price-calculation.md) | interface |  | Contoso.Core.Pricing | 4 | 0 | 1 | 1 (info) |
 | [CON Item Card](../objects/page-50000-con-item-card.md) | page | 50000 | Contoso.Core.Items | 14 | 1 | 0 |  |
-| [CON Item](../objects/table-50000-con-item.md) | table | 50000 | Contoso.Core.Items | 17 | 1 | 4 | 1 (info) |
+| [CON Item](../objects/table-50000-con-item.md) | table | 50000 | Contoso.Core.Items | 17 | 1 | 4 |  |
 | [CON Price Group](../objects/table-50001-con-price-group.md) | table | 50001 | Contoso.Core.Items | 15 | 0 | 2 |  |
 
 ## Findings
 
-- **info** `foreign-table-write`: table 50000 CON Item of Core is written by Integration (1 object); let Core own the writes behind a codeunit, or move the table
-  - On: [CON Item](../objects/table-50000-con-item.md)
-  - Source: `core/Items.al:3`
 - **info** `undocumented-public-api`: codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice
   - On: [CON Standard Pricing](../objects/codeunit-50010-con-standard-pricing.md)
   - Source: `core/Pricing.al:12`

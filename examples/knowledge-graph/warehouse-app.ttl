@@ -24,11 +24,6 @@ bca:Namespace a owl:Class ;
     rdfs:comment "A namespace declared by AL objects." ;
     rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
 
-bca:Component a owl:Class ;
-    rdfs:label "Architecture component" ;
-    rdfs:comment "A component of the target architecture in .bca.json, or of a proposal." ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
 bca:Object a owl:Class ;
     rdfs:label "AL object" ;
     rdfs:comment "An application object such as a table, page, or codeunit." ;
@@ -76,11 +71,6 @@ bca:EventPublisher a owl:Class ;
 bca:Relation a owl:Class ;
     rdfs:label "Relation" ;
     rdfs:comment "One relation found in the source, with its kind, confidence, and location (a qualified form of the direct relation property)." ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
-bca:ArchitectureViolation a owl:Class ;
-    rdfs:label "Architecture violation" ;
-    rdfs:comment "A dependency between two objects that points against the architecture." ;
     rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
 
 bca:Table a owl:Class ;
@@ -192,32 +182,11 @@ bca:inNamespace a owl:ObjectProperty ;
     rdfs:comment "The namespace of the object." ;
     rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
 
-bca:inComponent a owl:ObjectProperty ;
-    rdfs:label "in component" ;
-    rdfs:domain bca:Object ;
-    rdfs:range bca:Component ;
-    rdfs:comment "The architecture component the object belongs to." ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
 bca:dependsOnApp a owl:ObjectProperty ;
     rdfs:label "depends on app" ;
     rdfs:domain bca:App ;
     rdfs:range bca:App ;
     rdfs:comment "A dependency declared in app.json." ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
-bca:mayDependOn a owl:ObjectProperty ;
-    rdfs:label "may depend on" ;
-    rdfs:domain bca:Component ;
-    rdfs:range bca:Component ;
-    rdfs:comment "A dependency the architecture allows." ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
-bca:dependsOnComponent a owl:ObjectProperty ;
-    rdfs:label "depends on component" ;
-    rdfs:domain bca:Component ;
-    rdfs:range bca:Component ;
-    rdfs:comment "A dependency between components that the source has today." ;
     rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
 
 bca:hasField a owl:ObjectProperty ;
@@ -262,30 +231,6 @@ bca:relationTarget a owl:ObjectProperty ;
     rdfs:label "relation target" ;
     rdfs:domain bca:Relation ;
     rdfs:range bca:Object ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
-bca:violationSource a owl:ObjectProperty ;
-    rdfs:label "violation source" ;
-    rdfs:domain bca:ArchitectureViolation ;
-    rdfs:range bca:Object ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
-bca:violationTarget a owl:ObjectProperty ;
-    rdfs:label "violation target" ;
-    rdfs:domain bca:ArchitectureViolation ;
-    rdfs:range bca:Object ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
-bca:sourceComponent a owl:ObjectProperty ;
-    rdfs:label "source component" ;
-    rdfs:domain bca:ArchitectureViolation ;
-    rdfs:range bca:Component ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
-bca:targetComponent a owl:ObjectProperty ;
-    rdfs:label "target component" ;
-    rdfs:domain bca:ArchitectureViolation ;
-    rdfs:range bca:Component ;
     rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
 
 bca:calls a owl:ObjectProperty ;
@@ -494,12 +439,6 @@ bca:visibility a owl:DatatypeProperty ;
     rdfs:comment "local, internal, protected, or public." ;
     rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
 
-bca:layer a owl:DatatypeProperty ;
-    rdfs:label "layer" ;
-    rdfs:range xsd:integer ;
-    rdfs:comment "The layer of a component; lower layers may not depend on higher ones." ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
 bca:relationKind a owl:DatatypeProperty ;
     rdfs:label "relation kind" ;
     rdfs:range xsd:string ;
@@ -538,17 +477,6 @@ bca:sourceProcedure a owl:DatatypeProperty ;
     rdfs:label "source procedure" ;
     rdfs:range xsd:string ;
     rdfs:comment "The procedure the relation is written in." ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
-bca:rule a owl:DatatypeProperty ;
-    rdfs:label "rule" ;
-    rdfs:range xsd:string ;
-    rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
-
-bca:weight a owl:DatatypeProperty ;
-    rdfs:label "weight" ;
-    rdfs:range xsd:integer ;
-    rdfs:comment "How many relations a violation stands for." ;
     rdfs:isDefinedBy <https://schulzoli.github.io/BC-Atlas/ontology> .
 
 <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> a bca:App ;

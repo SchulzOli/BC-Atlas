@@ -7,26 +7,11 @@
   "objects": 12,
   "relations": 26,
   "health": {
-   "passed": false,
+   "passed": true,
    "failOn": "error",
-   "error": 1,
+   "error": 0,
    "warning": 0,
-   "info": 11
-  },
-  "architecture": {
-   "mode": "configured",
-   "components": 3,
-   "layers": 3,
-   "violations": 1,
-   "workItems": 1,
-   "extractable": 2,
-   "cycles": 0,
-   "baseline": {
-    "new": 1,
-    "known": 0,
-    "fixed": 0
-   },
-   "inside": 57
+   "info": 7
   }
  },
  "sources": [
@@ -43,15 +28,10 @@
    "none"
   ],
   [
-   "AL compiler",
-   "not used; calls are resolved from the source"
-  ],
-  [
    "Settings",
-   ".bca.json"
+   "no .bca.json; defaults"
   ]
  ],
- "config": ".bca.json",
  "levels": {
   "public": "#D55E00",
   "internal": "#0072B2",
@@ -67,7 +47,6 @@
    "objectId": "50000",
    "namespace": "Contoso.Core.Items",
    "app": "Contoso Core",
-   "component": "Core",
    "file": "core/Items.al",
    "line": 3,
    "level": "public",
@@ -85,7 +64,6 @@
    "objectId": "50001",
    "namespace": "Contoso.Core.Items",
    "app": "Contoso Core",
-   "component": "Core",
    "file": "core/Items.al",
    "line": 21,
    "level": "public",
@@ -103,7 +81,6 @@
    "objectId": "50000",
    "namespace": "Contoso.Core.Items",
    "app": "Contoso Core",
-   "component": "Core",
    "file": "core/Items.al",
    "line": 37,
    "level": "public",
@@ -120,7 +97,6 @@
    "color": "#8B7400",
    "namespace": "Contoso.Core.Pricing",
    "app": "Contoso Core",
-   "component": "Core",
    "file": "core/Pricing.al",
    "line": 5,
    "level": "public",
@@ -139,7 +115,6 @@
    "objectId": "50010",
    "namespace": "Contoso.Core.Pricing",
    "app": "Contoso Core",
-   "component": "Core",
    "file": "core/Pricing.al",
    "line": 10,
    "level": "public",
@@ -161,7 +136,6 @@
    "objectId": "50011",
    "namespace": "Contoso.Core.Pricing",
    "app": "Contoso Core",
-   "component": "Core",
    "file": "core/Pricing.al",
    "line": 24,
    "level": "public",
@@ -182,7 +156,6 @@
    "objectId": "50200",
    "namespace": "Contoso.Integration",
    "app": "Contoso Integration",
-   "component": "Integration",
    "file": "integration/Export.al",
    "line": 5,
    "level": "public",
@@ -204,7 +177,6 @@
    "objectId": "50201",
    "namespace": "Contoso.Integration",
    "app": "Contoso Integration",
-   "component": "Integration",
    "file": "integration/ItemSync.al",
    "line": 6,
    "level": "public",
@@ -215,8 +187,7 @@
    "procedures": 1,
    "complexity": 2,
    "uses": 1,
-   "usedBy": 0,
-   "wrongWay": 1
+   "usedBy": 0
   },
   {
    "id": "5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
@@ -227,7 +198,6 @@
    "objectId": "50100",
    "namespace": "Contoso.Sales.Quotes",
    "app": "Contoso Sales",
-   "component": "Sales",
    "file": "sales/Quotes.al",
    "line": 6,
    "level": "public",
@@ -245,7 +215,6 @@
    "objectId": "50100",
    "namespace": "Contoso.Sales.Quotes",
    "app": "Contoso Sales",
-   "component": "Sales",
    "file": "sales/Quotes.al",
    "line": 24,
    "level": "public",
@@ -265,7 +234,6 @@
    "objectId": "50100",
    "namespace": "Contoso.Sales.Quotes",
    "app": "Contoso Sales",
-   "component": "Sales",
    "file": "sales/Quotes.al",
    "line": 41,
    "level": "public",
@@ -284,7 +252,6 @@
    "objectId": "50100",
    "namespace": "Contoso.Sales.Quotes",
    "app": "Contoso Sales",
-   "component": "Sales",
    "file": "sales/Quotes.al",
    "line": 74,
    "level": "public",
@@ -375,61 +342,6 @@
    "objects": 1
   },
   {
-   "id": "component::Core",
-   "kind": "component",
-   "label": "Core",
-   "color": "#4E5D78",
-   "layer": "Layer 0",
-   "objects": 6,
-   "instability": 0,
-   "cohesion": 55,
-   "canBeApp": "yes"
-  },
-  {
-   "id": "component::Sales",
-   "kind": "component",
-   "label": "Sales",
-   "color": "#4E5D78",
-   "layer": "Layer 1",
-   "objects": 4,
-   "instability": 0.667,
-   "cohesion": 45,
-   "canBeApp": "yes"
-  },
-  {
-   "id": "component::Integration",
-   "kind": "component",
-   "label": "Integration",
-   "color": "#C0392B",
-   "layer": "Layer 2",
-   "objects": 2,
-   "wrongWay": 1,
-   "instability": 1,
-   "cohesion": 0,
-   "canBeApp": "no"
-  },
-  {
-   "id": "rule::architecture-violation",
-   "kind": "rule",
-   "label": "architecture-violation",
-   "color": "#C0392B",
-   "severity": "error"
-  },
-  {
-   "id": "rule::could-be-internal",
-   "kind": "rule",
-   "label": "could-be-internal",
-   "color": "#2A78D6",
-   "severity": "info"
-  },
-  {
-   "id": "rule::foreign-table-write",
-   "kind": "rule",
-   "label": "foreign-table-write",
-   "color": "#2A78D6",
-   "severity": "info"
-  },
-  {
    "id": "rule::undocumented-public-api",
    "kind": "rule",
    "label": "undocumented-public-api",
@@ -498,14 +410,6 @@
   },
   {
    "kind": "undeclared",
-   "color": "#C0392B"
-  },
-  {
-   "kind": "wrong way",
-   "color": "#C0392B"
-  },
-  {
-   "kind": "error",
    "color": "#C0392B"
   },
   {
@@ -749,75 +653,39 @@
    3
   ],
   [
-   23,
-   22,
-   5,
-   2
-  ],
-  [
-   23,
    21,
+   4,
    13,
    1
   ],
   [
-   22,
    21,
    5,
-   2
-  ],
-  [
-   24,
-   7,
-   14,
+   13,
    1
   ],
   [
-   26,
-   0,
-   15,
-   1
-  ],
-  [
-   26,
-   8,
-   15,
-   1
-  ],
-  [
-   27,
-   4,
-   15,
-   1
-  ],
-  [
-   27,
-   5,
-   15,
-   1
-  ],
-  [
-   27,
+   21,
    9,
-   15,
+   13,
    1
   ],
   [
-   27,
+   21,
    6,
-   15,
+   13,
    1
   ],
   [
-   27,
+   21,
    7,
-   15,
+   13,
    1
   ],
   [
-   27,
+   21,
    3,
-   15,
+   13,
    1
   ]
  ],
@@ -868,27 +736,9 @@
     "subscribes",
     "permits"
    ],
-   "group": "component",
+   "group": "namespace",
    "color": "type",
    "reads": "the objects of the AL source and all their relations: calls, data access, events, extensions, permissions"
-  },
-  {
-   "id": "components",
-   "title": "Components",
-   "section": "Structure",
-   "hint": "the layers and their dependencies",
-   "form": "diagram",
-   "summary": "The components in their layers and the dependencies between them, allowed or the wrong way.",
-   "kinds": [
-    "component"
-   ],
-   "relations": [
-    "depends on",
-    "wrong way"
-   ],
-   "group": "layer",
-   "color": "kind",
-   "reads": "the components of `architecture` in .bca.json (or the proposal), and the relations between the objects assigned to them"
   },
   {
    "id": "apps",
@@ -944,7 +794,7 @@
     "table",
     "tableextension"
    ],
-   "group": "component",
+   "group": "namespace",
    "color": "type",
    "reads": "tables and the `reads`, `writes`, `relates`, and `extends` relations"
   },
@@ -961,7 +811,7 @@
     "calls"
    ],
    "connected": true,
-   "group": "component",
+   "group": "namespace",
    "color": "type",
    "reads": "the procedure calls and `Run` statements in the code"
   },
@@ -978,7 +828,7 @@
     "subscribes"
    ],
    "connected": true,
-   "group": "component",
+   "group": "namespace",
    "color": "type",
    "reads": "`[IntegrationEvent]`, `[BusinessEvent]`, and `[EventSubscriber]` procedures"
   },
@@ -998,7 +848,7 @@
    "types": [
     "interface"
    ],
-   "group": "component",
+   "group": "namespace",
    "color": "type",
    "reads": "`interface` objects, `implements`, and the `Implementation` of enum values"
   },
@@ -1034,7 +884,7 @@
     "page",
     "report"
    ],
-   "group": "component",
+   "group": "namespace",
    "color": "type",
    "reads": "pages, page extensions, reports, their source tables, parts, and actions"
   },
@@ -1054,7 +904,7 @@
    "types": [
     "permissionset"
    ],
-   "group": "component",
+   "group": "namespace",
    "color": "type",
    "reads": "`permissionset` objects, their `Permissions`, and `IncludedPermissionSets`"
   },
@@ -1078,7 +928,7 @@
     "subscribes",
     "permits"
    ],
-   "group": "component",
+   "group": "namespace",
    "color": "level",
    "reads": "the `Access` property and the uses found from other apps and objects"
   },
@@ -1093,80 +943,21 @@
     "object"
    ],
    "relations": [
-    "error",
     "info"
    ],
    "connected": true,
    "group": "kind",
    "color": "severity",
-   "reads": "the findings of `bca check` (rules, AL compiler, analyzers) and the objects they are on"
+   "reads": "the findings of `bca check` and the objects they are on"
   }
  ],
  "findings": [
-  {
-   "severity": "error",
-   "rule": "architecture-violation",
-   "message": "codeunit CON Item Sync (Integration) depends on 1 object(s) in Core; declare the dependency; it points inward (declare-dependency)",
-   "nodes": [
-    24,
-    7
-   ],
-   "file": "integration/ItemSync.al",
-   "line": 10,
-   "origin": "health"
-  },
-  {
-   "severity": "info",
-   "rule": "could-be-internal",
-   "message": "1 object(s) of Core are used by no other component and could be Access = Internal: codeunit 50010 CON Standard Pricing",
-   "nodes": [
-    25
-   ],
-   "file": ".bca.json",
-   "line": 4,
-   "origin": "health"
-  },
-  {
-   "severity": "info",
-   "rule": "could-be-internal",
-   "message": "2 object(s) of Integration are used by no other component and could be Access = Internal: codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync",
-   "nodes": [
-    25
-   ],
-   "file": ".bca.json",
-   "line": 6,
-   "origin": "health"
-  },
-  {
-   "severity": "info",
-   "rule": "foreign-table-write",
-   "message": "table 50000 CON Item of Core is written by Integration (1 object); let Core own the writes behind a codeunit, or move the table",
-   "nodes": [
-    26,
-    0
-   ],
-   "file": "core/Items.al",
-   "line": 3,
-   "origin": "health"
-  },
-  {
-   "severity": "info",
-   "rule": "foreign-table-write",
-   "message": "table 50100 CON Sales Quote of Sales is written by Integration (1 object); let Sales own the writes behind a codeunit, or move the table",
-   "nodes": [
-    26,
-    8
-   ],
-   "file": "sales/Quotes.al",
-   "line": 6,
-   "origin": "health"
-  },
   {
    "severity": "info",
    "rule": "undocumented-public-api",
    "message": "codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice",
    "nodes": [
-    27,
+    21,
     4
    ],
    "file": "core/Pricing.al",
@@ -1178,7 +969,7 @@
    "rule": "undocumented-public-api",
    "message": "codeunit 50011 CON Pricing Mgt.: 1 public procedure(s) without a /// summary: Calculate",
    "nodes": [
-    27,
+    21,
     5
    ],
    "file": "core/Pricing.al",
@@ -1190,7 +981,7 @@
    "rule": "undocumented-public-api",
    "message": "codeunit 50100 CON Quote Mgt.: 1 public procedure(s) without a /// summary: Recalculate",
    "nodes": [
-    27,
+    21,
     9
    ],
    "file": "sales/Quotes.al",
@@ -1202,7 +993,7 @@
    "rule": "undocumented-public-api",
    "message": "codeunit 50200 CON Quote Export: 1 public procedure(s) without a /// summary: Export",
    "nodes": [
-    27,
+    21,
     6
    ],
    "file": "integration/Export.al",
@@ -1214,7 +1005,7 @@
    "rule": "undocumented-public-api",
    "message": "codeunit 50201 CON Item Sync: 1 public procedure(s) without a /// summary: Sync",
    "nodes": [
-    27,
+    21,
     7
    ],
    "file": "integration/ItemSync.al",
@@ -1226,7 +1017,7 @@
    "rule": "undocumented-public-api",
    "message": "interface CON Price Calculation: 1 public procedure(s) without a /// summary: UnitPrice",
    "nodes": [
-    27,
+    21,
     3
    ],
    "file": "core/Pricing.al",
@@ -1238,134 +1029,9 @@
    "rule": "unresolved-references",
    "message": "2 reference(s) to 1 external or unresolved target(s); add .alpackages symbols to resolve them",
    "nodes": [
-    28
+    22
    ],
    "origin": "health"
-  }
- ],
- "changes": [
-  {
-   "id": "apps:Contoso Integration>Contoso Core",
-   "kind": "apps",
-   "title": "Declare that Contoso Integration depends on Contoso Core",
-   "why": "Contoso Integration uses Contoso Core (3 relations), but its app.json does not name Contoso Core. It compiles only as long as something else brings Contoso Core along.",
-   "how": [
-    "Add Contoso Core to `dependencies` in the app.json of Contoso Integration: its id, name, publisher, and version.",
-    "Or, when Contoso Integration should not know Contoso Core: remove the use. The Apps lens shows the 3 relations between them."
-   ],
-   "effort": "S",
-   "lens": "apps",
-   "nodes": [
-    18,
-    17
-   ]
-  },
-  {
-   "id": "apps:Contoso Integration>unresolved",
-   "kind": "apps",
-   "title": "Bring in what Contoso Integration refers to",
-   "why": "Contoso Integration refers to objects (2 relations) that are in no app of this repository and in no symbol package. What depends on them, and what a change to them breaks, is not known.",
-   "how": [
-    "Download the symbols of the apps it depends on into `.alpackages` (AL: Download Symbols), or add the app that holds them to the workspace.",
-    "Run BC Atlas again: the relations to these objects then show."
-   ],
-   "effort": "S",
-   "lens": "apps",
-   "nodes": [
-    18,
-    20
-   ]
-  },
-  {
-   "id": "dependency:5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a03::Contoso.Integration::codeunit::50201|Core|declare-dependency",
-   "kind": "dependency",
-   "title": "CON Item Sync: declare the dependency; it points inward",
-   "why": "The codeunit CON Item Sync of Integration depends on table CON Item of Core, which the configured architecture does not allow.",
-   "how": [
-    "Add Core to dependsOn of Integration in .bca.json (and to app.json when they are separate apps).",
-    "Or: go through a component you already depend on (effort M)."
-   ],
-   "effort": "S",
-   "lens": "system",
-   "nodes": [
-    7,
-    0
-   ],
-   "file": "integration/ItemSync.al",
-   "line": 6
-  },
-  {
-   "id": "data:5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a01::Contoso.Core.Items::table::50000",
-   "kind": "data",
-   "title": "Let Core own the writes to table 50000 CON Item",
-   "why": "The table 50000 CON Item belongs to Core, and Integration (codeunit 50201 CON Item Sync) writes it as well. Whoever changes the table has to know every one of them.",
-   "brief": "of Core, also written by Integration (codeunit 50201 CON Item Sync)",
-   "how": [
-    "Put the writes behind a codeunit of Core and call it from Integration.",
-    "Or move the table to the component that writes it most, when it belongs there."
-   ],
-   "effort": "M",
-   "lens": "data",
-   "nodes": [
-    0,
-    7
-   ],
-   "file": "core/Items.al",
-   "line": 3
-  },
-  {
-   "id": "data:5d3c0a9e-6b4f-4c1a-9a51-3c1f2e7d0a02::Contoso.Sales.Quotes::table::50100",
-   "kind": "data",
-   "title": "Let Sales own the writes to table 50100 CON Sales Quote",
-   "why": "The table 50100 CON Sales Quote belongs to Sales, and Integration (codeunit 50200 CON Quote Export) writes it as well. Whoever changes the table has to know every one of them.",
-   "brief": "of Sales, also written by Integration (codeunit 50200 CON Quote Export)",
-   "how": [
-    "Put the writes behind a codeunit of Sales and call it from Integration.",
-    "Or move the table to the component that writes it most, when it belongs there."
-   ],
-   "effort": "M",
-   "lens": "data",
-   "nodes": [
-    8,
-    6
-   ],
-   "file": "sales/Quotes.al",
-   "line": 6
-  },
-  {
-   "id": "surface:Core",
-   "kind": "surface",
-   "title": "Make 1 object of Core internal",
-   "why": "Nothing outside Core uses codeunit 50010 CON Standard Pricing. As long as it is public, other apps can start to depend on it, and every change is a breaking one.",
-   "how": [
-    "Set `Access = Internal` on these objects.",
-    "List what other components use under `exposes` of the component in .bca.json."
-   ],
-   "effort": "S",
-   "optional": true,
-   "lens": "visibility",
-   "nodes": [
-    21,
-    4
-   ]
-  },
-  {
-   "id": "surface:Integration",
-   "kind": "surface",
-   "title": "Make 2 objects of Integration internal",
-   "why": "Nothing outside Integration uses codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync. As long as they are public, other apps can start to depend on them, and every change is a breaking one.",
-   "how": [
-    "Set `Access = Internal` on these objects.",
-    "List what other components use under `exposes` of the component in .bca.json."
-   ],
-   "effort": "S",
-   "optional": true,
-   "lens": "visibility",
-   "nodes": [
-    23,
-    6,
-    7
-   ]
   }
  ],
  "stories": [
@@ -1373,7 +1039,7 @@
    "id": "system",
    "kind": "tour",
    "title": "What multi-app is",
-   "summary": "The system from the outside in: how it works, then its apps, components, hubs, data, events, the user interface, and its health.",
+   "summary": "The system from the outside in: how it works, then its apps, hubs, data, events, the user interface, and its health.",
    "steps": [
     {
      "title": "How it works",
@@ -1395,49 +1061,6 @@
       17,
       18,
       19
-     ]
-    },
-    {
-     "title": "3 components",
-     "text": "Core, Sales, Integration. Lower layers know nothing of higher ones.",
-     "lens": "components",
-     "nodes": [
-      21,
-      22,
-      23
-     ]
-    },
-    {
-     "title": "Core",
-     "text": "6 objects: CON Item, CON Price Group, CON Item Card, CON Price Calculation, CON Standard Pricing, and 1 more.",
-     "lens": "system",
-     "nodes": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5
-     ]
-    },
-    {
-     "title": "Sales",
-     "text": "4 objects: CON Sales Quote, CON Quote Mgt., CON Sales Quote, CON Sales.",
-     "lens": "system",
-     "nodes": [
-      8,
-      9,
-      10,
-      11
-     ]
-    },
-    {
-     "title": "Integration",
-     "text": "2 objects: CON Quote Export, CON Item Sync. 1 dependency point the wrong way.",
-     "lens": "system",
-     "nodes": [
-      6,
-      7
      ]
     },
     {
@@ -1497,23 +1120,18 @@
      ]
     },
     {
-     "title": "Health: failed",
-     "text": "1 error, 0 warnings, 11 info. Turn on Check to see them on the graph.",
+     "title": "Health: passed",
+     "text": "0 errors, 0 warnings, 7 info. Turn on Check to see them on the graph.",
      "lens": "health",
      "nodes": [
-      24,
-      7,
-      25,
-      26,
-      0,
-      8,
-      27,
+      21,
       4,
       5,
       9,
       6,
+      7,
       3,
-      28
+      22
      ]
     }
    ]
@@ -1522,80 +1140,12 @@
    "id": "fix",
    "kind": "check",
    "title": "What to fix",
-   "summary": "1 finding, the most severe first, each on the nodes it is about.",
+   "summary": "7 findings, the most severe first, each on the nodes it is about.",
    "steps": [
     {
-     "title": "error: architecture-violation",
-     "text": "codeunit CON Item Sync (Integration) depends on 1 object(s) in Core; declare the dependency; it points inward (declare-dependency)",
+     "title": "info: undocumented-public-api",
+     "text": "codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice",
      "lens": "health",
-     "nodes": [
-      24,
-      7
-     ],
-     "status": "error"
-    }
-   ]
-  },
-  {
-   "id": "architecture",
-   "kind": "check",
-   "title": "What to change, and how",
-   "summary": "7 changes to the architecture, the most important first; the last 2 are options. Each says why, and how to do it.",
-   "steps": [
-    {
-     "title": "Declare that Contoso Integration depends on Contoso Core",
-     "text": "Contoso Integration uses Contoso Core (3 relations), but its app.json does not name Contoso Core. It compiles only as long as something else brings Contoso Core along. How: Add Contoso Core to `dependencies` in the app.json of Contoso Integration: its id, name, publisher, and version. Or, when Contoso Integration should not know Contoso Core: remove the use. The Apps lens shows the 3 relations between them. Effort: S.",
-     "lens": "apps",
-     "nodes": [
-      18,
-      17
-     ],
-     "status": "error"
-    },
-    {
-     "title": "Bring in what Contoso Integration refers to",
-     "text": "Contoso Integration refers to objects (2 relations) that are in no app of this repository and in no symbol package. What depends on them, and what a change to them breaks, is not known. How: Download the symbols of the apps it depends on into `.alpackages` (AL: Download Symbols), or add the app that holds them to the workspace. Run BC Atlas again: the relations to these objects then show. Effort: S.",
-     "lens": "apps",
-     "nodes": [
-      18,
-      20
-     ],
-     "status": "error"
-    },
-    {
-     "title": "CON Item Sync: declare the dependency; it points inward",
-     "text": "The codeunit CON Item Sync of Integration depends on table CON Item of Core, which the configured architecture does not allow. How: Add Core to dependsOn of Integration in .bca.json (and to app.json when they are separate apps). Or: go through a component you already depend on (effort M). Effort: S.",
-     "lens": "system",
-     "nodes": [
-      7,
-      0
-     ],
-     "status": "error"
-    },
-    {
-     "title": "Let Core own the writes to table 50000 CON Item",
-     "text": "The table 50000 CON Item belongs to Core, and Integration (codeunit 50201 CON Item Sync) writes it as well. Whoever changes the table has to know every one of them. How: Put the writes behind a codeunit of Core and call it from Integration. Or move the table to the component that writes it most, when it belongs there. Effort: M.",
-     "lens": "data",
-     "nodes": [
-      0,
-      7
-     ],
-     "status": "warning"
-    },
-    {
-     "title": "Let Sales own the writes to table 50100 CON Sales Quote",
-     "text": "The table 50100 CON Sales Quote belongs to Sales, and Integration (codeunit 50200 CON Quote Export) writes it as well. Whoever changes the table has to know every one of them. How: Put the writes behind a codeunit of Sales and call it from Integration. Or move the table to the component that writes it most, when it belongs there. Effort: M.",
-     "lens": "data",
-     "nodes": [
-      8,
-      6
-     ],
-     "status": "warning"
-    },
-    {
-     "title": "Make 1 object of Core internal",
-     "text": "Nothing outside Core uses codeunit 50010 CON Standard Pricing. As long as it is public, other apps can start to depend on it, and every change is a breaking one. How: Set `Access = Internal` on these objects. List what other components use under `exposes` of the component in .bca.json. Effort: S.",
-     "lens": "visibility",
      "nodes": [
       21,
       4
@@ -1603,13 +1153,61 @@
      "status": "info"
     },
     {
-     "title": "Make 2 objects of Integration internal",
-     "text": "Nothing outside Integration uses codeunit 50200 CON Quote Export, codeunit 50201 CON Item Sync. As long as they are public, other apps can start to depend on them, and every change is a breaking one. How: Set `Access = Internal` on these objects. List what other components use under `exposes` of the component in .bca.json. Effort: S.",
-     "lens": "visibility",
+     "title": "info: undocumented-public-api",
+     "text": "codeunit 50011 CON Pricing Mgt.: 1 public procedure(s) without a /// summary: Calculate",
+     "lens": "health",
      "nodes": [
-      23,
-      6,
+      21,
+      5
+     ],
+     "status": "info"
+    },
+    {
+     "title": "info: undocumented-public-api",
+     "text": "codeunit 50100 CON Quote Mgt.: 1 public procedure(s) without a /// summary: Recalculate",
+     "lens": "health",
+     "nodes": [
+      21,
+      9
+     ],
+     "status": "info"
+    },
+    {
+     "title": "info: undocumented-public-api",
+     "text": "codeunit 50200 CON Quote Export: 1 public procedure(s) without a /// summary: Export",
+     "lens": "health",
+     "nodes": [
+      21,
+      6
+     ],
+     "status": "info"
+    },
+    {
+     "title": "info: undocumented-public-api",
+     "text": "codeunit 50201 CON Item Sync: 1 public procedure(s) without a /// summary: Sync",
+     "lens": "health",
+     "nodes": [
+      21,
       7
+     ],
+     "status": "info"
+    },
+    {
+     "title": "info: undocumented-public-api",
+     "text": "interface CON Price Calculation: 1 public procedure(s) without a /// summary: UnitPrice",
+     "lens": "health",
+     "nodes": [
+      21,
+      3
+     ],
+     "status": "info"
+    },
+    {
+     "title": "info: unresolved-references",
+     "text": "2 reference(s) to 1 external or unresolved target(s); add .alpackages symbols to resolve them",
+     "lens": "health",
+     "nodes": [
+      22
      ],
      "status": "info"
     }

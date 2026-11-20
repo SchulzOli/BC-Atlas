@@ -115,7 +115,7 @@ const LOGO = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3
 
 export default defineConfig({
   title: "BC Atlas",
-  description: "Architecture maps, health checks, and documentation for Microsoft Dynamics 365 Business Central AL projects.",
+  description: "The architecture of Microsoft Dynamics 365 Business Central AL projects: shown, checked, and documented, straight from source.",
   lang: "en-US",
   base: BASE,
   srcDir: "..",

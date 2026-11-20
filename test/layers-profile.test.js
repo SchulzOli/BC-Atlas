@@ -16,7 +16,6 @@ import { syncLayers } from "../src/commands/layers.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const multi = path.join(root, "examples", "multi-app");
 const purchasing = path.join(root, "examples", "purchasing-app");
-process.env.BCA_AL_COMPILER = "off";
 
 const build = (layers, options = {}, project = multi) => buildLayers(new Workspace(project, {}, { live: false }), { pictures: "none", ...options, profile: layersProfile(layers) });
 /** Every relative link and picture of a Markdown page that leads to a file. */
@@ -35,8 +34,7 @@ const headings = (text) => [...text.matchAll(/^## (.+)$/gmu)].map(([, title]) =>
 const project = (layers, extra = {}) => {
   const folder = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-layers-profile-"));
   cpSync(multi, folder, { recursive: true });
-  const config = JSON.parse(readFileSync(path.join(multi, ".bca.json"), "utf8"));
-  writeFileSync(path.join(folder, ".bca.json"), JSON.stringify({ ...config, layers }));
+  writeFileSync(path.join(folder, ".bca.json"), JSON.stringify({ layers }));
   for (const [file, text] of Object.entries(extra)) {
     mkdirSync(path.dirname(path.join(folder, file)), { recursive: true });
     writeFileSync(path.join(folder, file), text);
@@ -57,30 +55,29 @@ test("without settings the pages are the ones of today, byte for byte", async ()
     const committed = readFileSync(path.join(root, "examples", "layers", file), "utf8");
     assert.deepEqual(headings(plain.files.get(file)), headings(committed), file);
   }
-  assert.deepEqual(plain.fixed, { readme: "README.md", architecture: "architecture.md", changes: "changes.md", findings: "findings.md" });
+  assert.deepEqual(plain.fixed, { readme: "README.md", architecture: "architecture.md", findings: "findings.md" });
   assert.equal(plain.manifest.start, undefined);
   assert.equal(plain.manifest.profile, undefined);
 });
 
 test("pages: a kind of page is left out, or only the named ones are written, and no link leads nowhere", async () => {
-  const { files, fixed } = await build({ pages: { objects: false, lenses: ["data", "Ev*"], stories: false, changes: false, namespaces: ["Contoso.Core.*"] } });
+  const { files, fixed } = await build({ pages: { objects: false, lenses: ["data", "Ev*"], stories: false, findings: false, namespaces: ["Contoso.Core.*"] } });
   const written = [...files.keys()];
   assert.ok(!written.some((file) => file.startsWith("objects/") || file.startsWith("stories/")));
   assert.deepEqual(written.filter((file) => file.startsWith("lenses/")), ["lenses/data.md", "lenses/events.md"]);
   assert.deepEqual(written.filter((file) => file.startsWith("namespaces/")), ["namespaces/contoso-core-items.md", "namespaces/contoso-core-pricing.md"]);
-  assert.ok(!files.has("changes.md") && files.has("architecture.md") && files.has("apps/contoso-core.md"));
-  assert.equal(fixed.changes, undefined);
+  assert.ok(!files.has("findings.md") && files.has("architecture.md") && files.has("apps/contoso-core.md"));
+  assert.equal(fixed.findings, undefined);
   assertLinks(files);
 
   // What has no page is still named, as text.
   const readme = files.get("README.md");
-  assert.deepEqual(headings(readme), ["Start here", "Layers", "Apps", "Components", "Namespaces", "Lenses", "Findings", "Read from"]);
-  assert.match(readme, /\n3\. \*\*What to change, and how\*\*: 7 changes/u);
+  assert.deepEqual(headings(readme), ["Start here", "Layers", "Apps", "Namespaces", "Lenses", "Findings", "Read from"]);
+  assert.match(readme, /\n## Findings\n\n0 errors, 0 warnings, 7 info\.\n/u);
   assert.match(readme, /\| Contoso\.Sales\.Quotes \| Contoso Sales \| 4 \|/u);
   assert.match(readme, /\| \[Data\]\(lenses\/data\.md\) \|/u);
   assert.doesNotMatch(readme, /lenses\/calls\.md/u);
-  assert.match(files.get("components/core.md"), /\| CON Item \| table \| 50000 \|/u);
-  assert.match(files.get("apps/contoso-core.md"), /Why and how: What to change, and how\./u);
+  assert.match(files.get("namespaces/contoso-core-items.md"), /\| CON Item \| table \| 50000 \|/u);
   assert.deepEqual(JSON.parse(files.get("layers.json")).files, written.slice().sort());
 
   // Without the first page, the others name the system without a link.
@@ -90,9 +87,9 @@ test("pages: a kind of page is left out, or only the named ones are written, and
   assert.match(headless.files.get("findings.md"), /^# Findings\n\nSystem › Findings\n/u);
   assertLinks(headless.files);
 
-  assert.throws(() => layersProfile({ pages: { object: false } }), /layers\.pages\.object in \.bca\.json is not known; layers\.pages has: readme, architecture, changes, findings, apps, components, namespaces, objects, lenses, stories/u);
+  assert.throws(() => layersProfile({ pages: { object: false } }), /layers\.pages\.object in \.bca\.json is not known; layers\.pages has: readme, architecture, findings, apps, namespaces, objects, lenses, stories/u);
   assert.throws(() => layersProfile({ pages: { readme: ["a"] } }), /layers\.pages\.readme in \.bca\.json must be true or false/u);
-  assert.deepEqual(LAYERS_PAGE_KINDS, ["readme", "architecture", "changes", "findings", "apps", "components", "namespaces", "objects", "lenses", "stories"]);
+  assert.deepEqual(LAYERS_PAGE_KINDS, ["readme", "architecture", "findings", "apps", "namespaces", "objects", "lenses", "stories"]);
 });
 
 test("scope: only the objects of the scope are documented, and the holders that have one", async () => {
@@ -100,8 +97,8 @@ test("scope: only the objects of the scope are documented, and the holders that 
   const objects = [...files.keys()].filter((file) => file.startsWith("objects/"));
   assert.deepEqual(objects.slice().sort(), ["objects/codeunit-50010-con-standard-pricing.md", "objects/codeunit-50011-con-pricing-mgt.md", "objects/codeunit-50100-con-quote-mgt.md", "objects/page-50000-con-item-card.md",
     "objects/page-50100-con-sales-quote.md", "objects/table-50000-con-item.md", "objects/table-50100-con-sales-quote.md"]);
-  assert.ok(!files.has("apps/contoso-integration.md") && !files.has("components/integration.md") && !files.has("namespaces/contoso-integration.md"));
-  assert.ok(files.has("apps/contoso-core.md") && files.has("components/sales.md"));
+  assert.ok(!files.has("apps/contoso-integration.md") && !files.has("namespaces/contoso-integration.md"));
+  assert.ok(files.has("apps/contoso-core.md") && files.has("namespaces/contoso-sales-quotes.md"));
   assert.equal(manifest.counts.objects, 7);
   assert.equal(manifest.counts.apps, 2);
   assertLinks(files);
@@ -109,20 +106,20 @@ test("scope: only the objects of the scope are documented, and the holders that 
   // The first page says that it is a part, and of what.
   const readme = files.get("README.md");
   assert.match(readme, /\n7 objects in 2 apps, 26 relations\./u);
-  assert.match(readme, /\nThese pages are about a part of the system: 7 objects of 12 \(apps: Contoso Core, Contoso Sales; types: table, codeunit, page; without \*Price Group\*\)\. The relations, the health, the architecture, the lenses, and the stories are the ones of the whole system\.\n/u);
+  assert.match(readme, /\nThese pages are about a part of the system: 7 objects of 12 \(apps: Contoso Core, Contoso Sales; types: table, codeunit, page; without \*Price Group\*\)\. The relations, the health, the lenses, and the stories are the ones of the whole system\.\n/u);
   // A page lists what is in the scope, and names the rest without a link.
-  const core = files.get("components/core.md");
-  assert.match(core, /The component Core holds 4 objects/u);
+  const core = files.get("apps/contoso-core.md");
+  assert.match(core, /The app Contoso Core holds 4 objects/u);
   assert.doesNotMatch(core, /CON Price Group\]|CON Price Calculation\]/u);
   assert.match(files.get("objects/table-50000-con-item.md"), /- \*\*relates\*\* table 50001 CON Price Group\n/u);
   assert.match(files.get("objects/table-50000-con-item.md"), /- \*\*writes\*\* codeunit 50201 CON Item Sync\n/u);
   assert.match(files.get("architecture.md"), /\| \[Contoso Sales\]\(apps\/contoso-sales\.md\) \| 3 \| \[Contoso Core\]\(apps\/contoso-core\.md\) \(declared, 5 relations\) \| Contoso Integration \(declared, 4 relations\) \|/u);
 
-  const byComponent = await build({ scope: { components: ["integration"], namespaces: ["Contoso.*"] } });
-  assert.deepEqual([...byComponent.files.keys()].filter((file) => /^(?:apps|components|objects)\//u.test(file)).sort(), ["apps/contoso-integration.md", "components/integration.md", "objects/codeunit-50200-con-quote-export.md", "objects/codeunit-50201-con-item-sync.md"]);
-  assertLinks(byComponent.files);
+  const byNamespace = await build({ scope: { namespaces: ["Contoso.Integration"] } });
+  assert.deepEqual([...byNamespace.files.keys()].filter((file) => /^(?:apps|namespaces|objects)\//u.test(file)).sort(), ["apps/contoso-integration.md", "namespaces/contoso-integration.md", "objects/codeunit-50200-con-quote-export.md", "objects/codeunit-50201-con-item-sync.md"]);
+  assertLinks(byNamespace.files);
 
-  assert.throws(() => layersProfile({ scope: { app: ["x"] } }), /layers\.scope\.app in \.bca\.json is not known; layers\.scope has: apps, components, namespaces, types, exclude/u);
+  assert.throws(() => layersProfile({ scope: { app: ["x"] } }), /layers\.scope\.app in \.bca\.json is not known; layers\.scope has: apps, namespaces, types, exclude/u);
   assert.throws(() => layersProfile({ scope: { apps: "x" } }), /layers\.scope\.apps in \.bca\.json must be a list of names/u);
 });
 
@@ -130,12 +127,12 @@ test("sections: the named sections, in the named order, and a name that is not a
   const plain = await build({});
   const { files } = await build({ sections: { object: ["Used by", "Findings", "Uses", "Inside"], app: ["Objects", "Depends on"], readme: ["Layers", "Start here", "Apps"], findings: ["Info", "Error"] } });
   const item = files.get("objects/table-50000-con-item.md");
-  assert.deepEqual(headings(plain.files.get("objects/table-50000-con-item.md")), ["Uses", "Used by", "What to change here", "Findings"]);
+  assert.deepEqual(headings(plain.files.get("objects/table-50000-con-item.md")), ["Uses", "Used by"]);
   // A section the page does not have (Inside: a table without procedures) is skipped.
-  assert.deepEqual(headings(item), ["Used by", "Findings", "Uses"]);
+  assert.deepEqual(headings(item), ["Used by", "Uses"]);
   assert.deepEqual(headings(files.get("objects/codeunit-50201-con-item-sync.md")), ["Findings", "Uses", "Inside"]);
   assert.deepEqual(headings(files.get("apps/contoso-sales.md")), ["Objects", "Depends on"]);
-  assert.deepEqual(headings(files.get("findings.md")), ["Info", "Error"]);
+  assert.deepEqual(headings(files.get("findings.md")), ["Info"]);
   // The body of a section moves with it, and what stands above the sections and the footer stay.
   const before = parsePage(plain.files.get("objects/table-50000-con-item.md"), "object");
   const after = parsePage(item, "object");
@@ -143,21 +140,21 @@ test("sections: the named sections, in the named order, and a name that is not a
   assert.equal(after.footer, before.footer);
   assert.equal(after.sections.find(({ title }) => title === "Uses").body, before.sections.find(({ title }) => title === "Uses").body);
   // A page whose kind has no setting is as it was.
-  assert.equal(files.get("components/core.md"), plain.files.get("components/core.md"));
+  assert.equal(files.get("namespaces/contoso-core-items.md"), plain.files.get("namespaces/contoso-core-items.md"));
   // The first page: a link to a section that is gone is text, and where the graph is stays at the end.
   const readme = files.get("README.md");
   assert.deepEqual(headings(readme), ["Layers", "Start here", "Apps"]);
-  assert.match(readme, /\| 1 \| Apps \| 3 \| \[below\]\(#apps\) \|\n\| 2 \| Components \| 3 \| below \|/u);
+  assert.match(readme, /\| 1 \| Apps \| 3 \| \[below\]\(#apps\) \|\n\| 2 \| Namespaces \| 4 \| below \|/u);
   assert.match(readme, /\n\nThe graph itself is in \[atlas\.json\]\(atlas\.json\); \[layers\.json\]\(layers\.json\) lists what this folder holds\.\n\n_Generated by BC Atlas/u);
   assertLinks(files);
 
   assert.throws(() => layersProfile({ sections: { object: ["Inside", "Usage"] } }),
-    /layers\.sections\.object in \.bca\.json: "Usage" is not a section of the page of an object; it has: Inside, Uses, Used by, What to change here, Findings/u);
-  assert.throws(() => layersProfile({ sections: { objects: ["Inside"] } }), /layers\.sections\.objects in \.bca\.json is not known; layers\.sections has: readme, architecture, changes, findings, app, component, namespace, object, lens, story/u);
+    /layers\.sections\.object in \.bca\.json: "Usage" is not a section of the page of an object; it has: Inside, Uses, Used by, Findings/u);
+  assert.throws(() => layersProfile({ sections: { objects: ["Inside"] } }), /layers\.sections\.objects in \.bca\.json is not known; layers\.sections has: readme, architecture, findings, app, namespace, object, lens, story/u);
   // The catalog names every section the pages have.
   for (const [file, text] of plain.files) {
     if (!file.endsWith(".md") || file.startsWith("stories/")) continue;
-    const kind = { apps: "app", components: "component", namespaces: "namespace", objects: "object", lenses: "lens" }[file.split("/")[0]] ?? file.replace(".md", "").replace("README", "readme");
+    const kind = { apps: "app", namespaces: "namespace", objects: "object", lenses: "lens" }[file.split("/")[0]] ?? file.replace(".md", "").replace("README", "readme");
     for (const title of headings(text)) assert.ok(LAYERS_SECTIONS[kind].includes(title), `${file}: ${title}`);
   }
   assert.equal(LAYERS_SECTIONS.story, null);
@@ -166,7 +163,7 @@ test("sections: the named sections, in the named order, and a name that is not a
 test("titles and language: other headings, and the fixed headings and labels in German", async () => {
   const titled = await build({ titles: { "Used by": "Who uses it", "object.Uses": "Needs", README: "Our system", "How it is connected": "Architecture", Apps: "Applications" } });
   assert.match(titled.files.get("README.md"), /^# Our system\n/u);
-  assert.deepEqual(headings(titled.files.get("objects/table-50000-con-item.md")), ["Needs", "Who uses it", "What to change here", "Findings"]);
+  assert.deepEqual(headings(titled.files.get("objects/table-50000-con-item.md")), ["Needs", "Who uses it"]);
   assert.ok(headings(titled.files.get("apps/contoso-core.md")).includes("Who uses it"));
   // The links that name a page or a section follow.
   assert.match(titled.files.get("architecture.md"), /^# Architecture\n\n\[System\]\(README\.md\) › How it is connected\n/u);
@@ -177,25 +174,22 @@ test("titles and language: other headings, and the fixed headings and labels in 
 
   const { files } = await build({ language: "de", titles: { Findings: "Auffälligkeiten" } });
   const readme = files.get("README.md");
-  assert.match(readme, /^# multi-app\n\nDer Quelltext, wie er jetzt ist\.\n/u);
-  assert.deepEqual(headings(readme), ["Einstieg", "Ebenen", "Apps", "Komponenten", "Namespaces", "Sichten", "Rundgänge", "Auffälligkeiten", "Gelesen aus"]);
-  assert.match(readme, /\| Ebene \| Was \| Anzahl \| Wo \|\n\| --- \| --- \| ---: \| --- \|\n\| 0 \| System \| 1 \| diese Seite \|\n\| 1 \| Apps \| 3 \| \[unten\]\(#apps\) \|\n\| 2 \| Komponenten \| 3 \| \[unten\]\(#komponenten\) \|/u);
+  assert.match(readme, /^# multi-app\n\n12 objects in 3 apps/u);
+  assert.deepEqual(headings(readme), ["Einstieg", "Ebenen", "Apps", "Namespaces", "Sichten", "Rundgänge", "Auffälligkeiten", "Gelesen aus"]);
+  assert.match(readme, /\| Ebene \| Was \| Anzahl \| Wo \|\n\| --- \| --- \| ---: \| --- \|\n\| 0 \| System \| 1 \| diese Seite \|\n\| 1 \| Apps \| 3 \| \[unten\]\(#apps\) \|\n\| 2 \| Namespaces \| 4 \| \[unten\]\(#namespaces\) \|\n\| 3 \| Objekte \| 12 \| über die Seiten der Ebenen 1 und 2 \|/u);
   assert.match(readme, /\n2\. \*\*\[Wie es zusammenhängt\]\(architecture\.md\)\*\*: /u);
   assert.match(readme, /\nDer Graph selbst steht in \[atlas\.json\]\(atlas\.json\); \[layers\.json\]\(layers\.json\) listet auf, was dieser Ordner enthält\.\n\n_Von BC Atlas aus dem AL-Quelltext erzeugt\. Nicht bearbeiten; `bca layers` erneut ausführen\._\n$/u);
   const object = files.get("objects/codeunit-50201-con-item-sync.md");
-  assert.deepEqual(headings(object), ["Innenleben", "Verwendet", "Was hier zu ändern ist", "Auffälligkeiten"]);
-  assert.match(object, /\| Merkmal \| Wert \|\n\| --- \| --- \|\n\| Typ \| codeunit \|\n\| ID \| 50201 \|\n\| App \| Contoso Integration \|\n\| Komponente \| Integration \|/u);
+  assert.deepEqual(headings(object), ["Innenleben", "Verwendet", "Auffälligkeiten"]);
+  assert.match(object, /\| Merkmal \| Wert \|\n\| --- \| --- \|\n\| Typ \| codeunit \|\n\| ID \| 50201 \|\n\| App \| Contoso Integration \|\n\| Namespace \| Contoso\.Integration \|\n\| Sichtbarkeit \| /u);
   assert.match(object, /\| Element \| Art \| Zeilen \| Komplexität \| Tut \|\n\| --- \| --- \| ---: \| ---: \| --- \|/u);
   assert.match(object, /\n {2}- Betrifft: \[CON Item Sync\]/u);
-  assert.match(object, /\nWarum und wie: \[Was zu ändern ist, und wie\]\(\.\.\/changes\.md\)\.\n/u);
-  assert.match(files.get("components/core.md"), /^# Komponente Core\n\n\[System\]\(\.\.\/README\.md\) › Ebene 2: Komponenten\n/u);
-  assert.match(files.get("changes.md"), /^# Was zu ändern ist, und wie\n\n\[System\]\(README\.md\) › Was zu ändern ist\n/u);
-  assert.match(files.get("changes.md"), /\| # \| Änderung \| Art \| Aufwand \|\n\| ---: \| --- \| --- \| --- \|\n\| 1 \| .+ \| Apps \| klein \|/u);
-  assert.match(files.get("changes.md"), /\n\*\*Warum\.\*\* .+\n\n\*\*Wie\.\*\*\n/u);
-  assert.match(files.get("changes.md"), /\nAufwand: klein\. Betrifft: \[CON Item Sync\]\(objects\/codeunit-50201-con-item-sync\.md\), .+ Quelle: `integration\/ItemSync\.al:6`\.\n/u);
+  assert.match(files.get("namespaces/contoso-core-items.md"), /^# Namespace Contoso\.Core\.Items\n\n\[System\]\(\.\.\/README\.md\) › Ebene 2: Namespaces\n/u);
+  assert.match(files.get("objects/codeunit-50201-con-item-sync.md"), /\nEbene 4: seine Prozeduren, Trigger und Ereignisse, und was jedes davon tut\.\n/u);
+  assert.match(files.get("architecture.md"), /\nEin Namespace ist, wie der Quelltext selbst seine Objekte gruppiert\./u);
   assert.match(files.get("lenses/data.md"), /\| Knoten \| Art \| Gruppe \| Beziehungen \|/u);
   // What is made from the source stays as it is: the sentence about a part, and the names of the source.
-  assert.match(object, /\nThe codeunit CON Item Sync of the app Contoso Integration, in the component Integration, has 1 member in 10 lines\./u);
+  assert.match(object, /\nThe codeunit CON Item Sync of the app Contoso Integration has 1 member in 10 lines\./u);
   assertLinks(files);
 
   assert.throws(() => layersProfile({ language: "fr" }), /layers\.language in \.bca\.json must be one of: en, de/u);
@@ -204,47 +198,45 @@ test("titles and language: other headings, and the fixed headings and labels in 
 
 test("names: the files have the names of the patterns, and every link and picture follows", async () => {
   const layers = { names: { objects: "objekte/{type}/{id}-{name}.md", apps: "apps/{name}/index.md", namespaces: "ns/{app}/{name}.md", lenses: "sichten/{id}.md", stories: "{name}.story.md", readme: "start/index.md", architecture: "architektur.md" } };
-  const { files, manifest, fixed } = await build(layers, { pictures: "auto", history: true, view: true });
+  const { files, manifest, fixed } = await build(layers, { pictures: "auto", view: true });
   const written = [...files.keys()];
-  for (const file of ["start/index.md", "start/system.svg", "architektur.md", "architektur-apps.svg", "architektur-components.svg", "changes.md", "objekte/table/50000-con-item.md", "objekte/table/50000-con-item.svg",
+  for (const file of ["start/index.md", "start/system.svg", "architektur.md", "architektur-apps.svg", "architektur-namespaces.svg", "objekte/table/50000-con-item.md", "objekte/table/50000-con-item.svg",
     "objekte/interface/con-price-calculation.md", "apps/contoso-core/index.md", "apps/contoso-core/index.svg", "ns/contoso-core/contoso-core-items.md", "sichten/data.md", "sichten/data.svg", "what-to-fix.story.md", "atlas.json", "view.html", "layers.json"]) assert.ok(files.has(file), file);
   assert.ok(!written.some((file) => /^(?:objects|lenses|stories|namespaces)\/|^README|^architecture/u.test(file)), "nothing is left under its old name");
   assert.deepEqual(manifest.files, written.slice().sort());
   assert.equal(manifest.start, "start/index.md");
-  assert.deepEqual(fixed, { readme: "start/index.md", architecture: "architektur.md", changes: "changes.md", findings: "findings.md" });
-  // Every link and every picture leads to a file that is written; the history is next to the pages.
-  assertLinks(files, { but: ["history/README.md"] });
+  assert.deepEqual(fixed, { readme: "start/index.md", architecture: "architektur.md", findings: "findings.md" });
+  // Every link and every picture leads to a file that is written.
+  assertLinks(files);
   assert.match(files.get("start/index.md"), /!\[Overview\]\(system\.svg\)/u);
-  assert.match(files.get("start/index.md"), /\[The system as it was\]\(\.\.\/history\/README\.md\)/u);
   assert.match(files.get("start/index.md"), /\[atlas\.json\]\(\.\.\/atlas\.json\), and \[view\.html\]\(\.\.\/view\.html\)/u);
   assert.match(files.get("architektur.md"), /!\[Apps\]\(architektur-apps\.svg\)/u);
-  assert.match(files.get("objekte/table/50000-con-item.md"), /^# table 50000 CON Item\n\n\[System\]\(\.\.\/\.\.\/start\/index\.md\) › \[Contoso Core\]\(\.\.\/\.\.\/apps\/contoso-core\/index\.md\) › \[Core\]\(\.\.\/\.\.\/components\/core\.md\) › \[Contoso\.Core\.Items\]\(\.\.\/\.\.\/ns\/contoso-core\/contoso-core-items\.md\)/u);
+  assert.match(files.get("objekte/table/50000-con-item.md"), /^# table 50000 CON Item\n\n\[System\]\(\.\.\/\.\.\/start\/index\.md\) › \[Contoso Core\]\(\.\.\/\.\.\/apps\/contoso-core\/index\.md\) › \[Contoso\.Core\.Items\]\(\.\.\/\.\.\/ns\/contoso-core\/contoso-core-items\.md\)/u);
   assert.match(files.get("objekte/table/50000-con-item.md"), /!\[[^\]]+\]\(50000-con-item\.svg\)/u);
   assert.match(files.get("objekte/table/50000-con-item.md"), /\[codeunit 50010 CON Standard Pricing\]\(\.\.\/codeunit\/50010-con-standard-pricing\.md\)/u);
 
   // Two pages that would be one file are an error that names both.
   await assert.rejects(build({ names: { objects: "objects/{type}.md" } }), /layers\.names in \.bca\.json gives two pages one file: object "table 50000 CON Item" and object "table 50001 CON Price Group" would both be objects\/table\.md/u);
-  await assert.rejects(build({ names: { readme: "changes.md" } }), /gives two pages one file: readme "multi-app" and changes "multi-app" would both be changes\.md/u);
-  assert.throws(() => layersProfile({ names: { objects: "objects/{object}.md" } }), /layers\.names\.objects in \.bca\.json: \{object\} is not known; objects has \{name\}, \{type\}, \{id\}, \{app\}, \{component\}, \{namespace\}/u);
+  await assert.rejects(build({ names: { readme: "findings.md" } }), /gives two pages one file: readme "multi-app" and findings "multi-app" would both be findings\.md/u);
+  assert.throws(() => layersProfile({ names: { objects: "objects/{object}.md" } }), /layers\.names\.objects in \.bca\.json: \{object\} is not known; objects has \{name\}, \{type\}, \{id\}, \{app\}, \{namespace\}/u);
   assert.throws(() => layersProfile({ names: { objects: "objects/all.md" } }), /layers\.names\.objects in \.bca\.json needs a placeholder such as \{name\}/u);
   assert.throws(() => layersProfile({ names: { readme: "../index.md" } }), /must be a path below the folder of the pages/u);
   assert.throws(() => layersProfile({ names: { readme: "index.html" } }), /must be a file name that ends with \.md/u);
-  assert.throws(() => layersProfile({ names: { readme: "history/index.md" } }), /must not be below history\//u);
 });
 
 test("templates: a page is laid out by the template of its kind, and a template is part of the sync", async () => {
-  const template = ["# {{title}}", "", "> {{type}} {{id}} of {{app}} ({{component}}, {{namespace}}) in {{system}}", "", "{{picture}}", "", "{{summary}}", "", "{{section \"Used by\"}}", "", "### Needs", "", "{{body \"Uses\"}}", "", "{{section \"Inside\"}}", "", "{{sections}}", "", "Ask the team before you change it.", "", "{{footer}}", ""].join("\n");
+  const template = ["# {{title}}", "", "> {{type}} {{id}} of {{app}} ({{namespace}}) in {{system}}", "", "{{picture}}", "", "{{summary}}", "", "{{section \"Used by\"}}", "", "### Needs", "", "{{body \"Uses\"}}", "", "{{section \"Inside\"}}", "", "{{sections}}", "", "Ask the team before you change it.", "", "{{footer}}", ""].join("\n");
   const folder = project({ outputDir: "pages", sections: { object: ["Inside", "Uses", "Used by", "Findings"] }, templates: "docs/templates" }, { "docs/templates/object.md": template, "docs/templates/readme.md": "# {{title}}\n\n{{section \"Apps\"}}\n\n{{footer}}\n", "docs/templates/notes.txt": "not a template" });
   try {
     const first = await syncLayers(folder, {});
     assert.equal(first.inSync, true);
     const item = readFileSync(path.join(folder, "pages", "objects", "table-50000-con-item.md"), "utf8");
-    assert.match(item, /^# table 50000 CON Item\n\n> table 50000 of Contoso Core \(Core, Contoso\.Core\.Items\) in bc-atlas-layers-profile-\w+\n\n!\[Inside CON Item\]\(table-50000-con-item\.svg\)\n\n\[System\]\(\.\.\/README\.md\) › /u);
+    assert.match(item, /^# table 50000 CON Item\n\n> table 50000 of Contoso Core \(Contoso\.Core\.Items\) in bc-atlas-layers-profile-\w+\n\n!\[Inside CON Item\]\(table-50000-con-item\.svg\)\n\n\[System\]\(\.\.\/README\.md\) › /u);
     // The picture is where the template puts it, and only there.
     assert.equal(item.match(/!\[/gu).length, 1);
     // Sections that are placed stay out of {{sections}}; one the page does not have leaves no line.
-    assert.deepEqual([...item.matchAll(/^#{2,3} (.+)$/gmu)].map(([, title]) => title), ["Used by", "Needs", "Findings"]);
-    assert.match(item, /\n### Needs\n\n- \*\*relates\*\* \[table 50001 CON Price Group\]\(table-50001-con-price-group\.md\)\n\n## Findings\n/u);
+    assert.deepEqual([...item.matchAll(/^#{2,3} (.+)$/gmu)].map(([, title]) => title), ["Used by", "Needs"]);
+    assert.match(item, /\n### Needs\n\n- \*\*relates\*\* \[table 50001 CON Price Group\]\(table-50001-con-price-group\.md\)\n\nAsk the team/u);
     assert.match(item, /\nAsk the team before you change it\.\n\n_Generated by BC Atlas from the AL source\. Do not edit; run `bca layers` again\._\n$/u);
     assert.doesNotMatch(item, /\{\{|\n{3}/u);
     const readme = readFileSync(path.join(folder, "pages", "README.md"), "utf8");
@@ -252,7 +244,7 @@ test("templates: a page is laid out by the template of its kind, and a template 
     assert.match(readme, /\nThe graph itself is in \[atlas\.json\]\(atlas\.json\); .+\n\n_Generated by BC Atlas/u);
     assert.doesNotMatch(readme, /## Layers/u);
     // A kind without a template is written as always.
-    assert.match(readFileSync(path.join(folder, "pages", "components", "core.md"), "utf8"), /^# Component Core\n\n\[System\]\(\.\.\/README\.md\) › Layer 2: components\n/u);
+    assert.match(readFileSync(path.join(folder, "pages", "namespaces", "contoso-core-items.md"), "utf8"), /^# Namespace Contoso\.Core\.Items\n\n\[System\]\(\.\.\/README\.md\) › Layer 2: namespaces\n/u);
 
     // In sync until the template changes: then the pages of its kind are written again.
     const check = await syncLayers(folder, { check: true });
@@ -269,7 +261,7 @@ test("templates: a page is laid out by the template of its kind, and a template 
     writeFileSync(path.join(folder, "docs", "templates", "app.md"), "# {{title}}\n\n{{owner}}\n");
     await assert.rejects(syncLayers(folder, {}), /The template docs\/templates\/app\.md holds the placeholder \{\{owner\}\}, which is not known\. A template has: \{\{title\}\}, \{\{summary\}\}, \{\{picture\}\}, \{\{sections\}\}, \{\{footer\}\}, \{\{section "<name>"\}\}, \{\{body "<name>"\}\}, \{\{name\}\}/u);
     writeFileSync(path.join(folder, "docs", "templates", "app.md"), "# {{title}}\n\n{{section \"Inside\"}}\n");
-    await assert.rejects(syncLayers(folder, {}), /The template docs\/templates\/app\.md asks for the section "Inside" \(\{\{section "Inside"\}\}\), which the page of an app does not have; it has: Components, Namespaces, Depends on/u);
+    await assert.rejects(syncLayers(folder, {}), /The template docs\/templates\/app\.md asks for the section "Inside" \(\{\{section "Inside"\}\}\), which the page of an app does not have; it has: Namespaces, Depends on/u);
     assert.match(readFileSync(path.join(folder, "pages", "apps", "contoso-core.md"), "utf8"), /^# App Contoso Core\n/u);
     writeFileSync(path.join(folder, ".bca.json"), JSON.stringify({ layers: { templates: "docs/none" } }));
     await assert.rejects(syncLayers(folder, {}), /layers\.templates in \.bca\.json: the folder docs\/none is not found in the project/u);
@@ -340,15 +332,15 @@ test("profiles: a named set of settings over the ones of layers, each in a folde
 test("a profile narrows the pages, the scope, the language, and the names of another project", async () => {
   const { files, manifest } = await build({
     pages: { lenses: ["data", "security"], stories: ["system"] },
-    scope: { components: ["Request"], exclude: ["*Test*"] },
+    scope: { types: ["table"], exclude: ["*Test*"] },
     sections: { object: ["Inside", "Uses", "Used by"], story: [] },
     language: "de",
-    names: { objects: "objekte/{component}/{type}-{name}.md", stories: "rundgaenge/{id}.md" }
+    names: { objects: "objekte/{type}/{type}-{name}.md", stories: "rundgaenge/{id}.md" }
   }, {}, purchasing);
   assert.deepEqual([...files.keys()].filter((file) => file.startsWith("lenses/")), ["lenses/data.md", "lenses/security.md"]);
-  assert.ok(files.has("rundgaenge/system.md") && !files.has("rundgaenge/architecture.md"));
-  assert.ok(manifest.counts.objects > 0 && manifest.counts.objects < 16 && manifest.counts.components === 1);
-  assert.ok([...files.keys()].filter((file) => file.startsWith("objekte/")).every((file) => file.startsWith("objekte/request/")));
+  assert.ok(files.has("rundgaenge/system.md") && !files.has("rundgaenge/fix.md"));
+  assert.ok(manifest.counts.objects > 0 && manifest.counts.objects < 16);
+  assert.ok([...files.keys()].filter((file) => file.startsWith("objekte/")).every((file) => file.startsWith("objekte/table/")));
   // A story without sections is its title and what stands above its steps.
   assert.deepEqual(headings(files.get("rundgaenge/system.md")), []);
   assertLinks(files);

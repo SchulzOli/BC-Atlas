@@ -1,15 +1,14 @@
 # codeunit 50010 CON Standard Pricing
 
-[System](../README.md) › [Contoso Core](../apps/contoso-core.md) › [Core](../components/core.md) › [Contoso.Core.Pricing](../namespaces/contoso-core-pricing.md)
+[System](../README.md) › [Contoso Core](../apps/contoso-core.md) › [Contoso.Core.Pricing](../namespaces/contoso-core-pricing.md)
 
-The codeunit CON Standard Pricing of the app Contoso Core, in the component Core, has 1 member in 13 lines. It implements, reads, uses 3 other objects, and 1 object uses it.
+The codeunit CON Standard Pricing of the app Contoso Core has 1 member in 13 lines. It implements, reads, uses 3 other objects, and 1 object uses it.
 
 | Fact | Value |
 | --- | --- |
 | Type | codeunit |
 | ID | 50010 |
 | App | Contoso Core |
-| Component | Core |
 | Namespace | Contoso.Core.Pricing |
 | Visibility | public; can be internal |
 | Lines | 13 |
@@ -23,7 +22,7 @@ The codeunit CON Standard Pricing of the app Contoso Core, in the component Core
 
 ## Inside
 
-Layer 5: its procedures, triggers, and events, and what each of them does.
+Layer 4: its procedures, triggers, and events, and what each of them does.
 
 | Member | Kind | Lines | Complexity | Does |
 | --- | --- | ---: | ---: | --- |
@@ -39,12 +38,6 @@ Layer 5: its procedures, triggers, and events, and what each of them does.
 
 - **calls** [codeunit 50011 CON Pricing Mgt.](codeunit-50011-con-pricing-mgt.md)
 - **uses** [codeunit 50011 CON Pricing Mgt.](codeunit-50011-con-pricing-mgt.md)
-
-## What to change here
-
-- 6. Make 1 object of Core internal (small)
-
-Why and how: [What to change, and how](../changes.md).
 
 ## Findings
 
