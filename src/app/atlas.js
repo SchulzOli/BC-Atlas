@@ -245,7 +245,8 @@ async function health(workspace, graph, findings) {
       message: finding.message,
       fix: finding.fix ?? finding.help,
       nodes: [graph.at(rule), ...(target ? [graph.at(target)] : [])],
-      file: finding.file,
+      // With forward slashes on every system, so the same source gives the same pages.
+      file: finding.file?.replaceAll("\\", "/"),
       line: finding.line,
       origin: "health"
     }));
