@@ -173,6 +173,11 @@ bca view ./app --lens system --rows relations -o relations.csv
 bca view ./app --format json > atlas.json                 # the whole graph
 ```
 
+Every JSON document names its shape and version in `schema` (`bc-atlas.atlas/1`
+for the whole graph, `bc-atlas.view/1` for a lens or a node,
+`bc-atlas.story/1`, `bc-atlas.stories/1`), as published in
+[`schemas/output.schema.json`](../schemas/output.schema.json).
+
 | In the app | `bca view` |
 | --- | --- |
 | Lens | `--lens` |

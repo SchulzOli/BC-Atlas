@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/SchulzOli/BC-Atlas/blob/main/schemas/output.schema.json",
+  "title": "The JSON BC Atlas writes for agents and tools",
+  "description": "What `bca view --format json` writes, what the MCP tools bc_atlas_view and bc_atlas_inspect return, and the JSON export of the view. Every document names its shape and version in `schema`; a change that removes or renames a field is a new version. Fields not listed here may be added within a version.",
+  "oneOf": [
+    { "$ref": "#/$defs/atlas" },
+    { "$ref": "#/$defs/view" },
+    { "$ref": "#/$defs/overview" },
+    { "$ref": "#/$defs/story" },
+    { "$ref": "#/$defs/stories" },
+    { "$ref": "#/$defs/inspect" }
+  ],
+  "$defs": {
+    "atlas": {
+      "description": "Everything read from the source as one graph: `bca view --format json` without a lens, story, or node.",
+      "type": "object",
+      "required": ["schema", "title", "summary", "sources", "nodes", "relations", "edges", "lenses", "findings", "stories"],
+      "properties": {
+        "schema": { "const": "bc-atlas.atlas/1" },
+        "title": { "type": "string" },
+        "version": { "type": "string", "description": "The BC Atlas that wrote it." },
+        "summary": {
+          "type": "object",
+          "required": ["apps", "files", "objects", "relations", "health"],
+          "properties": {
+            "apps": { "type": "integer" },
+            "files": { "type": "integer" },
+            "objects": { "type": "integer" },
+            "relations": { "type": "integer" },
+            "health": { "type": "object", "required": ["passed", "error", "warning", "info"] }
+          }
+        },
+        "sources": { "type": "array", "items": { "type": "array", "items": { "type": "string" } }, "description": "What everything is read from: [name, what]." },
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
+        "relations": {
+          "type": "array",
+          "description": "The kinds of relation; an edge refers to one by its index.",
+          "items": { "type": "object", "required": ["kind", "color"], "properties": { "kind": { "type": "string" }, "color": { "type": "string" } } }
+        },
+        "edges": {
+          "type": "array",
+          "description": "[from node index, to node index, relation index, weight].",
+          "items": { "type": "array", "items": { "type": "number" } }
+        },
+        "lenses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "summary", "kinds", "relations"],
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "summary": { "type": "string" },
+              "kinds": { "type": "array", "items": { "type": "string" } },
+              "relations": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["severity", "rule", "message", "nodes"],
+            "properties": {
+              "severity": { "enum": ["error", "warning", "info"] },
+              "rule": { "type": "string" },
+              "message": { "type": "string" },
+              "fix": { "type": "string" },
+              "nodes": { "type": "array", "items": { "type": "integer" }, "description": "Node indexes: the rule, and the object it is on." },
+              "file": { "type": "string" },
+              "line": { "type": "integer" }
+            }
+          }
+        },
+        "stories": { "type": "array", "items": { "$ref": "#/$defs/storyBody" } }
+      }
+    },
+    "view": {
+      "description": "One lens, story step, focus, or inside of a node: `bca view --lens <id> --format json`, and bc_atlas_view with a lens.",
+      "type": "object",
+      "required": ["schema", "project", "lens", "title", "summary", "nodes", "relations"],
+      "properties": {
+        "schema": { "const": "bc-atlas.view/1" },
+        "generator": { "type": "string" },
+        "project": { "type": "string" },
+        "lens": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "sources": { "type": "object" },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "allOf": [{ "$ref": "#/$defs/node" }],
+            "type": "object",
+            "required": ["relations"],
+            "properties": {
+              "relations": { "type": "integer", "description": "How many relations of the view it has." },
+              "group": { "type": "string" },
+              "findings": {
+                "type": "array",
+                "items": { "type": "object", "required": ["severity", "rule", "message"] }
+              }
+            }
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "kind", "weight"],
+            "properties": { "from": { "type": "string" }, "to": { "type": "string" }, "kind": { "type": "string" }, "weight": { "type": "number" } }
+          }
+        }
+      }
+    },
+    "overview": {
+      "description": "What there is to see: bc_atlas_view without a lens, story, or node.",
+      "type": "object",
+      "required": ["schema", "project", "summary", "lenses", "stories", "findings", "sources"],
+      "properties": {
+        "schema": { "const": "bc-atlas.overview/1" },
+        "project": { "type": "string" },
+        "summary": { "type": "object" },
+        "lenses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "summary", "nodes", "relations"],
+            "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "summary": { "type": "string" }, "nodes": { "type": "integer" }, "relations": { "type": "integer" } }
+          }
+        },
+        "stories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "summary", "steps"],
+            "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "summary": { "type": "string" }, "steps": { "type": "integer" } }
+          }
+        },
+        "findings": { "type": "integer" },
+        "sources": { "type": "object" }
+      }
+    },
+    "story": {
+      "description": "One story: `bca view --story <id> --format json`.",
+      "allOf": [{ "$ref": "#/$defs/storyBody" }],
+      "type": "object",
+      "required": ["schema", "project"],
+      "properties": { "schema": { "const": "bc-atlas.story/1" }, "project": { "type": "string" } }
+    },
+    "stories": {
+      "description": "Every story: `bca view --stories --format json`.",
+      "type": "object",
+      "required": ["schema", "project", "stories"],
+      "properties": {
+        "schema": { "const": "bc-atlas.stories/1" },
+        "project": { "type": "string" },
+        "stories": { "type": "array", "items": { "$ref": "#/$defs/storyBody" } }
+      }
+    },
+    "inspect": {
+      "description": "A part of the resolved model: bc_atlas_inspect.",
+      "type": "object",
+      "required": ["schema", "summary", "selected", "offset", "limit", "detail", "objects", "edges", "diagnostics"],
+      "properties": {
+        "schema": { "const": "bc-atlas.inspect/1" },
+        "project": { "type": "string" },
+        "summary": {
+          "type": "object",
+          "required": ["files", "objects", "relations", "apps", "cycles", "hubs"],
+          "properties": { "files": { "type": "integer" }, "objects": { "type": "integer" }, "relations": { "type": "integer" }, "cycles": { "type": "integer" } }
+        },
+        "selected": { "type": "integer", "description": "How many objects the selectors name." },
+        "offset": { "type": "integer" },
+        "limit": { "type": "integer" },
+        "next": { "type": "integer", "description": "The offset of the next page, when there is one." },
+        "detail": { "enum": ["summary", "full"] },
+        "objects": {
+          "type": "array",
+          "description": "With detail summary: an object in a line. With detail full: every member as BC Atlas read it.",
+          "items": {
+            "type": "object",
+            "required": ["key", "type", "name"],
+            "properties": { "key": { "type": "string" }, "type": { "type": "string" }, "name": { "type": "string" }, "file": { "type": "string" } }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "description": "With detail summary: { from, to, kind, count }. With detail full: every relation with its evidence.",
+          "items": { "type": "object", "required": ["from", "kind"] }
+        },
+        "diagnostics": { "type": "array", "items": { "type": "object", "required": ["severity", "code", "message"] } }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "kind", "label"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "enum": ["object", "app", "module", "rule", "member", "area"] },
+        "label": { "type": "string" },
+        "type": { "type": "string", "description": "The AL object type, for an object." },
+        "objectId": { "type": "string" },
+        "app": { "type": "string" },
+        "namespace": { "type": "string" },
+        "file": { "type": "string" },
+        "line": { "type": "integer" },
+        "external": { "type": "boolean", "description": "Declared in another app (a symbol package)." }
+      }
+    },
+    "storyBody": {
+      "type": "object",
+      "required": ["id", "kind", "title", "summary", "steps"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "text", "lens", "nodes"],
+            "properties": {
+              "title": { "type": "string" },
+              "text": { "type": "string" },
+              "lens": { "type": "string" },
+              "nodes": { "type": "array", "items": { "type": "integer" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

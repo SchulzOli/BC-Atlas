@@ -474,6 +474,8 @@
   /** The scene as data: nodes with their facts and findings, and relations by node id. */
   function sceneData(atlas, found, view, flags) {
     return {
+      // The shapes of the JSON the view writes are in schemas/output.schema.json.
+      schema: "bc-atlas.view/1",
       generator: `BC Atlas ${atlas.version}`,
       project: atlas.title,
       lens: view.lens.id,

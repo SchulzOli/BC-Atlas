@@ -84,7 +84,9 @@ The server uses stdio. It writes protocol messages to standard output and logs t
 ### MCP tools
 
 - `bc_atlas_capabilities` reads the command contract.
-- `bc_atlas_inspect` returns the resolved model as JSON: every object with its members, every relation with its evidence, the diagnostics, and the insights. It is large for a large project; `bc_atlas_view` returns a part of it.
+- `bc_atlas_inspect` returns a part of the resolved model, sized for a context: the objects that `select` names (selectors as in `.bca.json`: `object:codeunit:50100`, `type:table`, `namespace:Contoso.Sales`, `app:Contoso Core`, ...), at most `limit` of them (default 50) with `next` for the following page, the relations that touch them, and a summary of the whole project. `detail: "summary"` (default) gives each object in a line and the relations counted by kind; `detail: "full"` gives every member and every relation with its evidence: ask for it for a few objects. On a workspace of 1,400 files a page of 50 is about 200 KB, where the whole model is over 50 MB.
+
+Every JSON document BC Atlas writes for agents names its shape and version in `schema`: `bc-atlas.atlas/1`, `bc-atlas.view/1`, `bc-atlas.overview/1`, `bc-atlas.story/1`, `bc-atlas.stories/1`, and `bc-atlas.inspect/1`. They are published in [`schemas/output.schema.json`](../schemas/output.schema.json); a field is not removed or renamed within a version.
 - `bc_atlas_check` returns the health report used by `bca check`.
 - `bc_atlas_layers` writes the [documentation of a repository](./layers.md),
   in sync with the source, for one app or many: how it works, how its apps

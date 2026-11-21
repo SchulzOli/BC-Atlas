@@ -13,8 +13,23 @@ follows [Semantic Versioning](https://semver.org/).
   that uses the other app, with the `app.json` to fix; set its severity with
   `check.undeclaredDependencies`. The finding is on the graph, in the
   Problems panel, and in the pages of `bca layers`.
+- **Answers that fit an agent's context.** `bc_atlas_inspect` returns a part
+  of the model: the objects `select` names (selectors as in `.bca.json`), a
+  page of `limit` (default 50) with `next`, the relations that touch them, and
+  a summary of the project. `detail: "summary"` (default) gives each object in
+  a line; `detail: "full"` every member and every relation with its evidence.
+- **A published, versioned schema for JSON output.** Every document of
+  `bca view --format json`, `bc_atlas_view`, and `bc_atlas_inspect` names its
+  shape and version in `schema` (`bc-atlas.view/1`, ...), as
+  `schemas/output.schema.json` publishes them.
+- **Performance in CI.** `npm run benchmark` measures time and peak memory,
+  also of a save in the editor; CI compares a pull request with its base and
+  fails on a regression.
 
 ### Fixed
+
+- **The view follows a save in half the time.** On a workspace of 1,441 AL
+  files, from a saved file to an updated view took about 2 s, now under 1 s.
 
 - The same source gives the same output on Windows and Linux: file paths
   are read with forward slashes, and generated files keep LF line endings on
@@ -85,6 +100,11 @@ check it, and document it. Everything else is gone.
   `graphology-communities-louvain`.
 
 ### Changed
+
+- `bc_atlas_inspect` returns a page of the model, not the whole model.
+- `bca view --stories --format json` writes `{ schema, project, stories }`
+  instead of a bare list, and `atlas.json` names its schema
+  `bc-atlas.atlas/1` instead of `1`.
 
 - The layers of `bca layers` are: the system, apps, namespaces, objects, and
   the procedures inside each object. `architecture.md` shows the apps and the
