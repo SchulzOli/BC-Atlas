@@ -161,21 +161,22 @@ test("the workspace keeps parse results on disk and parses only changed files ag
   try {
     const first = new Workspace(directory);
     const objects = (await first.overview()).summary.objects;
-    assert.equal(await first.saving, true);
+    assert.equal(await first.flush(), true);
     assert.ok(existsSync(parseCacheFile(directory)));
 
     // The next editor session reads every file's objects from disk.
     const second = new Workspace(directory);
     assert.equal((await second.parseCache()).size, 5);
     assert.equal((await second.overview()).summary.objects, objects);
-    assert.equal(await second.saving, false, "nothing was parsed, so nothing is written");
+    assert.equal(await second.flush(), false, "nothing was parsed, so nothing is written");
 
     // A changed file is parsed again; its old entry is dropped.
     const file = path.join(directory, "sales", "Quotes.al");
     writeFileSync(file, `${readFileSync(file, "utf8")}\n// changed\n`);
     second.reset();
     await second.overview();
-    assert.equal(await second.saving, true);
+    assert.ok(second.pendingSave, "in an editor the write waits until the saves have settled");
+    assert.equal(await second.flush(), true);
     assert.equal((await openParseCache(directory)).size, 5);
 
     // A damaged file starts over instead of failing.

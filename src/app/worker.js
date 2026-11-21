@@ -21,5 +21,6 @@ process.on("message", async (message) => {
     process.send({ id, error: error?.message ?? String(error) });
   }
 });
-process.on("disconnect", () => process.exit(0));
+// The parse cache is written before the editor lets the engine go.
+process.on("disconnect", () => workspace.flush().finally(() => process.exit(0)));
 process.send({ ready: true, methods: service.methods });

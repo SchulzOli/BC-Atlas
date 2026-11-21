@@ -292,7 +292,8 @@ async function exportFiles() {
 }
 
 async function generateDocs() {
-  const tests = overview?.docs?.path;
+  // Where the UI tests are: .bca.json (docs.tests) or the folder with the most scenarios.
+  const tests = (await engine?.request("docs").catch(() => undefined))?.path;
   const folder = tests
     ? path.join(overview.projectRoot, tests)
     : (await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, defaultUri: vscode.Uri.file(project), openLabel: "Use these AL UI tests" }))?.[0]?.fsPath;

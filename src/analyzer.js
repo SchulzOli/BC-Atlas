@@ -1426,12 +1426,31 @@ async function objectsFromSource(source, file) {
   return result;
 }
 
+function deepFreeze(value) {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const key of Reflect.ownKeys(value)) deepFreeze(value[key]);
+  }
+  return value;
+}
+
+/**
+ * What a caller gets of a cached parse result: the objects copied one level
+ * deep. analyze() sets `app` and `module` on each object and the resolver its
+ * `key`; nothing below that level is written (the tests freeze the cached
+ * results, BCA_FREEZE_PARSE, so a write there throws). A deep copy of every
+ * file took a third of the time of a warm analysis.
+ */
+function copyResult(result) {
+  if (process.env.BCA_FREEZE_PARSE) deepFreeze(result);
+  return { ...result, objects: result.objects.map((object) => ({ ...object })) };
+}
+
 async function cachedObjectsFromSource(source, file, cache) {
   if (!cache) return objectsFromSource(source, file);
   const key = `${file}\u0000${createHash("sha1").update(source).digest("hex")}`;
   if (!cache.has(key)) cache.set(key, await objectsFromSource(source, file));
-  // Callers attach apps and keys to the objects, so every caller gets a copy.
-  return structuredClone(cache.get(key));
+  return copyResult(cache.get(key));
 }
 
 async function collectAlFiles(input) {
@@ -1514,6 +1533,20 @@ async function readAppManifest(file, root, cache) {
  * preloaded `symbols` to skip reading .alpackages again, and a
  * `fileFilter` for root-relative paths to analyze part of a large repository.
  */
+/** The contents of the files, in their order, a few at a time. */
+async function readAll(files, parallel = 32) {
+  const contents = new Array(files.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < files.length) {
+      const at = next++;
+      contents[at] = await fs.readFile(files[at], "utf8");
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(parallel, files.length) }, worker));
+  return contents;
+}
+
 export async function analyze(input, { parseCache, symbols: preloadedSymbols, fileFilter, al } = {}) {
   const root = path.resolve(input);
   const rootStat = await fs.stat(root);
@@ -1526,9 +1559,11 @@ export async function analyze(input, { parseCache, symbols: preloadedSymbols, fi
   const manifestCache = new Map();
   const apps = new Map();
   const modules = new Map();
+  // Read in parallel, in order: one file after the other was a third of a warm analysis.
+  const sources = await readAll(files);
 
-  for (const file of files) {
-    const source = await fs.readFile(file, "utf8");
+  for (const [at, file] of files.entries()) {
+    const source = sources[at];
     // Forward slashes on every system: the same source gives the same output on Windows and Linux.
     const relativeFile = path.relative(base, file).replaceAll("\\", "/");
     const result = await cachedObjectsFromSource(source, relativeFile || path.basename(file), parseCache);
