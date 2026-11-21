@@ -1,7 +1,7 @@
 // Parse results on disk, so an editor that opens a project again skips
 // tree-sitter for every file whose content has not changed. One file per
 // project in the BC Atlas cache folder (BCA_CACHE_DIR, default
-// <temp>/bc-atlas), next to the AL compiler's results.
+// <temp>/bc-atlas).
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";

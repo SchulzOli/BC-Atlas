@@ -129,11 +129,9 @@ export function findCyclePaths(objects, edges) {
   return cycles.map((members) => {
     const path = representativePath(members[0], members, outgoing, edgesByPair);
     const hasCalls = path.some(({ kind }) => kind === "calls");
-    const calls = path.flatMap(({ kind, evidence }) => kind === "calls" ? evidence : []);
-    const syntacticCalls = calls.some(({ callResolution, resolution }) => (callResolution ?? resolution) !== "compiler");
     const incompleteCalls = path.some(({ kind, evidence }) =>
       kind === "calls" && evidence.some(({ callResolution, resolution }) =>
-        !["compiler", "syntactic"].includes(callResolution ?? resolution)));
+        (callResolution ?? resolution) !== "syntactic"));
     const missingEvidence = path.some(({ evidence }) => !evidence.length);
     const missingLocations = path.some(({ evidence }) => !evidence.some(({ file, line }) => file && line !== undefined));
     return {
@@ -142,7 +140,7 @@ export function findCyclePaths(objects, edges) {
       classification: "structural",
       limitations: [
         "A structural dependency cycle is not evidence of runtime recursion.",
-        ...(hasCalls && syntacticCalls ? ["Call resolution is incomplete without compiler evidence; ambiguous or unresolved call evidence may be omitted."] : []),
+        ...(hasCalls ? ["Calls are resolved from the source by name and number of arguments; ambiguous or unresolved call evidence may be omitted."] : []),
         ...(incompleteCalls ? ["Ambiguous or unresolved call evidence does not support a tailored call-cycle remedy."] : []),
         ...(missingEvidence ? ["One or more cycle hops lack supporting dependency evidence."] : []),
         ...(missingLocations ? ["One or more cycle hops lack a supporting source location."] : [])

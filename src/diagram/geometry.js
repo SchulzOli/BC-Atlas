@@ -1,4 +1,4 @@
-// Shapes shared by the SVG and PDF renderers.
+// Shapes of the SVG renderer.
 
 const ARROW = { length: 9, width: 7 };
 
@@ -62,7 +62,7 @@ export function arrowHead(points) {
   ];
 }
 
-/** A dash pattern for a dash value of the scene (D2's stroke-dash). */
+/** A dash pattern for a dash value of the scene (the length of a dash). */
 export function dashPattern(dash, width = 1) {
   return dash ? [Math.round(dash * 1.4 * width * 10) / 10, Math.round(dash * width * 10) / 10] : undefined;
 }

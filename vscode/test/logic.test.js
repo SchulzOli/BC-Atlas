@@ -20,26 +20,18 @@ test("maps documents to the project paths BC Atlas uses", () => {
 test("turns health findings into Problems-panel entries at their file and line", () => {
   const problems = logic.findingsToProblems({
     findings: [
-      { severity: "error", rule: "architecture-violation", message: "Sales-Post (Sales) depends on Core", file: "src/Sales.al", line: 42, object: "b" },
+      { severity: "error", rule: "forbidden-dependency", message: "Core must not depend on UI", file: "src/Sales.al", line: 42, object: "b" },
       { severity: "info", rule: "unresolved-references", message: "2 reference(s)" }
     ]
   }, root);
   assert.deepEqual(problems, [{
-    file: path.join(root, "src", "Sales.al"), line: 41, severity: "error", message: "Sales-Post (Sales) depends on Core", code: "architecture-violation", object: "b"
+    file: path.join(root, "src", "Sales.al"), line: 41, severity: "error", message: "Core must not depend on UI", code: "forbidden-dependency", object: "b"
   }]);
 
-  const compiler = {
-    findings: [{
-      severity: "warning", rule: "AA0137", message: "AA0137: Variable 'X' is unused.", file: "src/Sales.al", line: 5, column: 9, endLine: 5, endColumn: 10,
-      helpLink: "https://learn.microsoft.com/codecop-aa0137", origin: "al"
-    }]
-  };
-  assert.deepEqual(logic.findingsToProblems(compiler, root), [{
-    file: path.join(root, "src", "Sales.al"), line: 4, column: 8, endLine: 4, endColumn: 9, severity: "warning",
-    message: "AA0137: Variable 'X' is unused.", code: "AA0137", helpLink: "https://learn.microsoft.com/codecop-aa0137"
-  }], "compiler findings keep their exact range and help link");
-  assert.deepEqual(logic.findingsToProblems(compiler, root, { skipCompiler: true }), [],
-    "the AL Language extension reports compiler findings itself");
+  const ranged = { findings: [{ severity: "warning", rule: "parse-error", message: "Unexpected token", file: "src/Sales.al", line: 5, column: 9, endLine: 5, endColumn: 10 }] };
+  assert.deepEqual(logic.findingsToProblems(ranged, root), [{
+    file: path.join(root, "src", "Sales.al"), line: 4, column: 8, endLine: 4, endColumn: 9, severity: "warning", message: "Unexpected token", code: "parse-error"
+  }], "a finding with a range keeps it");
 });
 
 test("finds the object at the cursor and puts a CodeLens above each object", () => {
@@ -48,8 +40,8 @@ test("finds the object at the cursor and puts a CodeLens above each object", () 
   assert.equal(logic.objectAt(objects, "src/Sales.al", 0).id, "a", "above the first object, the first object");
   assert.equal(logic.objectAt(objects, "src/None.al", 0), undefined);
   assert.deepEqual(logic.lensesForFile(objects, "src/Sales.al"), [
-    { line: 2, id: "a", title: "used by 120 · uses 4 · component Sales", warning: false },
-    { line: 39, id: "b", title: "used by 2 · uses 30 · component Sales · 3 dependencies against the architecture", warning: true }
+    { line: 2, id: "a", title: "used by 120 · uses 4" },
+    { line: 39, id: "b", title: "used by 2 · uses 30" }
   ]);
 });
 
@@ -58,7 +50,6 @@ test("summarizes health in the status bar", () => {
     title: "Contoso",
     summary: { objects: 1200, apps: [{}, {}] },
     health: { passed: false, counts: { error: 2, warning: 5, info: 1 } },
-    architecture: { mode: "proposal", violations: 17, extractable: 3, components: 9 },
     docs: { scenarios: 4 }
   };
   const status = logic.statusFor(overview);
@@ -70,7 +61,7 @@ test("summarizes health in the status bar", () => {
 });
 
 test("builds view addresses and export arguments", () => {
-  assert.equal(logic.viewHash({ lens: "components", form: "diagram" }), "#lens=components&form=diagram");
+  assert.equal(logic.viewHash({ lens: "modules", form: "diagram" }), "#lens=modules&form=diagram");
   assert.equal(logic.viewHash({ sel: "app::Contoso.Core::table::50000", form: undefined }), "#sel=app%3A%3AContoso.Core%3A%3Atable%3A%3A50000");
   assert.equal(logic.viewHash(), "#");
   const app = logic.EXPORTS.find(({ view }) => view === "app");
@@ -91,19 +82,16 @@ test("resolves ${workspaceFolder} in al.* settings to the VS Code workspace fold
 test("passes only al.* settings someone set, by layer, without the AL defaults", () => {
   const folder = path.resolve("/work");
   const values = {
-    packageCachePath: { defaultValue: "./.alpackages", workspaceFolderValue: "${workspaceFolder}/symbols" },
-    assemblyProbingPaths: { defaultValue: ["./.netpackages"] },
-    codeAnalyzers: { defaultValue: [], globalValue: ["${CodeCop}"] },
-    enableCodeAnalysis: { defaultValue: false, workspaceValue: true },
-    ruleSetPath: { defaultValue: "", workspaceValue: "${workspaceFolder}/rules.json" }
+    packageCachePath: { defaultValue: "./.alpackages", workspaceFolderValue: "${workspaceFolder}/symbols", workspaceValue: "${workspaceFolder}/shared", globalValue: "~/cache" },
+    codeAnalyzers: { defaultValue: [], globalValue: ["${CodeCop}"] }
   };
   assert.deepEqual(logic.editorAlSettings((key) => values[key], { workspaceFolder: folder }), {
-    user: { codeAnalyzers: ["${CodeCop}"] },
-    workspace: { enableCodeAnalysis: true, ruleSetPath: `${folder}/rules.json` },
+    user: { packageCachePath: "~/cache" },
+    workspace: { packageCachePath: `${folder}/shared` },
     workspaceFolder: { packageCachePath: `${folder}/symbols` }
-  });
+  }, "only the settings BC Atlas reads");
   // In a multi-root workspace, ${workspaceFolder} in the .code-workspace is resolved per project by the engine.
-  assert.equal(logic.editorAlSettings((key) => values[key], { workspaceFolder: folder, multiRoot: true }).workspace.ruleSetPath,
-    "${workspaceFolder}/rules.json");
+  assert.equal(logic.editorAlSettings((key) => values[key], { workspaceFolder: folder, multiRoot: true }).workspace.packageCachePath,
+    "${workspaceFolder}/shared");
   assert.deepEqual(logic.editorAlSettings(() => undefined), {});
 });

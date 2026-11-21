@@ -13,24 +13,19 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 - [BC Atlas for VS Code](./vscode.md)
 - [Configuration](./configuration.md)
 
-## Analyze
+## Show and document
 
-- [Clean architecture: find, resolve, enforce](./clean-architecture.md)
-- [Current and target architecture: goals, templates, compare](./target-architecture.md)
-- [Architecture health checks](./health-checks.md)
-
-## Export
-
-- [Architecture reports](./reports.md)
-- [Architecture diagrams and views](./architecture-diagrams.md)
-- [Code Graph as Markdown](./code-graph-markdown-design.md)
 - [Layered documentation, in sync with the source](./layers.md)
+- [Reports](./reports.md)
 - [Documentation from AL UI tests](./al-ui-test-documentation.md)
 - [Knowledge graph (RDF and OWL)](./knowledge-graph.md)
 
+## Check
+
+- [Health checks](./health-checks.md)
+
 ## Integrate
 
-- [AL toolchain: compiler, analyzers, AL settings](./al-toolchain.md)
 - [Agent integration and MCP](./agent-integration.md)
 - [MCP JSON example](./examples/mcp.json)
 
@@ -43,7 +38,7 @@ Read it online at https://schulzoli.github.io/BC-Atlas/.
 
 ## Generated examples
 
-- [Architecture report (warehouse example)](./../examples/report/README.md)
+- [Report (warehouse example)](./../examples/report/README.md)
 - [Layered documentation (three-app example)](./../examples/layers/README.md)
 - [User guides from AL UI tests (warehouse example)](./../examples/docs/index.md)
 - [Knowledge graph (warehouse example)](./../examples/knowledge-graph/warehouse-app.ttl)

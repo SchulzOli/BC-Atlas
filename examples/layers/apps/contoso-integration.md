@@ -12,10 +12,6 @@ The app Contoso Integration holds 2 objects (2 codeunits). It depends on 3 other
 
 ![Contoso Integration](contoso-integration.svg)
 
-## Components
-
-[Integration](../components/integration.md)
-
 ## Namespaces
 
 [Contoso.Integration](../namespaces/contoso-integration.md)
@@ -26,29 +22,15 @@ The app Contoso Integration holds 2 objects (2 codeunits). It depends on 3 other
 - unresolved (unresolved)
 - undeclared [Contoso Core](contoso-core.md)
 
-## What to change here
-
-- 1. Declare that Contoso Integration depends on Contoso Core (small)
-- 2. Bring in what Contoso Integration refers to (small)
-- 3. CON Item Sync: declare the dependency; it points inward (small)
-- 4. Let Core own the writes to table 50000 CON Item (medium)
-- 5. Let Sales own the writes to table 50100 CON Sales Quote (medium)
-- 7. Make 2 objects of Integration internal (small)
-
-Why and how: [What to change, and how](../changes.md).
-
 ## Objects
 
 | Object | Type | ID | Namespace | Lines | Uses | Used by | Findings |
 | --- | --- | --- | --- | ---: | ---: | ---: | --- |
 | [CON Quote Export](../objects/codeunit-50200-con-quote-export.md) | codeunit | 50200 | Contoso.Integration | 15 | 3 | 0 | 1 (info) |
-| [CON Item Sync](../objects/codeunit-50201-con-item-sync.md) | codeunit | 50201 | Contoso.Integration | 10 | 1 | 0 | 2 (error) |
+| [CON Item Sync](../objects/codeunit-50201-con-item-sync.md) | codeunit | 50201 | Contoso.Integration | 10 | 1 | 0 | 1 (info) |
 
 ## Findings
 
-- **error** `architecture-violation`: codeunit CON Item Sync (Integration) depends on 1 object(s) in Core; declare the dependency; it points inward (declare-dependency)
-  - On: [CON Item Sync](../objects/codeunit-50201-con-item-sync.md)
-  - Source: `integration/ItemSync.al:10`
 - **info** `undocumented-public-api`: codeunit 50200 CON Quote Export: 1 public procedure(s) without a /// summary: Export
   - On: [CON Quote Export](../objects/codeunit-50200-con-quote-export.md)
   - Source: `integration/Export.al:7`

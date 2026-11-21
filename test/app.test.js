@@ -17,10 +17,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cli = path.join(root, "src", "cli.js");
 const workspace = path.join(root, "examples", "multi-app");
 
-function copyWorkspace({ architecture = true } = {}) {
+function copyWorkspace() {
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-app-"));
   cpSync(workspace, directory, { recursive: true });
-  if (!architecture) rmSync(path.join(directory, ".bca.json"));
   return directory;
 }
 
@@ -34,20 +33,17 @@ function deepFreeze(value, seen = new Set()) {
 // The view shares the one resolved model instead of copying it; a write to
 // it would throw here (modules are strict).
 test("the atlas only reads the shared model", async () => {
-  for (const architecture of [true, false]) {
-    const directory = copyWorkspace({ architecture });
-    try {
-      const shared = new Workspace(directory);
-      deepFreeze((await shared.model()).model);
-      await shared.overview();
-      await shared.architecture();
-      await shared.architecture({ propose: true });
-      const atlas = await shared.atlas();
-      const object = atlas.nodes.find(({ kind, external }) => kind === "object" && !external);
-      assert.ok((await shared.inside(object.id)).nodes.length >= 0);
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
+  const directory = copyWorkspace();
+  try {
+    const shared = new Workspace(directory);
+    deepFreeze((await shared.model()).model);
+    await shared.overview();
+    await shared.levels();
+    const atlas = await shared.atlas();
+    const object = atlas.nodes.find(({ kind, external }) => kind === "object" && !external);
+    assert.ok((await shared.inside(object.id)).nodes.length >= 0);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
   }
 });
 
@@ -57,57 +53,44 @@ test("the service answers the view and the editor from one analysis", async () =
   assert.equal(overview.title, "multi-app");
   assert.equal(overview.projectRoot, workspace);
   assert.equal(overview.summary.objects, 12);
-  assert.equal(overview.architecture.mode, "configured");
-  assert.equal(overview.architecture.violations, 1);
-  assert.equal(overview.health.passed, false);
+  assert.equal(overview.architecture, undefined, "no target architecture: what is shown is what the source has");
+  assert.equal(overview.health.passed, true);
   assert.match(overview.sources[0][1], /5 files with 12 objects/u, "what everything is read from");
 
   const health = await service.call("health");
-  const violation = health.findings.find(({ rule }) => rule === "architecture-violation");
-  assert.ok(violation.object, "findings link to the object at their location");
+  const finding = health.findings.find(({ rule, message }) => rule === "undocumented-public-api" && message.includes("CON Item Sync"));
+  assert.ok(finding.object, "findings link to the object at their location");
 
   const objects = await service.call("objects");
   assert.equal(objects.length, 12);
   const sync = objects.find(({ label }) => label === "CON Item Sync");
-  assert.equal(sync.component, "Integration");
-  assert.equal(sync.violations, 1);
-  assert.equal(violation.object, sync.id);
+  assert.equal(sync.component, undefined);
+  assert.equal(finding.object, sync.id);
 
   const detail = await service.call("object", { id: sync.id });
   assert.deepEqual(detail.uses.map(({ label }) => label), ["CON Item"]);
-  assert.equal(detail.violations[0].resolution.strategy, "declare-dependency");
   assert.match(detail.source.file, /ItemSync\.al$/u);
   assert.ok(detail.members.procedures.length > 0);
   await assert.rejects(service.call("object", { id: "nope" }), /object not found/u);
 
-  const configured = await service.call("architecture");
-  assert.equal(configured.mode, "configured");
-  assert.equal(configured.violationCount, 1);
-  const proposal = await service.call("architecture", { propose: 1, groupBy: "app" });
-  assert.equal(proposal.mode, "proposal");
-  assert.equal(proposal.proposal.groupBy, "app");
-  await assert.rejects(service.call("architecture", { groupBy: "nope" }), /groupBy must be one of/u);
-  // Where dependencies should be (rules) and where they are (object links), top layer first.
-  assert.deepEqual(configured.matrix.order, ["Integration", "Sales", "Core"]);
-  assert.equal(configured.matrix.cells[2][0].allowed, false, "Core may not use Integration");
   assert.deepEqual((await service.call("lenses")).slice(0, 3), [
     { id: "overview", title: "Overview", summary: "How it works, from left to right: the screens, the logic behind them, and the data." },
     { id: "system", title: "System", summary: "Every object and every relation between them." },
-    { id: "components", title: "Components", summary: "The components in their layers and the dependencies between them, allowed or the wrong way." }
+    { id: "apps", title: "Apps", summary: "The apps of the workspace, the apps they depend on, and what they use of each other." }
   ]);
-  await assert.rejects(service.call("deleteEverything"), /unknown method/u);
+  for (const removed of ["architecture", "adoptArchitecture", "updateBaseline", "compareArchitecture", "deleteEverything"]) await assert.rejects(service.call(removed), /unknown method/u);
 });
 
 test("the atlas is everything read from the source as one graph", async () => {
   const service = createService(new Workspace(workspace));
   const atlas = await service.call("atlas");
   assert.equal(atlas.title, "multi-app");
-  assert.deepEqual({ objects: atlas.summary.objects, apps: atlas.summary.apps, passed: atlas.summary.health.passed }, { objects: 12, apps: 3, passed: false });
-  assert.deepEqual(atlas.sources.map(([term]) => term), ["AL source", "app.json", "Symbol packages", "AL compiler", "Settings"]);
+  assert.deepEqual({ objects: atlas.summary.objects, apps: atlas.summary.apps, passed: atlas.summary.health.passed }, { objects: 12, apps: 3, passed: true });
+  assert.deepEqual(atlas.sources.map(([term]) => term), ["AL source", "app.json", "Symbol packages", "Settings"]);
 
   // Nodes of every kind there is, each with a name and a color.
   const count = (kind) => atlas.nodes.filter((node) => node.kind === kind && !node.external).length;
-  assert.deepEqual({ object: count("object"), app: count("app"), component: count("component"), module: count("module") }, { object: 12, app: 3, component: 3, module: 4 });
+  assert.deepEqual({ object: count("object"), app: count("app"), component: count("component"), module: count("module") }, { object: 12, app: 3, component: 0, module: 4 });
   assert.ok(atlas.nodes.some(({ kind }) => kind === "rule"), "the rules of the health check are nodes");
   assert.equal(new Set(atlas.nodes.map(({ id }) => id)).size, atlas.nodes.length, "every node once");
   assert.ok(atlas.nodes.every(({ label, kind, color }) => label && kind && /^#[0-9a-f]{6}$/iu.test(color)));
@@ -118,18 +101,19 @@ test("the atlas is everything read from the source as one graph", async () => {
   assert.ok(atlas.relations.every(({ kind, color }) => kind && /^#[0-9a-f]{6}$/iu.test(color)));
   const related = (from, to) => atlas.edges.filter(([a, b]) => atlas.nodes[a].label === from && atlas.nodes[b].label === to).map(([, , relation]) => atlas.relations[relation].kind).sort();
   assert.deepEqual(related("CON Item Sync", "CON Item"), ["reads", "uses", "writes"], "one relation per kind, not one line for all");
-  assert.deepEqual(related("Integration", "Core"), ["wrong way"]);
-  assert.deepEqual(related("Sales", "Core"), ["depends on"]);
+  assert.deepEqual(related("Contoso Integration", "Contoso Core"), ["undeclared"]);
+  assert.deepEqual(related("Contoso Sales", "Contoso Core"), ["declared"]);
+  assert.deepEqual(related("Contoso.Core.Pricing", "Contoso.Core.Items"), ["depends on"]);
 
   // An object carries what the view says about it.
   const sync = atlas.nodes.find(({ label }) => label === "CON Item Sync");
   assert.deepEqual(
-    { type: sync.type, component: sync.component, app: sync.app, namespace: sync.namespace, level: sync.level, canBe: sync.canBe, wrongWay: sync.wrongWay, file: sync.file, line: sync.line },
-    { type: "codeunit", component: "Integration", app: "Contoso Integration", namespace: "Contoso.Integration", level: "public", canBe: "internal", wrongWay: 1, file: "integration/ItemSync.al", line: 6 }
+    { type: sync.type, app: sync.app, namespace: sync.namespace, level: sync.level, canBe: sync.canBe, file: sync.file, line: sync.line },
+    { type: "codeunit", app: "Contoso Integration", namespace: "Contoso.Integration", level: "public", canBe: "internal", file: "integration/ItemSync.al", line: 6 }
   );
 
   // Lenses: parts of the one graph. One without anything in it is left out.
-  assert.deepEqual(atlas.lenses.map(({ id }) => id), ["overview", "system", "components", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health"]);
+  assert.deepEqual(atlas.lenses.map(({ id }) => id), ["overview", "system", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health"]);
   const kinds = new Set(atlas.relations.map(({ kind }) => kind));
   for (const lens of atlas.lenses) {
     assert.ok(lens.title && lens.summary && lens.reads, `${lens.id} says what it shows and what it reads`);
@@ -139,14 +123,14 @@ test("the atlas is everything read from the source as one graph", async () => {
   assert.ok(atlas.lenses.find(({ id }) => id === "system").relations.includes("source"), "every relation between objects, also a page's source table");
 
   // Findings point at the nodes they are about: the rule and the object.
-  const violation = atlas.findings.find(({ rule }) => rule === "architecture-violation");
-  assert.deepEqual(violation.nodes.map((index) => atlas.nodes[index].label), ["architecture-violation", "CON Item Sync"]);
-  assert.equal(violation.severity, "error");
-  assert.equal(atlas.nodes[violation.nodes[0]].severity, "error", "a rule is as severe as its worst finding");
+  const finding = atlas.findings.find(({ rule, message }) => rule === "undocumented-public-api" && message.includes("CON Item Sync"));
+  assert.deepEqual(finding.nodes.map((index) => atlas.nodes[index].label), ["undocumented-public-api", "CON Item Sync"]);
+  assert.equal(finding.severity, "info");
+  assert.equal(atlas.nodes[finding.nodes[0]].severity, "info", "a rule is as severe as its worst finding");
   assert.ok(atlas.findings.every(({ nodes }) => nodes.every((index) => atlas.nodes[index])));
 
   // Stories: walks through the graph, generated from the same source.
-  assert.deepEqual(atlas.stories.map(({ id }) => id), ["system", "fix", "architecture"]);
+  assert.deepEqual(atlas.stories.map(({ id }) => id), ["system", "fix"]);
   const lenses = new Set(atlas.lenses.map(({ id }) => id));
   for (const story of atlas.stories) {
     assert.ok(story.title && story.summary && story.steps.length > 0);
@@ -157,32 +141,8 @@ test("the atlas is everything read from the source as one graph", async () => {
   assert.deepEqual([how.title, how.lens], ["How it works", "overview"]);
   assert.match(how.text, /^From left to right: 2 screens, 6 logic objects, 3 tables\. The screens run the logic, and the logic reads and writes the data\./u);
   assert.match(first.text, /^12 objects in 3 apps: 5 codeunits, 3 tables, 2 pages, 1 interface, 1 permissionset\./u);
-  // What to change, and how: one list, and the story that walks through it.
-  assert.deepEqual(atlas.changes.map(({ kind, title, effort, optional }) => [kind, title, effort, Boolean(optional)]), [
-    ["apps", "Declare that Contoso Integration depends on Contoso Core", "S", false],
-    ["apps", "Bring in what Contoso Integration refers to", "S", false],
-    ["dependency", "CON Item Sync: declare the dependency; it points inward", "S", false],
-    ["data", "Let Core own the writes to table 50000 CON Item", "M", false],
-    ["data", "Let Sales own the writes to table 50100 CON Sales Quote", "M", false],
-    ["surface", "Make 1 object of Core internal", "S", true],
-    ["surface", "Make 2 objects of Integration internal", "S", true]
-  ]);
-  assert.ok(atlas.changes.every(({ why, how, nodes, lens }) => why && how.length && nodes.every((index) => atlas.nodes[index]) && lenses.has(lens)), "each says why and how, on nodes and in a lens that exist");
-  const undeclared = atlas.changes[0];
-  assert.match(undeclared.why, /^Contoso Integration uses Contoso Core \(3 relations\), but its app\.json does not name Contoso Core\./u);
-  assert.match(undeclared.how[0], /^Add Contoso Core to `dependencies` in the app\.json of Contoso Integration/u);
-  const wrongWay = atlas.changes[2];
-  assert.equal(wrongWay.why, "The codeunit CON Item Sync of Integration depends on table CON Item of Core, which the configured architecture does not allow.");
-  assert.deepEqual(wrongWay.how, ["Add Core to dependsOn of Integration in .bca.json (and to app.json when they are separate apps).", "Or: go through a component you already depend on (effort M)."]);
-  assert.deepEqual(wrongWay.nodes.map((index) => atlas.nodes[index].label), ["CON Item Sync", "CON Item"]);
-  assert.deepEqual([wrongWay.file, wrongWay.line], ["integration/ItemSync.al", 6]);
-  assert.equal(atlas.changes[5].how[0], "Set `Access = Internal` on these objects.");
-  const story = atlas.stories.find(({ id }) => id === "architecture");
-  assert.deepEqual([story.title, story.steps.length, story.steps[0].title, story.steps[0].status, story.steps[6].status], ["What to change, and how", 7, undeclared.title, "error", "info"]);
-  assert.match(story.steps[2].text, /does not allow\. How: Add Core to dependsOn of Integration in \.bca\.json .+ Effort: S\.$/u);
-  // The components say how much of their coupling stays inside, and the summary how much overall.
-  assert.deepEqual(atlas.nodes.filter(({ kind }) => kind === "component").map(({ label, cohesion, canBeApp }) => [label, cohesion, canBeApp]), [["Core", 55, "yes"], ["Sales", 45, "yes"], ["Integration", 0, "no"]]);
-  assert.equal(atlas.summary.architecture.inside, 57);
+  assert.equal(atlas.changes, undefined);
+  assert.equal(atlas.architecture, undefined);
 
   // One object from the inside: its procedures, and what each does with other objects.
   const inside = await service.call("inside", { id: sync.id });
@@ -191,22 +151,6 @@ test("the atlas is everything read from the source as one graph", async () => {
   const does = inside.edges.filter(([from, to]) => from === inside.nodes[0].id && to === item.id).map(([, , relation]) => inside.relations[relation].kind).sort();
   assert.deepEqual(does, ["reads", "writes"], "the procedure reads and writes the table");
   await assert.rejects(service.call("inside", { id: "nope" }), /object not found/u);
-});
-
-test("adopting an architecture writes .bca.json and the baseline", async () => {
-  const directory = copyWorkspace({ architecture: false });
-  try {
-    const service = createService(new Workspace(directory));
-    assert.equal((await service.call("overview")).architecture.mode, "proposal");
-    await service.call("adoptArchitecture", { groupBy: "app" });
-    const saved = JSON.parse(readFileSync(path.join(directory, ".bca.json"), "utf8")).architecture;
-    assert.deepEqual(saved.components.map(({ name }) => name), ["Contoso Core", "Contoso Sales", "Contoso Integration"]);
-    assert.ok(existsSync(path.join(directory, ".bca-architecture-baseline.json")));
-    // The next request analyzes again and sees the configured architecture.
-    assert.equal((await service.call("overview")).architecture.mode, "configured");
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
 });
 
 test("the workspace keeps parse results on disk and parses only changed files again", async () => {
@@ -303,7 +247,7 @@ test("the app is one view: a toolbar and the graph", () => {
   // The picture after a step starts from the picture before it.
   assert.match(html, /const before = graph\?\.snapshot\(\);[\s\S]{0,260}from: before,/u);
   assert.deepEqual([...body.matchAll(/data-form="(\w+)"/gu)].map(([, form]) => form), ["2d", "diagram", "3d"], "any part of the graph in three forms");
-  assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "architecture", "view", "export", "sync"]);
+  assert.deepEqual([...body.matchAll(/data-menu="(\w+)"/gu)].map(([, menu]) => menu), ["lens", "story", "view", "export", "sync"]);
   // What floats on the graph starts hidden: the legend, the selected node, the story.
   for (const id of ["legend", "inspector", "story"]) assert.match(body, new RegExp(`id="${id}" class="float"[^>]* hidden>`, "u"));
   assert.match(html, /root\.BCA_GRAPH = \{ create, drawing, seed, step, random, layered \}/u, "the graph is part of the file");
@@ -322,7 +266,7 @@ test("bca export writes the app as one offline file with the whole atlas", () =>
     const output = path.join(directory, "atlas.html");
     const result = spawnSync(process.execPath, [cli, "export", workspace, "-o", output], { encoding: "utf8", timeout: 180_000 });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stderr + result.stdout, /multi-app: 12 object\(s\), health failed, 1 wrong-way dependency/u);
+    assert.match(result.stderr + result.stdout, /multi-app: 12 object\(s\), health passed\./u);
     const html = readFileSync(output, "utf8");
     assert.match(html, /window\.BCA_APP = \{"mode":"static"/u);
     assert.match(html, /<title>multi-app · BC Atlas<\/title>/u);
@@ -347,71 +291,6 @@ test("bca export writes the app as one offline file with the whole atlas", () =>
   }
 });
 
-test("the app keeps a component and excludes an object in architecture.proposal of .bca.json", async () => {
-  const directory = copyWorkspace({ architecture: false });
-  try {
-    const service = createService(new Workspace(directory));
-    const proposed = await service.call("architecture", { propose: true });
-    const component = proposed.architecture.components[0];
-    const kept = await service.call("updateProposal", { keep: { name: component.name, match: component.match } });
-    assert.deepEqual(kept.keep, [component.name]);
-    await service.call("updateProposal", { exclude: "type:permissionset" });
-    const config = JSON.parse(readFileSync(path.join(directory, ".bca.json"), "utf8"));
-    assert.deepEqual(config.architecture.proposal, { keep: [{ name: component.name, match: component.match }], exclude: ["type:permissionset"] });
-    const again = await service.call("architecture", { propose: true });
-    assert.deepEqual(again.proposal.basis.kept.map(({ name }) => name), [component.name], "the next proposal keeps it");
-    await service.call("updateProposal", { release: component.name, include: "type:permissionset" });
-    assert.deepEqual(JSON.parse(readFileSync(path.join(directory, ".bca.json"), "utf8")).architecture.proposal, {});
-    await assert.rejects(service.call("updateProposal", { keep: { name: "X" } }), /keep needs a name and match selectors/u);
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
-test("the view has the architecture: why, the goals, the templates, and current against target", async () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-view-architecture-"));
-  try {
-    cpSync(fileURLToPath(new URL("../examples/purchasing-app", import.meta.url)), root, { recursive: true });
-    const workspace = new Workspace(root, {}, { live: true });
-    const service = createService(workspace);
-    const { architecture, nodes } = await service.call("atlas");
-    assert.equal(architecture.mode, "proposal");
-    assert.equal(architecture.template.name, "balanced");
-    assert.ok(architecture.score.total > 0 && architecture.score.criteria.every(({ title, weight }) => title && weight >= 0));
-    // Every component says why it is what it is, and every object which step placed it.
-    const components = nodes.filter(({ kind }) => kind === "component");
-    assert.ok(components.length && components.every(({ label }) => architecture.components[label]?.why.length));
-    const objects = nodes.filter(({ kind, component }) => kind === "object" && component);
-    assert.ok(objects.length && objects.every(({ id }) => architecture.steps[architecture.placements[id]?.[0]] && architecture.placements[id][1]));
-    assert.deepEqual(architecture.templates.filter(({ origin }) => origin === "preset").map(({ name }) => name), ["balanced", "follow-structure", "by-coupling", "layered", "modular-monolith", "small-steps"]);
-    // In VS Code the comparison is asked for; an exported file carries one.
-    assert.equal(architecture.compare, undefined);
-    assert.ok((await createAtlas(new Workspace(root, {}, { live: false }))).architecture.compare.criteria.length);
-
-    const compared = await service.call("compareArchitecture", { to: "best", weights: { fewMoves: 6 } });
-    assert.equal(compared.criteria.find(({ id }) => id === "fewMoves").weight, 6);
-    assert.ok(compared.candidates.some(({ chosen }) => chosen) && compared.steps.length && compared.sides === undefined);
-    // A template of your own, saved from the view and taken into use.
-    const saved = await service.call("architectureTemplate", { action: "save", name: "ours", values: { template: "layered", weights: { fewMoves: 6 } } });
-    assert.equal(saved.name, "ours");
-    assert.equal((await service.call("atlas")).architecture.template.name, "ours");
-    await service.call("architectureTemplate", { action: "use", name: "balanced" });
-    await service.call("architectureTemplate", { action: "remove", name: "ours" });
-    assert.equal(JSON.parse(readFileSync(path.join(root, ".bca.json"), "utf8")).architecture?.templates?.ours, undefined);
-    // The target becomes the architecture of the project.
-    const adopted = await service.call("adoptTarget", { to: "proposal" });
-    assert.ok(adopted.components >= 1);
-    const now = (await service.call("atlas")).architecture;
-    assert.equal(now.mode, "configured");
-    assert.equal(Object.values(now.placements)[0][0], "declared");
-
-    const html = renderAppHtml({ mode: "vscode" });
-    for (const part of ['id="architecture-button"', "MENUS.architecture = ", "function whyHere(", 'call("compareArchitecture"', 'call("adoptTarget"', 'call("architectureTemplate"']) assert.ok(html.includes(part), part);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
 test("the view is the same page in VS Code, as an MCP App, and as a file: every request it makes is answered in each", () => {
   const vscodePage = renderAppHtml({ mode: "vscode" });
   const mcpPage = renderAppHtml({ mode: "mcp" });
@@ -424,7 +303,7 @@ test("the view is the same page in VS Code, as an MCP App, and as a file: every 
   const service = createService(new Workspace(fileURLToPath(new URL("../examples/warehouse-app", import.meta.url)), {}, { live: true }));
   const called = [...new Set([...readFileSync(new URL("../src/app/ui/atlas.js", import.meta.url), "utf8").matchAll(/\bcall\("(\w+)"/gu)].map(([, method]) => method))];
   const hostOnly = ["openFile", "saveFile"];
-  assert.ok(called.length > 5);
+  assert.deepEqual(called.slice().sort(), ["atlas", "inside", "openFile", "refresh", "saveFile"]);
   for (const method of called) assert.ok(service.methods.includes(method) || hostOnly.includes(method), `the view calls ${method}, which no host answers`);
   // Both hosts answer the two that are theirs.
   const extension = readFileSync(new URL("../vscode/src/extension.js", import.meta.url), "utf8");
@@ -432,5 +311,47 @@ test("the view is the same page in VS Code, as an MCP App, and as a file: every 
   for (const method of hostOnly) {
     assert.ok(extension.includes(`async ${method}(`), `the extension answers ${method}`);
     assert.ok(server.includes(`method === "${method}"`), `the MCP server answers ${method}`);
+  }
+});
+
+// The page in a real browser: every menu opens and a selected node shows its facts, without an
+// error of the page. Runs where Playwright with Chromium is installed.
+let chromium;
+try {
+  ({ chromium } = (await import("node:module")).createRequire(import.meta.url)("playwright"));
+} catch {
+  chromium = undefined;
+}
+test("the exported view works in a browser: a selection, every menu, and every lens", { skip: !chromium && "Playwright is not installed" }, async () => {
+  const { renderSnapshotHtml } = await import("../src/app/snapshot.js");
+  const { html, snapshot } = await renderSnapshotHtml(new Workspace(workspace, {}, { live: false }));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-browser-"));
+  const file = path.join(directory, "atlas.html");
+  writeFileSync(file, html);
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const sync = snapshot.atlas.nodes.find(({ label }) => label === "CON Item Sync");
+    const failed = () => page.evaluate(() => document.body.innerText.includes("BC Atlas could not show this"));
+    await page.goto(`file://${file}#${new URLSearchParams({ sel: sync.id })}`);
+    await page.waitForSelector("#inspector:not([hidden])");
+    assert.match(await page.innerText("#inspector"), /CON Item Sync[\s\S]*Contoso\.Integration/u, "the selected node shows its facts");
+    for (const menu of ["lens", "story", "view", "export", "sync"]) {
+      await page.click(`[data-menu="${menu}"]`);
+      assert.ok(await page.isVisible("#popover"), `${menu} opens`);
+      await page.keyboard.press("Escape");
+      await page.click("#graph", { position: { x: 5, y: 5 } });
+    }
+    for (const { id } of snapshot.atlas.lenses) {
+      await page.goto(`file://${file}#${new URLSearchParams({ lens: id, check: "1" })}`);
+      await page.waitForTimeout(150);
+      assert.equal(await failed(), false, `the ${id} lens shows`);
+    }
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    rmSync(directory, { recursive: true, force: true });
   }
 });

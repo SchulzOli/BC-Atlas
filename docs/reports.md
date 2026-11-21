@@ -1,8 +1,8 @@
 # Architecture reports
 
 `bca export --view report` writes a complete overview of an AL project into
-your repository: one Markdown page that links every diagram, the health summary, and optionally the
-object catalog. The output is plain Markdown and SVG, so it renders on GitHub,
+your repository: one Markdown page with the numbers, one picture per lens,
+and the health summary. The output is plain Markdown and SVG, so it renders on GitHub,
 Azure DevOps, GitLab, and in any Markdown viewer without a server.
 
 ```sh
@@ -16,29 +16,28 @@ from this repository.
 
 ```text
 docs/atlas/
-  README.md        overview, contents, diagrams, health, regenerate command
-  project.svg/.d2  role-oriented architecture
-  module.svg/.d2   namespace or folder dependencies
-  data.svg/.d2     tables with reads, writes, and relations
-  contracts.svg/.d2
-  events.svg/.d2
-  ui.svg/.d2
-  objects/         with --codegraph: one page per AL object
-  model.json       with --json: resolved project model
+  README.md      numbers, contents, pictures, health, regenerate command
+  overview.svg   how it works: the screens, the logic, and the data
+  apps.svg       the apps and what they use of each other
+  modules.svg    namespaces and what they use of each other
+  data.svg       tables and the code that reads, writes, relates, and extends them
+  events.svg     event publishers and their subscribers
+  contracts.svg
+  pages.svg
+  model.json     with --json: resolved project model
 ```
 
-A view without matching objects (for example `contracts` in an app without
-interfaces) is listed as "Not rendered" with the reason instead of failing the
-report.
+A lens with nothing to show (for example `contracts` in an app without
+interfaces) is left out instead of failing the report.
 
 ## Options
 
 ```sh
-# Select views and skip SVG rendering for a fast draft
-bca export ./app --view report --views project,data,call --format d2
+# Select the lenses to draw
+bca export ./app --view report --lenses overview,data,calls
 
-# Full documentation set in a custom folder
-bca export ./app --view report -o docs/architecture --codegraph --json
+# A custom folder, with the resolved model
+bca export ./app --view report -o docs/architecture --json
 
 # Restrict the report to one area of a larger workspace
 bca export ./apps/Sales --view report --project-root . --namespace "Contoso.Sales.**"
@@ -50,9 +49,7 @@ Save defaults in the `report` section of `.bca.json`:
 {
   "report": {
     "outputDir": "docs/atlas",
-    "views": ["project", "module", "data", "contracts", "events", "ui"],
-    "format": "svg",
-    "codegraph": true,
+    "lenses": ["overview", "apps", "modules", "data", "events", "contracts", "pages"],
     "json": false,
     "title": "Sales architecture"
   }

@@ -1,4 +1,4 @@
-import { compileSelector } from "./blueprint/components.js";
+import { compileSelector } from "./selectors.js";
 import { normalizeIdentifier } from "./resolver.js";
 
 function flattenEvidence(statements) {

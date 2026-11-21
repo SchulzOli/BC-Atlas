@@ -1,7 +1,7 @@
-// Lays out a diagram scene (see buildScene in ../d2.js) with ELK's layered
+// Lays out a diagram scene (nodes, groups, and edges) with ELK's layered
 // algorithm: groups as containers, relations routed orthogonally around
 // the boxes, labels placed on their relation. The result is a drawing with
-// absolute coordinates that every renderer (SVG, PDF) draws the same way.
+// absolute coordinates for the SVG renderer.
 import { cachedLayout } from "./layout-cache.js";
 import { textWidth, wrap } from "./text.js";
 

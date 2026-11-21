@@ -23,7 +23,7 @@ const narrower = (a, b) => (rank(a) >= rank(b) ? a : b);
 const wider = (a, b) => (rank(a) <= rank(b) ? a : b);
 
 // Objects that support Access = Internal and are no extension point by
-// design (as in blueprint/surface.js): tables stay public because other apps
+// design: tables stay public because other apps
 // extend them, interfaces because other apps implement them.
 const INTERNALIZABLE = new Set(["codeunit", "query", "enum"]);
 // Procedures the platform calls by attribute; their level is not a choice.
@@ -46,7 +46,7 @@ function declaredMemberLevel(declared) {
 }
 
 /**
- * @param model a resolved architecture model (objects with members, edges)
+ * @param model a resolved model (objects with members, edges)
  * @returns {
  *   levels, points: [{ id, kind, parent, name, type, level, declared, canBe, why, object, file, line }],
  *   uses: [{ from, to, level, kinds, weight }], summary

@@ -1,6 +1,6 @@
 # BC Atlas for VS Code
 
-![BC Atlas: see your architecture, find what stands in its way, and keep it clean, right in VS Code](marketing/social-preview.jpg)
+![BC Atlas: your AL apps as one graph, read from the source: see it, check it, and tell its story, right in VS Code](marketing/social-preview.jpg)
 
 **See your Business Central AL apps as one graph, read from the source:
 every object, what it does with the others, what is wrong with it, and the
@@ -31,16 +31,15 @@ click.
 The source code is the only fact. Everything BC Atlas reads from it is one
 graph, and the toolbar decides what you see of it:
 
-- a **lens** shows a part: how it works, the system, the components, the apps, the data,
-  the calls, the events, the contracts, the pages, the permissions, what is
+- a **lens** shows a part: how it works, the system, the apps, the
+  namespaces, the data, the calls, the events, the contracts, the pages, the permissions, what is
   public or internal, the findings;
 - **2D**, **Diagram**, or **3D** is the form, for any lens;
 - **Find** lights up what you look for, **Check** puts the findings on the
   nodes they are about;
 - click a node for what it is, its findings with the fix, and its
   relations; **Go to source** opens its line;
-- double-click to go into it: an app, a component, or a namespace opens to
-  its objects, an object to its procedures. A trail next to the lens says
+- double-click to go into it: an app or a namespace opens to its objects, an object to its procedures. A trail next to the lens says
   where you are, and every part of it is one click back. Nothing jumps:
   what stays in the picture stays where it is.
 
@@ -71,35 +70,18 @@ A story is generated from the source, like everything else. It walks through
 the graph step by step, with a text for each step and the nodes it is about:
 
 - **what the system is**, from the outside in, to explain it to someone new;
-- **what to fix**, one finding at a time, with the fix;
-- **what to change in the architecture, and how**, the most important
-  first, with the steps.
+- **what to fix**, one finding at a time, with the fix.
 
 Press **Play** to demonstrate, **Markdown** to keep the story as a document.
-
-## Find an architecture, then keep it
-
-![The Components lens: three components in layers, one dependency the wrong way, and what the selected component is](marketing/screenshots/components.png)
-
-BC Atlas proposes a layered architecture from today's dependencies, or checks
-the one you define in `.bca.json`. Every dependency that points the wrong way
-is red, and a **work item that says what to do in AL terms**: move a
-subscriber, move a field into a table extension, extract an interface.
-**Keep these components** writes the proposal down; **Accept the wrong-way
-dependencies** records a baseline, so from then on only new violations fail,
-and the baseline can only shrink.
-
-It answers the question behind splitting a large app: *which parts could
-become apps of their own today, and what is in the way for the rest?*
 
 ## Right where you code
 
 - **The graph follows the source**: save a file and it is read again.
 - **The graph follows the editor**: the object of the file in front is the
   selected node.
-- **CodeLens** above every object: how often it is used, what it uses, its
-  component, and its dependencies against the architecture.
-- **Problems panel**: health and architecture findings at their file and line,
+- **CodeLens** above every object: how often it is used and how much it
+  uses.
+- **Problems panel**: health findings at their file and line,
   with the fix in the message.
 - **Right-click in an AL file**: Show This Object, Show This Object in 3D,
   Show This Object from the Inside.
@@ -116,9 +98,8 @@ objects.
 ## For AI agents
 
 The extension registers the **BC Atlas MCP server**, so agents in VS Code, for
-example GitHub Copilot in agent mode, can check the architecture, propose
-one, pick a work item, apply it, and check again. Work items come with stable
-strategy IDs, made for exactly that loop.
+example GitHub Copilot in agent mode, can check the health, read any lens or
+story of the view, fix a finding, and check again.
 
 ## Get started
 
@@ -126,9 +107,8 @@ strategy IDs, made for exactly that loop.
    several apps).
 2. Click the BC Atlas icon in the activity bar, or run **BC Atlas: Open**.
 3. Choose **Story › What … is** for a first walk through the system.
-4. Choose the **Components** lens, review the proposal, and under **Live**
-   choose **Keep these components**. From now on, the Problems panel and
-   `bca check` keep the architecture.
+4. Turn on **Check** to see the findings on the graph. The Problems panel
+   shows the same findings, and `bca check` gates on them in CI.
 
 ## Commands
 
@@ -138,8 +118,7 @@ All commands are in the Command Palette under `BC Atlas: ...`.
 | --- | --- |
 | Open, Open a Lens… | Shows the view, or the view with one lens. |
 | Run Health Check | Analyzes again and fills the Problems panel; the same rules as `bca check` in CI. |
-| Show the Components, Accept Current Violations in the Baseline | Find and enforce a target architecture. |
-| Export… | Writes the view as one offline HTML file to share, the Markdown report, the object catalog, a diagram, or the knowledge graph. |
+| Export… | Writes the view as one offline HTML file to share, the Markdown report, or the knowledge graph. |
 | Generate Documentation from UI Tests… | Markdown, HTML, DITA, Azure DevOps CSV, or BPMN from AL UI tests. |
 | Select Project… | Chooses the app, or a folder above several apps, to analyze. |
 | Analyze Again, Show Output | |

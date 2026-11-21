@@ -5,7 +5,7 @@ import { testing } from "../src/analyzer.js";
 import { dependencyLens } from "../src/graph/lenses/dependency.js";
 import { aggregateRelations } from "../src/relation-aggregation.js";
 import { resolveModel } from "../src/resolver.js";
-import { createView } from "../src/views.js";
+import { resolvedCallEdges } from "../src/graph/calls.js";
 
 test("dependency graph preserves binding evidence without inflating operation coupling", async () => {
   const source = `
@@ -85,6 +85,5 @@ codeunit 50102 Caller
     source === caller.key && target === handler.key
   );
   assert.equal(callerEdge.kinds.calls, 1);
-  const calls = createView(model, "call");
-  assert.equal(calls.edges.filter(({ kind, to }) => kind === "calls" && to).length, 1);
+  assert.equal(resolvedCallEdges(model).length, 1);
 });

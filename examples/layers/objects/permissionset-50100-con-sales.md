@@ -1,15 +1,14 @@
 # permissionset 50100 CON Sales
 
-[System](../README.md) › [Contoso Sales](../apps/contoso-sales.md) › [Sales](../components/sales.md) › [Contoso.Sales.Quotes](../namespaces/contoso-sales-quotes.md)
+[System](../README.md) › [Contoso Sales](../apps/contoso-sales.md) › [Contoso.Sales.Quotes](../namespaces/contoso-sales-quotes.md)
 
-The permissionset CON Sales of the app Contoso Sales, in the component Sales, has 7 lines. It permits 3 other objects, and nothing in this workspace uses it.
+The permissionset CON Sales of the app Contoso Sales has 7 lines. It permits 3 other objects, and nothing in this workspace uses it.
 
 | Fact | Value |
 | --- | --- |
 | Type | permissionset |
 | ID | 50100 |
 | App | Contoso Sales |
-| Component | Sales |
 | Namespace | Contoso.Sales.Quotes |
 | Visibility | public |
 | Lines | 7 |

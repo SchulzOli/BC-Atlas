@@ -71,7 +71,7 @@ async function bundleEngine(engine) {
       legalComments: "eof",
       external: EXTERNAL,
       logLevel: "warning",
-      // CommonJS dependencies (graphology, ...) call require.
+      // CommonJS dependencies call require.
       banner: { js: 'import{createRequire as __bcaRequire}from"node:module";const require=__bcaRequire(import.meta.url);' },
       plugins: [moduleUrls(path.dirname(file))]
     });

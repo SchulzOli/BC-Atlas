@@ -1,38 +1,28 @@
 // `bca export`: writes what the app shows as files. One command for the
-// view as one offline file, the Markdown report, single diagrams, the
-// object catalog, and the resolved model as JSON.
+// view as one offline file, the Markdown report, and the knowledge graph.
 import { watch as fsWatch } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createArchitectureModel, positiveInteger } from "../architecture.js";
-import { VIEWS } from "../capabilities.js";
-import { generateCodeGraph } from "../codegraph.js";
 import { renderSnapshotHtml } from "../app/snapshot.js";
 import { Workspace } from "../app/workspace.js";
 import { healthResultLine } from "../health.js";
-import { displayPath, resolveOutput, writeArchitecture } from "../output.js";
+import { displayPath } from "../output.js";
+import { positiveInteger } from "../project.js";
 import { UsageError } from "../cli/errors.js";
 import { writeKnowledgeGraph } from "../knowledge/index.js";
 import { generateReport } from "./report.js";
 
-const DIAGRAM_VIEWS = new Set(VIEWS.map(([id]) => id));
-
 // Formats each kind of export accepts; the first one is the default.
 const FORMATS = {
   app: ["html"],
-  report: ["svg", "d2"],
-  catalog: ["md"],
-  "knowledge-graph": ["ttl", "rdf", "owl", "nt", "jsonld"],
-  diagram: ["svg", "d2", "json", "png", "pdf"]
+  report: ["md"],
+  "knowledge-graph": ["ttl", "rdf", "owl", "nt", "jsonld"]
 };
 
-const kindOf = (view) => (DIAGRAM_VIEWS.has(view) ? "diagram" : view);
-
 function checkFormat(view, format) {
-  const kind = kindOf(view);
-  if (!FORMATS[kind]) throw new UsageError(`unknown view "${view}"; use app, report, catalog, knowledge-graph, or one of ${[...DIAGRAM_VIEWS].join(", ")}`);
-  if (format && !FORMATS[kind].includes(format)) {
-    throw new UsageError(`--view ${view} writes ${FORMATS[kind].join(" or ")}, not ${format}`);
+  if (!FORMATS[view]) throw new UsageError(`unknown view "${view}"; use ${Object.keys(FORMATS).join(", ")}. A picture of a lens: bca view --lens <id> -o <file>.svg`);
+  if (format && !FORMATS[view].includes(format)) {
+    throw new UsageError(`--view ${view} writes ${FORMATS[view].join(" or ")}, not ${format}`);
   }
 }
 
@@ -43,39 +33,15 @@ async function exportApp(input, values, log) {
   await fs.mkdir(path.dirname(output), { recursive: true });
   await fs.writeFile(output, html);
   const { title, summary } = snapshot.atlas;
-  log(`${title}: ${summary.objects} object(s), health ${summary.health.passed ? "passed" : "failed"}, ${summary.architecture.violations} wrong-way dependency(ies).`);
+  log(`${title}: ${summary.objects} object(s), health ${summary.health.passed ? "passed" : "failed"}.`);
   return [output];
 }
 
 async function exportReport(input, values, log) {
   const result = await generateReport(input, { ...values, outputDir: values.output }, { log });
-  const rendered = result.diagrams.filter(({ skipped }) => !skipped).length;
-  const overviews = result.diagrams.filter(({ overview }) => overview).length;
   log(healthResultLine(result.health));
-  log(`${rendered} diagram(s) in the report${overviews ? `, ${overviews} as an overview of their groups` : ""}`);
+  log(`${result.pictures.length} picture(s) in the report`);
   return [result.readme];
-}
-
-async function exportCatalog(input, values, log) {
-  const result = await generateCodeGraph(input, { ...values, outputDir: values.output ?? "docs/codegraph" });
-  log(`${result.objects} object page(s); ${result.unresolved} unresolved reference(s).`);
-  return [path.join(result.outputDirectory, "index.md")];
-}
-
-async function exportDiagram(input, values, log) {
-  const architecture = await createArchitectureModel(input, values);
-  const toStdout = values.output === "-" || (!values.output && values.format === "json");
-  const target = resolveOutput({
-    output: toStdout ? undefined : values.output ?? `bc-atlas-${architecture.view}.${values.format ?? "svg"}`,
-    format: toStdout ? "json" : values.format,
-    fallbackFormat: "svg",
-    toStdout
-  });
-  const { files } = await writeArchitecture(architecture, target);
-  const { model, view, seriousDiagnostics } = architecture;
-  const warnings = seriousDiagnostics.length ? `, ${seriousDiagnostics.length} diagnostic(s) - run "bca check" for details` : "";
-  log(`Analyzed ${model.files} file(s): ${model.objects.length} ${view} node(s), ${model.edges.length} edge(s)${warnings}.`);
-  return files;
 }
 
 async function exportKnowledgeGraph(input, values, log) {
@@ -84,16 +50,13 @@ async function exportKnowledgeGraph(input, values, log) {
   return [result.file];
 }
 
-const EXPORTERS = { app: exportApp, report: exportReport, catalog: exportCatalog, "knowledge-graph": exportKnowledgeGraph, diagram: exportDiagram };
+const EXPORTERS = { app: exportApp, report: exportReport, "knowledge-graph": exportKnowledgeGraph };
 
 /** Writes one export; returns the files written. */
 export async function runExport(input, values = {}, { log = () => {} } = {}) {
   const view = values.view ?? "app";
   checkFormat(view, values.format);
-  if (values.output === "-" && (kindOf(view) !== "diagram" || (values.format ?? "json") !== "json")) {
-    throw new UsageError("-o - (stdout) is only for a diagram view with --format json");
-  }
-  return EXPORTERS[kindOf(view)](input, { ...values, view }, log);
+  return EXPORTERS[view](input, { ...values, view }, log);
 }
 
 async function watchExport(input, values, build) {
@@ -140,9 +103,7 @@ async function watchExport(input, values, build) {
 }
 
 export async function exportCommand(input, values) {
-  // JSON on stdout stays clean; progress goes to stderr.
-  const toStdout = values.output === "-" || (!values.output && values.format === "json" && DIAGRAM_VIEWS.has(values.view));
-  const log = (message) => (toStdout ? console.error(message) : console.log(message));
+  const log = (message) => console.log(message);
   const build = async () => {
     const files = await runExport(input, values, { log });
     for (const file of files) log(`Wrote ${displayPath(file)}`);

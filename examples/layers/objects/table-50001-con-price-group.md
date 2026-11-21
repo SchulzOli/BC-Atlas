@@ -1,15 +1,14 @@
 # table 50001 CON Price Group
 
-[System](../README.md) › [Contoso Core](../apps/contoso-core.md) › [Core](../components/core.md) › [Contoso.Core.Items](../namespaces/contoso-core-items.md)
+[System](../README.md) › [Contoso Core](../apps/contoso-core.md) › [Contoso.Core.Items](../namespaces/contoso-core-items.md)
 
-The table CON Price Group of the app Contoso Core, in the component Core, has 15 lines. It uses no other object, and 2 objects use it.
+The table CON Price Group of the app Contoso Core has 15 lines. It uses no other object, and 2 objects use it.
 
 | Fact | Value |
 | --- | --- |
 | Type | table |
 | ID | 50001 |
 | App | Contoso Core |
-| Component | Core |
 | Namespace | Contoso.Core.Items |
 | Visibility | public |
 | Lines | 15 |

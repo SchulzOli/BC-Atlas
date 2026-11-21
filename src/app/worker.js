@@ -8,14 +8,7 @@ import { createService } from "./service.js";
 import { Workspace } from "./workspace.js";
 
 const [input = ".", options = "{}"] = process.argv.slice(2);
-// The AL compiler runs in the background; new results start a new generation
-// and tell the editor to refresh, like a changed file does.
-const workspace = new Workspace(input, JSON.parse(options), {
-  onAlUpdate: () => {
-    workspace.reset();
-    process.send?.({ event: "changed", reason: "al-compiler" });
-  }
-});
+const workspace = new Workspace(input, JSON.parse(options));
 const service = createService(workspace);
 
 process.on("message", async (message) => {

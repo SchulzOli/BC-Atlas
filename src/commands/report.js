@@ -1,54 +1,26 @@
+// `bca export --view report`: one Markdown page (README.md) with the numbers
+// of a project, a picture of each lens of the view, and its health.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { REPORT_VIEWS, VIEWS } from "../capabilities.js";
-import { createArchitectureModel } from "../architecture.js";
-import { generateCodeGraph } from "../codegraph.js";
+import { REPORT_LENSES } from "../capabilities.js";
+import { renderView } from "../app/view.js";
+import { Workspace } from "../app/workspace.js";
 import { formatHealthMarkdown, healthResultLine } from "../health.js";
-import { displayPath, resolveOutput, writeArchitecture } from "../output.js";
-import { MAX_DIAGRAM_NODES } from "../diagram/index.js";
-import { runHealthCheck } from "./check.js";
+import { displayPath } from "../output.js";
 
-const VIEW_SUMMARIES = new Map(VIEWS);
-const VIEW_TITLES = {
-  project: "Project overview",
-  module: "Modules",
-  data: "Data model",
-  contracts: "Contracts",
-  events: "Events",
-  ui: "User interface",
-  call: "Call graph",
-  workflow: "Workflows",
-  boundary: "Boundaries",
-  object: "Object",
-  visibility: "Visibility"
-};
-const SHARED_OPTIONS = [
-  "projectRoot", "config", "namespace", "type", "include", "exclude",
-  "sourceUrl", "sourceRef", "sourcePathPrefix", "compiler", "compilerLog"];
-
-function selectedViews(value, configured) {
-  const requested = value ?? configured ?? REPORT_VIEWS;
-  const views = (Array.isArray(requested) ? requested : String(requested).split(","))
+function selectedLenses(value, configured) {
+  const requested = value ?? configured ?? REPORT_LENSES;
+  const lenses = (Array.isArray(requested) ? requested : String(requested).split(","))
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
-  const supported = new Set(REPORT_VIEWS.concat("call", "visibility"));
-  const invalid = views.filter((view) => !supported.has(view));
-  if (invalid.length) {
-    throw new Error(`report views must be chosen from ${[...supported].join(", ")}; unsupported: ${invalid.join(", ")}`);
-  }
-  if (!views.length) throw new Error("select at least one report view");
-  return [...new Set(views)];
+  if (!lenses.length) throw new Error("select at least one lens for the report");
+  return [...new Set(lenses)];
 }
 
-function relativeLink(file) {
-  return file.split("/").map(encodeURIComponent).join("/");
-}
+const relativeLink = (file) => file.split("/").map(encodeURIComponent).join("/");
+const anchor = (title) => title.toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
 
-function anchor(title) {
-  return title.toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
-}
-
-function renderReadme({ title, health, diagrams, codegraph, model, json, format, command }) {
+function renderReadme({ title, health, pictures, files, json, command }) {
   const { summary } = health;
   const app = summary.apps[0];
   const lines = [
@@ -70,32 +42,13 @@ function renderReadme({ title, health, diagrams, codegraph, model, json, format,
     "## Contents",
     ""
   );
-  for (const diagram of diagrams) lines.push(`- [${diagram.title}](#${anchor(diagram.title)})`);
+  for (const picture of pictures) lines.push(`- [${picture.title}](#${anchor(picture.title)})`);
   lines.push("- [Architecture health](#architecture-health)");
-  if (codegraph) lines.push(`- [Object catalog](${relativeLink(codegraph.link)}) - ${codegraph.objects} object pages`);
   if (json) lines.push("- [Resolved model (JSON)](model.json)");
   lines.push("");
-
-  for (const diagram of diagrams) {
-    lines.push(`## ${diagram.title}`, "", `${diagram.summary}.`, "");
-    if (diagram.skipped) {
-      lines.push(`_Not rendered: ${diagram.skipped}_`, "");
-      continue;
-    }
-    if (diagram.overview) {
-      lines.push(
-        `_Overview: ${diagram.nodes} objects are too many to draw one by one (at most ${MAX_DIAGRAM_NODES}), so each group is one box. ` +
-          "Look at every object in the BC Atlas view, or filter with --namespace or --paths._",
-        ""
-      );
-    }
-    if (format === "svg") lines.push(`![${diagram.title}](${relativeLink(diagram.svg)})`, "");
-    lines.push(
-      `${diagram.nodes} nodes, ${diagram.edges} edges. Source: [${diagram.d2}](${relativeLink(diagram.d2)})`,
-      ""
-    );
+  for (const picture of pictures) {
+    lines.push(`## ${picture.title}`, "", picture.summary, "", `![${picture.title}](${relativeLink(picture.file)})`, "", `${picture.nodes} nodes, ${picture.relations} relations.`, "");
   }
-
   lines.push(formatHealthMarkdown(health, { heading: "## Architecture health" }));
   lines.push(
     "## Regenerate",
@@ -104,7 +57,7 @@ function renderReadme({ title, health, diagrams, codegraph, model, json, format,
     command,
     "```",
     "",
-    `_${model.files} AL file(s) analyzed. ${healthResultLine(health)}._`,
+    `_${files} AL file(s) analyzed. ${healthResultLine(health)}._`,
     ""
   );
   return lines.join("\n");
@@ -113,81 +66,51 @@ function renderReadme({ title, health, diagrams, codegraph, model, json, format,
 function commandLine(input, values) {
   const parts = ["bca", "export", input, "--view", "report"];
   if (values.outputDir) parts.push("-o", values.outputDir);
-  if (values.views) parts.push("--views", values.views);
-  if (values.format && values.format !== "svg") parts.push("--format", values.format);
-  if (values.codegraph) parts.push("--codegraph");
+  if (values.lenses) parts.push("--lenses", values.lenses);
   if (values.json) parts.push("--json");
   return parts.map((part) => (/^[\w./:@,=-]+$/u.test(part) ? part : `"${part.replaceAll("\"", "\\\"")}"`)).join(" ");
 }
 
-/** Generates README.md, diagrams, and optional catalogs for one AL project. */
+/**
+ * Writes README.md and one picture per lens for one AL project.
+ * @param values { outputDir, lenses, title, json, regenerate } and the analysis options
+ * @returns { outputDirectory, readme, health, pictures: [{ lens, title, summary, file, nodes, relations }] }
+ */
 export async function generateReport(input, values = {}, { log = () => {} } = {}) {
-  const cache = new Map();
-  const shared = Object.fromEntries(SHARED_OPTIONS.filter((name) => values[name] !== undefined).map((name) => [name, values[name]]));
-  const { architecture, report: health } = await runHealthCheck(input, shared, { cache });
-  const configured = architecture.options.report ?? {};
+  const workspace = new Workspace(input, values, { live: false });
+  const [{ report: health, loaded }, atlas] = await Promise.all([workspace.health(), workspace.atlas()]);
+  const configured = loaded.options.report ?? {};
   const outputDirectory = path.resolve(values.outputDir ?? configured.outputDir ?? "docs/atlas");
-  const format = values.format ?? configured.format ?? "svg";
-  if (!["svg", "d2"].includes(format)) throw new Error("report format must be svg or d2");
-  const views = selectedViews(values.views, configured.views);
-  const title = values.title ?? configured.title ??
-    `${health.summary.apps[0]?.name ?? path.basename(path.resolve(input))} architecture`;
+  const title = values.title ?? configured.title ?? loaded.options.title ?? `${atlas.title} architecture`;
   await fs.mkdir(outputDirectory, { recursive: true });
 
-  const diagrams = [];
-  for (const view of views) {
-    const diagram = { view, title: VIEW_TITLES[view], summary: VIEW_SUMMARIES.get(view), d2: `${view}.d2`, svg: `${view}.svg` };
-    diagrams.push(diagram);
-    try {
-      const projection = await createArchitectureModel(input, {
-        ...shared,
-        view,
-        title: `${title}: ${VIEW_TITLES[view]}`
-      }, { cache });
-      if (!projection.model.objects.length) {
-        diagram.skipped = projection.model.emptyMessage ?? "no matching objects";
-        await fs.rm(path.join(outputDirectory, diagram.d2), { force: true });
-        await fs.rm(path.join(outputDirectory, diagram.svg), { force: true });
-        continue;
-      }
-      diagram.nodes = projection.model.objects.length;
-      diagram.edges = projection.model.edges.length;
-      const target = resolveOutput({ output: path.join(outputDirectory, `${view}.${format}`), format });
-      // A view too large to draw one by one is drawn as the overview of its groups.
-      diagram.overview = Boolean((await writeArchitecture(projection, target)).overview);
-      log(`Rendered ${view} view (${diagram.nodes} nodes, ${diagram.edges} edges${diagram.overview ? ", as an overview of its groups" : ""})`);
-    } catch (error) {
-      diagram.skipped = error.message;
-      log(`Skipped ${view} view: ${error.message}`);
+  const pictures = [];
+  for (const id of selectedLenses(values.lenses, configured.lenses)) {
+    const lens = atlas.lenses.find((candidate) => candidate.id === id);
+    const file = `${id}.svg`;
+    // A lens with nothing in it does not exist for this project.
+    if (!lens) {
+      await fs.rm(path.join(outputDirectory, file), { force: true });
+      log(`Left out the ${id} lens: nothing to show`);
+      continue;
     }
-  }
-
-  let codegraph;
-  if (values.codegraph ?? configured.codegraph) {
-    const result = await generateCodeGraph(input, {
-      ...shared,
-      outputDir: path.join(outputDirectory, "objects")
-    });
-    codegraph = { objects: result.objects, link: "objects/index.md" };
-    log(`Generated ${result.objects} object page(s)`);
+    const drawn = await renderView(workspace, { lens: id, form: "diagram", format: "svg" });
+    await fs.writeFile(path.join(outputDirectory, file), drawn.content);
+    pictures.push({ lens: id, title: lens.title, summary: lens.summary, file, nodes: drawn.counts.nodes, relations: drawn.counts.relations });
+    log(`Drew the ${id} lens (${drawn.counts.nodes} nodes, ${drawn.counts.relations} relations)`);
   }
 
   const json = values.json ?? configured.json ?? false;
-  if (json) {
-    await fs.writeFile(path.join(outputDirectory, "model.json"), `${JSON.stringify(architecture.model, null, 2)}\n`);
-  }
+  if (json) await fs.writeFile(path.join(outputDirectory, "model.json"), `${JSON.stringify(loaded.model, null, 2)}\n`);
 
   const readme = path.join(outputDirectory, "README.md");
-  const displayValues = { ...values, outputDir: displayPath(outputDirectory) };
   await fs.writeFile(readme, renderReadme({
     title,
     health,
-    diagrams,
-    codegraph,
-    model: architecture.model,
+    pictures,
+    files: loaded.model.files,
     json,
-    format,
-    command: values.regenerate ?? commandLine(displayPath(path.resolve(input)), displayValues)
+    command: values.regenerate ?? commandLine(displayPath(path.resolve(input)), { ...values, outputDir: displayPath(outputDirectory) })
   }));
-  return { outputDirectory, readme, health, diagrams, codegraph };
+  return { outputDirectory, readme, health, pictures };
 }

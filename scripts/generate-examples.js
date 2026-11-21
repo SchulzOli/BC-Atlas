@@ -11,29 +11,17 @@ const input = path.join(root, "examples", "warehouse-app");
 const output = path.join(root, "examples", "output");
 const cli = path.join(root, "src", "cli.js");
 
-const diagrams = [
-  ["project", ["--view", "project", "--title", "Warehouse architecture"]],
-  [
-    "workflow",
-    [
-      "--view",
-      "workflow",
-      "--entry",
-      "procedure:Warehouse Processor.Process",
-      "--title",
-      "Request processing flow"
-    ]
-  ],
-  ["ui", ["--view", "ui", "--focus", "Warehouse", "--title", "Warehouse UI composition"]]
+// Pictures of the warehouse example: a lens of the view each, as `bca view` draws it.
+const pictures = [
+  ["overview", ["--lens", "overview"]],
+  ["data", ["--lens", "data", "--form", "diagram"]],
+  ["pages", ["--lens", "pages", "--form", "diagram"]]
 ];
 
 function run(arguments_, { exitCodes = [0] } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, ...arguments_], {
       cwd: root,
-      // The examples are compared in CI, so they must not depend on whether
-      // the machine has Microsoft's AL toolchain installed.
-      env: { ...process.env, BCA_AL_COMPILER: "off" },
       stdio: "inherit"
     });
     child.on("error", reject);
@@ -45,29 +33,19 @@ function run(arguments_, { exitCodes = [0] } = {}) {
 }
 
 await fs.mkdir(output, { recursive: true });
-for (const [name, options] of diagrams) {
-  await run(["export", input, ...options, "--format", "d2", "--output", path.join(output, `${name}.d2`)]);
-  await run([
-    "export",
-    input,
-    ...options,
-    "--format",
-    "svg",
-    "--output",
-    path.join(output, `${name}.svg`)
-  ]);
+for (const [name, options] of pictures) {
+  await run(["view", input, ...options, "--output", path.join(output, `${name}.svg`)]);
 }
 
-// The README shows these diagrams as PNG, rendered from the SVG files.
+// The README shows these pictures as PNG, rendered from the SVG files.
 const { svgToPng } = await import("../src/diagram/png.js");
 const images = path.join(root, "docs", "generated", "images");
-for (const [name, image] of [["project", "project-view"], ["workflow", "workflow-view"], ["ui", "ui-view"]]) {
+for (const [name] of pictures) {
   const svg = await fs.readFile(path.join(output, `${name}.svg`), "utf8");
-  const width = Number(/viewBox="0 0 (\d+)/u.exec(svg)[1]);
-  await fs.writeFile(path.join(images, `${image}.png`), await svgToPng(svg, { scale: Math.min(1.5, 2400 / width) }));
+  await fs.writeFile(path.join(images, `${name}-lens.png`), await svgToPng(svg, { scale: 1.5 }));
 }
 
-await run(["export", input, "--view", "report", "-o", path.join("examples", "report"), "--codegraph"]);
+await run(["export", input, "--view", "report", "-o", path.join("examples", "report")]);
 await run([
   "docs", "generate", input,
   "--app", input,

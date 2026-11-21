@@ -11,43 +11,30 @@ minimal file looks like this:
 
 ```json
 {
-  "view": "project",
-  "direction": "right",
-  "groupBy": "role",
-  "exclude": ["**/test/**"],
-  "maxEdges": 500
+  "title": "Sales architecture",
+  "namespaces": ["Contoso.**"],
+  "exclude": ["**/test/**"]
 }
 ```
 
-## Configure a workflow
+Add `"$schema": "./node_modules/bc-atlas/schemas/bca.schema.json"` (or the
+schema's GitHub URL) to `.bca.json` for completion and checks in editors; the
+VS Code extension applies the schema to `.bca.json` on its own.
+
+## Select what is analyzed
+
+| Key | Does |
+| --- | --- |
+| `projectRoot` | Root of the AL project, relative to the file. |
+| `paths` | Analyze only these folders (globs allowed). |
+| `namespaces` | Namespace globs to keep. |
+| `include`, `exclude` | File or object globs to keep or to leave out. |
+| `title` | Title of the view and the report. |
+
+## Link to the source
 
 ```json
 {
-  "view": "workflow",
-  "workflow": {
-    "entries": ["ProcessDocument"],
-    "depth": 8,
-    "maxNodes": 100,
-    "maxEdges": 250,
-    "edgeTypes": ["calls", "events", "writes"]
-  }
-}
-```
-
-Use `phases` to group steps. Use `stop` to show a node without expanding it. Use `collapse` to bypass utility procedures.
-
-## Customize roles and source links
-
-Role mappings are evaluated in declaration order. A pattern can match an
-object type, `type:name`, `namespace:type:name`, or source file path.
-
-```json
-{
-  "groupBy": "role",
-  "roleMappings": {
-    "Domain": ["Contoso.Sales:table:*", "Contoso.Sales:codeunit:*"],
-    "Adapters": ["**/Integration/**"]
-  },
   "sourceUrl": "https://github.com/example/repo/blob/{ref}/{file}#L{line}",
   "sourceRef": "main",
   "sourcePathPrefix": "apps/Sales"
@@ -76,34 +63,6 @@ Add a `forbiddenDependencies` array to detect invalid architectural dependencies
 
 Run `bca check` in CI. A rule with `"severity": "error"` fails the default
 check; use `--fail-on warning` (or `--strict`) to fail on warnings too.
-
-Rules that work with the components and layers of a target architecture
-(`component:Sales`, `layer:0`, relation kinds such as `writes`) go into
-`architecture.rules`; see [Rules of your own](./clean-architecture.md#rules-of-your-own).
-
-## Shape the architecture proposal
-
-`architecture.proposal` decides what `bca architecture --propose` takes into
-account: which relation kinds count, which existing structures it starts from,
-how finely it splits, components you define yourself, and objects that should
-not shape components. See
-[Decide what the proposal considers](./clean-architecture.md#decide-what-the-proposal-considers).
-
-`architecture.proposal.naming` decides how the proposed components are named:
-
-| Key | Default | Meaning |
-| --- | --- | --- |
-| `qualify` | `"parent"` | What tells two components of the same name apart first: `parent` (the namespace segment or folder above: `Sales Setup`), `app` (the app or module: `Setup (Contoso Sales)`), or `number` (`Setup 2`). |
-| `avoid` | `[]` | Kinds of names a component may only have when it holds exactly the same objects: `app`, `module`, `namespace`. |
-| `rename` | `{}` | A map from the name the proposal gives to the name you want: `{ "Setup 2": "Purchase Setup" }`. |
-
-Names are compared without case everywhere, so `Sales` and `sales` are one
-name. See [Names](./clean-architecture.md#names) and
-[Why an object is where it is](./clean-architecture.md#why-an-object-is-where-it-is).
-
-Add `"$schema": "./node_modules/bc-atlas/schemas/bca.schema.json"` (or the
-schema's GitHub URL) to `.bca.json` for completion and checks in editors; the
-VS Code extension applies the schema to `.bca.json` on its own.
 
 ## Configure health checks and reports
 
@@ -135,8 +94,8 @@ VS Code extension applies the schema to `.bca.json` on its own.
   },
   "report": {
     "outputDir": "docs/atlas",
-    "views": ["project", "module", "data", "contracts", "events", "ui"],
-    "codegraph": false
+    "lenses": ["overview", "apps", "modules", "data", "events", "contracts", "pages"],
+    "json": false
   }
 }
 ```
@@ -146,7 +105,7 @@ when a resolved enum implementation can complete silently through an empty
 body, a constant `true` return, or a conditional path with no error. Each
 `interface` selector must match exactly one existing interface object, and
 every method name must exist on that interface. Selectors use the same syntax
-as architecture selectors, such as `object:interface:IPipelineStep`,
+everywhere, such as `object:interface:IPipelineStep`,
 `id:50100`, or `namespace:Contoso.Pipeline`. Without an expectation, detected
 neutral fallbacks are informational and do not fail the default check. Set
 `failOn` to `"warning"` (or use `--fail-on warning`) to fail on configured
@@ -189,33 +148,31 @@ neutral contract fallbacks remain informational and do not become warnings.
 Without `check.contexts`, no context-responsibility findings or
 `contextResponsibilities` report section are produced.
 
+`report` holds the defaults of `bca export --view report`: `outputDir`
+(default `docs/atlas`), `lenses` (the lenses to draw; one the project does not
+have is left out), `title`, and `json` (also write the resolved model as
+`model.json`).
+
 See [Architecture health checks](./health-checks.md) and
 [Architecture reports](./reports.md).
 
-## Use the AL compiler
+## Read the AL workspace
 
 ```json
 {
   "al": {
-    "compiler": "auto",
-    "analyzers": ["CodeCop", "UICop"],
-    "errorLog": ".output/errorlogs",
-    "callGraph": true
+    "workspaceFile": "contoso.code-workspace"
   }
 }
 ```
 
-| Property | Description |
-| --- | --- |
-| `compiler` | `auto` (default): the AL Language extension's compiler or the AL Development Tools when installed; `off`; or a path to `alc`, `al`, or the extension folder. |
-| `analyzers` | Code analyzers for the compile. Default: `al.codeAnalyzers` from the AL settings when `al.enableCodeAnalysis` is on. |
-| `errorLog` | Import an AL compiler error log file or folder from another build. |
-| `callGraph` | `false` keeps calls at the source-level analysis while compiler diagnostics still apply. |
-| `workspaceFile` | The `.code-workspace` file whose folders and settings apply, when the root has several. |
+`al.workspaceFile` names the `.code-workspace` file whose folders and
+`al.packageCachePath` apply, relative to the project root. Default: the one in
+the root, when there is exactly one.
 
-Symbols, rule set, and analyzers otherwise come from the AL settings in
-`.vscode/settings.json` and the `.code-workspace` file. See
-[AL toolchain](./al-toolchain.md).
+Symbol packages are read from `.alpackages` and from every
+`al.packageCachePath` of `.vscode/settings.json` and the `.code-workspace`
+file.
 
 ## Shape the generated documentation
 
@@ -227,7 +184,6 @@ Symbols, rule set, and analyzers otherwise come from the AL settings in
   "layers": {
     "outputDir": "docs/layers",
     "pictures": "auto",
-    "history": "none",
     "view": false,
     "pages": { "stories": false, "lenses": ["data", "events"] },
     "scope": { "apps": ["Contoso Sales"], "types": ["table", "codeunit", "page"], "exclude": ["*Test*"] },
@@ -247,14 +203,13 @@ Symbols, rule set, and analyzers otherwise come from the AL settings in
 | --- | --- | --- |
 | `outputDir` | `docs/layers` | The folder of the pages |
 | `pictures` | `auto` | Pictures of single objects: `auto` (up to 400 objects), `all`, or `none` |
-| `history` | `none` | `releases`: every run also records each release (Git tag) not recorded yet |
 | `view` | `false` | Also write `view.html`, the view as one offline file |
-| `pages` | every page | Per kind (`readme`, `architecture`, `changes`, `findings`, `apps`, `components`, `namespaces`, `objects`, `lenses`, `stories`): `false` leaves it out, a list of names, IDs, or patterns with `*` keeps those |
-| `scope` | the whole system | Only objects that match `apps`, `components`, `namespaces`, `types`, and no entry of `exclude` are documented |
-| `sections` | every section | Per kind of page (`readme`, `architecture`, `changes`, `findings`, `app`, `component`, `namespace`, `object`, `lens`, `story`): the sections to write, in that order |
+| `pages` | every page | Per kind (`readme`, `architecture`, `findings`, `apps`, `namespaces`, `objects`, `lenses`, `stories`): `false` leaves it out, a list of names, IDs, or patterns with `*` keeps those |
+| `scope` | the whole system | Only objects that match `apps`, `namespaces`, `types`, and no entry of `exclude` are documented |
+| `sections` | every section | Per kind of page (`readme`, `architecture`, `findings`, `app`, `namespace`, `object`, `lens`, `story`): the sections to write, in that order |
 | `titles` | | A heading in English, and what to call it; `object.Used by` for one kind of page, `README` for the title of the first page |
 | `language` | `en` | `de`: the fixed headings, table headers, labels, and the footer in German |
-| `names` | | The file of a kind of page, with `{name}`, `{type}`, `{id}`, `{app}`, `{component}`, `{namespace}`; links and pictures follow |
+| `names` | | The file of a kind of page, with `{name}`, `{type}`, `{id}`, `{app}`, `{namespace}`; links and pictures follow |
 | `templates` | | Folder with `<kind>.md` templates: <code v-pre>{{title}}</code>, <code v-pre>{{summary}}</code>, <code v-pre>{{picture}}</code>, <code v-pre>{{section "Uses"}}</code>, <code v-pre>{{body "Uses"}}</code>, <code v-pre>{{sections}}</code>, <code v-pre>{{footer}}</code>, and facts such as <code v-pre>{{name}}</code> |
 | `profiles` | | Named sets of the keys above for `bca layers --profile <name>`; each writes to its `outputDir`, or to `<outputDir>-<name>` |
 

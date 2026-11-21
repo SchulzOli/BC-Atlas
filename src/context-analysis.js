@@ -1,5 +1,5 @@
 import { createCallResolver } from "./call-analysis.js";
-import { compileSelector } from "./blueprint/components.js";
+import { compileSelector } from "./selectors.js";
 import { isCommitCall, operationKind } from "./operation-semantics.js";
 import { normalizeIdentifier } from "./resolver.js";
 
@@ -558,7 +558,7 @@ function analyzeSelectedObject(config, callResolver, recordByNode, recordsByOwne
       const readOnly = methodEffects.length > 0 &&
         methodEffects.every(({ category }) => category === "reads") &&
         methodLimitations.length === 0 &&
-        !methodCalls.some(({ resolution }) => resolution !== "syntactic" && resolution !== "compiler");
+        !methodCalls.some(({ resolution }) => resolution !== "syntactic");
       if (readOnly) {
         responsibilities.lazyReads.push({
           procedure: procedure.signature,

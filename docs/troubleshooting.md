@@ -11,12 +11,6 @@ The first argument is neither a command nor an existing path. Run `bca` to see
 all commands. A path alone is not a command: use `bca check <path>` or
 `bca export <path>`, or open the folder in VS Code with the BC Atlas extension.
 
-## "unknown command" for `graph`, `report`, `inspect`, ...
-
-These commands are now part of `bca export`: `bca export --view report`,
-`bca export --view <view>` (with `--format json` for the model and `--watch`
-to keep a file current), and `bca export --view catalog`.
-
 ## The BC Atlas extension shows nothing
 
 The extension starts when the workspace contains an `app.json`. Run
@@ -37,66 +31,25 @@ static one in any Markdown viewer and your repository host, and
 Check that the input path contains `.al` files. Check `--include`, `--exclude`,
 `--namespace`, and `--type` filters, and the `exclude` list in `.bca.json`.
 
-## The object view fails
+## A picture is too large
 
-The object view requires `--object`. Use a name, object ID, object key, or
-typed selector.
-
-```sh
-bca export ./app --view object --object codeunit:50100 -o object.svg
-```
-
-## The boundary view fails
-
-The boundary view requires at least one `--scope` value. Prefix the value with
-`namespace:`, `folder:`, `app:`, or `object:`.
-
-## A diagram is too large
-
-Use the BC Atlas panel in VS Code or `bca export --view report` for an overview, then select a
-focused view. Add filters. Files of views with more than 1,500 objects (the
-project view of the Base Application has about 8,000) show every group as one
-box with the relations between groups bundled; the `.d2` file keeps every
-object. The BC Atlas view draws every object of a large app; use a lens,
-**Find**, the legend, or **Neighbors** on a node to get to a part you can
-read.
-Reduce `--max-edges` only after you select the required scope.
+Use a lens (`bca view --lens data`), go into one object
+(`--inside codeunit:50100`), or show one node and what is near it
+(`--focus`, `--depth`). Add filters. The BC Atlas view draws every object of a
+large app; use a lens, **Find**, the legend, or **Neighbors** on a node to get
+to a part you can read.
 
 ## Many unresolved references
 
 References to the base app or dependencies resolve when their symbols are
 available. Download symbols into `.alpackages` (for example with the AL
-extension in VS Code) and rerun the command.
+extension in VS Code), or set `al.packageCachePath` to the folder that has
+them, and rerun the command.
 
 ## Calls are missing
 
-The call view hides unresolved calls by default. Add
-`--include-unresolved-calls` for investigation. Without the AL compiler,
-dynamic calls can remain unresolved when AL source does not identify a target;
-install the AL Development Tools or the AL Language extension so the compiler
-resolves them ([AL toolchain](./al-toolchain.md)).
-
-## The AL compiler is not used
-
-`bca check` prints an `AL compiler` line when it ran. If it does not:
-
-- install the AL Development Tools (`dotnet tool install --global
-  Microsoft.Dynamics.BusinessCentral.Development.Tools`) or the AL Language
-  extension for VS Code, or point `--compiler` at `alc`, `al`, or the
-  extension folder;
-- check that `al.compiler` in `.bca.json`, `BCA_AL_COMPILER`, or
-  `bcAtlas.alCompiler` is not `off`;
-- on Linux and macOS, install the .NET 8 runtime or later.
-
-Many `AL0185 ... is missing` errors, or `al-symbols-missing`, mean the
-Microsoft symbols are not in a package cache: run **AL: Download Symbols**, or
-set `al.packageCachePath` to the folder that has them.
-
-`AL1018: Directory '...' could not be found` came from BC Atlas 0.15.0 and earlier,
-which passed the AL default `./.netpackages` probing folder even when it did
-not exist; update BC Atlas. `al-ruleset-missing` and `al-analyzer-missing`
-name a rule set or analyzer path in `al.ruleSetPath` or `al.codeAnalyzers`
-that does not exist; the compile ran without it.
+Calls are resolved from the source. Dynamic calls can remain unresolved when
+the AL source does not identify a target.
 
 ## `check` fails
 
@@ -104,12 +57,6 @@ Read the findings list. Use `--format json` for every finding, raise
 `--max-fan-in` or `--max-fan-out` for intentional hubs, set `check.cycles` to
 `info` while you work down existing cycles, or use `--fail-on never` to report
 without failing.
-
-## `codegraph` refuses to replace a directory
-
-The output directory is replaced atomically. To protect your files, BC Atlas
-refuses to replace a non-empty directory without a generated `index.md`.
-Choose an empty or dedicated `--output-dir`.
 
 ## Generated project documentation is stale
 

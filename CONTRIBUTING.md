@@ -27,7 +27,7 @@ npm run check
 Try the CLI against the included sample project:
 
 ```sh
-node src/cli.js export examples/warehouse-app --view project -o dist/example.d2
+node src/cli.js view examples/warehouse-app --lens overview -o dist/overview.svg
 npm run examples
 ```
 
@@ -39,7 +39,7 @@ npm run examples
 4. Run `npm run check`, `npm test`, and `npm pack --dry-run`.
 5. Open a pull request and explain the problem, solution, and verification.
 
-The architecture pipeline deliberately keeps parsing, resolution, views, and
+The pipeline deliberately keeps parsing, resolution, the graph, and
 rendering separate. Prefer extending the relevant stage instead of coupling
 presentation logic to the parser.
 
@@ -50,11 +50,16 @@ src/
   cli.js               entry point: resolves the command and dispatches it
   capabilities.js      command catalog: feature areas, options, examples
   cli/                 argument parsing, help rendering, error types
-  commands/            check, architecture, export, report, view, layers
+  commands/            check, export, report, view, layers
+  analyzer.js          parse: objects, members, relations
+  resolver.js          resolve references across apps and symbol packages
+  project.js           one project: read, selected, with insights; every command starts here
+  health.js            health rules used by check, the view, and the report
+  graph/               what depends on what: objects, namespaces, apps
+  app/                 the atlas (one graph), the view, the layered documentation
+  diagram/             layout and SVG/PNG drawing
   docs/                AL UI-test documentation pipeline
-  analyzer.js ...      parse -> resolve -> view -> render pipeline
-  health.js            architecture health rules used by check and report
-  output.js            shared D2/JSON/SVG/PNG/PDF writer
+  knowledge/           RDF/OWL export
   mcp.js               MCP stdio server
 ```
 
@@ -86,7 +91,7 @@ preferred. A regression fixture should demonstrate only the syntax required to
 reproduce the issue and must not contain proprietary customer code.
 
 Generated examples are deterministic. If a view changes intentionally, run
-`npm run examples`, inspect the changed `.d2` and `.svg` files, and refresh the
+`npm run examples`, inspect the changed `.svg` and Markdown files, and refresh the
 corresponding screenshots described in [examples/README.md](./examples/README.md).
 
 ## Commit and pull-request guidance

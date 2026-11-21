@@ -10,8 +10,8 @@ Read from `[IntegrationEvent]`, `[BusinessEvent]`, and `[EventSubscriber]` proce
 
 | Node | Kind | Group | Relations |
 | --- | --- | --- | ---: |
-| CON Pricing Mgt. | codeunit | Core | 1 |
-| CON Quote Mgt. | codeunit | Sales | 1 |
+| CON Pricing Mgt. | codeunit | Contoso.Core.Pricing | 1 |
+| CON Quote Mgt. | codeunit | Contoso.Sales.Quotes | 1 |
 
 ## Findings
 

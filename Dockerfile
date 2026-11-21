@@ -1,7 +1,7 @@
 FROM node:24-alpine
 
 LABEL org.opencontainers.image.title="BC Atlas" \
-      org.opencontainers.image.description="Architecture diagrams, health checks, and documentation for Business Central AL" \
+      org.opencontainers.image.description="The architecture of Business Central AL: shown, checked, and documented" \
       org.opencontainers.image.source="https://github.com/SchulzOli/BC-Atlas" \
       org.opencontainers.image.licenses="MIT"
 

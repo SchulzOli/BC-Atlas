@@ -1,10 +1,10 @@
 # Getting started
 
 BC Atlas reads Microsoft Dynamics 365 Business Central AL source and turns it
-into an app for your browser: architecture, health, dependencies, diagrams,
-objects, and documentation in one place. The same results are available as
-files for Git and CI. This page takes you from installation to a guarded
-architecture in a few commands.
+into a view for your editor and browser: how the system works, health,
+dependencies, objects, and documentation in one place. The same results are
+available as files for Git and CI. This page takes you from installation to a
+health check in CI in a few commands.
 
 You are reading the docs either on GitHub or on the
 [documentation website](https://schulzoli.github.io/BC-Atlas/), which adds
@@ -14,9 +14,10 @@ search.
 
 - Node.js 22 or later.
 - An AL project that contains an `app.json` file.
-The AL parser is bundled as WebAssembly, and BC Atlas draws its diagrams
-itself (layout with ELK, PNG with resvg). D2, JSON, SVG, PNG, PDF, and
-Markdown output need no compiler, browser, or extra download.
+
+The AL parser is bundled as WebAssembly, and BC Atlas draws its pictures
+itself (layout with ELK, PNG with resvg). JSON, SVG, PNG, and Markdown output
+need no browser or extra download.
 
 ## 1. Install
 
@@ -35,9 +36,9 @@ Markdown output need no compiler, browser, or extra download.
 
 Open the folder with your `app.json`. BC Atlas analyzes the source and shows
 health in the status bar, findings in the Problems panel, and CodeLens above
-each object. **BC Atlas: Open** shows the panel: an overview, health
-findings, the architecture (proposed from today's dependencies until you
-adopt one), every lens, and each object from the inside. It updates when AL files change. See
+each object. **BC Atlas: Open** shows the view: an overview, health
+findings, every lens, and each object from the inside. It updates when AL
+files change. See
 [BC Atlas for VS Code](./vscode.md).
 
 ## 3. Write the overview into the repository
@@ -49,20 +50,21 @@ bca export --view report
 This writes `docs/atlas/README.md` with:
 
 - an at-a-glance table (files, objects, relationships, cycles, health);
-- one diagram each for the project, module, data, contracts, events, and UI
-  views;
-- the architecture health summary;
+- one picture each for the overview, apps, modules, data, events, contracts,
+  and pages lenses;
+- the health summary;
 - the command that regenerates the report.
 
-Add `--codegraph` for one linked Markdown page per AL object. See
-[Architecture reports](./reports.md) and the
-[generated example](../examples/report/README.md).
+See [Architecture reports](./reports.md) and the
+[generated example](../examples/report/README.md). For one page per app,
+namespace, and object, run `bca layers`; see
+[Layered documentation](./layers.md).
 
 To share the BC Atlas view with people who do not use VS Code,
 `bca export -o atlas.html` writes it as one offline HTML file: the graph
 with every lens, finding, and story.
 
-## 4. Guard the architecture in CI
+## 4. Check the health in CI
 
 ```sh
 bca check
@@ -70,11 +72,8 @@ bca check
 
 `check` prints a health summary and exits with `1` when a finding reaches the
 fail level (default: `error`). Use `--fail-on warning` to also block cycles,
-forbidden dependencies, and hot spots. Once you adopt an architecture (in the
-app, or with `bca architecture --propose --write --update-baseline`), `check`
-also fails on new dependencies that point the wrong way. See
-[Architecture health checks](./health-checks.md) and
-[Clean architecture](./clean-architecture.md).
+forbidden dependencies, and hot spots. See
+[Architecture health checks](./health-checks.md).
 
 In a pipeline, install BC Atlas and run the checks as steps:
 
@@ -88,12 +87,11 @@ bca layers --check
 
 | I want to | Command | Read |
 | --- | --- | --- |
-| See one object and its neighbors | Select it in the BC Atlas view and choose **Neighbors**, or `bca export --view object --object codeunit:50100 -o object.svg` | [Architecture diagrams](./architecture-diagrams.md) |
+| See one object and its neighbors | Select it in the BC Atlas view and choose **Neighbors**, or `bca view --focus codeunit:50100 -o object.svg` | [CLI reference](./cli-reference.md#view) |
 | Look at any part of the app without a window | `bca view --lens data`, `bca view --inside codeunit:50100`, `bca view --story fix` | [CLI reference](./cli-reference.md#view) |
-| Trace what happens after an action | `bca export --view workflow --entry action:Release -o flow.svg` | [Architecture diagrams](./architecture-diagrams.md) |
-| Split a large app into smaller ones | Components lens in VS Code, or `bca architecture --propose` | [Clean architecture](./clean-architecture.md) |
-| Keep a diagram file current while coding | `bca export --view module -o modules.svg --watch` | [CLI reference](./cli-reference.md#export) |
-| Feed the model to a script | `bca export --view project --format json > model.json` | [CLI reference](./cli-reference.md#export) |
+| Write a picture of one lens | `bca view --lens modules --form diagram -o modules.svg` | [CLI reference](./cli-reference.md#view) |
+| Keep the view file current while coding | `bca export -o atlas.html --watch` | [CLI reference](./cli-reference.md#export) |
+| Feed the model to a script | `bca view --format json > atlas.json` | [CLI reference](./cli-reference.md#view) |
 | Turn UI tests into user guides | `bca docs generate ./test --output-dir docs/guides` | [AL UI-test documentation](./al-ui-test-documentation.md) |
 | Let an AI agent use BC Atlas | `bca mcp` | [Agent integration](./agent-integration.md) |
 

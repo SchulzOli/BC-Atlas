@@ -1,9 +1,8 @@
 // The analyzed AL source as a knowledge graph: subject blocks (an IRI, its
 // classes, its properties) for the export document, the ontology, the apps,
-// namespaces, and architecture components, every object with its fields,
-// keys, and procedures, the relations between objects (a direct property
-// and a qualified Relation with kind, confidence, and location), and the
-// dependencies that point against the architecture.
+// and namespaces, every object with its fields, keys, and procedures, and
+// the relations between objects (a direct property and a qualified Relation
+// with kind, confidence, and location).
 import { createHash } from "node:crypto";
 import {
   COMMENT, DATETIME, INTEGER, LABEL, OBJECT_TYPES, ONTOLOGY, PREFIXES,
@@ -24,12 +23,10 @@ export function resourceIris(base = DEFAULT_BASE) {
     graph: make("graph"),
     app: (id) => make("app", id),
     namespace: (name) => make("namespace", name),
-    component: (name) => make("component", name),
     object: (object) => make("app", object.app?.id ?? "workspace", object.type, object.id ?? String(object.name).toLowerCase()),
     member: (owner, kind, name) => `${owner}${separator}${encode(kind)}${separator}${encode(name)}`,
     external: (type, name) => make("external", type, String(name).toLowerCase()),
-    relation: (hash) => make("relation", hash),
-    violation: (hash) => make("violation", hash)
+    relation: (hash) => make("relation", hash)
   };
 }
 
@@ -47,17 +44,15 @@ function block(s, types, props) {
 const shortHash = (value) => createHash("sha1").update(value).digest("hex").slice(0, 16);
 
 /**
- * @param model the resolved model of the project view (createArchitectureModel)
- * @param assessment optional architecture assessment (assessArchitecture)
+ * @param model the model of the project (loadProject of src/project.js)
  * @param baseIri base of the resources' IRIs
  * @param evidence false leaves out the bca:Relation resources; the direct relation triples stay
  */
-export function* knowledgeGraph({ model, assessment, baseIri, title, version, evidence = true, generatedAt = new Date().toISOString() }) {
+export function* knowledgeGraph({ model, baseIri, title, version, evidence = true, generatedAt = new Date().toISOString() }) {
   const ids = resourceIris(baseIri);
   const kinds = [...new Set(model.edges.map(({ kind }) => kind))].sort();
   const objects = model.objects.filter(({ key }) => key);
   const objectIri = new Map(objects.map((object) => [object.key, ids.object(object)]));
-  const assignment = assessment?.result.assignment ?? new Map();
 
   yield block(ids.graph, [`${PREFIXES.owl}Ontology`], [
     [LABEL, text(title)],
@@ -88,15 +83,6 @@ export function* knowledgeGraph({ model, assessment, baseIri, title, version, ev
     yield block(ids.namespace(name), [term("Namespace")], [[LABEL, literal(name)]]);
   }
 
-  for (const component of assessment?.result.components ?? []) {
-    const configured = assessment.architecture?.components?.find(({ name }) => name === component.name);
-    yield block(ids.component(component.name), [term("Component")], [
-      [LABEL, literal(component.name)],
-      [term("layer"), integer(component.layer)],
-      ...(configured?.dependsOn ?? []).map((name) => [term("mayDependOn"), iri(ids.component(name))]),
-      ...(component.dependsOnActual ?? []).map((name) => [term("dependsOnComponent"), iri(ids.component(typeof name === "string" ? name : name.name))])
-    ]);
-  }
 
   // Relations, grouped by source object for the direct properties.
   const outgoing = new Map();
@@ -144,7 +130,6 @@ export function* knowledgeGraph({ model, assessment, baseIri, title, version, ev
       [term("complexity"), integer(meta.complexity?.total)],
       [term("inApp"), object.app?.id ? iri(ids.app(object.app.id)) : undefined],
       [term("inNamespace"), object.namespace ? iri(ids.namespace(object.namespace)) : undefined],
-      [term("inComponent"), assignment.has(object.key) ? iri(ids.component(assignment.get(object.key))) : undefined],
       [term("sourceFile"), text(sourcePath(object.file))],
       [term("sourceLine"), integer(object.location?.line)],
       ...fields.map(({ iri: value }) => [term("hasField"), iri(value)]),
@@ -214,17 +199,4 @@ export function* knowledgeGraph({ model, assessment, baseIri, title, version, ev
     }
   }
 
-  for (const violation of assessment && !assessment.proposal ? assessment.result.violations ?? [] : []) {
-    const source = objectIri.get(violation.source?.id);
-    const target = objectIri.get(violation.target?.id);
-    if (!source || !target) continue;
-    yield block(ids.violation(shortHash(`${violation.rule}\u0000${violation.source.id}\u0000${violation.target.id}`)), [term("ArchitectureViolation")], [
-      [term("rule"), text(violation.rule)],
-      [term("violationSource"), iri(source)],
-      [term("violationTarget"), iri(target)],
-      [term("sourceComponent"), violation.sourceComponent ? iri(ids.component(violation.sourceComponent)) : undefined],
-      [term("targetComponent"), violation.targetComponent ? iri(ids.component(violation.targetComponent)) : undefined],
-      [term("weight"), integer(violation.weight)]
-    ]);
-  }
 }

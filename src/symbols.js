@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { packageCacheFolders, readAlWorkspace } from "./al/settings.js";
+import { packageCacheFolders, readAlWorkspace } from "./al-workspace.js";
 import { unzipSync } from "fflate";
 import { includedPermissionSets } from "./permission-semantics.js";
 import { objectMetadata } from "./metadata.js";
@@ -212,7 +212,7 @@ async function packagesIn(folder) {
  */
 // Parsed packages by file, path relative to the root, size, and modification
 // time: a Base Application takes seconds to unzip and parse, and every page
-// of the app (health, architecture, the view) loads the same packages.
+// of the app (health, the view) loads the same packages.
 const packageCache = new Map();
 
 async function readPackage(packageFile, reportedPath) {

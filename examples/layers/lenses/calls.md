@@ -10,11 +10,11 @@ Read from the procedure calls and `Run` statements in the code.
 
 | Node | Kind | Group | Relations |
 | --- | --- | --- | ---: |
-| CON Standard Pricing | codeunit | Core | 1 |
-| CON Pricing Mgt. | codeunit | Core | 2 |
-| CON Quote Export | codeunit | Integration | 1 |
-| CON Quote Mgt. | codeunit | Sales | 3 |
-| CON Sales Quote | page | Sales | 1 |
+| CON Standard Pricing | codeunit | Contoso.Core.Pricing | 1 |
+| CON Pricing Mgt. | codeunit | Contoso.Core.Pricing | 2 |
+| CON Quote Export | codeunit | Contoso.Integration | 1 |
+| CON Quote Mgt. | codeunit | Contoso.Sales.Quotes | 3 |
+| CON Sales Quote | page | Contoso.Sales.Quotes | 1 |
 
 ## Findings
 

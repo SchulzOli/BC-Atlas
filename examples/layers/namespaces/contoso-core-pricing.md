@@ -1,6 +1,6 @@
 # Namespace Contoso.Core.Pricing
 
-[System](../README.md) › Layer 3: namespaces
+[System](../README.md) › Layer 2: namespaces
 
 The namespace Contoso.Core.Pricing holds 3 objects (2 codeunits, 1 interface). It depends on 1 other namespace, and 1 other namespace depends on it.
 
@@ -19,19 +19,13 @@ The namespace Contoso.Core.Pricing holds 3 objects (2 codeunits, 1 interface). I
 
 - depends on [Contoso.Sales.Quotes](contoso-sales-quotes.md)
 
-## What to change here
-
-- 6. Make 1 object of Core internal (small)
-
-Why and how: [What to change, and how](../changes.md).
-
 ## Objects
 
-| Object | Type | ID | Component | Lines | Uses | Used by | Findings |
-| --- | --- | --- | --- | ---: | ---: | ---: | --- |
-| [CON Standard Pricing](../objects/codeunit-50010-con-standard-pricing.md) | codeunit | 50010 | Core | 13 | 3 | 1 | 1 (info) |
-| [CON Pricing Mgt.](../objects/codeunit-50011-con-pricing-mgt.md) | codeunit | 50011 | Core | 17 | 1 | 1 | 1 (info) |
-| [CON Price Calculation](../objects/interface-con-price-calculation.md) | interface |  | Core | 4 | 0 | 1 | 1 (info) |
+| Object | Type | ID | Lines | Uses | Used by | Findings |
+| --- | --- | --- | ---: | ---: | ---: | --- |
+| [CON Standard Pricing](../objects/codeunit-50010-con-standard-pricing.md) | codeunit | 50010 | 13 | 3 | 1 | 1 (info) |
+| [CON Pricing Mgt.](../objects/codeunit-50011-con-pricing-mgt.md) | codeunit | 50011 | 17 | 1 | 1 | 1 (info) |
+| [CON Price Calculation](../objects/interface-con-price-calculation.md) | interface |  | 4 | 0 | 1 | 1 (info) |
 
 ## Findings
 

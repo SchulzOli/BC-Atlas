@@ -12,62 +12,70 @@
 
 ## Contents
 
-- [Project overview](#project-overview)
+- [Overview](#overview)
+- [Apps](#apps)
 - [Modules](#modules)
-- [Data model](#data-model)
-- [Contracts](#contracts)
+- [Data](#data)
 - [Events](#events)
-- [User interface](#user-interface)
+- [Contracts](#contracts)
+- [Pages](#pages)
 - [Architecture health](#architecture-health)
-- [Object catalog](objects/index.md) - 9 object pages
 
-## Project overview
+## Overview
 
-AL objects grouped into role lanes (Data, UI, Services, ...).
+How it works, from left to right: the screens, the logic behind them, and the data.
 
-![Project overview](project.svg)
+![Overview](overview.svg)
 
-9 nodes, 28 edges. Source: [project.d2](project.d2)
+6 nodes, 3 relations.
+
+## Apps
+
+The apps of the workspace, the apps they depend on, and what they use of each other.
+
+![Apps](apps.svg)
+
+1 nodes, 0 relations.
 
 ## Modules
 
-Aggregated namespace or folder dependencies.
+Namespaces and what they use of each other.
 
-![Modules](module.svg)
+![Modules](modules.svg)
 
-3 nodes, 7 edges. Source: [module.d2](module.d2)
+3 nodes, 3 relations.
 
-## Data model
+## Data
 
-Tables with reads, writes, relations, and extensions.
+Tables and the code that reads, writes, relates, and extends them.
 
-![Data model](data.svg)
+![Data](data.svg)
 
-4 nodes, 5 edges. Source: [data.d2](data.d2)
-
-## Contracts
-
-Interfaces and their direct or enum implementations.
-
-![Contracts](contracts.svg)
-
-3 nodes, 3 edges. Source: [contracts.d2](contracts.d2)
+5 nodes, 5 relations.
 
 ## Events
 
-Event publishers and subscribers.
+Event publishers and their subscribers.
 
 ![Events](events.svg)
 
-2 nodes, 1 edges. Source: [events.d2](events.d2)
+2 nodes, 1 relations.
 
-## User interface
+## Contracts
 
-Pages, source tables, parts, actions, and navigation.
+Interfaces and what implements them.
 
-![User interface](ui.svg)
+![Contracts](contracts.svg)
 
-4 nodes, 3 edges. Source: [ui.d2](ui.d2)
+3 nodes, 3 relations.
+
+## Pages
+
+Pages and reports, and what they show, run, and contain.
+
+![Pages](pages.svg)
+
+4 nodes, 4 relations.
 
 ## Architecture health
 
@@ -114,7 +122,7 @@ Pages, source tables, parts, actions, and navigation.
 ## Regenerate
 
 ```sh
-bca export examples/warehouse-app --view report -o examples/report --codegraph
+bca export examples/warehouse-app --view report -o examples/report
 ```
 
 _4 AL file(s) analyzed. Result: PASSED - 0 error(s), 0 warning(s), 2 info (fail on: error)._

@@ -40,13 +40,11 @@ as Turtle, OWL, RDF/XML, N-Triples, and JSON-LD.
 | --- | --- | --- |
 | App (`app.json`) | `bca:App` | `rdfs:label`, `bca:appId`, `bca:publisher`, `bca:version`, `bca:dependsOnApp` |
 | Namespace | `bca:Namespace` | `rdfs:label` |
-| AL object | `bca:Table`, `bca:Page`, `bca:Codeunit`, ... (subclasses of `bca:Object`; extensions also of `bca:ExtensionObject`) | `rdfs:label`, `bca:objectType`, `bca:objectId`, `bca:caption`, `bca:access`, `bca:inApp`, `bca:inNamespace`, `bca:inComponent`, `bca:sourceFile`, `bca:sourceLine`, `dcterms:identifier`, `bca:hasField`, `bca:hasKey`, `bca:hasProcedure` |
+| AL object | `bca:Table`, `bca:Page`, `bca:Codeunit`, ... (subclasses of `bca:Object`; extensions also of `bca:ExtensionObject`) | `rdfs:label`, `bca:objectType`, `bca:objectId`, `bca:caption`, `bca:access`, `bca:inApp`, `bca:inNamespace`, `bca:sourceFile`, `bca:sourceLine`, `dcterms:identifier`, `bca:hasField`, `bca:hasKey`, `bca:hasProcedure` |
 | Field, key, procedure | `bca:Field`, `bca:Key`, `bca:Procedure` (`bca:Trigger`, `bca:EventPublisher`) | `rdfs:label`, `bca:fieldNumber`, `bca:dataType`, `bca:keyField`, `bca:signature`, `bca:visibility`, `bca:sourceLine` |
 | Relation between objects | a property per kind: `bca:calls`, `bca:reads`, `bca:writes`, `bca:relatesTo`, `bca:uses`, `bca:extends`, `bca:implements`, `bca:subscribesTo`, `bca:runs`, `bca:hasPart`, `bca:permits`, ... (all sub-properties of `bca:dependsOn`) | |
 | The same relation with its evidence | `bca:Relation` | `bca:relationSource`, `bca:relationTarget`, `bca:relationKind`, `bca:confidence`, `bca:relationClass`, `bca:cardinality`, `bca:dataAccess`, `bca:operation`, `bca:sourceProcedure`, `bca:sourceFile`, `bca:sourceLine` |
 | Object outside the workspace (for example in the Base Application) | `bca:ExternalObject` and its type's class | `rdfs:label`, `bca:objectType` |
-| Architecture component (`.bca.json`, or a proposal with `--propose`) | `bca:Component` | `rdfs:label`, `bca:layer`, `bca:mayDependOn`, `bca:dependsOnComponent` |
-| Dependency against the architecture | `bca:ArchitectureViolation` | `bca:rule`, `bca:violationSource`, `bca:violationTarget`, `bca:sourceComponent`, `bca:targetComponent`, `bca:weight` |
 
 Resources get stable IRIs from what identifies them in AL: an object is
 `urn:bc-atlas:app:<app id>:<type>:<id>` (or its lowercase name for objects
@@ -89,13 +87,6 @@ SELECT ?from ?to WHERE {
   FILTER NOT EXISTS { ?appA bca:dependsOnApp ?appB }
   ?a rdfs:label ?from . ?b rdfs:label ?to .
 }
-
-# Where each wrong-way dependency is written
-SELECT ?source ?target ?file ?line WHERE {
-  ?v a bca:ArchitectureViolation ; bca:violationSource ?s ; bca:violationTarget ?t .
-  ?r bca:relationSource ?s ; bca:relationTarget ?t ; bca:sourceFile ?file ; bca:sourceLine ?line .
-  ?s rdfs:label ?source . ?t rdfs:label ?target .
-}
 ```
 
 `bca:dependsOn` is the super-property of every relation kind, so a store with
@@ -106,11 +97,11 @@ replace it with `(bca:calls|bca:reads|bca:writes|bca:uses|bca:extends)`.
 
 The graph grows with the relations: every relation is one direct triple and
 one `bca:Relation` with its evidence. The [warehouse example](../examples/knowledge-graph/warehouse-app.ttl)
-has about 840 triples; the Base Application (8,083 objects, 381,301
+has about 860 triples; the Base Application (8,083 objects, 381,301
 relations) has 4.4 million triples, 270 MB of Turtle, written in about 20
 seconds after its analysis.
 
 `--no-evidence` leaves out the `bca:Relation` resources and keeps one triple
 per relation (`bca:writes` and so on). For the Base Application that is 1.1
 million triples and 78 MB, under a third of the size. The queries above work
-on it except the last one, which needs the file and line of each relation.
+on it.

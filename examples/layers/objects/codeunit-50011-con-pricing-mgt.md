@@ -1,15 +1,14 @@
 # codeunit 50011 CON Pricing Mgt.
 
-[System](../README.md) › [Contoso Core](../apps/contoso-core.md) › [Core](../components/core.md) › [Contoso.Core.Pricing](../namespaces/contoso-core-pricing.md)
+[System](../README.md) › [Contoso Core](../apps/contoso-core.md) › [Contoso.Core.Pricing](../namespaces/contoso-core-pricing.md)
 
-The codeunit CON Pricing Mgt. of the app Contoso Core, in the component Core, has 2 members in 17 lines. It calls, uses 1 other object, and 1 object uses it.
+The codeunit CON Pricing Mgt. of the app Contoso Core has 2 members in 17 lines. It calls, uses 1 other object, and 1 object uses it.
 
 | Fact | Value |
 | --- | --- |
 | Type | codeunit |
 | ID | 50011 |
 | App | Contoso Core |
-| Component | Core |
 | Namespace | Contoso.Core.Pricing |
 | Visibility | public |
 | Lines | 17 |
@@ -23,7 +22,7 @@ The codeunit CON Pricing Mgt. of the app Contoso Core, in the component Core, ha
 
 ## Inside
 
-Layer 5: its procedures, triggers, and events, and what each of them does.
+Layer 4: its procedures, triggers, and events, and what each of them does.
 
 | Member | Kind | Lines | Complexity | Does |
 | --- | --- | ---: | ---: | --- |

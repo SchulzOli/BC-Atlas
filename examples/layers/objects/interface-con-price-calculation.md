@@ -1,14 +1,13 @@
 # interface CON Price Calculation
 
-[System](../README.md) › [Contoso Core](../apps/contoso-core.md) › [Core](../components/core.md) › [Contoso.Core.Pricing](../namespaces/contoso-core-pricing.md)
+[System](../README.md) › [Contoso Core](../apps/contoso-core.md) › [Contoso.Core.Pricing](../namespaces/contoso-core-pricing.md)
 
-The interface CON Price Calculation of the app Contoso Core, in the component Core, has 1 member in 4 lines. It uses no other object, and 1 object uses it.
+The interface CON Price Calculation of the app Contoso Core has 1 member in 4 lines. It uses no other object, and 1 object uses it.
 
 | Fact | Value |
 | --- | --- |
 | Type | interface |
 | App | Contoso Core |
-| Component | Core |
 | Namespace | Contoso.Core.Pricing |
 | Visibility | public |
 | Lines | 4 |
@@ -21,7 +20,7 @@ The interface CON Price Calculation of the app Contoso Core, in the component Co
 
 ## Inside
 
-Layer 5: its procedures, triggers, and events, and what each of them does.
+Layer 4: its procedures, triggers, and events, and what each of them does.
 
 | Member | Kind | Lines | Complexity | Does |
 | --- | --- | ---: | ---: | --- |

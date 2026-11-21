@@ -51,11 +51,3 @@ Colin McDonnell, MIT License. Sources:
 
 A browser bundle of them, `vendor/mcp-app.js`, is embedded in the page the
 MCP server serves as an MCP App.
-
-## graphology
-
-Copyright Guillaume Plique (Yomguithereal). Licensed under the MIT License.
-Source: <https://github.com/graphology/graphology>
-
-`graphology` and `graphology-communities-louvain` find the communities of
-objects behind a proposed architecture.

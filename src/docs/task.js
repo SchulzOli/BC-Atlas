@@ -349,7 +349,7 @@ const JOURNEY_EDGES = {
   related: { color: "#9aa4b0", dash: 3, arrow: "none" }
 };
 
-/** The journey as a diagram scene (see buildScene in ../d2.js), for the SVG renderer. */
+/** The journey as a diagram scene for the SVG renderer (src/diagram). */
 export function journeyScene(catalog) {
   if (!catalog.journey.length) return undefined;
   const { useCases, owner, edges } = journeyGraph(catalog);

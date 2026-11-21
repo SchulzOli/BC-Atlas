@@ -37,10 +37,47 @@ check it, and document it. Everything else is gone.
   `processTelemetry`, `flows`, `automation`, `handbook`, `report.handbook`.
   They are ignored when present.
 
+- **The target architecture:** `bca architecture`, `bca architecture compare`,
+  and `bca architecture templates`; proposals, components and their layers,
+  goals and templates, work items, extraction plans, the baseline and the
+  surface file; the `architecture` section of `.bca.json`; the Components lens
+  and the Architecture menu of the view; the rules of `bca check` that needed
+  it. BC Atlas shows what the source has: apps, namespaces, objects, and
+  procedures. `forbiddenDependencies` stays as the way to forbid a dependency.
+- **"What to change, and how":** `changes.md` of `bca layers` and the story
+  `architecture`.
+- **The AL compiler:** compiling with `alc` or the AL Development Tools, the
+  code analyzers, and the import of error logs (`--compiler`,
+  `--compiler-log`, `--analyzers`, the `al` settings for them). Calls are
+  resolved from the source. `al.packageCachePath` is still read to find symbol
+  packages.
+- **The history of `bca layers`:** `--at`, `--releases`, `--last`,
+  `--refresh`, and `layers.history`.
+- **The diagram views of `bca export`** (`--view project`, `module`, `object`,
+  `data`, `call`, `boundary`, `contracts`, `events`, `ui`, `workflow`,
+  `visibility`) with their options and `.bca.json` keys, **D2 and PDF output**,
+  and the **object catalog** (`--view catalog`, `--codegraph`). A picture of a
+  part of the system is `bca view --lens <id> -o <file>.svg` (or `.png`);
+  `bca layers` writes a page per object.
+- **MCP tools:** `bc_atlas_architecture`, `bc_atlas_architecture_explain`,
+  `bc_atlas_architecture_compare`, `bc_atlas_architecture_adopt`,
+  `bc_atlas_architecture_templates`, `bc_atlas_extraction_plan`, and
+  `bc_atlas_generate_diagram`.
+- The examples `examples/monolith` and the dependencies `graphology` and
+  `graphology-communities-louvain`.
+
 ### Changed
 
-- Work items and the comparison of current and target architecture no longer
-  name a `bca refactor move` command; they say which object moves where.
+- The layers of `bca layers` are: the system, apps, namespaces, objects, and
+  the procedures inside each object. `architecture.md` shows the apps and the
+  namespaces and what depends on what. The schema of `layers.json` is
+  `bc-atlas.layers/2`; a first run replaces the pages of the schema before.
+- `bca export --view report` draws one picture per lens (`--lenses`) in place
+  of the diagram views.
+- The view groups objects by namespace where it grouped by component, and
+  holds objects of other apps together as "Other apps".
+- The command contract (`bca help --format json`) is `schemaVersion` 2.
+- `--paths` narrows `bca check` and `bca export` as it narrows the view.
 
 ## 0.27.0 - 2026-11-17
 
@@ -617,7 +654,7 @@ check it, and document it. Everything else is gone.
   without an end; local sits at the core of every circle, public at the rim.
   Click a circle to go into it, search by name, show only some levels, and
   switch to the diagram of boxes. See
-  [Architecture diagrams](./docs/architecture-diagrams.md#read-a-visibility-view).
+  Architecture diagrams.
 - **Dashboard**, the page where VS Code and the offline app now open: every
   content in every form. Pick what to look at (a diagram view, the
   components of the architecture, the objects, the apps, the health

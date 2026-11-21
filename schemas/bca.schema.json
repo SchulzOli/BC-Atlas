@@ -2,119 +2,330 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/SchulzOli/BC-Atlas/blob/main/schemas/bca.schema.json",
   "title": "BC Atlas configuration (.bca.json)",
-  "description": "Settings for bca check, export, architecture, docs, and run. See docs/configuration.md.",
+  "description": "Settings for bca check, view, export, layers, and docs. See docs/configuration.md.",
   "type": "object",
   "properties": {
-    "$schema": { "type": "string" },
-    "view": { "description": "Default diagram view.", "enum": ["project", "module", "object", "data", "call", "boundary", "contracts", "events", "ui", "workflow", "visibility"] },
-    "projectRoot": { "description": "Root of the AL project, relative to this file.", "type": "string" },
-    "paths": { "description": "Analyze only these folders (globs allowed).", "type": "array", "items": { "type": "string" } },
-    "direction": { "enum": ["right", "down", "left", "up"] },
-    "title": { "type": "string" },
-    "groupBy": { "description": "Diagram grouping (not the architecture proposal; see architecture.proposal.groupBy).", "enum": ["namespace", "folder", "type", "role"] },
-    "roleMappings": { "description": "Role lanes for the project view: role name to selectors.", "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } } },
-    "namespaces": { "type": "array", "items": { "type": "string" } },
-    "include": { "type": "array", "items": { "type": "string" } },
-    "exclude": { "description": "Files to leave out of the analysis (globs).", "type": "array", "items": { "type": "string" } },
-    "moduleDepth": { "oneOf": [{ "const": "auto" }, { "type": "integer", "minimum": 1 }] },
-    "folderDepth": { "type": "integer", "minimum": 1 },
-    "includeUnresolvedCalls": { "type": "boolean" },
-    "maxEdges": { "type": "integer", "minimum": 1 },
-    "details": { "type": "boolean" },
-    "noExternal": { "type": "boolean" },
-    "sourceUrl": { "description": "Link template for source locations: {ref}, {file}, {line}.", "type": "string" },
-    "sourceRef": { "type": "string" },
-    "sourcePathPrefix": { "type": "string" },
-    "workflow": { "type": "object" },
+    "$schema": {
+      "type": "string"
+    },
+    "projectRoot": {
+      "description": "Root of the AL project, relative to this file.",
+      "type": "string"
+    },
+    "paths": {
+      "description": "Analyze only these folders (globs allowed).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "title": {
+      "type": "string"
+    },
+    "namespaces": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "include": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "exclude": {
+      "description": "Files to leave out of the analysis (globs).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sourceUrl": {
+      "description": "Link template for source locations: {ref}, {file}, {line}.",
+      "type": "string"
+    },
+    "sourceRef": {
+      "type": "string"
+    },
+    "sourcePathPrefix": {
+      "type": "string"
+    },
     "forbiddenDependencies": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["from", "to"],
+        "required": [
+          "from",
+          "to"
+        ],
         "properties": {
-          "from": { "type": "string" },
-          "to": { "type": "string" },
-          "severity": { "enum": ["error", "warning", "info"] },
-          "message": { "type": "string" }
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
         }
       }
     },
-    "architecture": { "$ref": "#/$defs/architecture" },
     "check": {
       "type": "object",
       "properties": {
-        "failOn": { "enum": ["error", "warning", "info", "never"] },
-        "cycles": { "enum": ["error", "warning", "info", "off"] },
-        "maxFanIn": { "type": "integer", "minimum": 1 },
-        "maxFanOut": { "type": "integer", "minimum": 1 },
+        "failOn": {
+          "enum": [
+            "error",
+            "warning",
+            "info",
+            "never"
+          ]
+        },
+        "cycles": {
+          "enum": [
+            "error",
+            "warning",
+            "info",
+            "off"
+          ]
+        },
+        "maxFanIn": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxFanOut": {
+          "type": "integer",
+          "minimum": 1
+        },
         "severities": {
           "description": "Severity of the quality rules: error, warning, info, or off.",
           "type": "object",
           "properties": {
-            "undocumented-public-api": { "enum": ["error", "warning", "info", "off"], "default": "info" }
+            "undocumented-public-api": {
+              "enum": [
+                "error",
+                "warning",
+                "info",
+                "off"
+              ],
+              "default": "info"
+            }
           }
         },
-        "contractExpectations": { "type": "array" },
-        "contexts": { "type": "array" }
+        "contractExpectations": {
+          "type": "array"
+        },
+        "contexts": {
+          "type": "array"
+        }
       }
     },
     "al": {
+      "description": "How the AL workspace is read.",
       "type": "object",
       "properties": {
-        "compiler": { "description": "auto, off, or a path to alc, al, or the AL extension folder.", "type": "string" },
-        "analyzers": { "type": "array", "items": { "type": "string" } },
-        "errorLog": { "type": "string" },
-        "callGraph": { "type": "boolean" },
-        "workspaceFile": { "type": "string" }
+        "workspaceFile": {
+          "description": "The .code-workspace file whose folders and al.packageCachePath apply, relative to the project root. Default: the one in the root, when there is exactly one.",
+          "type": "string"
+        }
       }
     },
     "report": {
+      "description": "The Markdown report (bca export --view report).",
       "type": "object",
       "properties": {
-        "outputDir": { "type": "string" },
-        "views": { "type": "array", "items": { "type": "string" } },
-        "format": { "enum": ["svg", "d2"] },
-        "title": { "type": "string" },
-        "codegraph": { "type": "boolean" },
-        "json": { "type": "boolean" }
+        "outputDir": {
+          "type": "string",
+          "default": "docs/atlas"
+        },
+        "lenses": {
+          "description": "The lenses to draw; one the project does not have is left out.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "overview",
+            "apps",
+            "modules",
+            "data",
+            "events",
+            "contracts",
+            "pages"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "json": {
+          "description": "Also write the resolved model as model.json.",
+          "type": "boolean",
+          "default": false
+        }
       }
     },
-    "codegraph": { "type": "object", "properties": { "outputDir": { "type": "string" } } },
     "layers": {
       "description": "The layered documentation (bca layers): the system explained from the whole down to each procedure, kept in sync with the source.",
       "type": "object",
       "properties": {
-        "outputDir": { "type": "string", "default": "docs/layers" },
-        "pictures": { "description": "Pictures of single objects: auto (up to 400 objects), all, or none (no pictures at all).", "enum": ["auto", "all", "none"], "default": "auto" },
-        "history": { "description": "releases: every run also records each release (Git tag) that is not recorded yet below <outputDir>/history.", "enum": ["none", "releases"], "default": "none" },
-        "view": { "description": "Also write view.html, the BC Atlas view of the working tree as one offline file.", "type": "boolean", "default": false },
+        "outputDir": {
+          "type": "string",
+          "default": "docs/layers"
+        },
+        "pictures": {
+          "description": "Pictures of single objects: auto (up to 400 objects), all, or none (no pictures at all).",
+          "enum": [
+            "auto",
+            "all",
+            "none"
+          ],
+          "default": "auto"
+        },
+        "view": {
+          "description": "Also write view.html, the BC Atlas view as one offline file.",
+          "type": "boolean",
+          "default": false
+        },
         "pages": {
           "description": "Which pages are written. false leaves a kind of page out; a list keeps the pages of a kind whose name, id, or file name matches one of its entries (* and ? are wildcards). Default: every page.",
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "readme": { "type": "boolean", "default": true },
-            "architecture": { "type": "boolean", "default": true },
-            "changes": { "type": "boolean", "default": true },
-            "findings": { "type": "boolean", "default": true },
-            "apps": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
-            "components": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
-            "namespaces": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
-            "objects": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
-            "lenses": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
-            "stories": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true }
+            "readme": {
+              "type": "boolean",
+              "default": true
+            },
+            "architecture": {
+              "type": "boolean",
+              "default": true
+            },
+            "findings": {
+              "type": "boolean",
+              "default": true
+            },
+            "apps": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              ],
+              "default": true
+            },
+            "namespaces": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              ],
+              "default": true
+            },
+            "objects": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              ],
+              "default": true
+            },
+            "lenses": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              ],
+              "default": true
+            },
+            "stories": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              ],
+              "default": true
+            }
           }
         },
         "scope": {
-          "description": "The part of the system that is documented: only the objects that match every list that is not empty get a page, and an app, component, or namespace gets one when it holds such an object. * and ? are wildcards; case does not matter.",
+          "description": "The part of the system that is documented: only the objects that match every list that is not empty get a page, and an app or namespace gets one when it holds such an object. * and ? are wildcards; case does not matter.",
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "apps": { "description": "Names of apps.", "type": "array", "items": { "type": "string", "minLength": 1 } },
-            "components": { "description": "Names of components of the architecture.", "type": "array", "items": { "type": "string", "minLength": 1 } },
-            "namespaces": { "description": "Namespaces; Contoso.Sales* also takes the ones below it.", "type": "array", "items": { "type": "string", "minLength": 1 } },
-            "types": { "description": "Object types, such as table, codeunit, page.", "type": "array", "items": { "type": "string", "minLength": 1 } },
-            "exclude": { "description": "Objects to leave out, by name (CON Item) or by type, ID, and name (table 50000 CON Item).", "type": "array", "items": { "type": "string", "minLength": 1 } }
+            "apps": {
+              "description": "Names of apps.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "namespaces": {
+              "description": "Namespaces; Contoso.Sales* also takes the ones below it.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "types": {
+              "description": "Object types, such as table, codeunit, page.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "exclude": {
+              "description": "Objects to leave out, by name (CON Item) or by type, ID, and name (table 50000 CON Item).",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
           }
         },
         "sections": {
@@ -122,81 +333,324 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "readme": { "type": "array", "uniqueItems": true, "items": { "enum": ["Start here", "Layers", "Apps", "Components", "Namespaces", "Lenses", "Stories", "Findings", "Read from", "History"] } },
-            "architecture": { "type": "array", "uniqueItems": true, "items": { "enum": ["Apps", "Components", "Shared data", "What to change"] } },
-            "changes": { "type": "array", "uniqueItems": true, "items": { "enum": ["Changes", "Options"] } },
-            "findings": { "type": "array", "uniqueItems": true, "items": { "enum": ["Error", "Warning", "Info"] } },
-            "app": { "type": "array", "uniqueItems": true, "items": { "enum": ["Components", "Namespaces", "Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
-            "component": { "type": "array", "uniqueItems": true, "items": { "enum": ["Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
-            "namespace": { "type": "array", "uniqueItems": true, "items": { "enum": ["Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
-            "object": { "type": "array", "uniqueItems": true, "items": { "enum": ["Inside", "Uses", "Used by", "What to change here", "Findings"] } },
-            "lens": { "type": "array", "uniqueItems": true, "items": { "enum": ["Findings"] } },
-            "story": { "description": "The sections of a story are its steps (1. <title>); [] leaves only what stands above them.", "type": "array", "items": { "type": "string", "minLength": 1 } }
+            "readme": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "Start here",
+                  "Layers",
+                  "Apps",
+                  "Namespaces",
+                  "Lenses",
+                  "Stories",
+                  "Findings",
+                  "Read from"
+                ]
+              }
+            },
+            "architecture": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "Apps",
+                  "Namespaces"
+                ]
+              }
+            },
+            "findings": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "Error",
+                  "Warning",
+                  "Info"
+                ]
+              }
+            },
+            "app": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "Namespaces",
+                  "Depends on",
+                  "Used by",
+                  "Objects",
+                  "Findings"
+                ]
+              }
+            },
+            "namespace": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "Depends on",
+                  "Used by",
+                  "Objects",
+                  "Findings"
+                ]
+              }
+            },
+            "object": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "Inside",
+                  "Uses",
+                  "Used by",
+                  "Findings"
+                ]
+              }
+            },
+            "lens": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "Findings"
+                ]
+              }
+            },
+            "story": {
+              "description": "The sections of a story are its steps (1. <title>); [] leaves only what stands above them.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
           }
         },
         "titles": {
           "description": "Other headings: the heading as BC Atlas writes it in English, and what to call it. \"object.Used by\" names the heading of one kind of page; README is the title of the first page.",
           "type": "object",
-          "additionalProperties": { "type": "string", "minLength": 1 }
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "language": { "description": "de: the fixed headings, table headers, labels, and the footer in German. What is made from the source stays as it is.", "enum": ["en", "de"], "default": "en" },
+        "language": {
+          "description": "de: the fixed headings, table headers, labels, and the footer in German. What is made from the source stays as it is.",
+          "enum": [
+            "en",
+            "de"
+          ],
+          "default": "en"
+        },
         "names": {
-          "description": "The file of each kind of page, relative to outputDir, ending with .md. Placeholders: {name}; for objects also {type}, {id}, {app}, {component}, {namespace}; for namespaces {app}; for lenses and stories {id}. Links and pictures follow.",
+          "description": "The file of each kind of page, relative to outputDir, ending with .md. Placeholders: {name}; for objects also {type}, {id}, {app}, {namespace}; for namespaces {app}; for lenses and stories {id}. Links and pictures follow.",
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "readme": { "type": "string", "pattern": "\\.md$", "default": "README.md" },
-            "architecture": { "type": "string", "pattern": "\\.md$", "default": "architecture.md" },
-            "changes": { "type": "string", "pattern": "\\.md$", "default": "changes.md" },
-            "findings": { "type": "string", "pattern": "\\.md$", "default": "findings.md" },
-            "apps": { "type": "string", "pattern": "\\.md$", "default": "apps/{name}.md" },
-            "components": { "type": "string", "pattern": "\\.md$", "default": "components/{name}.md" },
-            "namespaces": { "type": "string", "pattern": "\\.md$", "default": "namespaces/{name}.md" },
-            "objects": { "type": "string", "pattern": "\\.md$", "default": "objects/{type}-{id}-{name}.md" },
-            "lenses": { "type": "string", "pattern": "\\.md$", "default": "lenses/{id}.md" },
-            "stories": { "type": "string", "pattern": "\\.md$", "default": "stories/{id}.md" }
+            "readme": {
+              "type": "string",
+              "pattern": "\\.md$",
+              "default": "README.md"
+            },
+            "architecture": {
+              "type": "string",
+              "pattern": "\\.md$",
+              "default": "architecture.md"
+            },
+            "findings": {
+              "type": "string",
+              "pattern": "\\.md$",
+              "default": "findings.md"
+            },
+            "apps": {
+              "type": "string",
+              "pattern": "\\.md$",
+              "default": "apps/{name}.md"
+            },
+            "namespaces": {
+              "type": "string",
+              "pattern": "\\.md$",
+              "default": "namespaces/{name}.md"
+            },
+            "objects": {
+              "type": "string",
+              "pattern": "\\.md$",
+              "default": "objects/{type}-{id}-{name}.md"
+            },
+            "lenses": {
+              "type": "string",
+              "pattern": "\\.md$",
+              "default": "lenses/{id}.md"
+            },
+            "stories": {
+              "type": "string",
+              "pattern": "\\.md$",
+              "default": "stories/{id}.md"
+            }
           }
         },
-        "templates": { "description": "Folder, relative to the project, with a Markdown template per kind of page: readme.md, architecture.md, changes.md, findings.md, app.md, component.md, namespace.md, object.md, lens.md, story.md. Placeholders: {{title}}, {{summary}}, {{picture}}, {{section \"Uses\"}}, {{body \"Uses\"}}, {{sections}}, {{footer}}, {{name}}, {{type}}, {{id}}, {{app}}, {{component}}, {{namespace}}, {{system}}.", "type": "string" },
+        "templates": {
+          "description": "Folder, relative to the project, with a Markdown template per kind of page: readme.md, architecture.md, findings.md, app.md, namespace.md, object.md, lens.md, story.md. Placeholders: {{title}}, {{summary}}, {{picture}}, {{section \"Uses\"}}, {{body \"Uses\"}}, {{sections}}, {{footer}}, {{name}}, {{type}}, {{id}}, {{app}}, {{namespace}}, {{system}}.",
+          "type": "string"
+        },
         "profiles": {
           "description": "Named sets of the settings of layers (bca layers --profile <name>): the keys of a profile go over the ones here, each as a whole. Every profile writes to a folder of its own: its outputDir, or <outputDir>-<name>.",
           "type": "object",
-          "propertyNames": { "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "outputDir": { "type": "string" },
-              "pictures": { "description": "Pictures of single objects: auto (up to 400 objects), all, or none (no pictures at all).", "enum": ["auto", "all", "none"], "default": "auto" },
-              "history": { "description": "releases: every run also records each release (Git tag) that is not recorded yet below <outputDir>/history.", "enum": ["none", "releases"], "default": "none" },
-              "view": { "description": "Also write view.html, the BC Atlas view of the working tree as one offline file.", "type": "boolean", "default": false },
+              "outputDir": {
+                "type": "string"
+              },
+              "pictures": {
+                "description": "Pictures of single objects: auto (up to 400 objects), all, or none (no pictures at all).",
+                "enum": [
+                  "auto",
+                  "all",
+                  "none"
+                ],
+                "default": "auto"
+              },
+              "view": {
+                "description": "Also write view.html, the BC Atlas view as one offline file.",
+                "type": "boolean",
+                "default": false
+              },
               "pages": {
                 "description": "Which pages are written. false leaves a kind of page out; a list keeps the pages of a kind whose name, id, or file name matches one of its entries (* and ? are wildcards). Default: every page.",
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "readme": { "type": "boolean", "default": true },
-                  "architecture": { "type": "boolean", "default": true },
-                  "changes": { "type": "boolean", "default": true },
-                  "findings": { "type": "boolean", "default": true },
-                  "apps": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
-                  "components": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
-                  "namespaces": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
-                  "objects": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
-                  "lenses": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true },
-                  "stories": { "oneOf": [{ "type": "boolean" }, { "type": "array", "items": { "type": "string", "minLength": 1 } }], "default": true }
+                  "readme": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "architecture": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "findings": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "apps": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ],
+                    "default": true
+                  },
+                  "namespaces": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ],
+                    "default": true
+                  },
+                  "objects": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ],
+                    "default": true
+                  },
+                  "lenses": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ],
+                    "default": true
+                  },
+                  "stories": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    ],
+                    "default": true
+                  }
                 }
               },
               "scope": {
-                "description": "The part of the system that is documented: only the objects that match every list that is not empty get a page, and an app, component, or namespace gets one when it holds such an object. * and ? are wildcards; case does not matter.",
+                "description": "The part of the system that is documented: only the objects that match every list that is not empty get a page, and an app or namespace gets one when it holds such an object. * and ? are wildcards; case does not matter.",
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "apps": { "description": "Names of apps.", "type": "array", "items": { "type": "string", "minLength": 1 } },
-                  "components": { "description": "Names of components of the architecture.", "type": "array", "items": { "type": "string", "minLength": 1 } },
-                  "namespaces": { "description": "Namespaces; Contoso.Sales* also takes the ones below it.", "type": "array", "items": { "type": "string", "minLength": 1 } },
-                  "types": { "description": "Object types, such as table, codeunit, page.", "type": "array", "items": { "type": "string", "minLength": 1 } },
-                  "exclude": { "description": "Objects to leave out, by name (CON Item) or by type, ID, and name (table 50000 CON Item).", "type": "array", "items": { "type": "string", "minLength": 1 } }
+                  "apps": {
+                    "description": "Names of apps.",
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "namespaces": {
+                    "description": "Namespaces; Contoso.Sales* also takes the ones below it.",
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "types": {
+                    "description": "Object types, such as table, codeunit, page.",
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "exclude": {
+                    "description": "Objects to leave out, by name (CON Item) or by type, ID, and name (table 50000 CON Item).",
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
                 }
               },
               "sections": {
@@ -204,54 +658,187 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "readme": { "type": "array", "uniqueItems": true, "items": { "enum": ["Start here", "Layers", "Apps", "Components", "Namespaces", "Lenses", "Stories", "Findings", "Read from", "History"] } },
-                  "architecture": { "type": "array", "uniqueItems": true, "items": { "enum": ["Apps", "Components", "Shared data", "What to change"] } },
-                  "changes": { "type": "array", "uniqueItems": true, "items": { "enum": ["Changes", "Options"] } },
-                  "findings": { "type": "array", "uniqueItems": true, "items": { "enum": ["Error", "Warning", "Info"] } },
-                  "app": { "type": "array", "uniqueItems": true, "items": { "enum": ["Components", "Namespaces", "Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
-                  "component": { "type": "array", "uniqueItems": true, "items": { "enum": ["Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
-                  "namespace": { "type": "array", "uniqueItems": true, "items": { "enum": ["Depends on", "Used by", "What to change here", "Objects", "Findings"] } },
-                  "object": { "type": "array", "uniqueItems": true, "items": { "enum": ["Inside", "Uses", "Used by", "What to change here", "Findings"] } },
-                  "lens": { "type": "array", "uniqueItems": true, "items": { "enum": ["Findings"] } },
-                  "story": { "description": "The sections of a story are its steps (1. <title>); [] leaves only what stands above them.", "type": "array", "items": { "type": "string", "minLength": 1 } }
+                  "readme": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "Start here",
+                        "Layers",
+                        "Apps",
+                        "Namespaces",
+                        "Lenses",
+                        "Stories",
+                        "Findings",
+                        "Read from"
+                      ]
+                    }
+                  },
+                  "architecture": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "Apps",
+                        "Namespaces"
+                      ]
+                    }
+                  },
+                  "findings": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "Error",
+                        "Warning",
+                        "Info"
+                      ]
+                    }
+                  },
+                  "app": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "Namespaces",
+                        "Depends on",
+                        "Used by",
+                        "Objects",
+                        "Findings"
+                      ]
+                    }
+                  },
+                  "namespace": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "Depends on",
+                        "Used by",
+                        "Objects",
+                        "Findings"
+                      ]
+                    }
+                  },
+                  "object": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "Inside",
+                        "Uses",
+                        "Used by",
+                        "Findings"
+                      ]
+                    }
+                  },
+                  "lens": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "Findings"
+                      ]
+                    }
+                  },
+                  "story": {
+                    "description": "The sections of a story are its steps (1. <title>); [] leaves only what stands above them.",
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
                 }
               },
               "titles": {
                 "description": "Other headings: the heading as BC Atlas writes it in English, and what to call it. \"object.Used by\" names the heading of one kind of page; README is the title of the first page.",
                 "type": "object",
-                "additionalProperties": { "type": "string", "minLength": 1 }
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1
+                }
               },
-              "language": { "description": "de: the fixed headings, table headers, labels, and the footer in German. What is made from the source stays as it is.", "enum": ["en", "de"], "default": "en" },
+              "language": {
+                "description": "de: the fixed headings, table headers, labels, and the footer in German. What is made from the source stays as it is.",
+                "enum": [
+                  "en",
+                  "de"
+                ],
+                "default": "en"
+              },
               "names": {
-                "description": "The file of each kind of page, relative to outputDir, ending with .md. Placeholders: {name}; for objects also {type}, {id}, {app}, {component}, {namespace}; for namespaces {app}; for lenses and stories {id}. Links and pictures follow.",
+                "description": "The file of each kind of page, relative to outputDir, ending with .md. Placeholders: {name}; for objects also {type}, {id}, {app}, {namespace}; for namespaces {app}; for lenses and stories {id}. Links and pictures follow.",
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "readme": { "type": "string", "pattern": "\\.md$", "default": "README.md" },
-                  "architecture": { "type": "string", "pattern": "\\.md$", "default": "architecture.md" },
-                  "changes": { "type": "string", "pattern": "\\.md$", "default": "changes.md" },
-                  "findings": { "type": "string", "pattern": "\\.md$", "default": "findings.md" },
-                  "apps": { "type": "string", "pattern": "\\.md$", "default": "apps/{name}.md" },
-                  "components": { "type": "string", "pattern": "\\.md$", "default": "components/{name}.md" },
-                  "namespaces": { "type": "string", "pattern": "\\.md$", "default": "namespaces/{name}.md" },
-                  "objects": { "type": "string", "pattern": "\\.md$", "default": "objects/{type}-{id}-{name}.md" },
-                  "lenses": { "type": "string", "pattern": "\\.md$", "default": "lenses/{id}.md" },
-                  "stories": { "type": "string", "pattern": "\\.md$", "default": "stories/{id}.md" }
+                  "readme": {
+                    "type": "string",
+                    "pattern": "\\.md$",
+                    "default": "README.md"
+                  },
+                  "architecture": {
+                    "type": "string",
+                    "pattern": "\\.md$",
+                    "default": "architecture.md"
+                  },
+                  "findings": {
+                    "type": "string",
+                    "pattern": "\\.md$",
+                    "default": "findings.md"
+                  },
+                  "apps": {
+                    "type": "string",
+                    "pattern": "\\.md$",
+                    "default": "apps/{name}.md"
+                  },
+                  "namespaces": {
+                    "type": "string",
+                    "pattern": "\\.md$",
+                    "default": "namespaces/{name}.md"
+                  },
+                  "objects": {
+                    "type": "string",
+                    "pattern": "\\.md$",
+                    "default": "objects/{type}-{id}-{name}.md"
+                  },
+                  "lenses": {
+                    "type": "string",
+                    "pattern": "\\.md$",
+                    "default": "lenses/{id}.md"
+                  },
+                  "stories": {
+                    "type": "string",
+                    "pattern": "\\.md$",
+                    "default": "stories/{id}.md"
+                  }
                 }
               },
-              "templates": { "description": "Folder, relative to the project, with a Markdown template per kind of page: readme.md, architecture.md, changes.md, findings.md, app.md, component.md, namespace.md, object.md, lens.md, story.md. Placeholders: {{title}}, {{summary}}, {{picture}}, {{section \"Uses\"}}, {{body \"Uses\"}}, {{sections}}, {{footer}}, {{name}}, {{type}}, {{id}}, {{app}}, {{component}}, {{namespace}}, {{system}}.", "type": "string" }
+              "templates": {
+                "description": "Folder, relative to the project, with a Markdown template per kind of page: readme.md, architecture.md, findings.md, app.md, namespace.md, object.md, lens.md, story.md. Placeholders: {{title}}, {{summary}}, {{picture}}, {{section \"Uses\"}}, {{body \"Uses\"}}, {{sections}}, {{footer}}, {{name}}, {{type}}, {{id}}, {{app}}, {{namespace}}, {{system}}.",
+                "type": "string"
+              }
             }
           }
         }
       }
     },
-    "docs": { "type": "object" }
+    "docs": {
+      "type": "object"
+    }
   },
   "$defs": {
     "names": {
       "oneOf": [
-        { "type": "string" },
-        { "type": "array", "items": { "type": "string" } }
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       ]
     },
     "selector": {
@@ -260,212 +847,17 @@
     },
     "selectors": {
       "oneOf": [
-        { "$ref": "#/$defs/selector" },
-        { "type": "array", "items": { "$ref": "#/$defs/selector" }, "minItems": 1 }
+        {
+          "$ref": "#/$defs/selector"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/selector"
+          },
+          "minItems": 1
+        }
       ]
-    },
-    "relationKind": {
-      "enum": ["writes", "extends", "source", "relates", "implements", "calls", "runs", "part", "reads", "selects", "uses", "subscribes", "permits", "includes"]
-    },
-    "architecture": {
-      "type": "object",
-      "properties": {
-        "components": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["name", "match"],
-            "properties": {
-              "name": { "type": "string" },
-              "description": { "type": "string" },
-              "layer": { "type": "integer", "minimum": 0 },
-              "match": { "$ref": "#/$defs/selectors" },
-              "dependsOn": { "type": "array", "items": { "type": "string" } },
-              "exposes": { "$ref": "#/$defs/selectors" },
-              "maxObjects": { "type": "integer", "minimum": 1 }
-            }
-          }
-        },
-        "proposal": { "$ref": "#/$defs/proposal" },
-        "goals": { "$ref": "#/$defs/architectureGoals" },
-        "template": {
-          "description": "The template in use: a preset or one of architecture.templates. It gives the goals, the proposal settings, the coupling weights, and the layer rules that architecture.goals, architecture.proposal, and the settings beside them do not set themselves. Default: balanced.",
-          "type": "string",
-          "default": "balanced",
-          "examples": ["balanced", "follow-structure", "by-coupling", "layered", "modular-monolith", "small-steps"]
-        },
-        "templates": {
-          "description": "Your own templates by name: a template, or the path of a JSON file with one (relative to the project), so several repositories can share it. A preset name cannot be used.",
-          "type": "object",
-          "additionalProperties": {
-            "anyOf": [
-              { "$ref": "#/$defs/architectureTemplate" },
-              { "type": "string", "pattern": "\\.json$" }
-            ]
-          }
-        },
-        "couplingWeights": {
-          "description": "How strongly each relation kind binds two objects (defaults: writes 5, extends 4, source 4, relates 3, implements 3, calls 2, runs 2, part 2, reads 2, selects 1.5, uses 1, subscribes 1, permits 0.1, includes 0.1). 0 drops a kind.",
-          "type": "object",
-          "propertyNames": { "$ref": "#/$defs/relationKind" },
-          "additionalProperties": { "type": "number", "minimum": 0 }
-        },
-        "allowSameLayer": { "type": "boolean" },
-        "strictLayers": { "type": "boolean" },
-        "internalAccess": {
-          "description": "Who may use an Access = Internal object: \"app\" (default) any component of the same app, as the AL compiler allows; \"component\" only its own component, for components that are to become apps.",
-          "enum": ["app", "component"]
-        },
-        "maxObjects": { "type": "integer", "minimum": 1 },
-        "severity": { "enum": ["error", "warning", "info", "off"] },
-        "unassigned": { "enum": ["error", "warning", "info", "off"] },
-        "severities": { "type": "object", "additionalProperties": { "enum": ["error", "warning", "info", "off"] } },
-        "rules": { "type": "array" },
-        "baseline": { "type": "string" },
-        "surface": { "type": "string" }
-      }
-    },
-    "architectureGoals": {
-      "description": "What a good architecture is for this team: how much each criterion counts when architectures are scored and compared (bca architecture compare). The template in use gives what is not set here.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "$comment": { "type": "string" },
-        "weights": {
-          "description": "Weight per criterion; 0 leaves a criterion out. Only the proportions count.",
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "$comment": { "type": "string" },
-            "cohesion": { "description": "The share of the weighted coupling that stays inside components.", "type": "number", "minimum": 0, "default": 2 },
-            "modularity": { "description": "The components are real groups: the weighted modularity of the grouping; 0.5 and more counts as full.", "type": "number", "minimum": 0, "default": 4 },
-            "layering": { "description": "The share of dependencies between components that go the allowed way.", "type": "number", "minimum": 0, "default": 3 },
-            "acyclic": { "description": "Components that are not part of a dependency cycle.", "type": "number", "minimum": 0, "default": 2 },
-            "ownership": { "description": "Tables that only their own component writes.", "type": "number", "minimum": 0, "default": 2 },
-            "extractable": { "description": "The share of objects in components that could be an app of their own today.", "type": "number", "minimum": 0, "default": 1 },
-            "stability": { "description": "Dependencies that point at a component at least as stable.", "type": "number", "minimum": 0, "default": 1 },
-            "size": { "description": "The share of objects in components inside the size band.", "type": "number", "minimum": 0, "default": 1 },
-            "followNamespaces": { "description": "Agreement of the components with the namespaces of the source.", "type": "number", "minimum": 0, "default": 1 },
-            "followFolders": { "description": "Agreement of the components with the functional folders of the source.", "type": "number", "minimum": 0, "default": 1 },
-            "followApps": { "description": "Agreement of the components with the apps of the workspace.", "type": "number", "minimum": 0, "default": 1 },
-            "fewMoves": { "description": "Closeness to the structure the source has today: objects that do not have to move.", "type": "number", "minimum": 0, "default": 2 }
-          }
-        },
-        "size": {
-          "description": "The size band of the size criterion: components of min to max objects are neither tiny nor huge.",
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "min": { "type": "integer", "minimum": 1, "default": 3 },
-            "max": { "type": "integer", "minimum": 1, "default": 200 }
-          }
-        }
-      }
-    },
-    "architectureTemplate": {
-      "description": "Everything that says what a good architecture is, under one name. It starts from the defaults or from the template it extends and overrides parts of it.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "$comment": { "type": "string" },
-        "title": { "type": "string" },
-        "summary": { "description": "When to use this template.", "type": "string" },
-        "extends": { "description": "A preset or another template of architecture.templates to start from.", "type": "string" },
-        "goals": { "$ref": "#/$defs/architectureGoals" },
-        "proposal": { "$ref": "#/$defs/proposal" },
-        "couplingWeights": {
-          "type": "object",
-          "propertyNames": { "$ref": "#/$defs/relationKind" },
-          "additionalProperties": { "type": "number", "minimum": 0 }
-        },
-        "allowSameLayer": { "type": "boolean" },
-        "strictLayers": { "type": "boolean" },
-        "internalAccess": { "enum": ["app", "component"] }
-      }
-    },
-    "proposal": {
-      "description": "What bca architecture --propose takes into account, and how. Options of the command override these.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "$comment": { "type": "string" },
-        "groupBy": {
-          "description": "auto or coupling: the typed, weighted relations decide; namespace or folder: the code structure decides, objects without it follow their relations; module or app: one component each.",
-          "enum": ["auto", "coupling", "namespace", "folder", "module", "app"],
-          "default": "auto"
-        },
-        "depth": { "description": "With groupBy namespace or folder: segments per component; default: split until no component is too large.", "type": "integer", "minimum": 1 },
-        "minObjects": { "description": "Smaller groups join the component they depend on most.", "type": "integer", "minimum": 1, "default": 1 },
-        "startFrom": {
-          "description": "Existing structures that compete with the relations as a starting point. [] for relations only. The relations decide which survives.",
-          "type": "array",
-          "items": { "enum": ["namespace", "folder"] },
-          "uniqueItems": true,
-          "default": ["namespace", "folder"]
-        },
-        "ignore": {
-          "description": "Relation kinds that never shape a component (they still count as dependencies).",
-          "type": "array",
-          "items": { "$ref": "#/$defs/relationKind" },
-          "uniqueItems": true,
-          "default": ["permits", "includes"]
-        },
-        "granularity": { "description": "Above 1: more, smaller components; below 1: fewer, larger ones.", "type": "number", "exclusiveMinimum": 0, "default": 1 },
-        "appGranularity": { "description": "The same for app candidates (which components could become one app together).", "type": "number", "exclusiveMinimum": 0, "default": 0.3 },
-        "sharedCore": { "description": "Pull objects that many components use (setup tables, utilities) into a shared core.", "type": "boolean", "default": true },
-        "keep": {
-          "description": "Components you define yourself. Their objects are not clustered; the proposal arranges everything else around them.",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["name", "match"],
-            "additionalProperties": false,
-            "properties": {
-              "name": { "type": "string" },
-              "match": { "$ref": "#/$defs/selectors" },
-              "description": { "type": "string" }
-            }
-          }
-        },
-        "exclude": {
-          "description": "Objects that do not shape components (for example type:permissionset or test codeunits). They join the component they are most coupled to afterwards.",
-          "$ref": "#/$defs/selectors"
-        },
-        "moves": {
-          "description": "Objects that belong elsewhere: at least minGain more coupling to another component than to their own; at most limit of them.",
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "minGain": { "type": "number", "minimum": 0, "default": 2 },
-            "limit": { "type": "integer", "minimum": 0, "default": 50 }
-          }
-        },
-        "naming": {
-          "description": "How proposed components are named. Names are unique without case; components that would get the same name are told apart by meaning before a number.",
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "$comment": { "type": "string" },
-            "rename": {
-              "description": "A map from the name the proposal gives a component to the name you want, applied last: { \"Setup 2\": \"Purchase Setup\" }. Two components must not end up with the same name.",
-              "type": "object",
-              "additionalProperties": { "type": "string", "minLength": 1 }
-            },
-            "qualify": {
-              "description": "What tells components of the same name apart first. parent: the namespace segment or folder above (Sales Setup); app: the app or module (Setup (Contoso Sales)); number: Setup 2.",
-              "enum": ["parent", "app", "number"],
-              "default": "parent"
-            },
-            "avoid": {
-              "description": "Kinds of names a component may only have when it holds exactly the same objects: app, module, namespace (its last segment). A component that would share such a name with something else is told apart like two components of the same name.",
-              "type": "array",
-              "items": { "enum": ["app", "module", "namespace"] },
-              "uniqueItems": true,
-              "default": []
-            }
-          }
-        }
-      }
     }
   }
 }

@@ -1,56 +1,13 @@
 {
   "$schema": "./node_modules/bc-atlas/schemas/bca.schema.json",
-  "view": "project",
   "projectRoot": ".",
-  "direction": "right",
   "title": "Business Central architecture",
-  "groupBy": "role",
-  "roleMappings": {
-    "Domain": [
-      "Contoso.Sales:table:*",
-      "Contoso.Sales:codeunit:*"
-    ]
-  },
   "namespaces": [
     "Contoso.**"
   ],
   "exclude": [
     "**/test/**"
   ],
-  "moduleDepth": "auto",
-  "folderDepth": 1,
-  "includeUnresolvedCalls": false,
-  "maxEdges": 500,
-  "workflow": {
-    "entries": [
-      "ProcessDocument"
-    ],
-    "depth": 8,
-    "maxNodes": 100,
-    "maxEdges": 250,
-    "edgeTypes": [
-      "calls",
-      "events",
-      "writes"
-    ],
-    "phases": {
-      "Validation": [
-        "Validate*"
-      ],
-      "Processing": [
-        "Process*",
-        "Post*"
-      ]
-    },
-    "stop": [
-      "Finalize*"
-    ],
-    "collapse": [
-      "*Telemetry*"
-    ]
-  },
-  "details": false,
-  "noExternal": false,
   "sourceUrl": "https://github.com/example/repo/blob/{ref}/{file}#L{line}",
   "sourceRef": "main",
   "sourcePathPrefix": "apps/Sales",
@@ -62,74 +19,27 @@
       "message": "Core must not depend on UI"
     }
   ],
-  "architecture": {
-    "components": [
-      { "name": "Core", "layer": 0, "match": ["namespace:Contoso.Core"], "exposes": ["type:interface,table", "object:codeunit:Core API"] },
-      { "name": "Sales", "layer": 1, "match": ["namespace:Contoso.Sales"], "dependsOn": ["Core"], "maxObjects": 400 },
-      { "name": "Integration", "layer": 2, "match": ["app:Contoso Integration"], "dependsOn": ["Sales"] }
-    ],
-    "allowSameLayer": false,
-    "strictLayers": false,
-    "maxObjects": 1500,
-    "couplingWeights": { "reads": 2, "subscribes": 1 },
-    "proposal": {
-      "groupBy": "auto",
-      "startFrom": ["namespace", "folder"],
-      "ignore": ["permits", "includes"],
-      "granularity": 1,
-      "sharedCore": true,
-      "keep": [{ "name": "Core", "match": ["namespace:Contoso.Core"], "description": "Defined by the team" }],
-      "exclude": ["type:permissionset", "folder:test"],
-      "moves": { "minGain": 2, "limit": 50 }
-    },
-    "severity": "error",
-    "unassigned": "warning",
-    "severities": {
-      "internal-access": "warning",
-      "unstable-dependency": "off"
-    },
-    "rules": [
-      {
-        "name": "owner-writes-its-tables",
-        "from": "*",
-        "to": "type:table",
-        "kinds": ["writes"],
-        "across": true,
-        "severity": "error",
-        "message": "Only the component that owns a table writes to it",
-        "resolution": "Call a codeunit of the owning component that writes the record."
-      },
-      {
-        "name": "core-has-no-ui",
-        "from": "layer:0",
-        "to": "type:page,report",
-        "except": ["object:page:Core Setup"]
-      }
-    ]
-  },
   "check": {
     "failOn": "error",
     "cycles": "warning",
     "maxFanIn": 25,
     "maxFanOut": 25
   },
-  "al": {
-    "compiler": "auto",
-    "analyzers": ["CodeCop", "UICop"],
-    "callGraph": true
-  },
   "report": {
     "outputDir": "docs/atlas",
-    "views": [
-      "project",
-      "module",
+    "lenses": [
+      "overview",
+      "apps",
+      "modules",
       "data",
-      "contracts",
       "events",
-      "ui"
+      "contracts",
+      "pages"
     ],
-    "format": "svg",
-    "codegraph": false,
     "json": false
+  },
+  "layers": {
+    "outputDir": "docs/layers",
+    "pictures": "auto"
   }
 }

@@ -84,8 +84,8 @@ jobs:
         shell: bash
         run: |
           node src/cli.js --help
-          node src/cli.js export test/fixtures --view project --format d2 --output dist/architecture.d2
-          node src/cli.js export test/fixtures --view project --format json --output dist/model.json
+          node src/cli.js view test/fixtures --lens overview --output dist/overview.svg
+          node src/cli.js view test/fixtures --format json --output dist/atlas.json
           node src/cli.js export examples/warehouse-app --output dist/atlas.html
           node src/cli.js check examples/warehouse-app
 
