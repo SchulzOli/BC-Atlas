@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 // The graph of the view (src/app/ui/graph.js): its simulation and its diagram layout.
+await import("../src/app/ui/graph-layout.js");
+await import("../src/app/ui/graph-draw.js");
 await import("../src/app/ui/graph.js");
 const { seed, step, random, layered } = globalThis.BCA_GRAPH;
 

@@ -5,7 +5,9 @@
 // or PNG. `bca view` and the MCP tool bc_atlas_view call it.
 import { textWidth } from "../diagram/text.js";
 import { UsageError } from "../cli/errors.js";
-// Both register themselves, as they do in the page.
+// They register themselves, as they do in the page, and in this order.
+import "./ui/graph-layout.js";
+import "./ui/graph-draw.js";
 import "./ui/graph.js";
 import "./ui/scene.js";
 
