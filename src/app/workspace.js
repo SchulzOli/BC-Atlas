@@ -7,7 +7,6 @@ import { runHealthCheck } from "../commands/check.js";
 import { findGitRoot } from "../git.js";
 import { findUiTests, loadCorpus } from "../docs/model.js";
 import { openParseCache } from "../parse-cache.js";
-import { projectLevels } from "../project.js";
 import { commonSources, createAtlas, createInside, sourceUrl } from "./atlas.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
@@ -84,7 +83,7 @@ export class Workspace {
 
   /** What depends on what, at the level of objects, namespaces, and apps. */
   levels() {
-    return this.remember("levels", async () => projectLevels((await this.health()).loaded));
+    return this.remember("levels", async () => (await this.health()).levels);
   }
 
   async projectRoot() {

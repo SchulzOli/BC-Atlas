@@ -1470,7 +1470,7 @@ async function manifestAt(candidate, boundary, cache) {
       name: data.name,
       publisher: data.publisher,
       version: data.version,
-      path: path.relative(boundary, candidate) || "app.json",
+      path: path.relative(boundary, candidate).replaceAll("\\", "/") || "app.json",
       root: path.dirname(candidate),
       dependencies: data.dependencies ?? []
     };
@@ -1529,10 +1529,8 @@ export async function analyze(input, { parseCache, symbols: preloadedSymbols, fi
 
   for (const file of files) {
     const source = await fs.readFile(file, "utf8");
-    const relativeFile = path.relative(
-      base,
-      file
-    );
+    // Forward slashes on every system: the same source gives the same output on Windows and Linux.
+    const relativeFile = path.relative(base, file).replaceAll("\\", "/");
     const result = await cachedObjectsFromSource(source, relativeFile || path.basename(file), parseCache);
     objects.push(...result.objects);
     const { app, module } = await readAppManifest(file, root, manifestCache);

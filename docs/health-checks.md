@@ -34,6 +34,7 @@ Result: PASSED - 0 error(s), 0 warning(s), 2 info (fail on: error)
 | `parse-error` | error | tree-sitter could not parse a file. |
 | `forbidden-dependency` | from the policy | A dependency matches a `forbiddenDependencies` rule. |
 | other diagnostics | warning or error | Analysis diagnostics such as unreadable symbol packages. |
+| `undeclared-app-dependency` | warning | An app uses another without naming it in the `dependencies` of its `app.json`; the AL compiler does not build it. One finding per pair of apps, on the first line that uses the other app. Configure with `check.undeclaredDependencies`. |
 | `dependency-cycle` | warning | Objects depend on each other in a cycle. Configure with `check.cycles`. |
 | `high-fan-in` | warning | More than `maxFanIn` distinct objects depend on one object. |
 | `high-fan-out` | warning | One object depends on more than `maxFanOut` distinct objects. |
@@ -112,6 +113,7 @@ location for the finding and emits file-backed supporting evidence as
   "check": {
     "failOn": "warning",
     "cycles": "error",
+    "undeclaredDependencies": "error",
     "maxFanIn": 30,
     "maxFanOut": 20,
     "severities": { "undocumented-public-api": "warning" },

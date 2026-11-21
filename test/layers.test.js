@@ -30,13 +30,14 @@ const links = (text) => [...text.matchAll(/\]\(([^)#\s]+)(?:#[^)]*)?\)/gu)].map(
 test("the layers are pages from the system down to each procedure, and every link leads somewhere", async () => {
   const { files, manifest, atlas } = await buildLayers(new Workspace(multi, {}, { live: false }));
   assert.equal(manifest.schema, LAYERS_SCHEMA);
-  assert.deepEqual(manifest.counts, { apps: 3, namespaces: 4, objects: 12, relations: 26, findings: { error: 0, warning: 0, info: 7 } });
+  assert.deepEqual(manifest.counts, { apps: 3, namespaces: 4, objects: 12, relations: 26, findings: { error: 0, warning: 1, info: 7 } });
   assert.deepEqual(manifest.files, [...files.keys()].sort(), "the manifest lists every file, itself included");
 
   // Layer 0: the system, with its picture, and the way down to every layer.
   const system = files.get("README.md");
-  assert.match(system, /^# multi-app\n\n12 objects in 3 apps, 26 relations\. Health passed: 0 errors, 0 warnings, 7 info\.\n\n!\[Overview\]\(system\.svg\)/u);
+  assert.match(system, /^# multi-app\n\n12 objects in 3 apps, 26 relations\. Health passed: 0 errors, 1 warning, 7 info\.\n\n!\[Overview\]\(system\.svg\)/u);
   assert.match(files.get("system.svg"), /^<svg /u);
+  assert.ok(system.includes("| [Contoso Integration](apps/contoso-integration.md) | 1.0.0.0 | 2 | declared [Contoso Sales](apps/contoso-sales.md), objects that are not found, undeclared [Contoso Core](apps/contoso-core.md) | 3 (warning) |"), "what no app holds is not named like an app");
   assert.ok(system.includes("| [Contoso.Core.Pricing](namespaces/contoso-core-pricing.md) | Contoso Core | 3 | depends on [Contoso.Core.Items](namespaces/contoso-core-items.md) | 3 (info) |"));
   assert.match(system, /\| \[Data\]\(lenses\/data\.md\) \| 8 \| 9 \| Tables and the code that reads, writes, relates, and extends them\. \|/u);
   assert.match(system, /- \[What to fix\]\(stories\/fix\.md\)/u);
@@ -58,7 +59,7 @@ test("the layers are pages from the system down to each procedure, and every lin
   // Across the layers: lenses, stories, findings, and the graph itself.
   assert.match(files.get("lenses/data.md"), /^# multi-app: Data\n\n\[System\]\(\.\.\/README\.md\) › Lenses\n\n!\[Data\]\(data\.svg\)/u);
   assert.match(files.get("stories/fix.md"), /\[System\]\(\.\.\/README\.md\) › Stories/u);
-  assert.ok(files.get("findings.md").startsWith("# Findings\n\n[System](README.md) › Findings\n\n0 errors, 0 warnings, 7 info.\n\n## Info\n\n- **info** `undocumented-public-api`: codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice\n  - On: [CON Standard Pricing](objects/codeunit-50010-con-standard-pricing.md)\n  - Source: `core/Pricing.al:12`\n"));
+  assert.ok(files.get("findings.md").startsWith("# Findings\n\n[System](README.md) › Findings\n\n0 errors, 1 warning, 7 info.\n\n## Warning\n\n- **warning** `undeclared-app-dependency`: Contoso Integration uses Contoso Core (3 relations) without naming it in the dependencies of its app.json\n  - Fix: Add Contoso Core to \"dependencies\" in integration/app.json, or remove the use.\n  - On: [CON Item Sync](objects/codeunit-50201-con-item-sync.md)\n  - Source: `integration/ItemSync.al:10`\n\n## Info\n\n- **info** `undocumented-public-api`: codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice\n  - On: [CON Standard Pricing](objects/codeunit-50010-con-standard-pricing.md)\n  - Source: `core/Pricing.al:12`\n"));
   const graph = JSON.parse(files.get("atlas.json"));
   assert.equal(graph.nodes.length, atlas.nodes.length);
   assert.equal(graph.updatedAt, undefined, "nothing in the folder says when it was written");
@@ -153,6 +154,16 @@ test("layers is a command with options for every setting", () => {
   for (const option of ["output", "check", "pictures", "profile", "view", "format"]) assert.ok(command.options[option], option);
   for (const removed of ["at", "releases", "last", "refresh", "compiler"]) assert.equal(command.options[removed], undefined, removed);
   assert.deepEqual(command.options.pictures.enum, ["auto", "all", "none"]);
+});
+
+// The example is written on Linux (npm run examples, checked in CI). The same source must give
+// the same pages on every system: on Windows this compares them byte for byte.
+test("the pages are the same on every system: they are the example in the repository, byte for byte", async () => {
+  const example = path.join(root, "examples", "layers");
+  const { files } = await buildLayers(new Workspace(multi, {}, { live: false }));
+  const committed = JSON.parse(readFileSync(path.join(example, "layers.json"), "utf8")).files;
+  assert.deepEqual([...files.keys()].sort(), committed);
+  for (const [file, content] of files) assert.equal(content, readFileSync(path.join(example, file), "utf8"), file);
 });
 
 test("the pages of the example in the repository link to files that are in the repository", () => {

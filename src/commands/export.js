@@ -56,6 +56,7 @@ const EXPORTERS = { app: exportApp, report: exportReport, "knowledge-graph": exp
 export async function runExport(input, values = {}, { log = () => {} } = {}) {
   const view = values.view ?? "app";
   checkFormat(view, values.format);
+  if (values.output === "-") throw new UsageError("bca export writes files; -o - is not supported. For JSON on stdout, use bca view --format json");
   return EXPORTERS[view](input, { ...values, view }, log);
 }
 

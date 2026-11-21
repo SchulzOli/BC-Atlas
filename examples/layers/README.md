@@ -1,6 +1,6 @@
 # multi-app
 
-12 objects in 3 apps, 26 relations. Health passed: 0 errors, 0 warnings, 7 info.
+12 objects in 3 apps, 26 relations. Health passed: 0 errors, 1 warning, 7 info.
 
 ![Overview](system.svg)
 
@@ -27,7 +27,7 @@ The system from the whole down to each procedure. Every page links one layer up 
 | App | Version | Objects | Depends on | Findings |
 | --- | --- | ---: | --- | --- |
 | [Contoso Core](apps/contoso-core.md) | 1.0.0.0 | 6 |  | 3 (info) |
-| [Contoso Integration](apps/contoso-integration.md) | 1.0.0.0 | 2 | declared [Contoso Sales](apps/contoso-sales.md), unresolved (unresolved), undeclared [Contoso Core](apps/contoso-core.md) | 2 (info) |
+| [Contoso Integration](apps/contoso-integration.md) | 1.0.0.0 | 2 | declared [Contoso Sales](apps/contoso-sales.md), objects that are not found, undeclared [Contoso Core](apps/contoso-core.md) | 3 (warning) |
 | [Contoso Sales](apps/contoso-sales.md) | 1.0.0.0 | 4 | declared [Contoso Core](apps/contoso-core.md) | 1 (info) |
 
 ## Namespaces
@@ -36,7 +36,7 @@ The system from the whole down to each procedure. Every page links one layer up 
 | --- | --- | ---: | --- | --- |
 | [Contoso.Core.Items](namespaces/contoso-core-items.md) | Contoso Core | 3 |  |  |
 | [Contoso.Core.Pricing](namespaces/contoso-core-pricing.md) | Contoso Core | 3 | depends on [Contoso.Core.Items](namespaces/contoso-core-items.md) | 3 (info) |
-| [Contoso.Integration](namespaces/contoso-integration.md) | Contoso Integration | 2 | depends on [Contoso.Sales.Quotes](namespaces/contoso-sales-quotes.md), depends on [Contoso.Core.Items](namespaces/contoso-core-items.md) | 2 (info) |
+| [Contoso.Integration](namespaces/contoso-integration.md) | Contoso Integration | 2 | depends on [Contoso.Sales.Quotes](namespaces/contoso-sales-quotes.md), depends on [Contoso.Core.Items](namespaces/contoso-core-items.md) | 3 (warning) |
 | [Contoso.Sales.Quotes](namespaces/contoso-sales-quotes.md) | Contoso Sales | 4 | depends on [Contoso.Core.Items](namespaces/contoso-core-items.md), depends on [Contoso.Core.Pricing](namespaces/contoso-core-pricing.md) | 1 (info) |
 
 ## Lenses
@@ -56,18 +56,18 @@ The other sides of the same system: each lens is a part of the one graph.
 | [Pages](lenses/pages.md) | 5 | 4 | Pages and reports, and what they show, run, and contain. |
 | [Permissions](lenses/security.md) | 4 | 3 | Permission sets and what they permit and include. |
 | [Visibility](lenses/visibility.md) | 13 | 30 | What is public, internal, or local, and what could be narrower. |
-| [Findings](lenses/health.md) | 8 | 6 | The rules of the health check and the objects they found. |
+| [Findings](lenses/health.md) | 9 | 7 | The rules of the health check and the objects they found. |
 
 ## Stories
 
 Walks through the system, step by step.
 
 - [What multi-app is](stories/system.md): The system from the outside in: how it works, then its apps, hubs, data, events, the user interface, and its health.
-- [What to fix](stories/fix.md): 7 findings, the most severe first, each on the nodes it is about.
+- [What to fix](stories/fix.md): 1 finding, the most severe first, each on the nodes it is about.
 
 ## Findings
 
-[0 errors, 0 warnings, 7 info](findings.md).
+[0 errors, 1 warning, 7 info](findings.md).
 
 ## Read from
 

@@ -2,7 +2,14 @@
 
 [System](README.md) › Findings
 
-0 errors, 0 warnings, 7 info.
+0 errors, 1 warning, 7 info.
+
+## Warning
+
+- **warning** `undeclared-app-dependency`: Contoso Integration uses Contoso Core (3 relations) without naming it in the dependencies of its app.json
+  - Fix: Add Contoso Core to "dependencies" in integration/app.json, or remove the use.
+  - On: [CON Item Sync](objects/codeunit-50201-con-item-sync.md)
+  - Source: `integration/ItemSync.al:10`
 
 ## Info
 

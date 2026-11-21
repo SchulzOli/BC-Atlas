@@ -315,14 +315,16 @@ test("the view is the same page in VS Code, as an MCP App, and as a file: every 
 });
 
 // The page in a real browser: every menu opens and a selected node shows its facts, without an
-// error of the page. Runs where Playwright with Chromium is installed.
+// error of the page. Runs where Playwright with Chromium is installed; with BCA_BROWSER_TEST set
+// (one CI job), a missing Playwright fails the test instead of skipping it.
 let chromium;
 try {
   ({ chromium } = (await import("node:module")).createRequire(import.meta.url)("playwright"));
 } catch {
   chromium = undefined;
 }
-test("the exported view works in a browser: a selection, every menu, and every lens", { skip: !chromium && "Playwright is not installed" }, async () => {
+test("the exported view works in a browser: a selection, every menu, and every lens", { skip: !chromium && !process.env.BCA_BROWSER_TEST && "Playwright is not installed" }, async () => {
+  assert.ok(chromium, "BCA_BROWSER_TEST is set, but Playwright is not installed");
   const { renderSnapshotHtml } = await import("../src/app/snapshot.js");
   const { html, snapshot } = await renderSnapshotHtml(new Workspace(workspace, {}, { live: false }));
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-browser-"));

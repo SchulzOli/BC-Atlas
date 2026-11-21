@@ -391,3 +391,48 @@ test("every catalog command resolves to a handler, and --version loads no comman
   assert.equal(result.status, 0, result.stderr);
   assert.doesNotMatch(result.stderr, /LOADED/u);
 });
+
+test("check finds an app that uses another without declaring it, and the setting tunes it", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const project = fileURLToPath(new URL("../examples/multi-app", import.meta.url));
+  const run = (...args) => spawnSync(process.execPath, [cli, "check", project, "--format", "json", ...args], { encoding: "utf8" });
+  const report = JSON.parse(run().stdout);
+  const undeclared = report.findings.filter(({ rule }) => rule === "undeclared-app-dependency");
+  assert.deepEqual(undeclared.map(({ severity, app, dependency, objects, manifest, file, line }) => ({ severity, app, dependency, objects, manifest, file, line })), [{
+    severity: "warning", app: "Contoso Integration", dependency: "Contoso Core", objects: ["CON Item Sync"], manifest: "integration/app.json", file: "integration/ItemSync.al", line: 10
+  }], "one finding per pair of apps, on the line that uses the other app; declared dependencies are not findings");
+  assert.equal(report.thresholds.undeclaredDependencies, "warning");
+  assert.equal(run("--fail-on", "warning").status, 1);
+
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-undeclared-"));
+  try {
+    const config = path.join(directory, "bca.json");
+    for (const [level, expected] of [["error", "error"], ["off", undefined]]) {
+      writeFileSync(config, JSON.stringify({ check: { undeclaredDependencies: level } }));
+      const tuned = JSON.parse(run("--config", config).stdout);
+      assert.equal(tuned.findings.find(({ rule }) => rule === "undeclared-app-dependency")?.severity, expected, level);
+    }
+    writeFileSync(config, JSON.stringify({ check: { undeclaredDependencies: "loud" } }));
+    const wrong = run("--config", config);
+    assert.equal(wrong.status, 1);
+    assert.match(wrong.stderr, /check\.undeclaredDependencies must be one of: error, warning, info, off/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+  // One app, nothing to declare.
+  assert.ok(!JSON.parse(spawnSync(process.execPath, [cli, "check", fileURLToPath(new URL("../examples/warehouse-app", import.meta.url)), "--format", "json"], { encoding: "utf8" }).stdout)
+    .findings.some(({ rule }) => rule === "undeclared-app-dependency"));
+});
+
+test("export writes files: -o - is an error, not a file named -", () => {
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-stdout-"));
+  try {
+    const result = spawnSync(process.execPath, [cli, "export", fileURLToPath(new URL("./fixtures", import.meta.url)), "-o", "-"], { encoding: "utf8", cwd: directory });
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, /-o - is not supported\. For JSON on stdout, use bca view --format json/u);
+    assert.ok(!existsSync(path.join(directory, "-")));
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

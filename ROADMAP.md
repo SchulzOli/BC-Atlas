@@ -17,25 +17,13 @@ No new features. Each item closes a gap that is known today.
 
 - **Release 0.28.0.** The cut is a breaking change: publish it as one release
   with the changelog as the migration note.
-- **The view is tested in a browser, in CI.** The test that opens the exported
-  view, every menu, and every lens exists, but skips where Playwright is not
-  installed. Install Chromium in one CI job so a broken page fails the build.
-- **Undeclared app dependencies are a finding.** An app that uses another
-  without naming it in `app.json` shows in the Apps lens, but `bca check`
-  passes. Add a health rule for it, and one for references that are in no app
-  and no symbol package.
-- **The same source gives the same output on every system.** Paths are made
-  uniform in one place, where the model is read, and a test compares the
-  pages of `bca layers` between Windows and Linux.
-- **What agents are told is true.** A test checks that the descriptions of the
-  MCP tools and the command catalog name only lenses, stories, and options
-  that exist, so they cannot go stale again.
-- **Loose ends of the cut.** The row "unresolved (unresolved)" in the apps
-  table of `bca layers`; `types` in `.bca.json`, which is read but not in the
-  schema; `bca export -o -`, which writes a file named `-`.
 
-Done when: 0.28.0 is published, CI runs the browser test, and none of the
-items above is open.
+Done so far: the browser test of the view runs in CI, an undeclared app
+dependency is a finding, the same source gives the same output on Windows and
+Linux, a test keeps what the command catalog and the MCP tools say true, and
+the loose ends of the cut are tied.
+
+Done when: 0.28.0 is published.
 
 ## Next: fast and small enough to trust
 

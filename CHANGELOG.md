@@ -6,6 +6,24 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- **An app that uses another without declaring it is a finding.**
+  `bca check` reports `undeclared-app-dependency` (a warning) on the line
+  that uses the other app, with the `app.json` to fix; set its severity with
+  `check.undeclaredDependencies`. The finding is on the graph, in the
+  Problems panel, and in the pages of `bca layers`.
+
+### Fixed
+
+- The same source gives the same output on Windows and Linux: file paths
+  are read with forward slashes, and generated files keep LF line endings on
+  checkout.
+- The apps table of `bca layers` says "objects that are not found" where it
+  said "unresolved (unresolved)".
+- `bca export -o -` is a usage error instead of writing a file named `-`.
+- `types` in `.bca.json` is part of the schema.
+
 ### Removed
 
 BC Atlas goes back to its core: read the AL source, show the architecture,
