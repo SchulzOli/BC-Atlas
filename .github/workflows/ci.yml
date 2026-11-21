@@ -97,6 +97,33 @@ jobs:
           node src/cli.js export examples/warehouse-app --output dist/atlas.html
           node src/cli.js check examples/warehouse-app
 
+  # Time and peak memory on a synthetic app (scripts/benchmark.js). On a pull
+  # request the base is measured on the same machine, in the same job, and a
+  # clear regression fails the build; runners differ too much for fixed limits.
+  performance:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: This change
+        run: node scripts/benchmark.js --json head.json
+      - name: The base branch, on the same machine
+        if: github.event_name == 'pull_request'
+        run: |
+          git worktree add --detach ../base "origin/${{ github.base_ref }}"
+          (cd ../base && npm ci --ignore-scripts --no-audit --no-fund)
+          node scripts/benchmark.js --tree ../base --json base.json
+      - name: No regression
+        if: github.event_name == 'pull_request'
+        run: node scripts/benchmark.js --compare base.json head.json
+
   container:
     runs-on: ubuntu-latest
     steps:

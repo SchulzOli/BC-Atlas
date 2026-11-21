@@ -94,6 +94,20 @@ Generated examples are deterministic. If a view changes intentionally, run
 `npm run examples`, inspect the changed `.svg` and Markdown files, and refresh the
 corresponding screenshots described in [examples/README.md](./examples/README.md).
 
+## Performance
+
+`npm run benchmark` times `check`, `layers`, `export`, and the loop of the
+editor (a file saved, until the view is updated) on a synthetic app, with the
+peak memory of each. CI runs it for a pull request and for its base on the
+same machine and fails when the change is clearly slower or larger. To
+compare locally, check the base out next to this one and run:
+
+```sh
+node scripts/benchmark.js --tree ../base --json base.json
+node scripts/benchmark.js --json head.json
+node scripts/benchmark.js --compare base.json head.json
+```
+
 ## Commit and pull-request guidance
 
 Use clear, imperative commit subjects. Pull requests should remain reviewable;
