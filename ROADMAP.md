@@ -27,19 +27,24 @@ Done when: 0.28.0 is published.
 
 ## Next: fast and small enough to trust
 
-- **Re-resolve only what a changed file affects.** Parsing is incremental
-  already; resolution is not. On a workspace the size of the Base
-  Application this is what makes the view follow the editor.
-- **Performance is measured in CI.** `scripts/benchmark.js` records time and
-  peak memory, and a regression fails the build.
-- **Answers that fit an agent's context.** `bc_atlas_inspect` returns the
-  whole model; give it a limit and a way to ask for a part. A published
-  schema for what `bca view --format json` returns, with a version.
-- **Large files are split along their seams.** `src/analyzer.js` (1,600
-  lines) and `src/app/ui/graph.js` (1,500 lines) are the two files a
-  contributor cannot read in one sitting.
-- **The overview of a large app.** Above 48 objects it shows areas; check that
-  they are the right ones on real projects, and that every area leads on.
+Done, measured on Microsoft's BCApps (System Application and Business
+Foundation, 1,441 AL files):
+
+- **The view follows the editor.** Resolution was never the cost (about
+  60 ms); the work around it was. From a saved file to an updated view now
+  takes under a second, where it took about two.
+- **Performance is measured in CI.** Time and peak memory of `check`,
+  `layers`, `export`, and a save, for a pull request and its base on the same
+  machine; a regression fails the build.
+- **Answers that fit an agent's context.** `bc_atlas_inspect` returns a page
+  of the model, about 200 KB where the whole model is 54 MB, and every JSON
+  document names its shape and version (`schemas/output.schema.json`).
+- **Large files are split along their seams.** No module of the analyzer or
+  the graph is longer than 600 lines.
+- **The overview of a large app.** Every area leads on: a namespace to its
+  objects, the rest to the Modules lens, other apps to the Apps lens. A
+  namespace too large for areas opens to its objects, and a namespace of
+  several apps is an area per app.
 
 ## Later: documentation from AL UI tests
 

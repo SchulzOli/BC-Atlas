@@ -30,6 +30,11 @@ follows [Semantic Versioning](https://semver.org/).
 
 - **The view follows a save in half the time.** On a workspace of 1,441 AL
   files, from a saved file to an updated view took about 2 s, now under 1 s.
+- **Every area of the overview leads on.** The box of the smaller areas leads
+  to the Modules lens and "Other apps" to the Apps lens, where they led
+  nowhere. A namespace too large for areas opens to its objects instead of to
+  one box of itself per column, and a namespace of several apps is one area
+  per app, so each opens to all of its objects.
 
 - The same source gives the same output on Windows and Linux: file paths
   are read with forward slashes, and generated files keep LF line endings on

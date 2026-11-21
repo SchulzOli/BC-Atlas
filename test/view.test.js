@@ -208,6 +208,58 @@ test("a large project shows areas in the overview, and an area opens to its obje
   assert.ok(inside.nodes.every(({ label }) => label.startsWith("Stock ")));
 });
 
+test("every area of a large overview leads on: to its namespace, or to the lens that lists what it holds", () => {
+  // 20 namespaces of 6 objects each, and tables of another app: more areas than a column shows.
+  const nodes = [];
+  const edges = [];
+  for (let n = 0; n < 20; n++) {
+    nodes.push({ id: `module::app::NS${n}`, kind: "module", label: `NS${n}`, app: "App", color: "#000000" });
+    for (let at = 0; at < 6; at++) {
+      const type = ["page", "codeunit", "table"][at % 3];
+      nodes.push({ id: `NS${n}-${at}`, kind: "object", type, label: `NS${n} ${type} ${at}`, namespace: `NS${n}`, app: "App", color: "#000000" });
+      if (type !== "table") edges.push([nodes.length - 1, nodes.length, 0, 1]);
+    }
+  }
+  for (const [id, label] of [[18, "Customer"], [23, "Vendor"], [27, "Item"]]) {
+    nodes.push({ id: `base::table::${id}`, kind: "object", type: "table", label, external: true, color: "#000000" });
+    edges.push([nodes.findIndex(({ id: key }) => key === "NS0-1"), nodes.length - 1, 0, 1]);
+  }
+  const lenses = [
+    { id: "overview", title: "Overview", summary: "", flow: true, form: "diagram", kinds: ["object"], relations: ["calls"], group: "kind", color: "type" },
+    { id: "system", title: "System", summary: "", kinds: ["object"], relations: ["calls"], group: "namespace", color: "type" },
+    { id: "apps", title: "Apps", summary: "", kinds: ["app"], relations: [], group: "origin", color: "kind" },
+    { id: "modules", title: "Modules", summary: "", kinds: ["module"], relations: [], group: "app", color: "kind" }
+  ];
+  const atlas = { title: "Large", nodes, edges, relations: [{ kind: "calls" }], lenses, findings: [], stories: [], levels: {} };
+  const scene = S.scene(atlas, S.index(atlas), { ...S.DEFAULTS });
+  const areas = scene.entries.map(({ node }) => node).filter(({ kind }) => kind === "area");
+  const more = areas.find(({ label }) => / more areas · /u.test(label));
+  const other = areas.find(({ label }) => label.startsWith("Other apps"));
+  assert.ok(more && other, "a large overview has a box for the rest, and one for the other apps");
+  for (const area of areas) assert.ok(S.into(atlas, area, { ...S.DEFAULTS }), `${area.label} leads on`);
+  assert.deepEqual(S.into(atlas, areas.find(({ label }) => label.startsWith("NS0 ")), { ...S.DEFAULTS }).inside, "module::app::NS0", "a namespace opens to its objects");
+  assert.equal(S.into(atlas, more, { ...S.DEFAULTS }).lens, "modules", "the rest: every namespace, in the Modules lens");
+  assert.equal(S.into(atlas, other, { ...S.DEFAULTS }).lens, "apps", "the other apps: in the Apps lens");
+
+  // A namespace above the limit opens to its objects, one by one: areas only where they divide.
+  const big = [];
+  for (let at = 0; at < 60; at++) big.push({ id: `Big-${at}`, kind: "object", type: ["page", "codeunit", "table"][at % 3], label: `Big ${at}`, namespace: "Big", app: "App", color: "#000000" });
+  const many = { ...atlas, nodes: [...nodes, { id: "module::app::Big", kind: "module", label: "Big", app: "App", color: "#000000" }, ...big] };
+  const inside = S.scene(many, S.index(many), { ...S.DEFAULTS, inside: "module::app::Big" });
+  assert.equal(inside.entries.filter(({ node }) => node.kind === "object").length, 60);
+  assert.ok(!inside.entries.some(({ node }) => node.kind === "area"), "no box that only names the namespace again");
+
+  // A namespace of two apps is an area per app, and each opens to all of its objects.
+  const shared = [];
+  for (const app of ["First", "Second"]) {
+    shared.push({ id: `module::${app}::Shared`, kind: "module", label: "Shared", app, color: "#000000" });
+    for (let at = 0; at < 30; at++) shared.push({ id: `${app}-${at}`, kind: "object", type: "codeunit", label: `${app} ${at}`, namespace: "Shared", app, color: "#000000" });
+  }
+  const two = { ...atlas, nodes: [...nodes, ...shared] };
+  const split = S.scene(two, S.index(two), { ...S.DEFAULTS }).entries.map(({ node }) => node).filter(({ kind, area }) => kind === "area" && area?.startsWith("Shared"));
+  assert.deepEqual(split.map(({ area, holder }) => [area, holder]).sort(), [["Shared (First)", "module::First::Shared"], ["Shared (Second)", "module::Second::Shared"]]);
+});
+
 test("an app and a namespace open to their objects", async () => {
   assert.match((await renderView(multi, { lens: "system", inside: "Contoso Core" })).content, /^multi-app: Contoso Core\n6 nodes, 9 relations\. The objects of the app Contoso Core, and what they do with each other\./u);
   // From the overview a namespace opens to how it works: its screens, its logic, its data.
