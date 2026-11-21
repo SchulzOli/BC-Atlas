@@ -21,6 +21,7 @@ Read from tables and the `reads`, `writes`, `relates`, and `extends` relations.
 
 ## Findings
 
+- **warning** `undeclared-app-dependency`: Contoso Integration uses Contoso Core (3 relations) without naming it in the dependencies of its app.json Fix: Add Contoso Core to "dependencies" in integration/app.json, or remove the use.
 - **info** `undocumented-public-api`: codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice
 - **info** `undocumented-public-api`: codeunit 50200 CON Quote Export: 1 public procedure(s) without a /// summary: Export
 - **info** `undocumented-public-api`: codeunit 50201 CON Item Sync: 1 public procedure(s) without a /// summary: Sync

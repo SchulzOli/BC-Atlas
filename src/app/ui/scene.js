@@ -126,10 +126,15 @@
       let areaOf;
       let unit = (at) => atlas.nodes[at];
       let finish = () => {};
-      if (objects > FLOW_OBJECTS) {
-        const own = atlas.nodes.filter((node, at) => column[at] >= 0 && !node.external);
-        const by = ["namespace", "app"].find((key) => new Set(own.map((node) => node[key] ?? "")).size > 1) ?? "namespace";
-        areaOf = (node) => (node.external ? "Other apps" : node[by] ?? `No ${by}`);
+      const own = objects > FLOW_OBJECTS ? atlas.nodes.filter((node, at) => column[at] >= 0 && !node.external) : [];
+      // Areas only where they divide: the objects of one namespace of one app (a namespace gone into) show one by one.
+      const by = ["namespace", "app"].find((key) => new Set(own.map((node) => node[key] ?? "")).size > 1);
+      if (by) {
+        // A namespace of several apps is one area per app, so each opens to all of its objects.
+        const appsOf = new Map();
+        for (const node of own) (appsOf.get(node.namespace) ?? appsOf.set(node.namespace, new Set()).get(node.namespace)).add(node.app);
+        const shared = (node) => by === "namespace" && node.namespace !== undefined && appsOf.get(node.namespace)?.size > 1;
+        areaOf = (node) => (node.external ? "Other apps" : `${node[by] ?? `No ${by}`}${shared(node) ? ` (${node.app})` : ""}`);
         const size = FLOW.map(() => new Map());
         atlas.nodes.forEach((node, at) => { if (column[at] >= 0) size[column[at]].set(areaOf(node), (size[column[at]].get(areaOf(node)) ?? 0) + 1); });
         const kept = size.map((areas) => new Set([...areas].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, areas.size > FLOW_AREAS ? FLOW_AREAS - 1 : FLOW_AREAS).map(([name]) => name)));
@@ -158,6 +163,8 @@
             const at = FLOW.findIndex(({ key }) => key === area.column);
             const what = `${fmtCount(area.count)} ${FLOW[at].one}${area.count === 1 ? "" : "s"}`;
             area.label = `${area.area || `${fmtCount(others[at])} more areas`} · ${fmtCount(area.count)}`;
+            // An area that is no app or namespace leads to the lens that lists what it holds, one by one.
+            if (!area.holder) area.leadsTo = area.area === "Other apps" ? "apps" : by === "app" ? "apps" : "modules";
             area.about = `${what} ${area.area ? `of ${area.area}` : `of ${fmtCount(others[at])} smaller areas`}: ${area.members.join(", ")}${area.count > area.members.length ? `, and ${fmtCount(area.count - area.members.length)} more` : ""}.`;
           }
         };
@@ -474,6 +481,8 @@
   /** The scene as data: nodes with their facts and findings, and relations by node id. */
   function sceneData(atlas, found, view, flags) {
     return {
+      // The shapes of the JSON the view writes are in schemas/output.schema.json.
+      schema: "bc-atlas.view/1",
       generator: `BC Atlas ${atlas.version}`,
       project: atlas.title,
       lens: view.lens.id,
@@ -498,7 +507,11 @@
    */
   function into(atlas, node, state) {
     if (node.kind === "member") return undefined;
-    if (node.kind === "area") return node.holder && node.holder !== state.inside ? { inside: node.holder, focus: "", sel: "", story: "" } : undefined;
+    if (node.kind === "area") {
+      if (node.holder) return node.holder !== state.inside ? { inside: node.holder, focus: "", sel: "", story: "" } : undefined;
+      const lens = atlas.lenses.find(({ id }) => id === node.leadsTo) ?? atlas.lenses.find(({ id }) => id === "system");
+      return lens ? { lens: lens.id, inside: "", focus: "", depth: "1", sel: "", story: "" } : undefined;
+    }
     if ((node.kind === "object" && !node.external) || HOLDERS[node.kind]) {
       return node.id === state.inside ? undefined : { inside: node.id, focus: "", sel: node.id, story: "" };
     }

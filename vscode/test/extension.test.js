@@ -162,12 +162,12 @@ test("the extension analyzes the workspace and fills the editor and the panel", 
   // The first analysis fills the status bar, Problems, CodeLens, and the side bar.
   // The status bar comes first; Problems follow after one more request.
   const deadline = Date.now() + 60_000;
-  const filled = () => registered.status.text?.includes("$(pass)") && [...registered.diagnostics.keys()].some((name) => name.endsWith("ItemSync.al"));
+  const filled = () => registered.status.text?.includes("warning") && [...registered.diagnostics.keys()].some((name) => name.endsWith("ItemSync.al"));
   while (!filled() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 200));
-  assert.equal(registered.status.text, "$(pass) BC Atlas");
+  assert.equal(registered.status.text, "$(warning) BC Atlas: 1 warning");
   const [file, problems] = [...registered.diagnostics].find(([name]) => name.endsWith("ItemSync.al"));
   assert.equal(path.dirname(file), path.join(project, "integration"));
-  assert.match(problems[0].message, /public procedure\(s\) without a \/\/\/ summary/u);
+  assert.ok(problems.some(({ message }) => /uses Contoso Core \(3 relations\) without naming it/u.test(message)), "the undeclared dependency is on the line that uses it");
 
   const lenses = registered.lenses[0].provideCodeLenses({ uri: { fsPath: path.join(project, "integration", "ItemSync.al") } });
   assert.ok(lenses.length > 0);

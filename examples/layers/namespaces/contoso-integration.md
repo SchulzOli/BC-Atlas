@@ -21,10 +21,14 @@ The namespace Contoso.Integration holds 2 objects (2 codeunits). It depends on 2
 | Object | Type | ID | Lines | Uses | Used by | Findings |
 | --- | --- | --- | ---: | ---: | ---: | --- |
 | [CON Quote Export](../objects/codeunit-50200-con-quote-export.md) | codeunit | 50200 | 15 | 3 | 0 | 1 (info) |
-| [CON Item Sync](../objects/codeunit-50201-con-item-sync.md) | codeunit | 50201 | 10 | 1 | 0 | 1 (info) |
+| [CON Item Sync](../objects/codeunit-50201-con-item-sync.md) | codeunit | 50201 | 10 | 1 | 0 | 2 (warning) |
 
 ## Findings
 
+- **warning** `undeclared-app-dependency`: Contoso Integration uses Contoso Core (3 relations) without naming it in the dependencies of its app.json
+  - Fix: Add Contoso Core to "dependencies" in integration/app.json, or remove the use.
+  - On: [CON Item Sync](../objects/codeunit-50201-con-item-sync.md)
+  - Source: `integration/ItemSync.al:10`
 - **info** `undocumented-public-api`: codeunit 50200 CON Quote Export: 1 public procedure(s) without a /// summary: Export
   - On: [CON Quote Export](../objects/codeunit-50200-con-quote-export.md)
   - Source: `integration/Export.al:7`

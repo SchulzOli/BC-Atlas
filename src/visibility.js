@@ -195,12 +195,16 @@ export function analyzeVisibility(model) {
     }
   }
   // Subscriptions: the subscriber uses the event it listens to.
+  const recordsOf = new Map();
+  for (const record of records) (recordsOf.get(record.owner) ?? recordsOf.set(record.owner, []).get(record.owner)).push(record);
   for (const edge of model.edges) {
     if (edge.kind !== "subscribes" || !edge.to || !edge.event || !inScope.has(edge.from) || !inScope.has(edge.to)) continue;
     const source = objectByKey.get(edge.from);
     const target = objectByKey.get(edge.to);
-    const subscriber = records.find(({ owner, procedure }) => owner === source && normalizeIdentifier(procedure.name) === normalizeIdentifier(edge.member ?? edge.sourceProcedure ?? ""));
-    const publisher = records.find(({ owner, procedure }) => owner === target && procedure.kind === "event" && normalizeIdentifier(procedure.name) === normalizeIdentifier(edge.event));
+    const subscriberName = normalizeIdentifier(edge.member ?? edge.sourceProcedure ?? "");
+    const eventName = normalizeIdentifier(edge.event);
+    const subscriber = (recordsOf.get(source) ?? []).find(({ procedure }) => normalizeIdentifier(procedure.name) === subscriberName);
+    const publisher = (recordsOf.get(target) ?? []).find(({ procedure }) => procedure.kind === "event" && normalizeIdentifier(procedure.name) === eventName);
     if (!publisher) continue;
     use(subscriber && subscriber.procedure.kind !== "trigger" ? subscriber.node.key : source.key, publisher.node.key, between(source, target), "subscribes");
   }
@@ -214,6 +218,7 @@ export function analyzeVisibility(model) {
     if (contract) for (const name of contract) methods.names.add(name);
     else methods.unknown = true;
   }
+  const filtered = model.objects.some(({ isBoundary }) => isBoundary);
   for (const record of records) {
     const { owner, procedure, node } = record;
     const point = pointById.get(node.key);
@@ -233,7 +238,7 @@ export function analyzeVisibility(model) {
       needed = wider(needed, between(caller, owner));
     }
     // Users a filter hides may call any procedure of the object.
-    if (model.objects.some(({ isBoundary }) => isBoundary) && objectNeed.has(owner.key) && point.declared !== "local") {
+    if (filtered && objectNeed.has(owner.key) && point.declared !== "local") {
       needed = wider(needed, objectNeed.get(owner.key));
     }
     if (rank(needed) > rank(point.level)) {

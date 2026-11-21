@@ -7,7 +7,6 @@ import { runHealthCheck } from "../commands/check.js";
 import { findGitRoot } from "../git.js";
 import { findUiTests, loadCorpus } from "../docs/model.js";
 import { openParseCache } from "../parse-cache.js";
-import { projectLevels } from "../project.js";
 import { commonSources, createAtlas, createInside, sourceUrl } from "./atlas.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
@@ -16,6 +15,9 @@ const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.ur
 const SHARED = ["projectRoot", "config", "namespace", "type", "include", "exclude", "paths", "alSettings", "alEditorSettings"];
 
 const MAX_EVIDENCE = 3;
+// In an editor the parse cache is written after this many milliseconds without a new analysis: writing it took
+// as long as the analysis of a save, and a burst of saves needs it written once.
+const SAVE_DELAY = 3000;
 
 const pick = (values, names) => Object.fromEntries(names.filter((name) => values[name] !== undefined && values[name] !== "").map((name) => [name, values[name]]));
 
@@ -67,10 +69,33 @@ export class Workspace {
     return this.remember("health", async () => {
       const parseCache = await this.parseCache();
       const result = await runHealthCheck(this.input, this.values, { parseCache });
-      // Written in the background; a failed write only costs the next start a parse.
-      this.saving = parseCache.save().catch(() => false);
+      this.scheduleSave(parseCache);
       return result;
     });
+  }
+
+  /**
+   * Writes the parse cache: at once for a single run, and in an editor when the saves have settled.
+   * A failed write only costs the next start a parse. `saving` is the promise of the last write.
+   */
+  scheduleSave(parseCache) {
+    if (!this.live) {
+      this.saving = parseCache.save().catch(() => false);
+      return;
+    }
+    clearTimeout(this.saveTimer);
+    this.pendingSave = () => {
+      clearTimeout(this.saveTimer);
+      this.pendingSave = undefined;
+      return (this.saving = parseCache.save().catch(() => false));
+    };
+    this.saveTimer = setTimeout(() => this.pendingSave?.(), SAVE_DELAY);
+    this.saveTimer.unref?.();
+  }
+
+  /** Writes what is not written yet; resolves with whether anything was written. */
+  async flush() {
+    return this.pendingSave ? this.pendingSave() : (this.saving ?? false);
   }
 
   /**
@@ -84,7 +109,7 @@ export class Workspace {
 
   /** What depends on what, at the level of objects, namespaces, and apps. */
   levels() {
-    return this.remember("levels", async () => projectLevels((await this.health()).loaded));
+    return this.remember("levels", async () => (await this.health()).levels);
   }
 
   async projectRoot() {
@@ -92,7 +117,7 @@ export class Workspace {
   }
 
   async overview() {
-    const [{ report }, docs, { model, options, context }] = await Promise.all([this.health(), this.docs(), this.model()]);
+    const [{ report }, { model, options, context }] = await Promise.all([this.health(), this.model()]);
     return {
       title: options.title?.replace(/ architecture$/u, "") ?? (report.summary.apps.length === 1 ? report.summary.apps[0].name : path.basename(this.input)),
       root: this.input,
@@ -103,7 +128,6 @@ export class Workspace {
       updatedAt: this.updatedAt,
       summary: report.summary,
       health: { passed: report.passed, failOn: report.failOn, counts: report.counts, findings: report.findings.slice(0, 6), hubs: report.hubs },
-      docs: { scenarios: docs?.scenarios ?? 0, path: docs?.path },
       // What every page is read from.
       sources: commonSources({ model, context }),
       config: context.config.path ? path.relative(this.input, context.config.path).replaceAll("\\", "/") || ".bca.json" : undefined

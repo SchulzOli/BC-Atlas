@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { loadProject } from "../project.js";
+import { loadProject, projectLevels } from "../project.js";
 import { CheckFailedError } from "../cli/errors.js";
 import { displayPath } from "../output.js";
 import { assessHealth, formatHealthMarkdown, formatHealthText, healthResultLine } from "../health.js";
@@ -9,7 +9,7 @@ import { renderSarif } from "../sarif.js";
 
 /**
  * Reads a project and assesses its health.
- * @returns { loaded, report }: what src/project.js read, and the health report
+ * @returns { loaded, levels, report }: what src/project.js read, what depends on what, and the health report
  */
 export async function runHealthCheck(input, values = {}, context = {}) {
   // Strict mode becomes a fail threshold so the report is still produced.
@@ -19,7 +19,8 @@ export async function runHealthCheck(input, values = {}, context = {}) {
   for (const name of ["failOn", "maxFanIn", "maxFanOut"]) {
     if (values[name] !== undefined) settings[name] = values[name];
   }
-  return { loaded, report: assessHealth(loaded.model, settings) };
+  const levels = projectLevels(loaded);
+  return { loaded, levels, report: assessHealth(loaded.model, settings, { levels }) };
 }
 
 const VERSION = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;

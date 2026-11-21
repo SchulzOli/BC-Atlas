@@ -70,9 +70,12 @@ test("serves BC Atlas tools over MCP stdio", async () => {
       arguments: { path: path.join(root, "test", "fixtures") }
     });
     assert.equal(inspection.isError, undefined);
-    const model = JSON.parse(inspection.content[0].text);
-    assert.ok(model.files > 0);
-    assert.ok(model.objects.length > 0);
+    const part = JSON.parse(inspection.content[0].text);
+    assert.equal(part.schema, "bc-atlas.inspect/1");
+    assert.ok(part.summary.files > 0 && part.objects.length > 0);
+    const one = JSON.parse((await client.callTool({ name: "bc_atlas_inspect", arguments: { path: path.join(root, "test", "fixtures"), select: ["object:codeunit:Sales Poster"], detail: "full" } })).content[0].text);
+    assert.deepEqual(one.objects.map(({ name }) => name), ["Sales Poster"]);
+    assert.ok(one.objects[0].procedures.length, "full detail has the members");
 
     // The view without a window: what there is to see, a lens, an opened object, a story, a picture.
     // The view as an MCP App: a tool that shows it, the page as a ui:// resource, and the requests of the page.

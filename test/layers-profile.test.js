@@ -73,7 +73,7 @@ test("pages: a kind of page is left out, or only the named ones are written, and
   // What has no page is still named, as text.
   const readme = files.get("README.md");
   assert.deepEqual(headings(readme), ["Start here", "Layers", "Apps", "Namespaces", "Lenses", "Findings", "Read from"]);
-  assert.match(readme, /\n## Findings\n\n0 errors, 0 warnings, 7 info\.\n/u);
+  assert.match(readme, /\n## Findings\n\n0 errors, 1 warning, 7 info\.\n/u);
   assert.match(readme, /\| Contoso\.Sales\.Quotes \| Contoso Sales \| 4 \|/u);
   assert.match(readme, /\| \[Data\]\(lenses\/data\.md\) \|/u);
   assert.doesNotMatch(readme, /lenses\/calls\.md/u);

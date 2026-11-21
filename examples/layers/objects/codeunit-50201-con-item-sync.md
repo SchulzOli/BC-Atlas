@@ -36,6 +36,10 @@ Layer 4: its procedures, triggers, and events, and what each of them does.
 
 ## Findings
 
+- **warning** `undeclared-app-dependency`: Contoso Integration uses Contoso Core (3 relations) without naming it in the dependencies of its app.json
+  - Fix: Add Contoso Core to "dependencies" in integration/app.json, or remove the use.
+  - On: [CON Item Sync](codeunit-50201-con-item-sync.md)
+  - Source: `integration/ItemSync.al:10`
 - **info** `undocumented-public-api`: codeunit 50201 CON Item Sync: 1 public procedure(s) without a /// summary: Sync
   - On: [CON Item Sync](codeunit-50201-con-item-sync.md)
   - Source: `integration/ItemSync.al:8`

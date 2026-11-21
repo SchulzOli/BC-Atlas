@@ -49,8 +49,7 @@ test("summarizes health in the status bar", () => {
   const overview = {
     title: "Contoso",
     summary: { objects: 1200, apps: [{}, {}] },
-    health: { passed: false, counts: { error: 2, warning: 5, info: 1 } },
-    docs: { scenarios: 4 }
+    health: { passed: false, counts: { error: 2, warning: 5, info: 1 } }
   };
   const status = logic.statusFor(overview);
   assert.equal(status.text, "$(error) BC Atlas: 2 errors");

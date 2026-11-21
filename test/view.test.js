@@ -37,7 +37,7 @@ test("the command offers every lens, form, and format of the view", () => {
 test("without a lens the view says what there is to see", async () => {
   const { content, format } = await renderView(multi);
   assert.equal(format, "text");
-  assert.match(content, /^multi-app: 12 objects in 3 apps, 26 relations\.\nHealth passed: 0 errors, 0 warnings, 7 info\.\n/u);
+  assert.match(content, /^multi-app: 12 objects in 3 apps, 26 relations\.\nHealth passed: 0 errors, 1 warning, 7 info\.\n/u);
   assert.match(content, /Lenses \(bca view --lens <id>\)\n {2}overview {4}12 nodes, 9 relations {9}How it works, from left to right: .+\n {2}system {6}13 nodes, 30 relations/u);
   assert.match(content, /Stories \(bca view --story <id>\)\n {2}system {2}10 steps/u);
   assert.match(content, /Read from\n {2}AL source: 5 files with 12 objects/u);
@@ -51,7 +51,7 @@ test("without a lens the view says what there is to see", async () => {
     nodes: 4,
     relations: 5
   });
-  assert.deepEqual(overview.stories.map(({ id, steps }) => [id, steps]), [["system", 10], ["fix", 7]]);
+  assert.deepEqual(overview.stories.map(({ id, steps }) => [id, steps]), [["system", 10], ["fix", 1]]);
 
   // As JSON: the whole atlas, every node, relation, lens, finding, and story.
   const atlas = JSON.parse((await renderView(multi, { format: "json" })).content);
@@ -61,7 +61,7 @@ test("without a lens the view says what there is to see", async () => {
 test("a lens is the part of the graph the page shows, as text, data, and a table", async () => {
   const text = (await renderView(multi, { lens: "data", check: true })).content;
   assert.match(text, /^multi-app: Data\n8 nodes, 9 relations\. Tables and the code that reads, writes, relates, and extends them\./u);
-  assert.match(text, /\nContoso\.Integration\n(?: {2,}.*\n)* {2}codeunit CON Item Sync \(50201; 1 finding, worst info\)\n {4}-> reads CON Item\n {4}-> writes CON Item\n {4}! info undocumented-public-api: /u, "a node with what it does, and with --check its findings");
+  assert.match(text, /\nContoso\.Integration\n(?: {2,}.*\n)* {2}codeunit CON Item Sync \(50201; 2 findings, worst warning\)\n {4}-> reads CON Item\n {4}-> writes CON Item\n {4}! warning undeclared-app-dependency: Contoso Integration uses Contoso Core/u, "a node with what it does, and with --check its findings");
   assert.match(text, /\nOther apps\n {2}table Customer \(other app\)/u);
 
   const { content, scene } = await renderView(multi, { lens: "data", format: "json" });
@@ -71,7 +71,7 @@ test("a lens is the part of the graph the page shows, as text, data, and a table
   assert.deepEqual(new Set(data.relations.map(({ kind }) => kind)), new Set(["reads", "writes", "relates"]));
   const sync = data.nodes.find(({ label }) => label === "CON Item Sync");
   assert.deepEqual({ group: sync.group, relations: sync.relations, color: sync.color, findings: sync.findings.map(({ rule }) => rule) },
-    { group: "Contoso.Integration", relations: 2, color: undefined, findings: ["undocumented-public-api"] });
+    { group: "Contoso.Integration", relations: 2, color: undefined, findings: ["undeclared-app-dependency", "undocumented-public-api"] });
   assert.ok(data.relations.every(({ from, to }) => data.nodes.some(({ id }) => id === from) && data.nodes.some(({ id }) => id === to)));
 
   // The same as the page exports: one implementation.
@@ -90,7 +90,7 @@ test("a lens is the part of the graph the page shows, as text, data, and a table
   const markdown = (await renderView(multi, { lens: "data", format: "md" })).content;
   assert.match(markdown, /^# multi-app: Data\n\nTables and the code/u);
   assert.match(markdown, /\| CON Item Sync \| codeunit \| Contoso\.Integration \| 2 \|/u);
-  assert.match(markdown, /## Findings\n\n- \*\*info\*\* `undocumented-public-api`: /u);
+  assert.match(markdown, /## Findings\n\n- \*\*warning\*\* `undeclared-app-dependency`: .+ Fix: Add Contoso Core to "dependencies" in integration\/app\.json, or remove the use\.\n- \*\*info\*\* `undocumented-public-api`: /u);
 });
 
 test("find, hide, off, and focus narrow what shows, as in the page", async () => {
@@ -208,6 +208,58 @@ test("a large project shows areas in the overview, and an area opens to its obje
   assert.ok(inside.nodes.every(({ label }) => label.startsWith("Stock ")));
 });
 
+test("every area of a large overview leads on: to its namespace, or to the lens that lists what it holds", () => {
+  // 20 namespaces of 6 objects each, and tables of another app: more areas than a column shows.
+  const nodes = [];
+  const edges = [];
+  for (let n = 0; n < 20; n++) {
+    nodes.push({ id: `module::app::NS${n}`, kind: "module", label: `NS${n}`, app: "App", color: "#000000" });
+    for (let at = 0; at < 6; at++) {
+      const type = ["page", "codeunit", "table"][at % 3];
+      nodes.push({ id: `NS${n}-${at}`, kind: "object", type, label: `NS${n} ${type} ${at}`, namespace: `NS${n}`, app: "App", color: "#000000" });
+      if (type !== "table") edges.push([nodes.length - 1, nodes.length, 0, 1]);
+    }
+  }
+  for (const [id, label] of [[18, "Customer"], [23, "Vendor"], [27, "Item"]]) {
+    nodes.push({ id: `base::table::${id}`, kind: "object", type: "table", label, external: true, color: "#000000" });
+    edges.push([nodes.findIndex(({ id: key }) => key === "NS0-1"), nodes.length - 1, 0, 1]);
+  }
+  const lenses = [
+    { id: "overview", title: "Overview", summary: "", flow: true, form: "diagram", kinds: ["object"], relations: ["calls"], group: "kind", color: "type" },
+    { id: "system", title: "System", summary: "", kinds: ["object"], relations: ["calls"], group: "namespace", color: "type" },
+    { id: "apps", title: "Apps", summary: "", kinds: ["app"], relations: [], group: "origin", color: "kind" },
+    { id: "modules", title: "Modules", summary: "", kinds: ["module"], relations: [], group: "app", color: "kind" }
+  ];
+  const atlas = { title: "Large", nodes, edges, relations: [{ kind: "calls" }], lenses, findings: [], stories: [], levels: {} };
+  const scene = S.scene(atlas, S.index(atlas), { ...S.DEFAULTS });
+  const areas = scene.entries.map(({ node }) => node).filter(({ kind }) => kind === "area");
+  const more = areas.find(({ label }) => / more areas · /u.test(label));
+  const other = areas.find(({ label }) => label.startsWith("Other apps"));
+  assert.ok(more && other, "a large overview has a box for the rest, and one for the other apps");
+  for (const area of areas) assert.ok(S.into(atlas, area, { ...S.DEFAULTS }), `${area.label} leads on`);
+  assert.deepEqual(S.into(atlas, areas.find(({ label }) => label.startsWith("NS0 ")), { ...S.DEFAULTS }).inside, "module::app::NS0", "a namespace opens to its objects");
+  assert.equal(S.into(atlas, more, { ...S.DEFAULTS }).lens, "modules", "the rest: every namespace, in the Modules lens");
+  assert.equal(S.into(atlas, other, { ...S.DEFAULTS }).lens, "apps", "the other apps: in the Apps lens");
+
+  // A namespace above the limit opens to its objects, one by one: areas only where they divide.
+  const big = [];
+  for (let at = 0; at < 60; at++) big.push({ id: `Big-${at}`, kind: "object", type: ["page", "codeunit", "table"][at % 3], label: `Big ${at}`, namespace: "Big", app: "App", color: "#000000" });
+  const many = { ...atlas, nodes: [...nodes, { id: "module::app::Big", kind: "module", label: "Big", app: "App", color: "#000000" }, ...big] };
+  const inside = S.scene(many, S.index(many), { ...S.DEFAULTS, inside: "module::app::Big" });
+  assert.equal(inside.entries.filter(({ node }) => node.kind === "object").length, 60);
+  assert.ok(!inside.entries.some(({ node }) => node.kind === "area"), "no box that only names the namespace again");
+
+  // A namespace of two apps is an area per app, and each opens to all of its objects.
+  const shared = [];
+  for (const app of ["First", "Second"]) {
+    shared.push({ id: `module::${app}::Shared`, kind: "module", label: "Shared", app, color: "#000000" });
+    for (let at = 0; at < 30; at++) shared.push({ id: `${app}-${at}`, kind: "object", type: "codeunit", label: `${app} ${at}`, namespace: "Shared", app, color: "#000000" });
+  }
+  const two = { ...atlas, nodes: [...nodes, ...shared] };
+  const split = S.scene(two, S.index(two), { ...S.DEFAULTS }).entries.map(({ node }) => node).filter(({ kind, area }) => kind === "area" && area?.startsWith("Shared"));
+  assert.deepEqual(split.map(({ area, holder }) => [area, holder]).sort(), [["Shared (First)", "module::First::Shared"], ["Shared (Second)", "module::Second::Shared"]]);
+});
+
 test("an app and a namespace open to their objects", async () => {
   assert.match((await renderView(multi, { lens: "system", inside: "Contoso Core" })).content, /^multi-app: Contoso Core\n6 nodes, 9 relations\. The objects of the app Contoso Core, and what they do with each other\./u);
   // From the overview a namespace opens to how it works: its screens, its logic, its data.
@@ -249,16 +301,16 @@ test("every node leads on, and the way back is a trail", async () => {
 
 test("a story reads as text and as a document, and each step is a view", async () => {
   const text = (await renderView(multi, { story: "fix" })).content;
-  assert.match(text, /^multi-app: What to fix\n7 findings, the most severe first/u);
-  assert.match(text, /\n1\. info: undocumented-public-api \[info\]\n/u);
+  assert.match(text, /^multi-app: What to fix\n1 finding, the most severe first/u, "what is serious comes before what is only info");
+  assert.match(text, /\n1\. warning: undeclared-app-dependency \[warning\]\n/u);
   const markdown = (await renderView(multi, { story: "fix", format: "md" })).content;
-  assert.match(markdown, /^# What to fix\n\n7 findings, the most severe first.+\n\n_Generated by BC Atlas .+ from the AL source of multi-app\. Do not edit; export it again\._\n\n## 1\. /u);
+  assert.match(markdown, /^# What to fix\n\n1 finding, the most severe first.+\n\n_Generated by BC Atlas .+ from the AL source of multi-app\. Do not edit; export it again\._\n\n## 1\. /u);
   assert.equal(JSON.parse((await renderView(purchasing, { story: "system", format: "json" })).content).steps.length, 8);
 
   // One step: the nodes it is about, in its lens.
   const step = JSON.parse((await renderView(multi, { story: "fix", step: 1, format: "json" })).content);
   assert.equal(step.lens, "health");
-  assert.ok(step.nodes.some(({ label }) => label === "CON Standard Pricing"));
+  assert.ok(step.nodes.some(({ label }) => label === "CON Item Sync"));
 
   // Every story as one document: the documentation of the system.
   const documentation = (await renderView(multi, { stories: true, format: "md" })).content;
@@ -266,7 +318,7 @@ test("a story reads as text and as a document, and each step is a view", async (
   for (const title of ["What multi-app is", "What to fix"]) assert.ok(documentation.includes(`\n## ${title}\n`), title);
 
   await assert.rejects(renderView(purchasing, { story: "nope" }), /unknown story "nope"; this project has: system$/u);
-  await assert.rejects(renderView(multi, { story: "fix", step: 9 }), /--step must be a number from 1 to 7/u);
+  await assert.rejects(renderView(multi, { story: "fix", step: 9 }), /--step must be a number from 1 to 1/u);
   await assert.rejects(renderView(purchasing, { lens: "health" }), /unknown lens "health"; this project has: overview, system, apps, /u, "a lens with nothing in it does not exist for a project");
 });
 

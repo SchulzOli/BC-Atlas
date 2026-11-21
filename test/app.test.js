@@ -161,21 +161,22 @@ test("the workspace keeps parse results on disk and parses only changed files ag
   try {
     const first = new Workspace(directory);
     const objects = (await first.overview()).summary.objects;
-    assert.equal(await first.saving, true);
+    assert.equal(await first.flush(), true);
     assert.ok(existsSync(parseCacheFile(directory)));
 
     // The next editor session reads every file's objects from disk.
     const second = new Workspace(directory);
     assert.equal((await second.parseCache()).size, 5);
     assert.equal((await second.overview()).summary.objects, objects);
-    assert.equal(await second.saving, false, "nothing was parsed, so nothing is written");
+    assert.equal(await second.flush(), false, "nothing was parsed, so nothing is written");
 
     // A changed file is parsed again; its old entry is dropped.
     const file = path.join(directory, "sales", "Quotes.al");
     writeFileSync(file, `${readFileSync(file, "utf8")}\n// changed\n`);
     second.reset();
     await second.overview();
-    assert.equal(await second.saving, true);
+    assert.ok(second.pendingSave, "in an editor the write waits until the saves have settled");
+    assert.equal(await second.flush(), true);
     assert.equal((await openParseCache(directory)).size, 5);
 
     // A damaged file starts over instead of failing.
@@ -315,14 +316,16 @@ test("the view is the same page in VS Code, as an MCP App, and as a file: every 
 });
 
 // The page in a real browser: every menu opens and a selected node shows its facts, without an
-// error of the page. Runs where Playwright with Chromium is installed.
+// error of the page. Runs where Playwright with Chromium is installed; with BCA_BROWSER_TEST set
+// (one CI job), a missing Playwright fails the test instead of skipping it.
 let chromium;
 try {
   ({ chromium } = (await import("node:module")).createRequire(import.meta.url)("playwright"));
 } catch {
   chromium = undefined;
 }
-test("the exported view works in a browser: a selection, every menu, and every lens", { skip: !chromium && "Playwright is not installed" }, async () => {
+test("the exported view works in a browser: a selection, every menu, and every lens", { skip: !chromium && !process.env.BCA_BROWSER_TEST && "Playwright is not installed" }, async () => {
+  assert.ok(chromium, "BCA_BROWSER_TEST is set, but Playwright is not installed");
   const { renderSnapshotHtml } = await import("../src/app/snapshot.js");
   const { html, snapshot } = await renderSnapshotHtml(new Workspace(workspace, {}, { live: false }));
   const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-browser-"));

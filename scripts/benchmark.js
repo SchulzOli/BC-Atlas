@@ -1,33 +1,56 @@
 #!/usr/bin/env node
-// Generates a synthetic AL app and times BC Atlas commands on it, cold
-// (empty cache folder) and warm (second run with the same cache). Usage:
+// Times BC Atlas on a synthetic AL app, and catches regressions. Usage:
 //
-//   node scripts/benchmark.js [--modules 30] [--per-module 12] [--keep]
-//     [--command "check" --command "export --view report"]
+//   node scripts/benchmark.js [--modules 40] [--per-module 15] [--repeat 3]
+//     [--tree <BC Atlas folder>] [--json <file>] [--command "check" ...]
+//   node scripts/benchmark.js --compare <base.json> <head.json>
 //
 // Each module is a namespace and folder with tables, codeunits that read,
 // write, and call across modules, pages, and an event subscriber, so the
-// analysis, the resolver, and the diagrams see realistic coupling. The
-// numbers vary by machine; compare runs on the same one.
+// analysis, the resolver, and the view see realistic coupling.
+//
+// Every command runs once with an empty cache (cold) and --repeat times with
+// a warm one; the median of the warm runs counts, with the peak memory of the
+// process. "save" is the loop of the editor (scripts/benchmark-save.mjs): one
+// file saved, the view updated. --tree measures another checkout of BC Atlas
+// on the same app, so CI can compare a pull request with its base on one
+// machine; --compare fails (exit code 1) when the second is clearly slower or
+// larger. Numbers vary by machine; compare runs on the same one.
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
-const { values } = parseArgs({
+const { values, positionals } = parseArgs({
+  allowPositionals: true,
   options: {
-    modules: { type: "string", default: "30" },
-    "per-module": { type: "string", default: "12" },
+    modules: { type: "string", default: "40" },
+    "per-module": { type: "string", default: "15" },
+    repeat: { type: "string", default: "3" },
     command: { type: "string", multiple: true },
+    tree: { type: "string" },
+    json: { type: "string" },
+    compare: { type: "boolean", default: false },
     keep: { type: "boolean", default: false }
   }
 });
+
+// A regression: slower by more than both of these, or larger by more than both of these.
+const SLOWER = { ratio: 1.25, ms: 150 };
+const LARGER = { ratio: 1.2, mb: 40 };
+
+if (values.compare) process.exit(compare(...positionals));
+
 const modules = Number(values.modules);
 const perModule = Number(values["per-module"]);
-const commands = values.command ?? ["check", "export --view report", "export"];
-const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+const repeat = Number(values.repeat);
+const commands = values.command ?? ["check", "layers", "export", "save"];
+const here = path.dirname(fileURLToPath(import.meta.url));
+const tree = path.resolve(values.tree ?? path.join(here, ".."));
+const cli = path.join(tree, "src", "cli.js");
+const rssPreload = path.join(here, "benchmark-rss.mjs");
 
 /** One file per object, as AL projects usually are; IDs from 50000. */
 function generate(root) {
@@ -172,38 +195,93 @@ page ${id++} "M${m} Page ${i}"
   return files;
 }
 
-function run(root, cache, command) {
-  const output = path.join(root, "out");
-  const args = command.split(" ");
-  const withOutput = args[0] === "export" ? [...args, "--output", path.join(output, `${args.join("-").replace(/[^a-z0-9-]/giu, "")}.out`)] : args;
+const median = (numbers) => [...numbers].sort((a, b) => a - b)[Math.floor(numbers.length / 2)];
+
+/** Runs a node script with the peak-memory hook; returns { ms, mb, stdout }. */
+function measure(args, env) {
+  const rss = path.join(os.tmpdir(), `bca-benchmark-rss-${process.pid}`);
   const started = performance.now();
-  const result = spawnSync(process.execPath, [cli, withOutput[0], root, ...withOutput.slice(1)], {
+  const result = spawnSync(process.execPath, ["--import", rssPreload, ...args], {
     encoding: "utf8",
-    env: { ...process.env, BCA_CACHE_DIR: cache, CI: "1" },
+    env: { ...process.env, ...env, BCA_BENCHMARK_RSS: rss, CI: "1" },
     maxBuffer: 256 * 1024 * 1024
   });
   const ms = performance.now() - started;
   // `check` exits 1 when it finds errors; that still measures the run.
-  if (result.status !== 0 && result.status !== 1) {
-    throw new Error(`bca ${command} failed (${result.status}):\n${result.stderr}`);
-  }
-  return ms;
+  if (result.status !== 0 && result.status !== 1) throw new Error(`${args.join(" ")} failed (${result.status}):\n${result.stderr}`);
+  const mb = Number(readFileSync(rss, "utf8")) / 1024;
+  rmSync(rss, { force: true });
+  return { ms, mb, stdout: result.stdout };
 }
 
-const root = mkdtempSync(path.join(os.tmpdir(), "bca-benchmark-"));
-const cache = path.join(root, ".cache");
-try {
-  const files = generate(root);
-  console.log(`Synthetic app: ${modules} modules, ${files} AL files in ${root}`);
-  console.log(`Node ${process.version}, ${os.cpus().length} CPUs\n`);
-  console.log("| Command | Cold | Warm |");
-  console.log("|---|---:|---:|");
-  for (const command of commands) {
-    rmSync(cache, { recursive: true, force: true });
-    const cold = run(root, cache, command);
-    const warm = run(root, cache, command);
-    console.log(`| \`bca ${command}\` | ${Math.round(cold)} ms | ${Math.round(warm)} ms |`);
-  }
-} finally {
-  if (!values.keep) rmSync(root, { recursive: true, force: true });
+function bca(root, cache, command) {
+  const [name, ...rest] = command.split(" ");
+  const output = path.join(root, "out", name);
+  const args = name === "export" ? [...rest, "--output", `${output}.html`] : name === "layers" ? [...rest, "--output", output] : rest;
+  return measure([cli, name, root, ...args], { BCA_CACHE_DIR: cache });
 }
+
+/** The editor loop: the median time from a save to the updated view. */
+function save(root, cache) {
+  const file = path.join(root, "src", "Module0", "Codeunit0.Codeunit.al");
+  const run = measure([path.join(here, "benchmark-save.mjs"), tree, root, file, String(repeat)], { BCA_CACHE_DIR: cache });
+  const steps = JSON.parse(run.stdout);
+  return { cold: steps.open, warm: median(steps.saves), mb: run.mb };
+}
+
+function benchmark() {
+  const root = mkdtempSync(path.join(os.tmpdir(), "bca-benchmark-"));
+  const cache = path.join(root, ".cache");
+  try {
+    const files = generate(root);
+    console.log(`Synthetic app: ${modules} modules, ${files} AL files; BC Atlas in ${tree}`);
+    console.log(`Node ${process.version}, ${os.cpus().length} CPUs\n`);
+    console.log("| Command | Cold | Warm (median) | Peak memory |");
+    console.log("|---|---:|---:|---:|");
+    const results = { files, node: process.version, commands: {} };
+    for (const command of commands) {
+      rmSync(cache, { recursive: true, force: true });
+      let result;
+      if (command === "save") {
+        bca(root, cache, "check");
+        result = save(root, cache);
+      } else {
+        const cold = bca(root, cache, command);
+        const warm = Array.from({ length: repeat }, () => bca(root, cache, command));
+        result = { cold: cold.ms, warm: median(warm.map(({ ms }) => ms)), mb: Math.max(cold.mb, ...warm.map(({ mb }) => mb)) };
+      }
+      result = { cold: Math.round(result.cold), warm: Math.round(result.warm), mb: Math.round(result.mb) };
+      results.commands[command] = result;
+      console.log(`| \`${command === "save" ? "a save, until the view is updated" : `bca ${command}`}\` | ${result.cold} ms | ${result.warm} ms | ${result.mb} MB |`);
+    }
+    if (values.json) writeFileSync(values.json, `${JSON.stringify(results, null, 2)}\n`);
+  } finally {
+    if (!values.keep) rmSync(root, { recursive: true, force: true });
+  }
+}
+
+/** Compares two results of --json; returns the exit code. */
+function compare(baseFile, headFile) {
+  const base = JSON.parse(readFileSync(baseFile, "utf8"));
+  const head = JSON.parse(readFileSync(headFile, "utf8"));
+  const regressions = [];
+  console.log(`| Command | Warm, base | Warm, this | Peak, base | Peak, this |`);
+  console.log("|---|---:|---:|---:|---:|");
+  for (const [command, now] of Object.entries(head.commands)) {
+    const before = base.commands[command];
+    if (!before) continue;
+    const slower = now.warm > before.warm * SLOWER.ratio && now.warm - before.warm > SLOWER.ms;
+    const larger = now.mb > before.mb * LARGER.ratio && now.mb - before.mb > LARGER.mb;
+    if (slower) regressions.push(`${command}: ${before.warm} ms -> ${now.warm} ms`);
+    if (larger) regressions.push(`${command}: ${before.mb} MB -> ${now.mb} MB`);
+    console.log(`| ${command} | ${before.warm} ms | ${now.warm} ms${slower ? " (slower)" : ""} | ${before.mb} MB | ${now.mb} MB${larger ? " (larger)" : ""} |`);
+  }
+  if (!regressions.length) {
+    console.log("\nNo regression.");
+    return 0;
+  }
+  console.error(`\nRegression (slower than ${SLOWER.ratio}x and ${SLOWER.ms} ms, or larger than ${LARGER.ratio}x and ${LARGER.mb} MB):\n${regressions.map((line) => `  ${line}`).join("\n")}`);
+  return 1;
+}
+
+benchmark();
