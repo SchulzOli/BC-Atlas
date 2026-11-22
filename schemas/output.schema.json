@@ -169,7 +169,18 @@
         "summary": {
           "type": "object",
           "required": ["files", "objects", "relations", "apps", "cycles", "hubs"],
-          "properties": { "files": { "type": "integer" }, "objects": { "type": "integer" }, "relations": { "type": "integer" }, "cycles": { "type": "integer" } }
+          "properties": {
+            "files": { "type": "integer" },
+            "objects": { "type": "integer" },
+            "relations": { "type": "integer" },
+            "cycles": { "type": "integer" },
+            "guides": {
+              "type": "object",
+              "description": "When a page of the result has user guides: the documented AL UI tests, those without documentation, and the pages no guide shows.",
+              "required": ["documented", "undocumented", "pagesWithoutGuide"],
+              "properties": { "tests": { "type": "string" }, "documented": { "type": "integer" }, "undocumented": { "type": "integer" }, "pagesWithoutGuide": { "type": "integer" } }
+            }
+          }
         },
         "selected": { "type": "integer", "description": "How many objects the selectors name." },
         "offset": { "type": "integer" },
@@ -182,7 +193,17 @@
           "items": {
             "type": "object",
             "required": ["key", "type", "name"],
-            "properties": { "key": { "type": "string" }, "type": { "type": "string" }, "name": { "type": "string" }, "file": { "type": "string" } }
+            "properties": {
+              "key": { "type": "string" },
+              "type": { "type": "string" },
+              "name": { "type": "string" },
+              "file": { "type": "string" },
+              "guides": {
+                "type": "array",
+                "description": "For a page: the user guides that show it. With detail full also goal, roles, permissions, features, journeys, steps and actions on this page, file, and line.",
+                "items": { "type": "object", "required": ["id", "title"], "properties": { "id": { "type": "string" }, "title": { "type": "string" } } }
+              }
+            }
           }
         },
         "edges": {

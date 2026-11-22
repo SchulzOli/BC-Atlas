@@ -16,6 +16,7 @@ import { writeView } from "./commands/view.js";
 import { viewOverview } from "./app/view.js";
 import { loadProject } from "./project.js";
 import { INSPECT_LIMIT, inspectModel } from "./inspect.js";
+import { linkGuides, loadGuideCorpus } from "./guides.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
 import { documentationGlossary } from "./docs/tags.js";
 import { DOCUMENT_MODES, EXPORT_FORMATS, exportDocumentation } from "./docs/export.js";
@@ -77,7 +78,7 @@ function createMcpServer(version = pkg.version) {
   }, tool(async () => createCapabilities(version)));
 
   server.registerTool("bc_atlas_inspect", {
-    description: `The resolved model, a part at a time: the objects that select names and the relations that touch them, and the diagnostics of their files, with a summary of the whole project (files, objects, relations, apps, cycles, hubs). At most limit objects (default ${INSPECT_LIMIT}); when there are more, next is the offset of the following page. detail summary (default) gives each object in a line and the relations counted by kind; full gives every member, and every relation with its evidence: ask for it for a few objects. For what the view shows, use bc_atlas_view.`,
+    description: `The resolved model, a part at a time: the objects that select names and the relations that touch them, and the diagnostics of their files, with a summary of the whole project (files, objects, relations, apps, cycles, hubs). At most limit objects (default ${INSPECT_LIMIT}); when there are more, next is the offset of the following page. detail summary (default) gives each object in a line and the relations counted by kind; full gives every member, and every relation with its evidence: ask for it for a few objects. A page lists its user guides (the documented AL UI tests that show it): how a user works with it, by whom, and with which actions. For what the view shows, use bc_atlas_view.`,
     inputSchema: z.object({
       ...projectFields,
       select: z.array(z.string()).optional().describe("Which objects: selectors as in .bca.json, such as object:codeunit:50100, object:table:Customer, type:table, namespace:Contoso.Sales, app:Contoso Core, file:src/Sales/*.al, id:50100..50199. Objects that match any of them. Without it, every object of the workspace"),
@@ -87,7 +88,15 @@ function createMcpServer(version = pkg.version) {
       strict: z.boolean().optional()
     }),
     annotations: { readOnlyHint: true, idempotentHint: true }
-  }, tool(async ({ path: input, select, offset, limit, detail, ...values }) => inspectModel((await loadProject(input, values)).model, { select, offset, limit, detail })));
+  }, tool(async ({ path: input, select, offset, limit, detail, ...values }) => {
+    const { model, options } = await loadProject(input, values);
+    const asked = { select, offset, limit, detail };
+    const result = inspectModel(model, asked);
+    // The user guides are read when the page holds a page: reading the UI tests costs a parse of their own.
+    if (!result.objects.some(({ type }) => type === "page")) return result;
+    const guides = linkGuides(model, await loadGuideCorpus(options), options);
+    return guides ? inspectModel(model, { ...asked, guides }) : result;
+  }));
 
   // ------------------------------------------------------------- MCP App
   // The BC Atlas view inside the chat (MCP Apps, io.modelcontextprotocol/ui): the same page the
@@ -169,7 +178,7 @@ function createMcpServer(version = pkg.version) {
   }, tool(async ({ path: input, ...values }) => (await runHealthCheck(input, values)).report));
 
   server.registerTool("bc_atlas_view", {
-    description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, namespaces, objects, health rules, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (overview: how it works, in columns from the screens over the logic to the data; system, apps, modules, data, calls, events, contracts, pages, security, visibility, health) returns that part of the graph: nodes with their facts and findings, and relations. inside goes into one node: an object opens to its procedures and what each does, an app or a namespace to its objects; focus returns a node and what is near it; story returns a generated walk through the graph (system: what the system is; fix: what to fix). format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",
+    description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, namespaces, objects, health rules, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (overview: how it works, in columns from the screens over the logic to the data; system, apps, modules, data, calls, events, contracts, pages, security, visibility, health) returns that part of the graph: nodes with their facts and findings, and relations. inside goes into one node: an object opens to its procedures and what each does, an app or a namespace to its objects; focus returns a node and what is near it; story returns a generated walk through the graph (system: what the system is; fix: what to fix; journey-<name>: an end-to-end journey of the user guides). The pages lens also holds the user guides from the AL UI tests and what they document. format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",
     inputSchema: z.object({
       path: projectFields.path,
       projectRoot: projectFields.projectRoot,

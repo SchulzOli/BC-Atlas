@@ -11,6 +11,7 @@ import { renderView, viewOverview } from "../src/app/view.js";
 import { Workspace } from "../src/app/workspace.js";
 import { inspectModel } from "../src/inspect.js";
 import { loadProject } from "../src/project.js";
+import { linkGuides, loadGuideCorpus } from "../src/guides.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const schema = JSON.parse(readFileSync(path.join(root, "schemas", "output.schema.json"), "utf8"));
@@ -48,6 +49,14 @@ test("every shape of bca view --format json is the shape the schema publishes", 
   valid(await json({ story: "system" }), "story");
   valid(await json({ stories: true }), "stories");
   valid(viewOverview(await workspace.atlas()), "overview");
+
+  // With user guides: a guide is a node of the Pages lens, and a journey a story.
+  const warehouse = new Workspace(path.join(root, "examples", "warehouse-app"), {}, { live: false });
+  const pages = JSON.parse((await renderView(warehouse, { lens: "pages", format: "json" })).content);
+  valid(pages, "view");
+  assert.ok(pages.nodes.some(({ kind }) => kind === "guide") && pages.relations.some(({ kind }) => kind === "documents"));
+  valid(JSON.parse((await renderView(warehouse, { story: "journey-inbound-warehouse-request", format: "json" })).content), "story");
+  valid(JSON.parse((await renderView(warehouse, { format: "json" })).content), "atlas");
 });
 
 test("bc_atlas_inspect gives a part of the model, a page at a time, in the published shape", async () => {
@@ -70,6 +79,16 @@ test("bc_atlas_inspect gives a part of the model, a page at a time, in the publi
   assert.ok(counted.every(({ count }) => count > 0) && counted.length <= sync.edges.length, "a summary counts the relations by kind");
   assert.equal(inspectModel(model, { select: ["type:table", "app:Contoso Sales"] }).selected, 6, "selectors add up");
   assert.throws(() => inspectModel(model, { limit: 0 }), /limit must be from 1 to 500/u);
+
+  // A page lists its user guides.
+  const warehouse = await loadProject(path.join(root, "examples", "warehouse-app"));
+  const guides = linkGuides(warehouse.model, await loadGuideCorpus(warehouse.options), warehouse.options);
+  for (const detail of ["summary", "full"]) {
+    const pages = inspectModel(warehouse.model, { select: ["type:page"], guides, detail });
+    valid(pages, "inspect");
+    assert.deepEqual(pages.objects[0].guides.map(({ id }) => id), ["warehouse-request-create", "warehouse-request-process"], detail);
+  }
+  assert.equal(inspectModel(warehouse.model, { select: ["type:page"], guides }).summary.guides.undocumented, 1);
   assert.throws(() => inspectModel(model, { detail: "all" }), /detail must be summary or full/u);
   assert.throws(() => inspectModel(model, { select: ["nonsense"] }), /Invalid selector/u);
 });

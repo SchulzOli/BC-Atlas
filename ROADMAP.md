@@ -18,8 +18,8 @@ Items are candidates, not commitments; open an issue to discuss priorities.
 
 ## Now: one atlas (0.29)
 
-The UI tests are read with the source, and what they document is part of the
-one graph.
+Done: the UI tests are read with the source, and what they document is part
+of the one graph.
 
 - **Guides in the graph.** Every documented scenario is a node, linked to the
   pages and actions its steps use. The Pages lens shows which pages have a
@@ -33,8 +33,8 @@ one graph.
 - **Agents get the same.** `bc_atlas_inspect` and `bc_atlas_view` return the
   scenarios of an object, so an agent can answer "how does a user do this?"
   from the source.
-- **Loose ends of 0.28.0.** Open VSX receives the extension (the release step
-  passed without publishing).
+- **Loose ends of 0.28.0.** The release warns when Open VSX is skipped, and
+  the Open VSX workflow publishes a release there once `OVSX_PAT` is set.
 
 Done when: the warehouse example shows its guides on the Pages lens, and a
 page without a guide is a finding.

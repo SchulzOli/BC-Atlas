@@ -73,6 +73,7 @@ check; use `--fail-on warning` (or `--strict`) to fail on warnings too.
     "failOn": "error",
     "cycles": "warning",
     "undeclaredDependencies": "warning",
+    "documentation": "off",
     "maxFanIn": 25,
     "maxFanOut": 25,
     "contractExpectations": [
