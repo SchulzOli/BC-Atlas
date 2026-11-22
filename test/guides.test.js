@@ -72,3 +72,34 @@ test("check.documentation reports pages without a guide and UI tests without doc
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("the pages of bca layers and the user guides link to each other", async () => {
+  const { syncLayers } = await import("../src/commands/layers.js");
+  const { exportDocumentation } = await import("../src/docs/export.js");
+  const { loadCorpus } = await import("../src/docs/model.js");
+  const { readFileSync } = await import("node:fs");
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bca-guides-links-"));
+  try {
+    cpSync(warehouse, directory, { recursive: true });
+    const layers = path.join(directory, "docs", "layers");
+    const generated = path.join(directory, "docs", "generated");
+    const pagePath = path.join(layers, "objects", "page-50110-warehouse-requests.md");
+
+    await syncLayers(directory, { pictures: "none" });
+    assert.match(readFileSync(pagePath, "utf8"), /^- Create a new Warehouse Request: 4 steps here, by Purchasing Agent, WAREHOUSE PROCESS \(`WarehouseUITests\.al:17`\)$/mu,
+      "before the guides are written, a page names them");
+    const manifest = JSON.parse(readFileSync(path.join(layers, "layers.json"), "utf8"));
+    assert.ok(manifest.objects.some(({ type, page }) => type === "page" && page === "objects/page-50110-warehouse-requests.md"), "layers.json says where each object is");
+
+    await exportDocumentation(await loadCorpus(directory), { outputDirectory: generated, layersDirectory: layers, formats: "markdown,html", appRoot: directory });
+    const guide = readFileSync(path.join(generated, "warehouse-request-process.md"), "utf8");
+    assert.match(guide, /## In the system[\s\S]*- \[page 50110 Warehouse Requests\]\(\.\.\/layers\/objects\/page-50110-warehouse-requests\.md\)/u);
+    assert.match(readFileSync(path.join(generated, "index.html"), "utf8"), /href="\.\.\/layers\/objects\/page-50110-warehouse-requests\.md"/u);
+
+    await syncLayers(directory, { pictures: "none" });
+    assert.match(readFileSync(pagePath, "utf8"), /^- \[Create a new Warehouse Request\]\(\.\.\/\.\.\/generated\/warehouse-request-create\.md\): 4 steps here/mu,
+      "once they are written, a page links to them");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

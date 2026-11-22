@@ -277,6 +277,7 @@ export function createCapabilities(version) {
             default: "guide"
           }),
           outputDir: string("Output directory.", { group: OUTPUT, value: "path", default: "docs/generated" }),
+          layers: string("Folder of `bca layers`: each guide links to the pages of the system it uses. Used when it holds layers.json.", { group: OUTPUT, value: "path", default: "docs/layers" }),
           title: string("Title of the index, HTML page, and DITA map.", { group: OUTPUT, value: "text" }),
           app: string("AL app source used for real captions, tooltips, and page coverage.", { value: "app-root" }),
           language: string("Language for wording and captions, e.g. de-DE; captions come from the app's .xlf files.", {
@@ -290,6 +291,7 @@ export function createCapabilities(version) {
         output: { type: "directory", pathOption: "outputDir", default: "docs/generated", entry: "index.md" },
         rules: [
           "markdown writes <id>.md per scenario, use-case-<feature>.md, journey-<name>.md, runbook.md, index.md, link-map.svg, and diagrams/*.svg",
+          "with the pages of bca layers in --layers, each guide links to the page of every page it uses",
           "every scenario shows its clicks as a flow; every use case a process with a lane per permission set",
           "html writes one self-contained index.html; dita writes <id>.dita and documentation.ditamap",
           "ado-csv writes test-cases.csv for the Azure DevOps Test Plans grid import",

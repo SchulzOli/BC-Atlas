@@ -396,6 +396,7 @@
                   "Inside",
                   "Uses",
                   "Used by",
+                  "User guides",
                   "Findings"
                 ]
               }
@@ -721,6 +722,7 @@
                         "Inside",
                         "Uses",
                         "Used by",
+                        "User guides",
                         "Findings"
                       ]
                     }
@@ -817,7 +819,19 @@
       }
     },
     "docs": {
-      "type": "object"
+      "description": "The user guides from the AL UI tests (bca docs).",
+      "type": "object",
+      "properties": {
+        "tests": {
+          "description": "The folder of the documented AL UI tests, relative to the project root. Default: the folder with the most scenarios.",
+          "type": "string"
+        },
+        "outputDir": {
+          "description": "Where bca docs generate writes the guides; the pages of bca layers link to them there.",
+          "type": "string",
+          "default": "docs/generated"
+        }
+      }
     }
   },
   "$defs": {

@@ -8,6 +8,7 @@
 // removes the ones it wrote before and no longer writes. --check changes
 // nothing and fails when a run would change something.
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { buildLayers } from "../app/layers.js";
@@ -87,7 +88,14 @@ export async function syncLayers(input, values = {}) {
     const said = (name) => (name ? `the profile ${name}` : "the settings without a profile");
     throw new UsageError(`${displayPath(output)} holds the pages of ${said(previous.profile)}; a run with ${said(profile.name)} would replace them. Give each profile a folder of its own (outputDir), or delete ${displayPath(path.join(output, "layers.json"))} to give this folder to ${said(profile.name)}`);
   }
-  const built = await buildLayers(new Workspace(root, analysis, { live: false }), { pictures, view: Boolean(values.view ?? settings.view), profile });
+  // The user guides of `bca docs generate`, where they are written (docs.outputDir): a page links to them once they are there.
+  const config = (await loadConfig(root, values.config).catch(() => undefined))?.values;
+  const guides = path.resolve(root, config?.docs?.outputDir ?? "docs/generated");
+  const guideLink = (id, from) => {
+    const target = path.join(guides, `${id}.md`);
+    return existsSync(target) ? path.relative(path.dirname(path.join(output, from)), target).replaceAll("\\", "/") : undefined;
+  };
+  const built = await buildLayers(new Workspace(root, analysis, { live: false }), { pictures, view: Boolean(values.view ?? settings.view), profile, guideLink });
   const current = { ...(await syncFolder(output, built.files, known ? previous.files : [], { check })), manifest: built.manifest, atlas: built.atlas, files: built.files.size, fixed: built.fixed };
   const changed = [...current.written, ...current.removed];
   return { output, check, inSync: check ? !changed.length : true, changed, current, profile: profile.name };

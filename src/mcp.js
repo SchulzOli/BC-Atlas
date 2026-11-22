@@ -275,7 +275,8 @@ function createMcpServer(version = pkg.version) {
       as: z.enum(DOCUMENT_MODES).default("guide"),
       appRoot: z.string().min(1).optional().describe("AL app source for real captions, tooltips, and coverage"),
       language: z.string().optional().describe("Language tag such as de-DE; captions come from the app's XLIFF"),
-      title: z.string().optional()
+      title: z.string().optional(),
+      layersDirectory: z.string().min(1).default("docs/layers").describe("Folder of bca layers: each guide links to the pages of the system it uses, when it holds layers.json")
     }),
     annotations: { idempotentHint: true }
   }, tool(async ({ path: input, as: mode, ...options }) => {

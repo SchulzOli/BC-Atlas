@@ -61,7 +61,9 @@ export function linkGuides(model, found, options) {
   }
   const guides = corpus.scenarios.map(({ path: file, value }) => {
     const used = new Map();
-    const operations = new Set([...(value.guideOperations ?? []), ...(value.guideSections ?? []).flatMap(({ operations: items }) => items ?? [])]);
+    // The [WHEN] phases hold the steps of the guide; without phases, the whole test does.
+    const phases = (value.guideSections ?? []).flatMap(({ operations: items }) => items ?? []);
+    const operations = phases.length ? phases : value.guideOperations ?? [];
     for (const operation of operations) {
       const object = operation.page?.name && pages.get(normalizeIdentifier(operation.page.name));
       if (!object) continue;
