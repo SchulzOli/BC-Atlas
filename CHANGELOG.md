@@ -1125,8 +1125,8 @@ files) and on the real Base Application 29 symbols:
   procedures, every relation as a property (`bca:calls`, `bca:writes`, ...)
   and as a `bca:Relation` with its evidence, objects outside the workspace,
   architecture components, and violations. Stable IRIs (`urn:bc-atlas:...`, or
-  `--base-iri`), and `SOURCE_DATE_EPOCH` for reproducible files. See
-  [Knowledge graph](./docs/knowledge-graph.md).
+  `--base-iri`), and `SOURCE_DATE_EPOCH` for reproducible files. (Removed in
+  0.28.0.)
 - Knowledge graph: `--no-evidence` writes only the direct relation triples,
   without a `bca:Relation` per relation; the Base Application's graph drops
   from 4.4 million triples (270 MB of Turtle) to 1.1 million (78 MB).
