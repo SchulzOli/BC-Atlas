@@ -24,6 +24,20 @@ follows [Semantic Versioning](https://semver.org/).
   `bc_atlas_view` returns them in the Pages lens and the journeys as stories.
 - **Open VSX:** the Release workflow warns when `OVSX_PAT` is missing, and
   the Open VSX workflow publishes the extension of a release afterwards.
+- **A first draft of the tags.** `bca docs suggest` (and the MCP tool
+  `bc_atlas_docs_suggest`) drafts a `[SCENARIO]` and a `[WHEN]` for a UI test
+  without documentation; `--write` puts them into the source.
+- **The exported view opens where it should.** `bca export --open <id>` opens
+  the file at a lens, a story such as a journey, or a user guide.
+- **Measured on BCApps.** The CI job `bcapps` measures resolved references and
+  the UI tests that become a guide on Microsoft's BCApps, with floors.
+
+### Fixed
+
+- Tests of different codeunits with the same procedure name got the same
+  document ID, which made the documentation corpus invalid (on BCApps, no
+  guide could be generated). A derived ID now takes its file's name in front.
+- A save in the editor reads again only the UI tests that changed.
 
 ## 0.28.0 - 2026-11-22
 

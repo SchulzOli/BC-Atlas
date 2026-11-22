@@ -8,12 +8,31 @@ import { displayPath } from "../output.js";
 import { positiveInteger } from "../project.js";
 import { UsageError } from "../cli/errors.js";
 
+/**
+ * Where the file opens: a lens, a story (a journey of the user guides is
+ * one), or a user guide, by its id; as the address of the view.
+ */
+export function startOf(atlas, what) {
+  const id = String(what).trim();
+  if (atlas.lenses.some((lens) => lens.id === id)) return `lens=${encodeURIComponent(id)}`;
+  if (atlas.stories.some((story) => story.id === id)) return `story=${encodeURIComponent(id)}`;
+  const guide = atlas.nodes.find((node) => node.kind === "guide" && (node.document === id || node.id === id));
+  if (guide) return new URLSearchParams({ lens: "pages", sel: guide.id }).toString();
+  const known = [
+    ...atlas.lenses.map((lens) => lens.id),
+    ...atlas.stories.map((story) => story.id),
+    ...atlas.nodes.filter((node) => node.kind === "guide").map((node) => node.document)
+  ];
+  throw new UsageError(`--open ${id} is no lens, story, or user guide of this project; use one of: ${[...new Set(known)].join(", ")}`);
+}
+
 /** Writes the view as one offline HTML file; returns the files written. */
 async function runExport(input, values = {}, { log = () => {} } = {}) {
   if (values.output === "-") throw new UsageError("bca export writes a file; -o - is not supported. For JSON on stdout, use bca view --format json");
   const output = path.resolve(values.output ?? "bc-atlas.html");
   const workspace = new Workspace(input, values, { live: false });
-  const { html, snapshot } = await renderSnapshotHtml(workspace, { log, title: values.title });
+  const start = values.open ? startOf(await workspace.atlas(), values.open) : undefined;
+  const { html, snapshot } = await renderSnapshotHtml(workspace, { log, title: values.title, start });
   await fs.mkdir(path.dirname(output), { recursive: true });
   await fs.writeFile(output, html);
   const { title, summary } = snapshot.atlas;

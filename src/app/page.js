@@ -27,13 +27,14 @@ const packed = (text) => gzipSync(text, { level: 9 }).toString("base64");
  *   answers them), or "static" (one offline file)
  * @param snapshot for a static page: the atlas and the inside of its objects
  *   (snapshot.js)
+ * @param start the view a file opens at when its address names none: a hash such as "story=journey-x"
  * @param csp a Content-Security-Policy for the page (the extension's webview)
  */
-export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
+export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp, start }) {
   let boot;
   if (mode === "static") {
     boot = [
-      `window.BCA_APP = ${embed({ mode, version: pkg.version })};`,
+      `window.BCA_APP = ${embed({ mode, version: pkg.version, ...(start ? { start } : {}) })};`,
       `window.BCA_SNAPSHOT_GZIP = "${packed(JSON.stringify(snapshot))}";`
     ].join("\n");
   } else if (mode === "vscode" || mode === "mcp") {

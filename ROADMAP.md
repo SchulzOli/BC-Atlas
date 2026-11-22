@@ -41,22 +41,29 @@ page without a guide is a finding.
 
 ## Next: proven on real projects
 
-Measured on Microsoft's BCApps, as the performance is today.
+Done, measured in CI on Microsoft's BCApps (System Application, Business
+Foundation, and the Test Framework, at a pinned commit; `scripts/bcapps.js`):
 
-- **Resolution you can trust.** The share of references BC Atlas resolves is
-  measured in CI on BCApps, with a floor that fails the build; every kind of
-  reference it misses is a known, tracked case.
-- **Microsoft's UI tests as input.** The share of BCApps UI tests that become
-  a guide is measured; the patterns that do not yet (handlers, helpers,
-  libraries) are read.
-- **A first draft of the tags.** `bca docs` proposes the tags of an untagged
-  UI test (`[SCENARIO]`, `[WHEN]`, `[THEN]` from its steps), as a dry run to
-  accept with `docs set`, so a team does not start from an empty page.
+- **Resolution you can trust.** 75.5 % of the references resolve, with a
+  floor that fails the build. Every reference to an object in the source
+  resolves; what does not points at the platform's System app, whose symbols
+  are not in the repository, and the job names it.
+- **Microsoft's UI tests as input.** 69 of 333 UI tests become a guide, with
+  a floor. The others have no `[SCENARIO]`; BC Atlas reads their steps.
+  Tests of different codeunits with the same name made the corpus invalid on
+  BCApps, so no guide could be generated; they are told apart now.
+- **A first draft of the tags.** `bca docs suggest` drafts a `[SCENARIO]` and
+  a `[WHEN]` of an untagged UI test from its steps; `--write` makes it a
+  guide, to refine with `docs set`.
 
 ## Later: documentation people use
 
-- The view in the browser for a whole team: the exported file opens at a
-  guide or a journey, not only at a lens.
+Done:
+
+- **The exported view for a whole team.** `bca export --open` makes the file
+  open at a journey or a user guide, not only at a lens.
+
+What comes after is open: open an issue with what you need.
 
 ## Not planned
 

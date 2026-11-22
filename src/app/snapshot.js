@@ -27,5 +27,5 @@ async function createSnapshot(workspace, { log = () => {}, title, generatedAt } 
 
 export async function renderSnapshotHtml(workspace, options = {}) {
   const snapshot = await createSnapshot(workspace, options);
-  return { html: renderAppHtml({ mode: "static", snapshot, title: `${snapshot.atlas.title} · BC Atlas` }), snapshot };
+  return { html: renderAppHtml({ mode: "static", snapshot, title: `${snapshot.atlas.title} · BC Atlas`, start: options.start }), snapshot };
 }

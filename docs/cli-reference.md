@@ -96,6 +96,7 @@ pages of the project are what [`bca layers`](#layers) writes.
 ```text
 bca export ./app -o atlas.html
 bca export ./app -o atlas.html --watch
+bca export ./app -o onboarding.html --open journey-inbound-warehouse-request
 ```
 
 #### Output
@@ -104,6 +105,7 @@ bca export ./app -o atlas.html --watch
 | --- | --- | --- |
 | `-o`, `--output` | path | Output file. Default: `bc-atlas.html`. |
 | `--title` | text | Title of the view. |
+| `--open` | id | Where the file opens: a lens, a story (such as `journey-<name>`), or a user guide by its document ID. A link to the file with its own address (`#lens=data`) still wins. |
 | `--watch` | flag | Write again whenever AL source, `app.json`, or `.bca.json` changes. Stop with `Ctrl+C`. |
 | `--debounce` | milliseconds | Delay before writing again with `--watch`. Default: `250`. |
 
