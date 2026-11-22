@@ -64,9 +64,9 @@ to the objects it touches. Pictures are SVG diagrams, drawn by BC Atlas itself.
 **User guides.** The page of a page lists the user guides from the AL UI
 tests that show it, with the steps that happen there and who performs them.
 Once `bca docs generate` has written the guides (to `docs.outputDir`,
-default `docs/generated`), each is a link; and `bca docs generate --layers
-<folder>` (default `docs/layers`) links every guide back to the pages of the
-system it uses, through `layers.json`. Write the layers first, then the
+default `docs/generated`), each is a link; and
+`bca docs generate --layers <folder>` (default `docs/layers`) links every
+guide back to the pages of the system it uses, through `layers.json`. Write the layers first, then the
 guides, then the layers again, and both sides link.
 
 ## What is written, and how: the documentation profile
