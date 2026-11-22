@@ -16,6 +16,16 @@ export const DOCUMENTATION_TAGS = Object.freeze({
     value: "sentence",
     description: "Defines the user-facing objective and expected business outcome of the scenario."
   },
+  JOURNEY: {
+    cardinality: "many",
+    value: "text",
+    description: "Names an end-to-end business process; the scenarios of a journey are documented as one, in the order of their [REQUIRES] and [NEXT] links."
+  },
+  ROLE: {
+    cardinality: "many",
+    value: "text",
+    description: "Names the business role that performs the scenario, such as Warehouse Worker, for the index by role."
+  },
   PERMISSIONS: {
     cardinality: "many",
     value: "text",
@@ -43,6 +53,22 @@ export const DOCUMENTATION_TAGS = Object.freeze({
     cardinality: "many",
     value: "sentence",
     description: "Describes test cleanup that is excluded from the generated user workflow."
+  },
+  MONITOR: {
+    cardinality: "many",
+    value: "sentence",
+    description: "Tells support what to watch to see that the process runs, for the support runbook."
+  },
+  RECOVERY: {
+    cardinality: "many",
+    value: "sentence",
+    description: "Tells support how to recover when the process fails, for the support runbook."
+  },
+  TROUBLESHOOT: {
+    cardinality: "many",
+    value: "sentence",
+    description: "Describes a symptom and its cause or fix, for the support runbook.",
+    aliases: ["TROUBLESHOOTING"]
   },
   REQUIRES: {
     cardinality: "many",
@@ -77,6 +103,9 @@ export const PREREQUISITE_TYPES = Object.freeze({
   "FEATURE-FLAG": "feature-flag",
   STATE: "state"
 });
+
+// The tags of the support runbook, in the order a runbook reads them.
+export const RUNBOOK_TAGS = Object.freeze({ MONITOR: "monitor", RECOVERY: "recovery", TROUBLESHOOT: "troubleshoot" });
 
 export const RELATION_TAGS = Object.freeze(
   Object.fromEntries(

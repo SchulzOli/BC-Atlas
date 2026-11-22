@@ -64,6 +64,10 @@ async function validate(input, values) {
   else if (!corpus.diagnostics.length) {
     console.log(`Documentation corpus is valid (${corpus.scenarios.length} scenario(s)${corpus.skipped.length ? `; ${corpus.skipped.length} [SCENARIO] test(s) without UI steps are not documented` : ""}).`);
   }
+  if (values.format !== "json" && corpus.undocumented.length) {
+    console.error(`${corpus.undocumented.length} UI test(s) have no [SCENARIO] and are not documented:`);
+    for (const { path: file, procedure } of corpus.undocumented) console.error(`  ${portable(path.relative(corpus.root, file)) || path.basename(file)}#${procedure}`);
+  }
   else for (const item of corpus.diagnostics) console.error(`${item.severity}: ${item.code}: ${item.message}`);
   const serious = corpus.diagnostics.filter(({ severity }) =>
     severity === "error" || (values.strict && severity === "warning"));

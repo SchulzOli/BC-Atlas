@@ -188,6 +188,7 @@ details{margin-top:12px;font-size:13px;color:var(--muted)}
 <div class="layout">
 <nav aria-label="Contents">
 <h2>Use cases</h2><ul><li><a href="#use-case-warehouse-requests">Warehouse requests</a></li></ul>
+<h2>End-to-end journeys</h2><ul><li><a href="#journey-inbound-warehouse-request">Inbound warehouse request</a></li></ul>
 <h2>Scenarios</h2><ul><li data-search="warehouse-request-create create a new warehouse request warehouse-requests"><a href="#warehouse-request-create">Create a new Warehouse Request</a></li><li data-search="warehouse-request-process process an existing warehouse request from the request list warehouse-requests"><a href="#warehouse-request-process">Process an existing warehouse request from the request list</a></li></ul>
 </nav>
 <main>
@@ -213,7 +214,27 @@ details{margin-top:12px;font-size:13px;color:var(--muted)}
 <g class="bpmn-end"><circle cx="650" cy="88" r="18" fill="#fdecea" stroke="#c62828" stroke-width="3.5"/></g>
 </svg>
 </div><ol><li><a href="#warehouse-request-create">Create a new Warehouse Request</a></li><li><a href="#warehouse-request-process">Process an existing warehouse request from the request list</a></li></ol>
-<h2>Journey</h2><div class="journey"><svg xmlns="http://www.w3.org/2000/svg" class="bca-diagram" viewBox="0 0 547 161" width="547" height="161" font-family="Arial, Helvetica, 'Liberation Sans', sans-serif">
+<h2>End-to-end journeys</h2>
+<h3 id="journey-inbound-warehouse-request">Inbound warehouse request</h3><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 716 176" width="716" height="176" role="img" aria-label="Inbound warehouse request" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+<title>Inbound warehouse request</title>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<defs><marker id="arrow-Process_journey-inbound-warehouse-request" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 1L10 5L0 9z" fill="#5b6470"/></marker></defs>
+<rect x="24" y="24" width="668" height="128" fill="#ffffff" stroke="#9aa4b0" stroke-width="1.2"/>
+<rect x="24" y="24" width="30" height="128" fill="#f3f6f9" stroke="#9aa4b0" stroke-width="1.2"/>
+<g transform="rotate(-90 39 88)"><text x="39" font-size="12" font-weight="600" fill="#1b1f24" text-anchor="middle" dominant-baseline="middle"><tspan x="39" y="80.5">Inbound</tspan><tspan x="39" y="95.5">warehouse…</tspan></text></g>
+<rect x="54" y="24" width="638" height="128" fill="none" stroke="#9aa4b0" stroke-width="1"/>
+<rect x="54" y="24" width="30" height="128" fill="#f3f6f9" stroke="#9aa4b0" stroke-width="1"/>
+<g transform="rotate(-90 69 88)"><text x="69" font-size="12" font-weight="400" fill="#1b1f24" text-anchor="middle" dominant-baseline="middle"><tspan x="69" y="80.5">WAREHOUSE</tspan><tspan x="69" y="95.5">PROCESS</tspan></text></g>
+<polyline points="144,88 200,88" fill="none" stroke="#5b6470" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#arrow-Process_journey-inbound-warehouse-request)"/>
+<polyline points="360,88 416,88" fill="none" stroke="#5b6470" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#arrow-Process_journey-inbound-warehouse-request)"/>
+<polyline points="576,88 632,88" fill="none" stroke="#5b6470" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#arrow-Process_journey-inbound-warehouse-request)"/>
+<g class="bpmn-start"><circle cx="126" cy="88" r="18" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.6"/></g>
+<a href="#warehouse-request-create"><g class="bpmn-subprocess"><title>Create a new Warehouse Request.</title><rect x="200" y="46" width="160" height="84" rx="10" fill="#eef4fd" stroke="#0b62d6" stroke-width="1.6"/><rect x="273" y="114" width="14" height="14" rx="2" fill="#fff" stroke="#0b62d6" stroke-width="1.2"/><path d="M280 117V125M276 121H284" stroke="#0b62d6" stroke-width="1.4"/><text x="280" font-size="12" font-weight="600" fill="#1b1f24" text-anchor="middle" dominant-baseline="middle"><tspan x="280" y="72.5">Create a new</tspan><tspan x="280" y="87.5">Warehouse Request</tspan></text></g></a>
+<a href="#warehouse-request-process"><g class="bpmn-subprocess"><title>Process an existing warehouse request from the request list.</title><rect x="416" y="46" width="160" height="84" rx="10" fill="#eef4fd" stroke="#0b62d6" stroke-width="1.6"/><rect x="489" y="114" width="14" height="14" rx="2" fill="#fff" stroke="#0b62d6" stroke-width="1.2"/><path d="M496 117V125M492 121H500" stroke="#0b62d6" stroke-width="1.4"/><text x="496" font-size="12" font-weight="600" fill="#1b1f24" text-anchor="middle" dominant-baseline="middle"><tspan x="496" y="65.0">Process an existing</tspan><tspan x="496" y="80.0">warehouse request</tspan><tspan x="496" y="95.0">from the request list</tspan></text></g></a>
+<g class="bpmn-end"><circle cx="650" cy="88" r="18" fill="#fdecea" stroke="#c62828" stroke-width="3.5"/></g>
+</svg>
+</div><ol><li><a href="#warehouse-request-create">Create a new Warehouse Request</a> <span class="muted">Purchasing Agent, WAREHOUSE PROCESS</span></li><li><a href="#warehouse-request-process">Process an existing warehouse request from the request list</a> <span class="muted">Warehouse Worker, WAREHOUSE PROCESS</span></li></ol>
+<h2>Journey map</h2><div class="journey"><svg xmlns="http://www.w3.org/2000/svg" class="bca-diagram" viewBox="0 0 547 161" width="547" height="161" font-family="Arial, Helvetica, 'Liberation Sans', sans-serif">
 <rect class="background" width="547" height="161" fill="#ffffff"/>
 
 
@@ -223,13 +244,18 @@ details{margin-top:12px;font-size:13px;color:var(--muted)}
 
 </svg>
 </div>
+<h2>Scenarios by feature</h2><table><tbody><tr><th>Warehouse requests</th><td><a href="#warehouse-request-create">Create a new Warehouse Request</a>, <a href="#warehouse-request-process">Process an existing warehouse request from the request list</a></td></tr></tbody></table>
+<h2>Scenarios by role</h2><table><tbody><tr><th>Purchasing Agent</th><td><a href="#warehouse-request-create">Create a new Warehouse Request</a></td></tr><tr><th>Warehouse Worker</th><td><a href="#warehouse-request-process">Process an existing warehouse request from the request list</a></td></tr></tbody></table>
 <h2>Scenarios by page</h2><table><tbody><tr><th>Warehouse Requests</th><td><a href="#warehouse-request-create">Create a new Warehouse Request</a>, <a href="#warehouse-request-process">Process an existing warehouse request from the request list</a></td></tr></tbody></table>
 <h2>Scenarios by permission set</h2><table><tbody><tr><th>WAREHOUSE PROCESS</th><td><a href="#warehouse-request-create">Create a new Warehouse Request</a>, <a href="#warehouse-request-process">Process an existing warehouse request from the request list</a></td></tr></tbody></table>
-<h2>Coverage</h2><p>1 of 1 pages are covered by at least one scenario.</p>
+<h2>Support runbook</h2><h3><a href="#warehouse-request-process">Process an existing warehouse request from the request list</a></h3><h4>What to monitor</h4><ul><li>Requests that stay unprocessed for more than a day in the Warehouse Requests list.</li></ul><h4>How to recover</h4><ul><li>Open the request again and choose Process; processing a request twice changes nothing.</li></ul><h4>Troubleshooting</h4><ul><li>Process is not available: the user lacks the WAREHOUSE PROCESS permission set.</li></ul>
+<h2>Coverage</h2>
+<p>1 of 1 pages are covered by at least one scenario.</p>
+<h3>UI tests without documentation</h3><p>1 UI test(s) have no [SCENARIO] and are not documented.</p><ul><li><code>WarehouseUITests.al#WarehouseRequests_OpenList_ShowsRequests</code></li></ul>
 </section>
-<article id="warehouse-request-create" data-search="warehouse-request-create create a new warehouse request create a new warehouse request. warehouse-requests warehouse process">
+<article id="warehouse-request-create" data-search="warehouse-request-create create a new warehouse request create a new warehouse request. warehouse-requests purchasing agent warehouse process">
 <h2>Create a new Warehouse Request</h2>
-<p class="chips"><span>Warehouse requests</span></p><p class="short">Use this guide to create a new Warehouse Request.</p>
+<p class="chips"><span>Warehouse requests</span><span>Purchasing Agent</span></p><p class="short">Use this guide to create a new Warehouse Request.</p>
 <div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1008 176" width="1008" height="176" role="img" aria-label="Create a new Warehouse Request" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
 <title>Create a new Warehouse Request</title>
 <rect width="100%" height="100%" fill="#ffffff"/>
@@ -254,12 +280,12 @@ details{margin-top:12px;font-size:13px;color:var(--muted)}
 <h3>What should happen</h3><ul><li>The warehouse request is saved with the entered description.</li></ul>
 <h3>Next steps</h3><ul><li><a href="#warehouse-request-process">Process an existing warehouse request from the request list</a></li></ul>
 <details><summary>Source and verification</summary>
-File: <code>WarehouseUITests.al</code> · Function: <code>WarehouseRequests_CreateRequest_PersistsDescription</code> · Source SHA-256: <code>723224931c0f46093e43ec4676c2ef06da865a49ead55f29f73bc0d692e3f70e</code>
+File: <code>WarehouseUITests.al</code> · Function: <code>WarehouseRequests_CreateRequest_PersistsDescription</code> · Source SHA-256: <code>94bbae274066562efab4658cb5eeda179b56ea45202544dc06348e6cedce35ed</code>
 </details>
 </article>
-<article id="warehouse-request-process" data-search="warehouse-request-process process an existing warehouse request from the request list process an existing warehouse request from the request list. warehouse-requests warehouse process">
+<article id="warehouse-request-process" data-search="warehouse-request-process process an existing warehouse request from the request list process an existing warehouse request from the request list. warehouse-requests warehouse worker warehouse process">
 <h2>Process an existing warehouse request from the request list</h2>
-<p class="chips"><span>Warehouse requests</span></p><p class="short">Use this guide to process an existing warehouse request from the request list.</p>
+<p class="chips"><span>Warehouse requests</span><span>Warehouse Worker</span></p><p class="short">Use this guide to process an existing warehouse request from the request list.</p>
 <div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1008 176" width="1008" height="176" role="img" aria-label="Process an existing warehouse request from the request list" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
 <title>Process an existing warehouse request from the request list</title>
 <rect width="100%" height="100%" fill="#ffffff"/>
@@ -281,8 +307,9 @@ File: <code>WarehouseUITests.al</code> · Function: <code>WarehouseRequests_Crea
 <h3>Steps</h3>
 <ol class="steps"><li>Choose the 🔍 icon, enter <b class="ui">Warehouse Requests</b>, and then choose the related link.</li><li>Select the record you want to work with.</li><li>Choose the <b class="ui">Process</b> action.<span class="info">Process the selected warehouse request and mark it as processed.</span></li><li>Close the <b class="ui">Warehouse Requests</b> page. Business Central saves your changes.</li></ol>
 <h3>What should happen</h3><ul><li>The warehouse request is marked as processed.</li></ul>
+<h3>Support</h3><h4>What to monitor</h4><ul><li>Requests that stay unprocessed for more than a day in the Warehouse Requests list.</li></ul><h4>How to recover</h4><ul><li>Open the request again and choose Process; processing a request twice changes nothing.</li></ul><h4>Troubleshooting</h4><ul><li>Process is not available: the user lacks the WAREHOUSE PROCESS permission set.</li></ul>
 <details><summary>Source and verification</summary>
-File: <code>WarehouseUITests.al</code> · Function: <code>WarehouseRequests_ProcessRequest_MarksRequestProcessed</code> · Source SHA-256: <code>1d0f50f47d4649d681fa22efc87c915400cf23f756c0da2639d6fa4bb33ca5c7</code>
+File: <code>WarehouseUITests.al</code> · Function: <code>WarehouseRequests_ProcessRequest_MarksRequestProcessed</code> · Source SHA-256: <code>9bc2bb49f37dd728c24b2473ad3c871d981f85357690b328fef4bcc3e89070d3</code>
 </details>
 </article>
 </main>

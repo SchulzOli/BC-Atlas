@@ -5,9 +5,9 @@
   <shortdesc>Use this guide to process an existing warehouse request from the request list.</shortdesc>
   <prolog>
     <metadata>
-      <keywords><keyword>warehouse-requests</keyword></keywords>
+      <keywords><keyword>warehouse-requests</keyword><keyword>Warehouse Worker</keyword></keywords>
       <othermeta name="bc-atlas-source" content="WarehouseUITests.al#WarehouseRequests_ProcessRequest_MarksRequestProcessed"/>
-      <othermeta name="bc-atlas-source-sha256" content="1d0f50f47d4649d681fa22efc87c915400cf23f756c0da2639d6fa4bb33ca5c7"/>
+      <othermeta name="bc-atlas-source-sha256" content="9bc2bb49f37dd728c24b2473ad3c871d981f85357690b328fef4bcc3e89070d3"/>
     </metadata>
   </prolog>
   <taskbody>
@@ -27,5 +27,7 @@
       </step>
     </steps>
     <result><ul><li>The warehouse request is marked as processed.</li></ul></result>
+    <tasktroubleshooting><p><b>Troubleshooting</b></p><ul><li>Process is not available: the user lacks the WAREHOUSE PROCESS permission set.</li></ul><p><b>How to recover</b></p><ul><li>Open the request again and choose Process; processing a request twice changes nothing.</li></ul></tasktroubleshooting>
+    <postreq><p><b>What to monitor</b></p><ul><li>Requests that stay unprocessed for more than a day in the Warehouse Requests list.</li></ul></postreq>
   </taskbody>
 </task>

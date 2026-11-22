@@ -5,9 +5,16 @@ import { readFileSync } from "node:fs";
 import { label, phrase } from "../phrases.js";
 import { escapeXml, html } from "./format.js";
 import { testCaseRows } from "./markdown.js";
-import { humanizeFeature, sameAsTitle } from "../task.js";
+import { hasRunbook, humanizeFeature, sameAsTitle } from "../task.js";
 
 const LINK_HEADINGS = { next: "heading.next", related: "heading.related", alternative: "heading.alternative" };
+const RUNBOOK_HEADINGS = { monitor: "heading.monitor", recovery: "heading.recovery", troubleshoot: "heading.troubleshoot" };
+
+/** [MONITOR], [RECOVERY], and [TROUBLESHOOT] of a scenario. */
+function runbookHtml(task, tag = "h4") {
+  return Object.entries(RUNBOOK_HEADINGS).filter(([key]) => task.runbook[key].length).map(([key, heading]) =>
+    `<${tag}>${label(task.language, heading)}</${tag}><ul>${task.runbook[key].map((item) => `<li>${html([item])}</li>`).join("")}</ul>`).join("");
+}
 
 // The BC Atlas design tokens (src/ui/theme.css), so the guides look like the app.
 const STYLE = `${readFileSync(new URL("../../ui/theme.css", import.meta.url), "utf8")}
@@ -95,6 +102,7 @@ function guideBody(task) {
     }).join("")}</ol>`);
   }
   parts.push(`<h3>${label(language, "heading.result")}</h3><ul>${task.result.map((item) => `<li>${escapeXml(item)}</li>`).join("")}</ul>`);
+  if (hasRunbook(task)) parts.push(`<h3>${label(language, "heading.support")}</h3>${runbookHtml(task)}`);
   for (const [kind, heading] of Object.entries(LINK_HEADINGS)) {
     if (task.links[kind].length) {
       parts.push(`<h3>${label(language, heading)}</h3><ul>${task.links[kind].map((target) => `<li>${link(target)}</li>`).join("")}</ul>`);
@@ -132,8 +140,9 @@ function diagram(svg) {
 /** One scenario as a guide or test case, with its flow. */
 export function articleHtml(task, mode, flow, { heading = true } = {}) {
   const { language } = task;
-  const search = [task.id, task.title, task.goal, ...task.features, ...task.permissions].join(" ").toLowerCase();
-  const chips = task.features.length ? `<p class="chips">${task.features.map((feature) => `<span>${escapeXml(humanizeFeature(feature))}</span>`).join("")}</p>` : "";
+  const search = [task.id, task.title, task.goal, ...task.features, ...task.roles, ...task.permissions].join(" ").toLowerCase();
+  const tags = [...task.features.map(humanizeFeature), ...task.roles];
+  const chips = tags.length ? `<p class="chips">${tags.map((tag) => `<span>${escapeXml(tag)}</span>`).join("")}</p>` : "";
   return `<article id="${escapeXml(task.id)}" data-search="${escapeXml(search)}">
 ${heading ? `<h2>${mode === "testcase" ? `${escapeXml(label(language, "testcase.title", { id: task.id }))}: ` : ""}${escapeXml(task.title)}</h2>\n` : ""}${chips}${mode === "testcase" ? "" : `<p class="short">${html(task.shortdesc)}</p>`}
 ${diagram(flow)}
@@ -156,6 +165,14 @@ export function useCaseHtml(useCase, catalog, processSvg, { heading = "h3" } = {
   return parts.join("\n");
 }
 
+/** An end-to-end journey: its process and its stages, in order, with who does each. */
+export function journeyHtml(journey, catalog, processSvg, { heading = "h3" } = {}) {
+  return `${heading ? `<${heading} id="${escapeXml(journey.id)}">${escapeXml(journey.title)}</${heading}>` : ""}${diagram(processSvg)}<ol>${journey.tasks.map((task) => {
+    const who = [...task.roles, ...task.permissions];
+    return `<li>${link({ ...task, exists: true })}${who.length ? ` <span class="muted">${escapeXml(who.join(", "))}</span>` : ""}</li>`;
+  }).join("")}</ol>`;
+}
+
 function overview(catalog, journeySvg, processes) {
   const { language } = catalog;
   const t = (key, values) => label(language, key, values);
@@ -165,12 +182,16 @@ function overview(catalog, journeySvg, processes) {
     parts.push(`<h2>${t("heading.use-cases")}</h2>`);
     for (const useCase of catalog.useCases) parts.push(useCaseHtml(useCase, catalog, processes?.get(useCase.id)));
   }
+  if (catalog.journeys.length) {
+    parts.push(`<h2>${t("heading.journeys")}</h2>`);
+    for (const journey of catalog.journeys) parts.push(journeyHtml(journey, catalog, processes?.get(journey.id)));
+  }
   parts.push(indexHtml(catalog, journeySvg));
   parts.push("</section>");
   return parts.join("\n");
 }
 
-/** The journey across use cases, the scenarios by page and permission set, and the page coverage. */
+/** The journey across use cases, the indexes, the runbook, and the coverage. */
 export function indexHtml(catalog, journeySvg) {
   const { language } = catalog;
   const t = (key, values) => label(language, key, values);
@@ -180,15 +201,31 @@ export function indexHtml(catalog, journeySvg) {
     ? `<h2>${heading}</h2><table><tbody>${rows.map(({ name, tasks }) =>
       `<tr><th>${escapeXml(name)}</th><td>${tasks.map((task) => link({ ...task, exists: true })).join(", ")}</td></tr>`).join("")}</tbody></table>`
     : "";
-  parts.push(table(t("heading.by-page"), catalog.byPage), table(t("heading.by-permission"), catalog.byPermission));
-  if (catalog.coverage) {
-    const { coverage } = catalog;
-    parts.push(`<h2>${t("heading.coverage")}</h2><p>${escapeXml(t("label.coverage", { covered: String(coverage.covered), total: String(coverage.total) }))}</p>`);
-    if (coverage.untouchedPages.length) {
+  parts.push(
+    table(t("heading.by-feature"), catalog.byFeature),
+    table(t("heading.by-role"), catalog.byRole),
+    table(t("heading.by-page"), catalog.byPage),
+    table(t("heading.by-permission"), catalog.byPermission)
+  );
+  if (catalog.runbook.length) {
+    parts.push(`<h2>${t("heading.runbook")}</h2>${catalog.runbook.map((task) =>
+      `<h3>${link({ ...task, exists: true })}</h3>${runbookHtml(task)}`).join("")}`);
+  }
+  const { coverage } = catalog;
+  if (coverage.total !== undefined || coverage.undocumentedTests.length) {
+    parts.push(`<h2>${t("heading.coverage")}</h2>`);
+    if (coverage.total !== undefined) {
+      parts.push(`<p>${escapeXml(t("label.coverage", { covered: String(coverage.covered), total: String(coverage.total) }))}</p>`);
+    }
+    if (coverage.undocumentedTests.length) {
+      parts.push(`<h3>${t("heading.undocumented-tests")}</h3><p>${escapeXml(t("label.undocumented", { count: String(coverage.undocumentedTests.length) }))}</p><ul>${coverage.undocumentedTests.map(({ file, procedure }) =>
+        `<li><code>${escapeXml(`${file}#${procedure}`)}</code></li>`).join("")}</ul>`);
+    }
+    if (coverage.untouchedPages?.length) {
       parts.push(`<h3>${t("heading.untouched-pages")}</h3><ul>${coverage.untouchedPages.map(({ caption, id }) =>
         `<li>${escapeXml(caption)}${id ? ` <span class="muted">(${escapeXml(id)})</span>` : ""}</li>`).join("")}</ul>`);
     }
-    if (coverage.unusedActions.length) {
+    if (coverage.unusedActions?.length) {
       parts.push(`<h3>${t("heading.unused-actions")}</h3><ul>${coverage.unusedActions.map(({ page, action }) =>
         `<li>${escapeXml(page)}: ${escapeXml(action)}</li>`).join("")}</ul>`);
     }
@@ -217,6 +254,8 @@ export function renderHtml(catalog, { mode = "guide", journeySvg, flows, process
 <nav aria-label="${escapeXml(t("label.contents"))}">
 ${navUseCases.length ? `<h2>${t("heading.use-cases")}</h2><ul>${catalog.useCases.map((useCase) =>
     `<li><a href="#${escapeXml(useCase.id)}">${escapeXml(useCase.title)}</a></li>`).join("")}</ul>` : ""}
+${catalog.journeys.length ? `<h2>${t("heading.journeys")}</h2><ul>${catalog.journeys.map((journey) =>
+    `<li><a href="#${escapeXml(journey.id)}">${escapeXml(journey.title)}</a></li>`).join("")}</ul>` : ""}
 <h2>${t("heading.scenarios")}</h2><ul>${catalog.tasks.map((task) =>
     `<li data-search="${escapeXml([task.id, task.title, ...task.features].join(" ").toLowerCase())}"><a href="#${escapeXml(task.id)}">${escapeXml(task.title)}</a></li>`).join("")}</ul>
 </nav>

@@ -6,4 +6,8 @@
     <topicref href="warehouse-request-create.dita" type="task" navtitle="Create a new Warehouse Request"/>
     <topicref href="warehouse-request-process.dita" type="task" navtitle="Process an existing warehouse request from the request list"/>
   </topichead>
+  <topichead navtitle="End-to-end journey: Inbound warehouse request">
+    <topicref href="warehouse-request-create.dita" type="task" navtitle="Create a new Warehouse Request"/>
+    <topicref href="warehouse-request-process.dita" type="task" navtitle="Process an existing warehouse request from the request list"/>
+  </topichead>
 </map>

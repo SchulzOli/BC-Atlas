@@ -9,7 +9,8 @@ import {
   DOCUMENTATION_TAGS,
   isDocumentId,
   PREREQUISITE_TYPES,
-  RELATION_TAGS
+  RELATION_TAGS,
+  RUNBOOK_TAGS
 } from "./tags.js";
 import { humanizeIdentifier, inlineStep, operationStep } from "./steps.js";
 import { markdown } from "./render/format.js";
@@ -608,6 +609,9 @@ function guideExpectedResults(items, creationTarget) {
   });
 }
 
+// What the OnRun trigger can say for every test of the codeunit.
+const CODEUNIT_TAGS = new Set(["FEATURE", "JOURNEY", "ROLE"]);
+
 export async function parseAlUiTest(source, filename, requestedProcedure) {
   const tests = [...source.matchAll(AL_TEST_PATTERN)];
   if (!tests.length) throw new Error(`${path.basename(filename)} contains no [Test] procedures`);
@@ -640,7 +644,7 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
   }
   const sourceText = source.slice(selected.index, end).trim().replace(/\n\s*\}\s*$/u, "");
   // Tags of the whole codeunit (its OnRun trigger) come first.
-  const codeunitEntries = taggedEntries(structure.onRun).filter(({ tag }) => canonicalTag(tag) === "FEATURE");
+  const codeunitEntries = taggedEntries(structure.onRun).filter(({ tag }) => CODEUNIT_TAGS.has(canonicalTag(tag)));
   const entries = [...codeunitEntries, ...taggedEntries(sourceText)];
   const comments = taggedComments(entries);
   const diagnostics = tagDiagnostics(entries);
@@ -700,6 +704,9 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
     expected: expectedResults,
     guideExpected: guideExpectedResults(expectedResults, guidance.creationTarget),
     features: uniqueValues(commentValues(comments, "FEATURE")),
+    journeys: uniqueValues(commentValues(comments, "JOURNEY")),
+    roles: uniqueValues(commentValues(comments, "ROLE")),
+    runbook: Object.fromEntries(Object.entries(RUNBOOK_TAGS).map(([tag, key]) => [key, commentValues(comments, tag)])),
     references: uniqueValues(entries.map(({ reference }) => reference).filter(Boolean)),
     links: parsedLinks(comments),
     metadata: entries.map(({ tag, qualifier, text, reference }) => ({
@@ -745,17 +752,27 @@ function hasUiSteps(value) {
   return value.guideOperations.length > 0 || value.guideSections.some(({ operations }) => operations.length);
 }
 
+/** True when the test drives a page: a TestPage of the file or of its own var section. */
+function drivesPage(body, testPages) {
+  if (new RegExp(TEST_PAGE_PATTERN.source, "iu").test(body)) return true;
+  return [...testPages.keys()].some((name) => new RegExp(`\\b${name}\\s*\\.`, "iu").test(body));
+}
+
 /**
  * The documented scenarios of one AL file. `skipped` collects [SCENARIO]
  * tests without any UI step; they stay out of the documentation.
+ * `undocumented` collects UI tests without a [SCENARIO]: tests that drive a
+ * page and have no documentation yet.
  */
-export async function loadAlUiTests(filename, skipped = []) {
+export async function loadAlUiTests(filename, skipped = [], undocumented = []) {
   const absolutePath = path.resolve(filename);
   const content = await fs.readFile(absolutePath, "utf8");
-  if (!collectTestPages(content).size) return [];
-  const procedures = [...content.matchAll(AL_TEST_PATTERN)].map((match) => match[1]);
+  const testPages = collectTestPages(content);
+  if (!testPages.size) return [];
+  const tests = [...content.matchAll(AL_TEST_PATTERN)];
+  const procedures = tests.map((match) => match[1]);
   const scenarios = [];
-  for (const procedure of procedures) {
+  for (const [index, procedure] of procedures.entries()) {
     try {
       const value = await parseAlUiTest(content, absolutePath, procedure);
       // A test without UI steps documents nothing a user does, unless its author gave it a [DOC-ID].
@@ -772,6 +789,8 @@ export async function loadAlUiTests(filename, skipped = []) {
       });
     } catch (error) {
       if (!/must have a \/\/ \[SCENARIO\] comment/u.test(error.message)) throw error;
+      const body = content.slice(tests[index].index, tests[index + 1]?.index ?? content.length);
+      if (drivesPage(body, testPages)) undocumented.push({ path: absolutePath, procedure });
     }
   }
   return scenarios;

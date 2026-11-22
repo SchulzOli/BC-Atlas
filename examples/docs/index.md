@@ -6,14 +6,31 @@
 
 - [Warehouse requests](./use-case-warehouse-requests.md) (2)
 
+## End-to-end journeys
+
+- [Inbound warehouse request](./journey-inbound-warehouse-request.md) (2)
+
 ## Scenarios
 
 - [Create a new Warehouse Request](./warehouse-request-create.md)
 - [Process an existing warehouse request from the request list](./warehouse-request-process.md)
 
-## Journey
+## Journey map
 
-![Journey](./journey.svg)
+![Journey map](./journey.svg)
+
+## Scenarios by feature
+
+| Feature | Scenarios |
+| --- | --- |
+| Warehouse requests | [Create a new Warehouse Request](./warehouse-request-create.md), [Process an existing warehouse request from the request list](./warehouse-request-process.md) |
+
+## Scenarios by role
+
+| Role | Scenarios |
+| --- | --- |
+| Purchasing Agent | [Create a new Warehouse Request](./warehouse-request-create.md) |
+| Warehouse Worker | [Process an existing warehouse request from the request list](./warehouse-request-process.md) |
 
 ## Scenarios by page
 
@@ -27,6 +44,16 @@
 | --- | --- |
 | WAREHOUSE PROCESS | [Create a new Warehouse Request](./warehouse-request-create.md), [Process an existing warehouse request from the request list](./warehouse-request-process.md) |
 
+## Support runbook
+
+- [Support runbook](./runbook.md) (1)
+
 ## Coverage
 
 1 of 1 pages are covered by at least one scenario.
+
+### UI tests without documentation
+
+1 UI test(s) have no [SCENARIO] and are not documented.
+
+- `WarehouseUITests.al#WarehouseRequests_OpenList_ShowsRequests`

@@ -55,6 +55,8 @@ the open standard for step-by-step procedures:
 | `[DOC-ID]` | Stable identity and output filename | `task/@id` |
 | `[SCENARIO]` | Title and summary | `title`, `shortdesc` |
 | `[FEATURE]` | Use case that groups scenarios | `keywords`, map `topichead` |
+| `[JOURNEY]` | End-to-end journey across several scenarios | map `topichead` |
+| `[ROLE]` | “Performed by” and the index by role | `keywords` |
 | `[PERMISSIONS]`, `[GIVEN]`, `[REQUIRES]` | “Before you start” | `prereq` |
 | `[WHEN]` | Numbered user phase | `step` |
 | `TestPage` calls | Page, field, action, and save instructions | `cmd` / `substep` |
@@ -62,6 +64,8 @@ the open standard for step-by-step procedures:
 | `[THEN]` between two `[WHEN]` phases | Result of that phase | `stepresult` |
 | `[THEN]` after the last `[WHEN]` | “What should happen” | `result` |
 | `[NEXT]`, `[RELATED]`, `[ALTERNATIVE]` | Links to other guides | `related-links` |
+| `[TROUBLESHOOT]`, `[RECOVERY]` | “Support” section and the support runbook | `tasktroubleshooting` |
+| `[MONITOR]` | “Support” section and the support runbook | `postreq` |
 | `[TEARDOWN]` | Recognized test cleanup; omitted from the user guide | - |
 
 When `[THEN]` has no text, the `[SCENARIO]` sentence is used as the expected
@@ -90,7 +94,7 @@ begin
 
 | Source | Read as |
 | --- | --- |
-| `[FEATURE]` in the `OnRun` trigger | Features of every test in the codeunit, before the test's own. |
+| `[FEATURE]` in the `OnRun` trigger | Features of every test in the codeunit, before the test's own. `[JOURNEY]` and `[ROLE]` work the same way. |
 | `[FEATURE] [Sales] [Invoice]` | One feature per bracket; `[UI]` and `[UT]` mark the kind of test and are left out. |
 | `[SCENARIO 218101] Text` | The work item number is kept as a reference (`references` in JSON); repeated `[SCENARIO]` lines form one sentence. |
 | `[VERIFY]` | Same as `[THEN]`. |
@@ -144,6 +148,8 @@ permission entry is generated and documentation generation continues normally.
 | --- | --- | --- |
 | `[DOC-ID]` | lowercase hyphenated ID | Stable scenario identity, independent of procedure renames. |
 | `[FEATURE]` | text | Feature or domain classification. |
+| `[JOURNEY]` | text | End-to-end business process the scenario is a stage of. |
+| `[ROLE]` | text | Business role that performs the scenario, such as Warehouse Worker. |
 | `[SCENARIO]` | sentence | Scenario title and goal. |
 | `[PERMISSIONS]` | text | Required permission set. `[PERMISSION]` is an alias. |
 | `[GIVEN]` | sentence | General prerequisite. |
@@ -159,6 +165,41 @@ permission entry is generated and documentation generation continues normally.
 | `[NEXT]` | document ID | Recommended next guide. |
 | `[RELATED]` | document ID | Related guide. |
 | `[ALTERNATIVE]` | document ID | Alternative path. |
+| `[MONITOR]` | sentence | What support watches to see that the process runs. |
+| `[RECOVERY]` | sentence | How support recovers when the process fails. |
+| `[TROUBLESHOOT]` | sentence | A symptom and its cause or fix. `[TROUBLESHOOTING]` is an alias. |
+
+### End-to-end journeys
+
+A business process often spans several UI tests: one person creates a
+request, another processes it. Give each of them the same `[JOURNEY]`, and
+link them with `[REQUIRES]` or `[NEXT]` for the order:
+
+```al
+// [DOC-ID] warehouse-request-process
+// [JOURNEY] Inbound warehouse request
+// [ROLE] Warehouse Worker
+// [REQUIRES] warehouse-request-create
+```
+
+Every journey becomes one page, `journey-<name>.md`: its process (one lane per
+permission set), the stages with who performs them, and then every stage with
+its prerequisites, steps, and result, so the whole process reads from start to
+end. A scenario can be a stage of several journeys.
+
+### Support runbooks
+
+`[MONITOR]`, `[RECOVERY]`, and `[TROUBLESHOOT]` are for the people who support
+the process, not for the user who runs it:
+
+```al
+// [MONITOR] Requests that stay unprocessed for more than a day.
+// [RECOVERY] Open the request again and choose Process; processing twice changes nothing.
+// [TROUBLESHOOT] Process is not available: the user lacks the WAREHOUSE PROCESS permission set.
+```
+
+A guide with any of them gets a “Support” section after its result, and
+`runbook.md` collects them, scenario by scenario, with a link to each guide.
 
 Use one fact per comment. Use exact document IDs for relationships. Do not
 invent a target ID: `bca docs list <root>` shows available IDs, and
@@ -213,11 +254,11 @@ bca docs generate test/UITest --app app --export markdown,html,dita,ado-csv,bpmn
 
 | `--export` | Files | Use it for |
 | --- | --- | --- |
-| `markdown` (default) | `<id>.md`, `use-case-<feature>.md`, `index.md`, `journey.d2`/`.svg`, `diagrams/*.svg` | Repository docs, GitHub/Azure DevOps wikis, DocFX |
+| `markdown` (default) | `<id>.md`, `use-case-<feature>.md`, `journey-<name>.md`, `runbook.md`, `index.md`, `journey.d2`/`.svg`, `diagrams/*.svg` | Repository docs, GitHub/Azure DevOps wikis, DocFX |
 | `html` | `index.html` (one self-contained file) | Sharing, printing to PDF, pipeline artifacts |
 | `dita` | `<id>.dita`, `documentation.ditamap` | DITA Open Toolkit, CCMS and help-authoring tools |
 | `ado-csv` | `test-cases.csv` | Azure DevOps Test Plans: grid view → Import test cases |
-| `bpmn` | `use-case-<feature>.bpmn` | Camunda Modeler, bpmn.io, Signavio, and other BPMN 2.0 tools |
+| `bpmn` | `use-case-<feature>.bpmn`, `journey-<name>.bpmn` | Camunda Modeler, bpmn.io, Signavio, and other BPMN 2.0 tools |
 
 ### User guide or test case
 
@@ -261,7 +302,8 @@ Markdown and HTML include three diagrams, all derived from the same tags:
 | --- | --- | --- |
 | Scenario flow | “At a glance” on every guide or test case | Each click as a step, from start to the `[THEN]` result. A `[THEN]` between two `[WHEN]` phases is a milestone; a repeated block has a loop marker. Long flows wrap into rows. |
 | Use-case process | Top of every use-case page | One lane per permission set, one box per scenario in `[NEXT]`/`[REQUIRES]` order, and a decision where `[ALTERNATIVE]` paths branch. In HTML, a box links to its guide. |
-| Journey | `index.md` (D2) | All linked scenarios grouped by use case, with permission set and number of steps; `[RELATED]` and `[ALTERNATIVE]` as dashed lines. |
+| End-to-end journey | Top of every journey page | The use-case process for the scenarios of one `[JOURNEY]`. |
+| Journey map | `index.md` (D2) | All linked scenarios grouped by use case, with permission set and number of steps; `[RELATED]` and `[ALTERNATIVE]` as dashed lines. |
 
 The scenario flow and the use-case process use BPMN 2.0 notation: a thin
 circle starts, a bold circle ends, a double circle marks a reached state, a
@@ -276,17 +318,24 @@ is generated: change the AL tags and regenerate rather than editing it.
 
 ![Use-case process for the warehouse example](../examples/docs/diagrams/use-case-warehouse-requests.svg)
 
-### Index, use cases, and journey
+### Index, use cases, and journeys
 
 `index.md` (and the overview of `index.html`) contains:
 
 - one use case per `[FEATURE]`, listing its main scenarios in prerequisite
   order and the `[ALTERNATIVE]` scenarios separately, with its process
   diagram;
-- a journey diagram of `[REQUIRES]`, `[NEXT]`, `[RELATED]`, and
+- the end-to-end journeys, one per `[JOURNEY]`;
+- a journey map of `[REQUIRES]`, `[NEXT]`, `[RELATED]`, and
   `[ALTERNATIVE]` links;
-- scenarios by page and by permission set;
-- coverage of app pages and actions (with `--app`).
+- scenarios by feature, by role, by page, and by permission set;
+- a link to the support runbook, when a scenario has one;
+- coverage: the UI tests without documentation (tests that drive a
+  `TestPage` but have no `[SCENARIO]`), and, with `--app`, the pages without a
+  guide and the actions no scenario uses.
+
+`bca docs validate` lists the UI tests without documentation too, without
+failing.
 
 ## Inspect and edit metadata
 

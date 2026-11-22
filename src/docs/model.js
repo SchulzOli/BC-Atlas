@@ -116,11 +116,14 @@ export function validateCorpus(scenarios) {
   return { byId, diagnostics };
 }
 
+const byProcedure = (a, b) => a.path.localeCompare(b.path) || a.procedure.localeCompare(b.procedure);
+
 export async function loadCorpus(input) {
   const root = path.resolve(input);
   const files = await collectAlFiles(root);
   const skipped = [];
-  const scenarios = (await Promise.all(files.map((file) => loadAlUiTests(file, skipped))))
+  const undocumented = [];
+  const scenarios = (await Promise.all(files.map((file) => loadAlUiTests(file, skipped, undocumented))))
     .flat()
     .sort((left, right) =>
       left.value.id.localeCompare(right.value.id) || left.reference.localeCompare(right.reference)
@@ -131,7 +134,9 @@ export async function loadCorpus(input) {
     files,
     scenarios,
     // [SCENARIO] tests without UI steps, which are not documented.
-    skipped: skipped.sort((a, b) => a.path.localeCompare(b.path) || a.procedure.localeCompare(b.procedure)),
+    skipped: skipped.sort(byProcedure),
+    // UI tests without a [SCENARIO]: what is not documented yet.
+    undocumented: undocumented.sort(byProcedure),
     byId: validation.byId,
     diagnostics: validation.diagnostics
   };
