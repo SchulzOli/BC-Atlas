@@ -1,7 +1,7 @@
 // Turns structured UI operations from an AL test into instruction tokens.
 // Tokens are strings or { ui } / { input } objects, so every output format
 // (Markdown, HTML, DITA, CSV) can mark up UI labels and example input itself.
-import { singular } from "./al-ui-source.js";
+import { singular } from "./al-ui-operations.js";
 import { lowerTokens, mergeText, phrase } from "./phrases.js";
 
 export function humanizeIdentifier(value) {

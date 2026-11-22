@@ -8,7 +8,7 @@
   "use strict";
 
   const { LINK, random, seed, step, layered } = root.BCA_GRAPH_LAYOUT;
-  const { canvasPen, svgPen, shorten, extentOf, distanceOf, projectOn, radiusOf, frameOn, freeOf, picture, NO_ROUTES, boxWidthOf, drawing } = root.BCA_GRAPH_DRAW;
+  const { canvasPen, svgPen, shorten, distanceOf, projectOn, radiusOf, frameOn, freeOf, picture, NO_ROUTES, boxWidthOf, drawing } = root.BCA_GRAPH_DRAW;
 
   /**
    * @param container the element that gets the canvas
@@ -121,7 +121,6 @@
       redraw();
     };
 
-    const extent = () => extentOf(state());
     const frameAll = () => frameOn(state());
     /** Where the camera stands when everything is in the window. */
     const framed = () => {

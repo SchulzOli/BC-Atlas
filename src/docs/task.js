@@ -10,7 +10,7 @@
 //
 // Every renderer (Markdown guide, test case, HTML, DITA, CSV) reads this model.
 import path from "node:path";
-import { singular } from "./al-ui-source.js";
+import { singular } from "./al-ui-operations.js";
 import { label, phrase } from "./phrases.js";
 import { operationStep } from "./steps.js";
 

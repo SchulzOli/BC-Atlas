@@ -52,5 +52,5 @@ export function renderAppHtml({ mode, snapshot, title = "BC Atlas", csp }) {
     .replace("__BOOT__", () => boot)
     // The graph and the scene register themselves before the view starts.
     // As an MCP App, the host is the MCP server: its adapter (scripts/mcp-app-entry.js) comes first.
-    .replace("/*__APP__*/", () => `${mode === "mcp" ? `${vendor("mcp-app.js").replaceAll("</script", "<\\/script")}\n` : ""}${read("graph-layout.js")}\n${read("graph-draw.js")}\n${read("graph.js")}\n${read("scene.js")}\n${read("atlas.js")}`);
+    .replace("/*__APP__*/", () => `${mode === "mcp" ? `${vendor("mcp-app.js").replaceAll("</script", "<\\/script")}\n` : ""}${read("graph-layout.js")}\n${read("graph-draw.js")}\n${read("graph.js")}\n${read("scene.js")}\n${read("panels.js")}\n${read("host.js")}\n${read("atlas.js")}`);
 }
