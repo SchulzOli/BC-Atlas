@@ -358,3 +358,40 @@ test("the exported view works in a browser: a selection, every menu, and every l
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("an exported file opens at a journey or a user guide, and its own address still wins", { skip: !chromium && !process.env.BCA_BROWSER_TEST && "Playwright is not installed" }, async () => {
+  assert.ok(chromium, "BCA_BROWSER_TEST is set, but Playwright is not installed");
+  const { renderSnapshotHtml } = await import("../src/app/snapshot.js");
+  const { startOf } = await import("../src/commands/export.js");
+  const warehouse = new Workspace(fileURLToPath(new URL("../examples/warehouse-app", import.meta.url)), {}, { live: false });
+  const atlas = await warehouse.atlas();
+  assert.equal(startOf(atlas, "journey-inbound-warehouse-request"), "story=journey-inbound-warehouse-request");
+  assert.equal(startOf(atlas, "warehouse-request-process"), "lens=pages&sel=guide%3A%3Awarehouse-request-process");
+  assert.throws(() => startOf(atlas, "nope"), /no lens, story, or user guide/u);
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-open-"));
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const journey = path.join(directory, "journey.html");
+    writeFileSync(journey, (await renderSnapshotHtml(warehouse, { start: startOf(atlas, "journey-inbound-warehouse-request") })).html);
+    await page.goto(`file://${journey}`);
+    await page.waitForSelector("#story:not([hidden])");
+    assert.match(await page.innerText("#story"), /Create a new Warehouse Request[\s\S]*1 \/ 2/u, "the journey plays from its first stage");
+
+    const guide = path.join(directory, "guide.html");
+    writeFileSync(guide, (await renderSnapshotHtml(warehouse, { start: startOf(atlas, "warehouse-request-process") })).html);
+    await page.goto(`file://${guide}`);
+    await page.waitForSelector("#inspector:not([hidden])");
+    assert.match(await page.innerText("#inspector"), /User guide[\s\S]*Process an existing warehouse request[\s\S]*Warehouse Worker/iu, "the guide is selected");
+
+    await page.goto(`file://${guide}#lens=data`);
+    await page.waitForTimeout(200);
+    assert.ok(await page.isHidden("#inspector"), "a link with its own address opens there");
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

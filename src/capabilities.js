@@ -61,6 +61,7 @@ const pathsOption = string("Only analyze AL files in this folder or matching thi
 const exportOptions = {
   output: string("Output file (default: bc-atlas.html).", { group: OUTPUT, short: "o", value: "path" }),
   title: string("Title of the view.", { group: OUTPUT, value: "text" }),
+  open: string("Where the file opens: a lens, a story (such as journey-<name>), or a user guide by its document ID. A link to the file with its own address still wins.", { group: OUTPUT, value: "id" }),
   watch: flag("Write again whenever AL source, app.json, or .bca.json changes.", { group: OUTPUT }),
   debounce: string("Delay before writing again with --watch, in milliseconds.", { group: OUTPUT, value: "ms", default: "250" }),
   ...filterOptions,
@@ -148,7 +149,8 @@ export function createCapabilities(version) {
         ],
         examples: [
           "bca export ./app -o atlas.html",
-          "bca export ./app -o atlas.html --watch"
+          "bca export ./app -o atlas.html --watch",
+          "bca export ./app -o onboarding.html --open journey-inbound-warehouse-request"
         ]
       }),
       command({
@@ -305,6 +307,20 @@ export function createCapabilities(version) {
           "bca docs generate ./test --export dita --output-dir docs/dita",
           "bca docs generate ./test/PartnerUITest.Codeunit.al --procedure NewPartner_PersistsFields"
         ]
+      }),
+      command({
+        id: "docs.suggest",
+        area: "export",
+        argv: ["bca", "docs", "suggest", "<test-root>"],
+        purpose: "Draft the tags of UI tests without documentation: a [SCENARIO] and a [WHEN] from what each test does.",
+        options: {
+          procedure: string("Only this test.", { value: "name" }),
+          write: flag("Put the drafts into the AL files; without it, show them."),
+          format: docsFormat
+        },
+        output: { type: "json", when: "--format json" },
+        rules: ["A draft is a start: read it, then refine it with docs set, and add [THEN] with what the user sees."],
+        examples: ["bca docs suggest ./test/UITest", "bca docs suggest ./test/UITest --procedure NoSeriesPage_DrillDown --write"]
       }),
       command({
         id: "docs.set",

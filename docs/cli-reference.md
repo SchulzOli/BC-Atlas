@@ -19,6 +19,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Export | `docs show` | Show one scenario, its prerequisites, and its diagnostics. |
 | Export | `docs validate` | Validate IDs, tags, links, and prerequisite cycles. |
 | Export | `docs generate` | Generate user guides or test cases as Markdown, HTML, DITA, Azure DevOps CSV, or BPMN. |
+| Export | `docs suggest` | Draft the tags of UI tests without documentation: a [SCENARIO] and a [WHEN] from what each test does. |
 | Export | `docs set` | Add or replace documentation metadata in AL source. |
 | Export | `docs unset` | Remove documentation metadata from AL source. |
 | Export | `docs automation` | Print a CI pipeline that keeps generated guides in sync. |
@@ -95,6 +96,7 @@ pages of the project are what [`bca layers`](#layers) writes.
 ```text
 bca export ./app -o atlas.html
 bca export ./app -o atlas.html --watch
+bca export ./app -o onboarding.html --open journey-inbound-warehouse-request
 ```
 
 #### Output
@@ -103,6 +105,7 @@ bca export ./app -o atlas.html --watch
 | --- | --- | --- |
 | `-o`, `--output` | path | Output file. Default: `bc-atlas.html`. |
 | `--title` | text | Title of the view. |
+| `--open` | id | Where the file opens: a lens, a story (such as `journey-<name>`), or a user guide by its document ID. A link to the file with its own address (`#lens=data`) still wins. |
 | `--watch` | flag | Write again whenever AL source, `app.json`, or `.bca.json` changes. Stop with `Ctrl+C`. |
 | `--debounce` | milliseconds | Delay before writing again with `--watch`. Default: `250`. |
 
@@ -256,7 +259,8 @@ AL UI-test files are the only persisted scenario source. See
 | `--app` | `generate` | path | AL app source for real captions, tooltips, and page coverage. |
 | `--language` | `generate` | tag | Wording and captions in this language, e.g. `de-DE`; captions come from the app's `.xlf` files. Default: `en-US`. |
 | `--title` | `generate` | text | Title of the index, HTML page, and DITA map. Default: the app name. |
-| `--procedure` | `generate` | name | Test procedure; required when a file contains several tests. |
+| `--procedure` | `generate`, `suggest` | name | Test procedure; required when a file contains several tests. With `suggest`, only this test. |
+| `--write` | `suggest` | flag | Put the drafts into the AL files; without it they are only shown. |
 | `--output-dir` | `generate`, `automation` | path | Markdown directory. Default: `docs/generated`. |
 | `--layers` | `generate` | path | Folder of `bca layers`: each guide links to the pages of the system it uses, when the folder holds `layers.json`. Default: `docs/layers`. |
 | `--strict` | `validate` | flag | Treat warnings as failures. |
@@ -309,6 +313,20 @@ generation writes, per format:
 
 `--id` and `--procedure` write a single Markdown file and cannot be combined
 with other formats.
+
+#### `docs suggest`
+
+```text
+bca docs suggest test/UITest
+bca docs suggest test/UITest --procedure NoSeriesPage_DrillDown --write
+```
+
+A UI test without `[SCENARIO]` documents nothing. `docs suggest` drafts its
+tags from what it does: a `[SCENARIO]` (`Create a new <record>.` when it
+creates one, otherwise the page it opens and its name), and a `[WHEN]` before
+its first step with what the user does there. With `--write` the drafts go
+into the AL files, and the tests become scenarios: refine them with
+`docs set`, and add `[THEN]` with what the user sees.
 
 #### `docs set` and `docs unset`
 

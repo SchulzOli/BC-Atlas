@@ -46,7 +46,8 @@
   // The whole view, as it is in the address: #lens=data&form=diagram&sel=...
   const { DEFAULTS } = S;
   function readState() {
-    const hash = location.hash.replace(/^#\/?/u, "");
+    // An exported file opens where it was exported to start (bca export --open), unless its address names a view.
+    const hash = location.hash.replace(/^#\/?/u, "") || (BOOT.start ?? "");
     // Links of earlier versions to one object.
     if (hash.startsWith("object/")) return { ...DEFAULTS, sel: decodeURIComponent(hash.slice(7).split("?")[0]) };
     const params = new URLSearchParams(hash.includes("=") ? hash : "");

@@ -103,3 +103,71 @@ test("the pages of bca layers and the user guides link to each other", async () 
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("in an editor, a save reads again only the UI tests that changed", async () => {
+  const { loadCorpus } = await import("../src/docs/model.js");
+  const { utimesSync } = await import("node:fs");
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bca-guides-cache-"));
+  try {
+    cpSync(warehouse, directory, { recursive: true });
+    const cache = new Map();
+    const first = await loadCorpus(directory, { cache });
+    const file = path.join(directory, "WarehouseUITests.al");
+    const entry = cache.get(file);
+    assert.ok(entry && first.scenarios.length === 2);
+    const again = await loadCorpus(directory, { cache });
+    assert.equal(cache.get(file), entry, "an unchanged file is not read again");
+    assert.deepEqual(again.scenarios.map(({ value }) => value.id), first.scenarios.map(({ value }) => value.id));
+    utimesSync(file, new Date(), new Date(Date.now() + 5000));
+    await loadCorpus(directory, { cache });
+    assert.notEqual(cache.get(file), entry, "a changed file is");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("tests of different codeunits with the same name are both documented", async () => {
+  const { loadCorpus } = await import("../src/docs/model.js");
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bca-guides-ids-"));
+  const test = (codeunit, id) => `codeunit ${id} "${codeunit}"\n{\n    Subtype = Test;\n\n    [Test]\n    procedure AddNewAccountTest()\n    var\n        Accounts: TestPage "Email Accounts";\n    begin\n        // [SCENARIO] Add an account.\n        Accounts.OpenView();\n        Accounts.Close();\n    end;\n}\n`;
+  try {
+    writeFileSync(path.join(directory, "EmailAccountsTest.Codeunit.al"), test("Email Accounts Test", 50100));
+    writeFileSync(path.join(directory, "FileAccountsTest.Codeunit.al"), test("File Accounts Test", 50101));
+    writeFileSync(path.join(directory, "Other.Codeunit.al"), test("Other", 50102).replace("AddNewAccountTest", "OtherTest").replace("// [SCENARIO]", "// [DOC-ID] add-new-account-test\n        // [SCENARIO]"));
+    const corpus = await loadCorpus(directory);
+    assert.deepEqual(corpus.diagnostics, []);
+    assert.deepEqual(corpus.scenarios.map(({ value }) => value.id), ["add-new-account-test", "email-accounts-test-add-new-account-test", "file-accounts-test-add-new-account-test"],
+      "a derived ID takes its file's name; one an author gave stays");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("docs suggest drafts the tags of a UI test without documentation, and --write makes it a guide", async () => {
+  const { suggestTags } = await import("../src/docs/suggest.js");
+  const { loadCorpus } = await import("../src/docs/model.js");
+  const { readFileSync } = await import("node:fs");
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bca-guides-suggest-"));
+  try {
+    cpSync(warehouse, directory, { recursive: true });
+    const file = path.join(directory, "WarehouseUITests.al");
+    const before = readFileSync(file, "utf8");
+    const [draft, ...more] = await suggestTags(directory);
+    assert.equal(more.length, 0, "the documented tests are left alone");
+    assert.equal(draft.procedure, "WarehouseRequests_OpenList_ShowsRequests");
+    assert.equal(draft.scenario, "On the Warehouse Requests page: warehouse requests open list shows requests.");
+    assert.equal(draft.when, "The user opens the Warehouse Requests page.");
+    assert.equal(readFileSync(file, "utf8"), before, "without write nothing changes");
+
+    await suggestTags(directory, { write: true });
+    const after = readFileSync(file, "utf8");
+    assert.match(after, /begin\n {8}\/\/ \[SCENARIO\] On the Warehouse Requests page: warehouse requests open list shows requests\.\n {8}\/\/ Not documented yet[^\n]*\n {8}\/\/ \[WHEN\] The user opens the Warehouse Requests page\.\n {8}WarehouseRequests\.OpenView\(\);/u);
+    const corpus = await loadCorpus(directory);
+    assert.equal(corpus.undocumented.length, 0);
+    assert.equal(corpus.scenarios.length, 3, "the test is a guide now");
+    assert.deepEqual(corpus.diagnostics, []);
+    assert.deepEqual(await suggestTags(directory), [], "and nothing is left to draft");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
