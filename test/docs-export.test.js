@@ -330,3 +330,51 @@ test("the test-case CSV keeps cells that look like formulas as text", () => {
   assert.equal(lines[1], `,Test Case,"'=HYPERLINK(""http://x"")",,,,,,Design,'+tag`);
   assert.equal(lines[2], ",,,1,'@SUM(A1),'-1,,,,");
 });
+
+test("documents end-to-end journeys, indexes by feature and role, a support runbook, and what is not documented", async () => {
+  const example = fileURLToPath(new URL("../examples/warehouse-app", import.meta.url));
+  const corpus = await loadCorpus(example);
+  assert.deepEqual(corpus.undocumented.map(({ procedure }) => procedure), ["WarehouseRequests_OpenList_ShowsRequests"],
+    "a UI test without [SCENARIO] is not documented, and is counted");
+  const output = mkdtempSync(path.join(os.tmpdir(), "bca-docs-journey-"));
+  try {
+    const { catalog } = await exportDocumentation(corpus, { outputDirectory: output, formats: "markdown,html,dita", appRoot: example });
+    assert.deepEqual(catalog.journeys.map(({ id, tasks }) => [id, tasks.map((task) => task.id)]),
+      [["journey-inbound-warehouse-request", ["warehouse-request-create", "warehouse-request-process"]]], "the stages in the order of their links");
+    assert.deepEqual(catalog.byRole.map(({ name }) => name), ["Purchasing Agent", "Warehouse Worker"]);
+    assert.deepEqual(catalog.byFeature.map(({ name }) => name), ["Warehouse requests"]);
+    assert.deepEqual(catalog.coverage.undocumentedTests, [{ file: "WarehouseUITests.al", procedure: "WarehouseRequests_OpenList_ShowsRequests" }]);
+    assert.deepEqual([catalog.coverage.covered, catalog.coverage.total], [1, 1]);
+
+    const journey = readFileSync(path.join(output, "journey-inbound-warehouse-request.md"), "utf8");
+    assert.match(journey, /^# End-to-end journey: Inbound warehouse request$/mu);
+    assert.ok(journey.indexOf("## 1. Create a new Warehouse Request") < journey.indexOf("## 2. Process an existing"), "one process, stage by stage");
+    assert.match(journey, /Choose the \*\*Process\*\* action/u, "with the steps of every stage");
+    assert.match(journey, /Performed by: Warehouse Worker/u);
+
+    const index = readFileSync(path.join(output, "index.md"), "utf8");
+    for (const heading of ["End-to-end journeys", "Scenarios by feature", "Scenarios by role", "Scenarios by page", "Scenarios by permission set", "Support runbook", "UI tests without documentation"]) {
+      assert.match(index, new RegExp(`^##+ ${heading}$`, "mu"), heading);
+    }
+    assert.match(index, /`WarehouseUITests\.al#WarehouseRequests_OpenList_ShowsRequests`/u);
+
+    const guide = readFileSync(path.join(output, "warehouse-request-process.md"), "utf8");
+    assert.match(guide, /## Support\n\n### What to monitor\n\n- Requests that stay unprocessed/u);
+    assert.match(guide, /### How to recover/u);
+    assert.match(guide, /### Troubleshooting/u);
+    assert.doesNotMatch(readFileSync(path.join(output, "warehouse-request-create.md"), "utf8"), /## Support/u, "only where there is something for support");
+    assert.match(readFileSync(path.join(output, "runbook.md"), "utf8"), /^## Process an existing warehouse request/mu);
+
+    const html = readFileSync(path.join(output, "index.html"), "utf8");
+    assert.match(html, /id="journey-inbound-warehouse-request"/u);
+    assert.match(html, /<h2>Scenarios by role<\/h2>/u);
+    assert.match(html, /<h3>What to monitor<\/h3>|<h4>What to monitor<\/h4>/u);
+
+    const dita = readFileSync(path.join(output, "warehouse-request-process.dita"), "utf8");
+    assert.match(dita, /<tasktroubleshooting>.*Troubleshooting.*How to recover.*<\/tasktroubleshooting>/u);
+    assert.match(dita, /<postreq>.*What to monitor.*<\/postreq>/u);
+    assert.match(readFileSync(path.join(output, "documentation.ditamap"), "utf8"), /navtitle="End-to-end journey: Inbound warehouse request"/u);
+  } finally {
+    rmSync(output, { recursive: true, force: true });
+  }
+});

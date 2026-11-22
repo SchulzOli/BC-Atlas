@@ -8,7 +8,7 @@
 
 | Files | Objects | Relationships | Unresolved | Cycles | Health |
 | --- | --- | --- | --- | --- | --- |
-| 4 | 9 | 28 | 0 | 0 | Passed (0 errors, 0 warnings) |
+| 4 | 9 | 29 | 0 | 0 | Passed (0 errors, 0 warnings) |
 
 ## Contents
 
@@ -86,7 +86,7 @@ Pages and reports, and what they show, run, and contain.
 | Apps | BC Atlas Warehouse Example 1.0.0.0 |
 | Files | 4 |
 | Objects | 9 |
-| Relationships | 28 |
+| Relationships | 29 |
 | Unresolved references | 0 |
 | Dependency cycles | 0 |
 

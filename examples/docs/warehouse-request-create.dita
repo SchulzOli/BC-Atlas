@@ -5,9 +5,9 @@
   <shortdesc>Use this guide to create a new Warehouse Request.</shortdesc>
   <prolog>
     <metadata>
-      <keywords><keyword>warehouse-requests</keyword></keywords>
+      <keywords><keyword>warehouse-requests</keyword><keyword>Purchasing Agent</keyword></keywords>
       <othermeta name="bc-atlas-source" content="WarehouseUITests.al#WarehouseRequests_CreateRequest_PersistsDescription"/>
-      <othermeta name="bc-atlas-source-sha256" content="723224931c0f46093e43ec4676c2ef06da865a49ead55f29f73bc0d692e3f70e"/>
+      <othermeta name="bc-atlas-source-sha256" content="94bbae274066562efab4658cb5eeda179b56ea45202544dc06348e6cedce35ed"/>
     </metadata>
   </prolog>
   <taskbody>

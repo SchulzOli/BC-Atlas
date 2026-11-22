@@ -48,12 +48,16 @@ Foundation, 1,441 AL files):
 
 ## Later: documentation from AL UI tests
 
-`bca docs` stays as it is until the core is done. Then:
+Done: `bca docs` documents a business process, not only a test.
 
-- End-to-end journeys that combine several UI tests into one business process.
-- Indexes by feature, role, page, and permission.
-- Coverage: UI tests without documentation, and pages without a guide.
-- `[MONITOR]`, `[RECOVERY]`, and `[TROUBLESHOOT]` tags for support runbooks.
+- **End-to-end journeys.** Scenarios with the same `[JOURNEY]` are one page,
+  stage by stage, in the order of their `[REQUIRES]` and `[NEXT]` links.
+- **Indexes by feature, role, page, and permission.** `[ROLE]` names who
+  performs a scenario.
+- **Coverage.** The UI tests without documentation, and the pages without a
+  guide, in the index and in `bca docs validate`.
+- **Support runbooks.** `[MONITOR]`, `[RECOVERY]`, and `[TROUBLESHOOT]` give a
+  guide a support section and the documentation a `runbook.md`.
 
 ## Not planned
 

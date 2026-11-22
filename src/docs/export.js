@@ -7,8 +7,8 @@ import { layoutProcess, scenarioProcess, useCaseProcess } from "./process.js";
 import { renderBpmn } from "./render/bpmn.js";
 import { renderAzureDevOpsCsv } from "./render/csv.js";
 import { renderDitaMap, renderDitaTask } from "./render/dita.js";
-import { articleHtml, indexHtml, renderHtml, useCaseHtml } from "./render/html.js";
-import { renderGuide, renderIndex, renderTestCase, renderUseCase } from "./render/markdown.js";
+import { articleHtml, indexHtml, journeyHtml, renderHtml, useCaseHtml } from "./render/html.js";
+import { renderGuide, renderIndex, renderJourney, renderRunbook, renderTestCase, renderUseCase } from "./render/markdown.js";
 import { renderProcessSvg } from "./render/process-svg.js";
 import { escapeXml } from "./render/format.js";
 import { buildCatalog, humanizeFeature, journeyD2, journeyScene, sameAsTitle } from "./task.js";
@@ -58,10 +58,13 @@ async function prepareCatalog(corpus, options) {
     captions,
     title: options.title ?? (captions?.appName ? `${captions.appName}` : undefined)
   });
-  // Every scenario gets a BPMN-style flow of its clicks; every use case a
-  // process with one lane per permission set.
+  // Every scenario gets a BPMN-style flow of its clicks; every use case and
+  // every end-to-end journey a process with one lane per permission set.
   const named = catalog.useCases.filter(({ feature }) => feature);
-  const processes = new Map(named.map((useCase) => [useCase.id, useCaseProcess(useCase, catalog)]));
+  const processes = new Map([
+    ...named.map((useCase) => [useCase.id, useCaseProcess(useCase, catalog)]),
+    ...catalog.journeys.map((journey) => [journey.id, useCaseProcess({ ...journey, main: journey.tasks, alternatives: [] }, catalog)])
+  ]);
   return { catalog, warnings, mode, named, processes, journey: journeyD2(catalog) };
 }
 
@@ -111,6 +114,18 @@ export async function documentationBrowser(corpus, options = {}) {
       bpmn: renderBpmn(process, { version: options.version })
     };
   }
+  for (const journey of catalog.journeys) {
+    const process = processes.get(journey.id);
+    const svg = renderProcessSvg(layoutProcess(process), { linkFor: (node) => (node.task ? `#${node.task.id}` : undefined) });
+    items[journey.id] = {
+      kind: "journey",
+      title: journey.title,
+      html: journeyHtml(journey, catalog, svg, { heading: false }),
+      markdown: renderJourney(journey, catalog, {}),
+      svg,
+      bpmn: renderBpmn(process, { version: options.version })
+    };
+  }
   for (const task of catalog.tasks) {
     const svg = renderProcessSvg(layoutProcess(scenarioProcess(task)));
     items[task.id] = {
@@ -133,6 +148,7 @@ export async function documentationBrowser(corpus, options = {}) {
       scenarios: useCase.main.map(({ id }) => id),
       alternatives: useCase.alternatives.map(({ id }) => id)
     })),
+    journeys: catalog.journeys.map((journey) => ({ id: journey.id, title: journey.title, scenarios: journey.tasks.map(({ id }) => id) })),
     scenarios: catalog.tasks.map((task) => ({
       id: task.id,
       title: task.title,
@@ -183,6 +199,11 @@ export async function exportDocumentation(corpus, options = {}) {
         bpmnFile: formats.includes("bpmn") ? `${useCase.id}.bpmn` : undefined
       }));
     }
+    for (const item of catalog.journeys) {
+      await write(`diagrams/${item.id}.svg`, renderProcessSvg(layoutProcess(processes.get(item.id))));
+      await write(`${item.id}.md`, renderJourney(item, catalog, { processImage: `diagrams/${item.id}.svg` }));
+    }
+    if (catalog.runbook.length) await write("runbook.md", renderRunbook(catalog));
     if (journey) {
       await write("journey.d2", journey);
       if (journeySvg) await write("journey.svg", journeySvg);

@@ -320,11 +320,11 @@ generation writes, per format:
 
 | Format | Files |
 | --- | --- |
-| `markdown` | `<document-id>.md`, `use-case-<feature>.md`, `index.md`, `journey.d2`, `journey.svg`, `diagrams/<id>.svg` (scenario flows and use-case processes) |
+| `markdown` | `<document-id>.md`, `use-case-<feature>.md`, `journey-<name>.md` (one per `[JOURNEY]`), `runbook.md` (when a scenario has `[MONITOR]`, `[RECOVERY]`, or `[TROUBLESHOOT]`), `index.md`, `journey.d2`, `journey.svg`, `diagrams/<id>.svg` (scenario flows, use-case and journey processes) |
 | `html` | `index.html` with every diagram inlined |
 | `dita` | `<document-id>.dita`, `documentation.ditamap` |
 | `ado-csv` | `test-cases.csv` |
-| `bpmn` | `use-case-<feature>.bpmn` (BPMN 2.0 with diagram layout; scenarios are sub-processes) |
+| `bpmn` | `use-case-<feature>.bpmn`, `journey-<name>.bpmn` (BPMN 2.0 with diagram layout; scenarios are sub-processes) |
 
 `--id` and `--procedure` write a single Markdown file and cannot be combined
 with other formats.

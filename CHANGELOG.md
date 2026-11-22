@@ -22,6 +22,18 @@ follows [Semantic Versioning](https://semver.org/).
   `bca view --format json`, `bc_atlas_view`, and `bc_atlas_inspect` names its
   shape and version in `schema` (`bc-atlas.view/1`, ...), as
   `schemas/output.schema.json` publishes them.
+- **End-to-end journeys in `bca docs`.** Scenarios with the same
+  `[JOURNEY]` are documented as one business process: `journey-<name>.md`
+  (and `.bpmn`), stage by stage in the order of their `[REQUIRES]` and
+  `[NEXT]` links, with who performs each.
+- **Indexes by feature and role.** `[ROLE]` names who performs a scenario;
+  the index lists scenarios by feature, role, page, and permission set.
+- **Coverage of the documentation.** The index and `bca docs validate` list
+  the UI tests without documentation (a `TestPage` but no `[SCENARIO]`); with
+  `--app`, the index also lists the pages without a guide.
+- **Support runbooks.** `[MONITOR]`, `[RECOVERY]`, and `[TROUBLESHOOT]` give a
+  guide a “Support” section (`tasktroubleshooting` and `postreq` in DITA) and
+  the documentation a `runbook.md`.
 - **Performance in CI.** `npm run benchmark` measures time and peak memory,
   also of a save in the editor; CI compares a pull request with its base and
   fails on a regression.

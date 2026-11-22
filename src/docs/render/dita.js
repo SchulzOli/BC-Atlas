@@ -41,10 +41,19 @@ function step(item, language) {
       </step>`;
 }
 
+// Troubleshooting and recovery go to <tasktroubleshooting> (DITA 1.3), what to monitor to <postreq>.
+function runbookList(task, key) {
+  if (!task.runbook[key].length) return "";
+  const heading = label(task.language, `heading.${key}`);
+  return `<p><b>${escapeXml(heading)}</b></p><ul>${task.runbook[key].map((item) => `<li>${dita([item])}</li>`).join("")}</ul>`;
+}
+
 export function renderDitaTask(task) {
   const { language } = task;
   const prereqs = task.prereqs.map((item) => `<li>${prereqItem(item)}</li>`).join("");
-  const keywords = task.features.map((feature) => `<keyword>${escapeXml(feature)}</keyword>`).join("");
+  const keywords = [...task.features, ...task.roles].map((keyword) => `<keyword>${escapeXml(keyword)}</keyword>`).join("");
+  const troubleshooting = `${runbookList(task, "troubleshoot")}${runbookList(task, "recovery")}`;
+  const monitor = runbookList(task, "monitor");
   const related = ["next", "related", "alternative"].flatMap((kind) => task.links[kind]
     .filter(({ exists }) => exists)
     .map((target) => `    <link href="${escapeXml(target.id)}.dita" type="task" role="${kind === "next" ? "next" : kind === "alternative" ? "other" : "friend"}"><linktext>${escapeXml(target.title)}</linktext></link>`));
@@ -64,7 +73,7 @@ ${prereqs ? `    <prereq><ul>${prereqs}</ul></prereq>\n` : ""}${task.examples ? 
 ${task.steps.map((item) => step(item, language)).join("\n")}
     </steps>
 ` : ""}    <result><ul>${task.result.map((item) => `<li>${escapeXml(item)}</li>`).join("")}</ul></result>
-  </taskbody>
+${troubleshooting ? `    <tasktroubleshooting>${troubleshooting}</tasktroubleshooting>\n` : ""}${monitor ? `    <postreq>${monitor}</postreq>\n` : ""}  </taskbody>
 ${related.length ? `  <related-links>\n${related.join("\n")}\n  </related-links>\n` : ""}</task>
 `;
 }
@@ -76,6 +85,13 @@ export function renderDitaMap(catalog) {
   for (const useCase of catalog.useCases) {
     lines.push(`  <topichead navtitle="${escapeXml(useCase.title)}">`);
     for (const task of [...useCase.main, ...useCase.alternatives]) {
+      lines.push(`    <topicref href="${escapeXml(task.id)}.dita" type="task" navtitle="${escapeXml(plainText([task.title]))}"/>`);
+    }
+    lines.push("  </topichead>");
+  }
+  for (const journey of catalog.journeys) {
+    lines.push(`  <topichead navtitle="${escapeXml(`${label(language, "label.journey")}: ${journey.title}`)}">`);
+    for (const task of journey.tasks) {
       lines.push(`    <topicref href="${escapeXml(task.id)}.dita" type="task" navtitle="${escapeXml(plainText([task.title]))}"/>`);
     }
     lines.push("  </topichead>");

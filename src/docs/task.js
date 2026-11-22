@@ -127,7 +127,15 @@ export function buildTask(scenario, context = {}) {
         goal: (english ? goal.replace(/^\p{Lu}(?!\p{Lu})/u, (letter) => letter.toLowerCase()) : goal).replace(/\.$/u, "")
       }),
     features: value.features ?? [],
+    journeys: value.journeys ?? [],
+    roles: value.roles ?? [],
     permissions: value.permissions,
+    // What support watches, how it recovers, and what goes wrong: [MONITOR], [RECOVERY], [TROUBLESHOOT].
+    runbook: {
+      monitor: value.runbook?.monitor ?? [],
+      recovery: value.runbook?.recovery ?? [],
+      troubleshoot: value.runbook?.troubleshoot ?? []
+    },
     prereqs,
     // Only the documented steps count: example values in [GIVEN] setup are never shown.
     examples: steps.some((step) => step.example || step.items?.some((item) => item.example || item.items?.some((nested) => nested.example))),
@@ -144,6 +152,11 @@ export function buildTask(scenario, context = {}) {
       hash: value.sourceHash
     }
   };
+}
+
+/** True when the task has something for the support runbook. */
+export function hasRunbook(task) {
+  return Object.values(task.runbook ?? {}).some((items) => items.length);
 }
 
 /** True when the goal adds nothing to the title. */
@@ -191,7 +204,9 @@ function pageLabel(name, captions) {
 
 /**
  * Builds the documentation catalog: tasks plus use cases (per [FEATURE]),
- * indexes by page and permission set, the journey graph, and page coverage.
+ * end-to-end journeys (per [JOURNEY]), indexes by feature, role, page, and
+ * permission set, the journey graph, the support runbook, and coverage: UI
+ * tests without documentation and pages without a guide.
  */
 export function buildCatalog(corpus, context = {}) {
   const language = context.language ?? "en-US";
@@ -230,8 +245,19 @@ export function buildCatalog(corpus, context = {}) {
     return [...map.entries()].sort(([left], [right]) => left.localeCompare(right))
       .map(([name, members]) => ({ name, tasks: members }));
   };
-  const byPage = index((task) => task.pages.map((page) => pageLabel(page, context.captions)));
+  const byFeature = index((task) => task.features.map(humanizeFeature));
+  const byRole = index((task) => task.roles);
+  const byPage = index((task) => [...new Set(task.pages.map((page) => pageLabel(page, context.captions)))]);
   const byPermission = index((task) => task.permissions);
+
+  // A journey is one business process across several scenarios, in the
+  // order their [REQUIRES] and [NEXT] links give (the order of the tasks).
+  const journeys = index((task) => task.journeys).map(({ name, tasks: stages }) => ({
+    id: `journey-${slug(name)}`,
+    name,
+    title: name,
+    tasks: stages
+  }));
 
   const ids = new Set(tasks.map(({ id }) => id));
   const journey = [];
@@ -242,7 +268,13 @@ export function buildCatalog(corpus, context = {}) {
     }
   }
 
-  let coverage;
+  const root = corpus.root;
+  const coverage = {
+    undocumentedTests: (corpus.undocumented ?? []).map(({ path: file, procedure }) => ({
+      file: (root ? path.relative(root, file) : path.basename(file)).replaceAll("\\", "/") || path.basename(file),
+      procedure
+    }))
+  };
   if (context.captions) {
     const touched = new Set(tasks.flatMap(({ pages }) => pages.map((page) => page.toLowerCase())));
     const invoked = new Set(tasks.flatMap(({ actions }) =>
@@ -250,7 +282,7 @@ export function buildCatalog(corpus, context = {}) {
     const appPages = [...context.captions.pages.values()].filter(({ id }) => id !== undefined)
       .sort((left, right) => left.caption.localeCompare(right.caption));
     const covered = appPages.filter(({ name }) => touched.has(name.toLowerCase()));
-    coverage = {
+    Object.assign(coverage, {
       total: appPages.length,
       covered: covered.length,
       untouchedPages: appPages.filter(({ name }) => !touched.has(name.toLowerCase()))
@@ -258,10 +290,23 @@ export function buildCatalog(corpus, context = {}) {
       unusedActions: covered.flatMap((page) => [...page.actions.values()]
         .filter(({ name }) => !invoked.has(`${page.name}\u0000${name}`.toLowerCase()))
         .map(({ name, caption }) => ({ page: page.caption, action: caption ?? name })))
-    };
+    });
   }
 
-  return { language, title: context.title, tasks, useCases, byPage, byPermission, journey, coverage };
+  return {
+    language,
+    title: context.title,
+    tasks,
+    useCases,
+    journeys,
+    byFeature,
+    byRole,
+    byPage,
+    byPermission,
+    journey,
+    runbook: tasks.filter(hasRunbook),
+    coverage
+  };
 }
 
 /** Number of clicks in a task: phases count their items. */

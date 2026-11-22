@@ -22,6 +22,8 @@ codeunit 50122 WarehouseUITests
     begin
         // [DOC-ID] warehouse-request-create
         // [FEATURE] warehouse-requests
+        // [JOURNEY] Inbound warehouse request
+        // [ROLE] Purchasing Agent
         // [SCENARIO] Create a warehouse request from the request list.
         // [PERMISSIONS] WAREHOUSE PROCESS
 
@@ -50,6 +52,8 @@ codeunit 50122 WarehouseUITests
     begin
         // [DOC-ID] warehouse-request-process
         // [FEATURE] warehouse-requests
+        // [JOURNEY] Inbound warehouse request
+        // [ROLE] Warehouse Worker
         // [SCENARIO] Process an existing warehouse request from the request list.
         // [PERMISSIONS] WAREHOUSE PROCESS
 
@@ -71,6 +75,19 @@ codeunit 50122 WarehouseUITests
             Error(RequestNotProcessedErr);
 
         // [REQUIRES] warehouse-request-create
+        // [MONITOR] Requests that stay unprocessed for more than a day in the Warehouse Requests list.
+        // [RECOVERY] Open the request again and choose Process; processing a request twice changes nothing.
+        // [TROUBLESHOOT] Process is not available: the user lacks the WAREHOUSE PROCESS permission set.
+    end;
+
+    [Test]
+    procedure WarehouseRequests_OpenList_ShowsRequests()
+    var
+        WarehouseRequests: TestPage "Warehouse Requests";
+    begin
+        // Not documented yet: the generated coverage lists it.
+        WarehouseRequests.OpenView();
+        WarehouseRequests.Close();
     end;
 
     var

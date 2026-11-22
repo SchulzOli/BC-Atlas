@@ -8,7 +8,7 @@
 
 <urn:bc-atlas:graph> a owl:Ontology ;
     rdfs:label "BC Atlas Warehouse Example" ;
-    rdfs:comment "AL source analyzed by BC Atlas: 9 objects, 28 relations." ;
+    rdfs:comment "AL source analyzed by BC Atlas: 9 objects, 29 relations." ;
     dcterms:created "2025-01-01T00:00:00.000Z"^^xsd:dateTime ;
     dcterms:creator "BC Atlas 0.27.0" ;
     dcterms:conformsTo <https://schulzoli.github.io/BC-Atlas/ontology> ;
@@ -724,14 +724,15 @@ bca:sourceProcedure a owl:DatatypeProperty ;
     dcterms:identifier "8ca2f385-ffba-4be3-94ad-84feaae0c397::BCA.Example.UI::codeunit::50122" ;
     bca:access "internal" ;
     bca:documentation "Verifies and documents the primary warehouse request workflows through the user interface." ;
-    bca:lineCount "69"^^xsd:integer ;
-    bca:complexity "4"^^xsd:integer ;
+    bca:lineCount "86"^^xsd:integer ;
+    bca:complexity "5"^^xsd:integer ;
     bca:inApp <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397> ;
     bca:inNamespace <urn:bc-atlas:namespace:BCA.Example.UI> ;
     bca:sourceFile "WarehouseUITests.al" ;
     bca:sourceLine "11"^^xsd:integer ;
     bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_CreateRequest_PersistsDescription> ;
     bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_ProcessRequest_MarksRequestProcessed> ;
+    bca:hasProcedure <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_OpenList_ShowsRequests> ;
     bca:permits <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:uses <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:uses <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
@@ -742,7 +743,7 @@ bca:sourceProcedure a owl:DatatypeProperty ;
     rdfs:label "WarehouseRequests_CreateRequest_PersistsDescription" ;
     bca:signature "WarehouseRequests_CreateRequest_PersistsDescription()" ;
     bca:visibility "public" ;
-    bca:lineCount "26"^^xsd:integer ;
+    bca:lineCount "28"^^xsd:integer ;
     bca:complexity "2"^^xsd:integer ;
     bca:sourceLine "18"^^xsd:integer .
 
@@ -750,9 +751,17 @@ bca:sourceProcedure a owl:DatatypeProperty ;
     rdfs:label "WarehouseRequests_ProcessRequest_MarksRequestProcessed" ;
     bca:signature "WarehouseRequests_ProcessRequest_MarksRequestProcessed()" ;
     bca:visibility "public" ;
-    bca:lineCount "29"^^xsd:integer ;
+    bca:lineCount "34"^^xsd:integer ;
     bca:complexity "2"^^xsd:integer ;
-    bca:sourceLine "46"^^xsd:integer .
+    bca:sourceLine "48"^^xsd:integer .
+
+<urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122:procedure:WarehouseRequests_OpenList_ShowsRequests> a bca:Procedure ;
+    rdfs:label "WarehouseRequests_OpenList_ShowsRequests" ;
+    bca:signature "WarehouseRequests_OpenList_ShowsRequests()" ;
+    bca:visibility "public" ;
+    bca:lineCount "8"^^xsd:integer ;
+    bca:complexity "1"^^xsd:integer ;
+    bca:sourceLine "84"^^xsd:integer .
 
 <urn:bc-atlas:relation:dcef444346bb9da6> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50120> ;
@@ -940,23 +949,31 @@ bca:sourceProcedure a owl:DatatypeProperty ;
     bca:sourceFile "WarehouseUITests.al" ;
     bca:sourceLine "21"^^xsd:integer .
 
-<urn:bc-atlas:relation:a427b6ad7f3cabc2> a bca:Relation ;
+<urn:bc-atlas:relation:9a8bc30a408dabad> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "uses" ;
     bca:confidence "resolved" ;
     bca:sourceFile "WarehouseUITests.al" ;
-    bca:sourceLine "48"^^xsd:integer .
+    bca:sourceLine "50"^^xsd:integer .
 
-<urn:bc-atlas:relation:58e8034c6fcdcea3> a bca:Relation ;
+<urn:bc-atlas:relation:5ea5dd61ce990e2f> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
     bca:relationKind "uses" ;
     bca:confidence "resolved" ;
     bca:sourceFile "WarehouseUITests.al" ;
-    bca:sourceLine "49"^^xsd:integer .
+    bca:sourceLine "51"^^xsd:integer .
 
-<urn:bc-atlas:relation:7b1d9f0a22c67a05> a bca:Relation ;
+<urn:bc-atlas:relation:ce7f46d1544dec41> a bca:Relation ;
+    bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
+    bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:page:50110> ;
+    bca:relationKind "uses" ;
+    bca:confidence "resolved" ;
+    bca:sourceFile "WarehouseUITests.al" ;
+    bca:sourceLine "86"^^xsd:integer .
+
+<urn:bc-atlas:relation:05fc403d145c5142> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "writes" ;
@@ -965,9 +982,9 @@ bca:sourceProcedure a owl:DatatypeProperty ;
     bca:operation "DeleteAll" ;
     bca:sourceProcedure "WarehouseRequests_CreateRequest_PersistsDescription()" ;
     bca:sourceFile "WarehouseUITests.al" ;
-    bca:sourceLine "29"^^xsd:integer .
+    bca:sourceLine "31"^^xsd:integer .
 
-<urn:bc-atlas:relation:ac3dc6361d48722d> a bca:Relation ;
+<urn:bc-atlas:relation:d94e94c0104e536a> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "reads" ;
@@ -976,9 +993,9 @@ bca:sourceProcedure a owl:DatatypeProperty ;
     bca:operation "Get" ;
     bca:sourceProcedure "WarehouseRequests_CreateRequest_PersistsDescription()" ;
     bca:sourceFile "WarehouseUITests.al" ;
-    bca:sourceLine "38"^^xsd:integer .
+    bca:sourceLine "40"^^xsd:integer .
 
-<urn:bc-atlas:relation:3426ee8a3aad8f2f> a bca:Relation ;
+<urn:bc-atlas:relation:a73b9e056e693984> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "writes" ;
@@ -987,9 +1004,9 @@ bca:sourceProcedure a owl:DatatypeProperty ;
     bca:operation "DeleteAll" ;
     bca:sourceProcedure "WarehouseRequests_ProcessRequest_MarksRequestProcessed()" ;
     bca:sourceFile "WarehouseUITests.al" ;
-    bca:sourceLine "57"^^xsd:integer .
+    bca:sourceLine "61"^^xsd:integer .
 
-<urn:bc-atlas:relation:01b383d06df7d591> a bca:Relation ;
+<urn:bc-atlas:relation:aa6ca08ef75704b3> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "writes" ;
@@ -998,9 +1015,9 @@ bca:sourceProcedure a owl:DatatypeProperty ;
     bca:operation "Insert" ;
     bca:sourceProcedure "WarehouseRequests_ProcessRequest_MarksRequestProcessed()" ;
     bca:sourceFile "WarehouseUITests.al" ;
-    bca:sourceLine "60"^^xsd:integer .
+    bca:sourceLine "64"^^xsd:integer .
 
-<urn:bc-atlas:relation:cd45a187c03ce283> a bca:Relation ;
+<urn:bc-atlas:relation:645ad65422bd8775> a bca:Relation ;
     bca:relationSource <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:codeunit:50122> ;
     bca:relationTarget <urn:bc-atlas:app:8ca2f385-ffba-4be3-94ad-84feaae0c397:table:50100> ;
     bca:relationKind "reads" ;
@@ -1009,4 +1026,4 @@ bca:sourceProcedure a owl:DatatypeProperty ;
     bca:operation "Get" ;
     bca:sourceProcedure "WarehouseRequests_ProcessRequest_MarksRequestProcessed()" ;
     bca:sourceFile "WarehouseUITests.al" ;
-    bca:sourceLine "69"^^xsd:integer .
+    bca:sourceLine "73"^^xsd:integer .
