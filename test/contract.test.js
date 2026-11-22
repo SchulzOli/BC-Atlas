@@ -31,11 +31,8 @@ const REMOVED = [
   [/--at\b|--releases\b|\bhistory\//u, "the history of bca layers"],
   [/bc_atlas_(architecture|extraction_plan|generate_diagram)/u, "removed MCP tools"]
 ];
-// `bca docs generate` still writes journey.d2 next to journey.svg.
-const allowed = (text) => text.replaceAll(/journey\.d2/gu, "");
-
 function assertCurrent(text, where) {
-  for (const [pattern, what] of REMOVED) assert.doesNotMatch(allowed(text), pattern, `${where} speaks of ${what}`);
+  for (const [pattern, what] of REMOVED) assert.doesNotMatch(text, pattern, `${where} speaks of ${what}`);
 }
 
 /** Splits an example command line like a shell: words, and "quoted words". */

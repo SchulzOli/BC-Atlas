@@ -355,39 +355,6 @@ function journeyGraph(catalog) {
   return { useCases, owner, edges };
 }
 
-/**
- * D2 source for the journey between scenarios, grouped by use case. Every
- * scenario is a card with its permission set and number of steps; [NEXT] and
- * [REQUIRES] read as one flow arrow, alternatives and related guides as
- * dashed lines.
- */
-export function journeyD2(catalog) {
-  if (!catalog.journey.length) return undefined;
-  const quote = (value) => `"${String(value).replaceAll("\\", "\\\\").replaceAll("\"", "\\\"").replace(/\r?\n/gu, "\\n")}"`;
-  const lines = [
-    "direction: right",
-    "classes: {",
-    "  use-case: { style: { fill: \"#f6f8fa\"; stroke: \"#c9d1d9\"; border-radius: 12; font-color: \"#1b1f24\"; font-size: 18 } }",
-    "  scenario: { style: { fill: \"#eef4fd\"; stroke: \"#0b62d6\"; stroke-width: 2; border-radius: 10; font-color: \"#1b1f24\"; font-size: 15 } }",
-    "  flow: { style: { stroke: \"#0b62d6\"; stroke-width: 2 } }",
-    "  alternative: { style: { stroke: \"#e09400\"; stroke-width: 2; stroke-dash: 5; font-color: \"#8a5a00\" } }",
-    "  related: { style: { stroke: \"#9aa4b0\"; stroke-dash: 3; font-color: \"#5b6470\" } }",
-    "}",
-    ""
-  ];
-  const { useCases, owner, edges } = journeyGraph(catalog);
-  for (const useCase of useCases) {
-    lines.push(`${quote(useCase.id)}: ${quote(useCase.title)} {`, "  class: use-case");
-    for (const task of useCase.tasks) lines.push(`  ${quote(task.id)}: ${quote(`${task.title}\n${task.details}`)} { class: scenario }`);
-    lines.push("}", "");
-  }
-  const ref = (id) => (owner.has(id) ? `${quote(owner.get(id))}.${quote(id)}` : quote(id));
-  for (const { from, to, kind, text } of edges) {
-    lines.push(`${ref(from)} ${kind === "flow" ? "->" : "--"} ${ref(to)}${text ? `: ${quote(text)}` : ""} { class: ${kind} }`);
-  }
-  return `${lines.join("\n")}\n`;
-}
-
 const JOURNEY_EDGES = {
   flow: { color: "#0b62d6", width: 2, arrow: "->" },
   alternative: { color: "#e09400", width: 2, dash: 5, arrow: "none" },

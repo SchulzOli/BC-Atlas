@@ -138,13 +138,14 @@ function diagram(svg) {
 }
 
 /** One scenario as a guide or test case, with its flow. */
-export function articleHtml(task, mode, flow, { heading = true } = {}) {
+function articleHtml(task, mode, flow) {
   const { language } = task;
   const search = [task.id, task.title, task.goal, ...task.features, ...task.roles, ...task.permissions].join(" ").toLowerCase();
   const tags = [...task.features.map(humanizeFeature), ...task.roles];
   const chips = tags.length ? `<p class="chips">${tags.map((tag) => `<span>${escapeXml(tag)}</span>`).join("")}</p>` : "";
   return `<article id="${escapeXml(task.id)}" data-search="${escapeXml(search)}">
-${heading ? `<h2>${mode === "testcase" ? `${escapeXml(label(language, "testcase.title", { id: task.id }))}: ` : ""}${escapeXml(task.title)}</h2>\n` : ""}${chips}${mode === "testcase" ? "" : `<p class="short">${html(task.shortdesc)}</p>`}
+<h2>${mode === "testcase" ? `${escapeXml(label(language, "testcase.title", { id: task.id }))}: ` : ""}${escapeXml(task.title)}</h2>
+${chips}${mode === "testcase" ? "" : `<p class="short">${html(task.shortdesc)}</p>`}
 ${diagram(flow)}
 ${mode === "testcase" ? testCaseBody(task) : guideBody(task)}
 <details><summary>${label(language, "heading.source")}</summary>
@@ -153,10 +154,10 @@ ${label(language, "label.file")}: <code>${escapeXml(task.source.file)}</code> ·
 </article>`;
 }
 
-/** A use case: its process, main scenarios, and alternatives; heading is the tag of its title. */
-export function useCaseHtml(useCase, catalog, processSvg, { heading = "h3" } = {}) {
+/** A use case: its process, main scenarios, and alternatives. */
+function useCaseHtml(useCase, catalog, processSvg) {
   const t = (key, values) => label(catalog.language, key, values);
-  const parts = [`${heading ? `<${heading} id="${escapeXml(useCase.id)}">${escapeXml(useCase.title)}</${heading}>` : ""}${diagram(processSvg)}<ol>${useCase.main.map((task) =>
+  const parts = [`<h3 id="${escapeXml(useCase.id)}">${escapeXml(useCase.title)}</h3>${diagram(processSvg)}<ol>${useCase.main.map((task) =>
     `<li>${link({ ...task, exists: true })}${sameAsTitle(task) ? "" : ` <span class="muted">${escapeXml(task.goal)}</span>`}</li>`).join("")}</ol>`];
   if (useCase.alternatives.length) {
     parts.push(`<p class="muted">${t("heading.alternatives")}</p><ul>${useCase.alternatives.map((task) =>
@@ -166,8 +167,8 @@ export function useCaseHtml(useCase, catalog, processSvg, { heading = "h3" } = {
 }
 
 /** An end-to-end journey: its process and its stages, in order, with who does each. */
-export function journeyHtml(journey, catalog, processSvg, { heading = "h3" } = {}) {
-  return `${heading ? `<${heading} id="${escapeXml(journey.id)}">${escapeXml(journey.title)}</${heading}>` : ""}${diagram(processSvg)}<ol>${journey.tasks.map((task) => {
+function journeyHtml(journey, processSvg) {
+  return `<h3 id="${escapeXml(journey.id)}">${escapeXml(journey.title)}</h3>${diagram(processSvg)}<ol>${journey.tasks.map((task) => {
     const who = [...task.roles, ...task.permissions];
     return `<li>${link({ ...task, exists: true })}${who.length ? ` <span class="muted">${escapeXml(who.join(", "))}</span>` : ""}</li>`;
   }).join("")}</ol>`;
@@ -184,7 +185,7 @@ function overview(catalog, journeySvg, processes) {
   }
   if (catalog.journeys.length) {
     parts.push(`<h2>${t("heading.journeys")}</h2>`);
-    for (const journey of catalog.journeys) parts.push(journeyHtml(journey, catalog, processes?.get(journey.id)));
+    for (const journey of catalog.journeys) parts.push(journeyHtml(journey, processes?.get(journey.id)));
   }
   parts.push(indexHtml(catalog, journeySvg));
   parts.push("</section>");
@@ -192,7 +193,7 @@ function overview(catalog, journeySvg, processes) {
 }
 
 /** The journey across use cases, the indexes, the runbook, and the coverage. */
-export function indexHtml(catalog, journeySvg) {
+function indexHtml(catalog, journeySvg) {
   const { language } = catalog;
   const t = (key, values) => label(language, key, values);
   const parts = [];
