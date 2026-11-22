@@ -13,7 +13,7 @@
   const RANK = { error: 3, warning: 2, info: 1 };
   // Calm colors that stay apart for people who see colors differently.
   const PALETTE = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#7C3AED", "#4E5D78", "#A23636", "#14766E", "#8B7400", "#A21CAF"];
-  const KIND_NAMES = { object: "Object", app: "App", module: "Namespace", rule: "Rule", member: "Member", area: "Area" };
+  const KIND_NAMES = { object: "Object", app: "App", module: "Namespace", rule: "Rule", member: "Member", area: "Area", guide: "User guide" };
   const DEFAULTS = Object.freeze({ lens: "overview", form: "", q: "", sel: "", focus: "", depth: "1", check: "", story: "", step: "0", color: "", size: "", group: "", off: "", hide: "", inside: "" });
   const FORMS = Object.freeze(["2d", "diagram", "3d"]);
   const COLORS = Object.freeze(["type", "namespace", "app", "level", "findings"]);
@@ -304,7 +304,7 @@
     // The overview groups by its columns, in their order.
     const byColumn = columns && !state.group;
     const columnOf = (node) => FLOW[ranks.get(node.id)?.rank ?? ranks.get(node.id)]?.title ?? "";
-    const groupOf = (node) => (byColumn ? columnOf(node) : groupBy === "none" ? "" : groupBy === "kind" ? kindOf(node) : (node.external && groupBy === "namespace" ? undefined : node[groupBy]) ?? (node.external ? "Other apps" : node.kind === "object" ? "" : node.kind));
+    const groupOf = (node) => (byColumn ? columnOf(node) : groupBy === "none" ? "" : groupBy === "kind" ? kindOf(node) : (node.external && groupBy === "namespace" ? undefined : node[groupBy]) ?? (node.external ? "Other apps" : node.kind === "object" ? "" : node.kind === "guide" ? "User guides" : node.kind));
     const groups = [...new Set(shownEntries.map(({ node }) => String(groupOf(node))))].sort((a, b) => (byColumn ? FLOW.findIndex(({ title: name }) => name === a) - FLOW.findIndex(({ title: name }) => name === b) : a.localeCompare(b)));
     const groupPosition = new Map(groups.map((group, at) => [group, at]));
     const mode = state.color || (opened || holds ? "type" : lens.color);

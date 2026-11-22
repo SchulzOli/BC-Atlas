@@ -15,6 +15,7 @@
     ["objectId", "ID"], ["namespace", "Namespace"], ["app", "App"], ["origin", "Origin"],
     ["publisher", "Publisher"], ["version", "Version"], ["access", "Access"], ["obsolete", "Obsolete"], ["severity", "Severity"],
     ["objects", "Objects"], ["procedures", "Procedures"], ["lines", "Lines"], ["complexity", "Complexity"], ["uses", "Uses"], ["usedBy", "Used by"],
+    ["guides", "User guides"], ["document", "Document ID"], ["features", "Features"], ["journeys", "Journeys"], ["roles", "Roles"], ["permissions", "Permission sets"], ["actions", "Actions"],
     ["header", "Declaration"]
   ];
   const SIZES = [["", "Same size"], ["relations", "Relations"], ["usedBy", "Used by"], ["uses", "Uses"], ["lines", "Lines of code"], ["complexity", "Complexity"], ["objects", "Objects"], ["findings", "Findings"]];

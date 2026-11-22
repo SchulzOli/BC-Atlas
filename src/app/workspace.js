@@ -4,8 +4,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { runHealthCheck } from "../commands/check.js";
-import { findGitRoot } from "../git.js";
-import { findUiTests, loadCorpus } from "../docs/model.js";
+import { linkGuides, loadGuideCorpus } from "../guides.js";
 import { openParseCache } from "../parse-cache.js";
 import { commonSources, createAtlas, createInside, sourceUrl } from "./atlas.js";
 
@@ -68,7 +67,7 @@ export class Workspace {
   health() {
     return this.remember("health", async () => {
       const parseCache = await this.parseCache();
-      const result = await runHealthCheck(this.input, this.values, { parseCache });
+      const result = await runHealthCheck(this.input, this.values, { parseCache, guideCorpus: (options) => this.guideCorpus(options) });
       this.scheduleSave(parseCache);
       return result;
     });
@@ -238,20 +237,33 @@ export class Workspace {
     return this.remember(`inside:${id}`, () => createInside(this, id));
   }
 
+  /**
+   * The documented UI tests (src/guides.js), read once per generation. The
+   * folder they are in is found once: looking for it parses every candidate.
+   */
+  guideCorpus(options) {
+    return this.remember("guide-corpus", async () => {
+      const found = await loadGuideCorpus(this.testsPath && !options.docs?.tests ? { ...options, docs: { ...options.docs, tests: this.testsPath } } : options);
+      if (found) this.testsPath = found.path;
+      return found;
+    });
+  }
+
   /** UI-test documentation: from .bca.json (docs.tests) or the folder with the most scenarios. */
   docs() {
     return this.remember("docs", async () => {
       const { options } = await this.model();
-      const root = options.projectRoot;
-      let relative = options.docs?.tests;
-      if (!relative) {
-        const found = await findUiTests(root, await findGitRoot(root)).catch(() => undefined);
-        if (!found?.scenarios) return undefined;
-        relative = found.path;
-      }
-      const corpus = await loadCorpus(path.resolve(root, relative)).catch(() => undefined);
-      if (!corpus?.scenarios.length) return undefined;
-      return { path: relative, scenarios: corpus.scenarios.length, corpus, settings: { ...(options.docs ?? {}) } };
+      const found = await this.guideCorpus(options);
+      if (!found?.corpus.scenarios.length) return undefined;
+      return { path: found.path, scenarios: found.corpus.scenarios.length, corpus: found.corpus, settings: { ...(options.docs ?? {}) } };
+    });
+  }
+
+  /** The guides joined with the source: the pages each one uses, and what is not documented (src/guides.js). */
+  guides() {
+    return this.remember("guides", async () => {
+      const { model, options } = await this.model();
+      return linkGuides(model, await this.guideCorpus(options), options);
     });
   }
 }

@@ -143,6 +143,16 @@
             "off"
           ],
           "default": "warning"
+        },
+        "documentation": {
+          "description": "Severity of what the user guides from the AL UI tests do not cover: a page a user opens that no guide shows (page-without-guide), and a UI test without [SCENARIO] (undocumented-ui-test). Off by default.",
+          "enum": [
+            "error",
+            "warning",
+            "info",
+            "off"
+          ],
+          "default": "off"
         }
       }
     },

@@ -357,6 +357,7 @@ export async function parseAlUiTest(source, filename, requestedProcedure) {
     })),
     diagnostics,
     procedure: selected[1],
+    line: source.slice(0, selected.index).split("\n").length,
     sourceRange: { start: selected.index, end },
     sourceText,
     sourceHash: createHash("sha256").update(sourceText).digest("hex")
@@ -430,7 +431,7 @@ export async function loadAlUiTests(filename, skipped = [], undocumented = []) {
     } catch (error) {
       if (!/must have a \/\/ \[SCENARIO\] comment/u.test(error.message)) throw error;
       const body = content.slice(tests[index].index, tests[index + 1]?.index ?? content.length);
-      if (drivesPage(body, testPages)) undocumented.push({ path: absolutePath, procedure });
+      if (drivesPage(body, testPages)) undocumented.push({ path: absolutePath, procedure, line: content.slice(0, tests[index].index).split("\n").length });
     }
   }
   return scenarios;

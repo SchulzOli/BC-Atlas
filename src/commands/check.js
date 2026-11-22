@@ -6,6 +6,7 @@ import { CheckFailedError } from "../cli/errors.js";
 import { displayPath } from "../output.js";
 import { assessHealth, formatHealthMarkdown, formatHealthText, healthResultLine } from "../health.js";
 import { renderSarif } from "../sarif.js";
+import { linkGuides, loadGuideCorpus } from "../guides.js";
 
 /**
  * Reads a project and assesses its health.
@@ -20,7 +21,13 @@ export async function runHealthCheck(input, values = {}, context = {}) {
     if (values[name] !== undefined) settings[name] = values[name];
   }
   const levels = projectLevels(loaded);
-  return { loaded, levels, report: assessHealth(loaded.model, settings, { levels }) };
+  // The guides are read only for the rule that needs them: reading the UI tests costs a parse of their own.
+  let guides;
+  if ((settings.documentation ?? "off") !== "off") {
+    const found = await (context.guideCorpus ?? loadGuideCorpus)(loaded.options);
+    guides = linkGuides(loaded.model, found, loaded.options);
+  }
+  return { loaded, levels, report: assessHealth(loaded.model, settings, { levels, guides }) };
 }
 
 const VERSION = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;

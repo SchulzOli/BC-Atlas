@@ -198,7 +198,8 @@
       "required": ["id", "kind", "label"],
       "properties": {
         "id": { "type": "string" },
-        "kind": { "enum": ["object", "app", "module", "rule", "member", "area"] },
+        "kind": { "enum": ["object", "app", "module", "rule", "member", "area", "guide"], "description": "A guide is a documented AL UI test; it `documents` the pages its steps use." },
+        "guides": { "type": "integer", "description": "For a page: how many user guides show it." },
         "label": { "type": "string" },
         "type": { "type": "string", "description": "The AL object type, for an object." },
         "objectId": { "type": "string" },
