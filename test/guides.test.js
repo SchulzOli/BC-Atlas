@@ -142,3 +142,32 @@ test("tests of different codeunits with the same name are both documented", asyn
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("docs suggest drafts the tags of a UI test without documentation, and --write makes it a guide", async () => {
+  const { suggestTags } = await import("../src/docs/suggest.js");
+  const { loadCorpus } = await import("../src/docs/model.js");
+  const { readFileSync } = await import("node:fs");
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bca-guides-suggest-"));
+  try {
+    cpSync(warehouse, directory, { recursive: true });
+    const file = path.join(directory, "WarehouseUITests.al");
+    const before = readFileSync(file, "utf8");
+    const [draft, ...more] = await suggestTags(directory);
+    assert.equal(more.length, 0, "the documented tests are left alone");
+    assert.equal(draft.procedure, "WarehouseRequests_OpenList_ShowsRequests");
+    assert.equal(draft.scenario, "On the Warehouse Requests page: warehouse requests open list shows requests.");
+    assert.equal(draft.when, "The user opens the Warehouse Requests page.");
+    assert.equal(readFileSync(file, "utf8"), before, "without write nothing changes");
+
+    await suggestTags(directory, { write: true });
+    const after = readFileSync(file, "utf8");
+    assert.match(after, /begin\n {8}\/\/ \[SCENARIO\] On the Warehouse Requests page: warehouse requests open list shows requests\.\n {8}\/\/ Not documented yet[^\n]*\n {8}\/\/ \[WHEN\] The user opens the Warehouse Requests page\.\n {8}WarehouseRequests\.OpenView\(\);/u);
+    const corpus = await loadCorpus(directory);
+    assert.equal(corpus.undocumented.length, 0);
+    assert.equal(corpus.scenarios.length, 3, "the test is a guide now");
+    assert.deepEqual(corpus.diagnostics, []);
+    assert.deepEqual(await suggestTags(directory), [], "and nothing is left to draft");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

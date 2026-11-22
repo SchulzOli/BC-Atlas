@@ -307,6 +307,20 @@ export function createCapabilities(version) {
         ]
       }),
       command({
+        id: "docs.suggest",
+        area: "export",
+        argv: ["bca", "docs", "suggest", "<test-root>"],
+        purpose: "Draft the tags of UI tests without documentation: a [SCENARIO] and a [WHEN] from what each test does.",
+        options: {
+          procedure: string("Only this test.", { value: "name" }),
+          write: flag("Put the drafts into the AL files; without it, show them."),
+          format: docsFormat
+        },
+        output: { type: "json", when: "--format json" },
+        rules: ["A draft is a start: read it, then refine it with docs set, and add [THEN] with what the user sees."],
+        examples: ["bca docs suggest ./test/UITest", "bca docs suggest ./test/UITest --procedure NoSeriesPage_DrillDown --write"]
+      }),
+      command({
         id: "docs.set",
         area: "export",
         argv: ["bca", "docs", "set", "<test-root>"],

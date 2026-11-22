@@ -335,7 +335,9 @@ is generated: change the AL tags and regenerate rather than editing it.
   guide and the actions no scenario uses.
 
 `bca docs validate` lists the UI tests without documentation too, without
-failing. To make them a finding of `bca check` (and of the Problems panel and
+failing. `bca docs suggest` drafts their tags (a `[SCENARIO]` and a
+`[WHEN]` from what each test does); with `--write` they go into the source, so
+documenting starts from a draft rather than an empty page. To make them a finding of `bca check` (and of the Problems panel and
 **Check** in the view), set `check.documentation` in `.bca.json` to `info`,
 `warning`, or `error`: it reports every UI test without `[SCENARIO]`
 (`undocumented-ui-test`) and every page a user opens that no guide shows

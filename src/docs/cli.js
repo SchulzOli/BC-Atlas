@@ -5,6 +5,7 @@ import { exportDocumentation, parseFormats } from "./export.js";
 import { loadCaptionIndex } from "./captions.js";
 import { loadCorpus, scenarioSummary } from "./model.js";
 import { documentationGlossary } from "./tags.js";
+import { suggestTags } from "./suggest.js";
 import { planMetadataEdit, writeMetadataEdit } from "./al-ui-writer.js";
 import { CheckFailedError, UsageError } from "../cli/errors.js";
 import { displayPath } from "../output.js";
@@ -115,6 +116,20 @@ async function generate(input, values) {
   for (const filename of result.files) console.log(`Wrote ${display(filename)}`);
 }
 
+async function suggest(input, values) {
+  const drafts = await suggestTags(input, { procedure: values.procedure, write: Boolean(values.write) });
+  if (values.format === "json") return printJson(drafts);
+  if (!drafts.length) return console.log("Every UI test is documented.");
+  for (const draft of drafts) {
+    console.log(`${draft.file}:${draft.line} ${draft.procedure}`);
+    console.log(`  // [SCENARIO] ${draft.scenario}`);
+    if (draft.when) console.log(`  // [WHEN] ${draft.when}`);
+  }
+  console.log(values.write
+    ? `Wrote ${drafts.length} draft(s). Read them, refine them with docs set, and add [THEN] with what the user sees.`
+    : `${drafts.length} draft(s). Run again with --write to put them into the AL files.`);
+}
+
 function glossary(_input, values) {
   const items = documentationGlossary();
   if (values.format === "json") return printJson(items);
@@ -158,6 +173,7 @@ export const DOCS_COMMANDS = {
   "docs.show": show,
   "docs.validate": validate,
   "docs.generate": generate,
+  "docs.suggest": suggest,
   "docs.set": (input, values) => mutate(input, values, false),
   "docs.unset": (input, values) => mutate(input, values, true),
   "docs.automation": automation,

@@ -19,6 +19,7 @@ import { INSPECT_LIMIT, inspectModel } from "./inspect.js";
 import { linkGuides, loadGuideCorpus } from "./guides.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
 import { documentationGlossary } from "./docs/tags.js";
+import { suggestTags } from "./docs/suggest.js";
 import { DOCUMENT_MODES, EXPORT_FORMATS, exportDocumentation } from "./docs/export.js";
 import { loadCorpus, scenarioSummary } from "./docs/model.js";
 import { createService } from "./app/service.js";
@@ -292,6 +293,16 @@ function createMcpServer(version = pkg.version) {
     const result = await exportDocumentation(await loadCorpus(input), { ...options, mode });
     return { written: result.files, warnings: result.warnings };
   }));
+
+  server.registerTool("bc_atlas_docs_suggest", {
+    description: "Draft the tags of AL UI tests that have no documentation: a [SCENARIO] from what the test does or its name, and a [WHEN] before its first step. Without write it only proposes them; with write it puts them into the AL files. Refine a draft with bc_atlas_docs_edit afterwards.",
+    inputSchema: z.object({
+      path: z.string().min(1).describe("AL UI-test file or directory"),
+      procedure: z.string().optional().describe("Only this test"),
+      write: z.boolean().default(false)
+    }),
+    annotations: { idempotentHint: false }
+  }, tool(async ({ path: input, procedure, write }) => ({ drafts: await suggestTags(input, { procedure, write }) })));
 
   server.registerTool("bc_atlas_docs_edit", {
     description: "Preview or apply one AL documentation metadata change. Real writes require expectedFileHash.",

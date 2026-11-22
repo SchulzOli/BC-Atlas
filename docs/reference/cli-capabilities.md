@@ -28,6 +28,7 @@ Write what the app shows as files, look at any part of it from the terminal, and
 | `docs.show` | `bca docs show <test-root>` | Show one scenario, its prerequisites, and its diagnostics. |
 | `docs.validate` | `bca docs validate <test-root>` | Validate IDs, tags, links, and prerequisite cycles. |
 | `docs.generate` | `bca docs generate <test-root>` | Generate user guides or test cases with flow diagrams as Markdown, HTML, DITA, Azure DevOps CSV, or BPMN. |
+| `docs.suggest` | `bca docs suggest <test-root>` | Draft the tags of UI tests without documentation: a [SCENARIO] and a [WHEN] from what each test does. |
 | `docs.set` | `bca docs set <test-root>` | Add or replace documentation metadata in AL source. |
 | `docs.unset` | `bca docs unset <test-root>` | Remove documentation metadata from AL source. |
 | `docs.automation` | `bca docs automation <test-root>` | Print a CI pipeline that keeps generated guides in sync. |
