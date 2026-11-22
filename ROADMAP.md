@@ -13,17 +13,10 @@ Items are candidates, not commitments; open an issue to discuss priorities.
 
 ## Now: make what is left dependable
 
-No new features. Each item closes a gap that is known today.
-
-- **Release 0.28.0.** The cut is a breaking change: publish it as one release
-  with the changelog as the migration note.
-
-Done so far: the browser test of the view runs in CI, an undeclared app
-dependency is a finding, the same source gives the same output on Windows and
-Linux, a test keeps what the command catalog and the MCP tools say true, and
-the loose ends of the cut are tied.
-
-Done when: 0.28.0 is published.
+Done, released as 0.28.0: the browser test of the view runs in CI, an
+undeclared app dependency is a finding, the same source gives the same output
+on Windows and Linux, a test keeps what the command catalog and the MCP tools
+say true, and the loose ends of the cut are tied.
 
 ## Next: fast and small enough to trust
 

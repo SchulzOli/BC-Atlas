@@ -6,6 +6,22 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 0.28.0 - 2026-11-22
+
+BC Atlas goes back to its core: the view of an AL project, the
+documentation of the repository (`bca layers`, `bca docs`), and `bca check`
+as its health gate. This release is breaking; the Removed and Changed
+sections below are the migration note. In short:
+
+- `bca export` writes the view as one HTML file. For Markdown pages of the
+  project, use `bca layers`; for a picture of a lens, `bca view --lens <id>
+  -o <file>.svg`.
+- `bca check` reports health only; the target architecture, the AL
+  compiler, and the history of the layers are gone, and with them their
+  `.bca.json` sections.
+- Agents read the model a page at a time through `bc_atlas_inspect`, and
+  every JSON document names its shape in `schema`.
+
 ### Added
 
 - **An app that uses another without declaring it is a finding.**

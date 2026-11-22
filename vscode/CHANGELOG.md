@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.28.0 - 2026-11-22
 
 - Back to the core: the view shows the architecture of the source and
   nothing else. Removed the lenses for processes, people, requirements, the
@@ -13,8 +13,8 @@
   Violations in the Baseline**. Objects are grouped by namespace.
 - Removed the AL compiler and code analyzers (`bcAtlas.alCompiler`,
   `bcAtlas.alAnalyzers`); the AL Language extension reports those itself.
-- The export offers the view as one file, the Markdown report, and the
-  knowledge graph.
+- **Export…** writes the view as one offline HTML file; the Markdown report
+  and the knowledge graph are removed.
 
 ## 0.27.0
 
