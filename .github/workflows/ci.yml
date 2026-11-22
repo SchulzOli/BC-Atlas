@@ -124,6 +124,32 @@ jobs:
         if: github.event_name == 'pull_request'
         run: node scripts/benchmark.js --compare base.json head.json
 
+  # BC Atlas on a real project (scripts/bcapps.js): Microsoft's BCApps at a
+  # pinned commit. The share of resolved references and the UI tests that
+  # become a guide have floors; raise them as BC Atlas gets better.
+  bcapps:
+    needs: check
+    runs-on: ubuntu-latest
+    env:
+      BCAPPS_COMMIT: 651fa482a8eda31b59fd2ace52bebe27330c5f0d
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: BCApps at the pinned commit
+        run: |
+          git init -q ../bcapps
+          cd ../bcapps
+          git remote add origin https://github.com/microsoft/BCApps.git
+          git sparse-checkout set "src/System Application" "src/Business Foundation" "src/Tools/Test Framework"
+          git fetch -q --depth 1 --filter=blob:none origin "$BCAPPS_COMMIT"
+          git checkout -q FETCH_HEAD
+      - name: Resolution and guides above their floors
+        run: node scripts/bcapps.js ../bcapps/src --json bcapps.json | tee -a "$GITHUB_STEP_SUMMARY"
+
   container:
     runs-on: ubuntu-latest
     steps:

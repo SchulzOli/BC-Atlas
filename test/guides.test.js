@@ -125,3 +125,20 @@ test("in an editor, a save reads again only the UI tests that changed", async ()
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("tests of different codeunits with the same name are both documented", async () => {
+  const { loadCorpus } = await import("../src/docs/model.js");
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bca-guides-ids-"));
+  const test = (codeunit, id) => `codeunit ${id} "${codeunit}"\n{\n    Subtype = Test;\n\n    [Test]\n    procedure AddNewAccountTest()\n    var\n        Accounts: TestPage "Email Accounts";\n    begin\n        // [SCENARIO] Add an account.\n        Accounts.OpenView();\n        Accounts.Close();\n    end;\n}\n`;
+  try {
+    writeFileSync(path.join(directory, "EmailAccountsTest.Codeunit.al"), test("Email Accounts Test", 50100));
+    writeFileSync(path.join(directory, "FileAccountsTest.Codeunit.al"), test("File Accounts Test", 50101));
+    writeFileSync(path.join(directory, "Other.Codeunit.al"), test("Other", 50102).replace("AddNewAccountTest", "OtherTest").replace("// [SCENARIO]", "// [DOC-ID] add-new-account-test\n        // [SCENARIO]"));
+    const corpus = await loadCorpus(directory);
+    assert.deepEqual(corpus.diagnostics, []);
+    assert.deepEqual(corpus.scenarios.map(({ value }) => value.id), ["add-new-account-test", "email-accounts-test-add-new-account-test", "file-accounts-test-add-new-account-test"],
+      "a derived ID takes its file's name; one an author gave stays");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

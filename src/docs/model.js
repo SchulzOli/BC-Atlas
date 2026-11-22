@@ -118,6 +118,25 @@ export function validateCorpus(scenarios) {
 
 const byProcedure = (a, b) => a.path.localeCompare(b.path) || a.procedure.localeCompare(b.procedure);
 
+/**
+ * Tests of different codeunits often share a procedure name (Microsoft's
+ * EmailAccountsTest and FileAccountsTest both have AddNewAccountTest). An ID
+ * derived from such a name takes its file's name in front, so both are
+ * documented; an ID an author gave ([DOC-ID]) is never changed.
+ */
+function distinguishDerivedIds(scenarios) {
+  const count = new Map();
+  for (const { value } of scenarios) count.set(value.id, (count.get(value.id) ?? 0) + 1);
+  const fileSlug = (file) => path.basename(file).replace(/(\.[A-Za-z]+)?\.al$/iu, "")
+    .replace(/([A-Z]+)([A-Z][a-z])/gu, "$1-$2").replace(/([a-z0-9])([A-Z])/gu, "$1-$2")
+    .toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
+  for (const scenario of scenarios) {
+    if (scenario.value.idSource !== "procedure" || count.get(scenario.value.id) < 2) continue;
+    scenario.value.id = `${fileSlug(scenario.path)}-${scenario.value.id}`;
+  }
+  scenarios.sort((left, right) => left.value.id.localeCompare(right.value.id) || left.reference.localeCompare(right.reference));
+}
+
 /** One file of the corpus; with a cache, read again only when its size or time changed. */
 async function loadFile(file, cache) {
   const stamp = cache && await fs.stat(file).then(({ size, mtimeMs }) => `${size}:${mtimeMs}`, () => undefined);
@@ -144,6 +163,7 @@ export async function loadCorpus(input, { cache } = {}) {
     .sort((left, right) =>
       left.value.id.localeCompare(right.value.id) || left.reference.localeCompare(right.reference)
     );
+  distinguishDerivedIds(scenarios);
   const validation = validateCorpus(scenarios);
   return {
     root,
