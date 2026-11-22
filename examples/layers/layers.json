@@ -8,7 +8,7 @@
     "relations": 26,
     "findings": {
       "error": 0,
-      "warning": 0,
+      "warning": 1,
       "info": 7
     }
   },

@@ -5,6 +5,15 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 *.al text eol=lf
+# Generated files are compared byte for byte, on every system.
+*.svg text eol=lf
+*.html text eol=lf
+*.ttl text eol=lf
+*.owl text eol=lf
+*.d2 text eol=lf
+*.bpmn text eol=lf
+*.dita text eol=lf
+*.ditamap text eol=lf
 *.wasm binary
 *.png binary
 *.jpg binary

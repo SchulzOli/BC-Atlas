@@ -198,7 +198,11 @@ export async function buildLayers(workspace, { pictures = "auto", view = false, 
       const own = (memberOf[kind].get(holderKey(node)) ?? []).slice().sort((a, b) => name(a).localeCompare(name(b)));
       const index = indexOf(node);
       const related = (direction, from = file ?? "README.md") => atlas.edges.filter((edge) => edge[direction ? 0 : 1] === index && atlas.nodes[edge[direction ? 1 : 0]].kind === kind)
-        .map((edge) => `${atlas.relations[edge[2]].kind} ${link(atlas.nodes[edge[direction ? 1 : 0]], from)}`);
+        .map((edge) => {
+          const other = atlas.nodes[edge[direction ? 1 : 0]];
+          // What no app holds is not an app: say what it is.
+          return other.label === "(unresolved)" ? "objects that are not found" : `${atlas.relations[edge[2]].kind} ${link(other, from)}`;
+        });
       const types = new Map();
       for (const object of own) types.set(object.type, (types.get(object.type) ?? 0) + 1);
       // What it is, in a sentence.

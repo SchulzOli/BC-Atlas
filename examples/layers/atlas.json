@@ -1,5 +1,5 @@
 {
- "schema": 1,
+ "schema": "bc-atlas.atlas/1",
  "title": "multi-app",
  "summary": {
   "apps": 3,
@@ -10,7 +10,7 @@
    "passed": true,
    "failOn": "error",
    "error": 0,
-   "warning": 0,
+   "warning": 1,
    "info": 7
   }
  },
@@ -342,6 +342,13 @@
    "objects": 1
   },
   {
+   "id": "rule::undeclared-app-dependency",
+   "kind": "rule",
+   "label": "undeclared-app-dependency",
+   "color": "#B7791F",
+   "severity": "warning"
+  },
+  {
    "id": "rule::undocumented-public-api",
    "kind": "rule",
    "label": "undocumented-public-api",
@@ -411,6 +418,10 @@
   {
    "kind": "undeclared",
    "color": "#C0392B"
+  },
+  {
+   "kind": "warning",
+   "color": "#B7791F"
   },
   {
    "kind": "info",
@@ -654,38 +665,44 @@
   ],
   [
    21,
-   4,
-   13,
-   1
-  ],
-  [
-   21,
-   5,
-   13,
-   1
-  ],
-  [
-   21,
-   9,
-   13,
-   1
-  ],
-  [
-   21,
-   6,
-   13,
-   1
-  ],
-  [
-   21,
    7,
    13,
    1
   ],
   [
-   21,
+   22,
+   4,
+   14,
+   1
+  ],
+  [
+   22,
+   5,
+   14,
+   1
+  ],
+  [
+   22,
+   9,
+   14,
+   1
+  ],
+  [
+   22,
+   6,
+   14,
+   1
+  ],
+  [
+   22,
+   7,
+   14,
+   1
+  ],
+  [
+   22,
    3,
-   13,
+   14,
    1
   ]
  ],
@@ -943,6 +960,7 @@
     "object"
    ],
    "relations": [
+    "warning",
     "info"
    ],
    "connected": true,
@@ -953,11 +971,24 @@
  ],
  "findings": [
   {
+   "severity": "warning",
+   "rule": "undeclared-app-dependency",
+   "message": "Contoso Integration uses Contoso Core (3 relations) without naming it in the dependencies of its app.json",
+   "fix": "Add Contoso Core to \"dependencies\" in integration/app.json, or remove the use.",
+   "nodes": [
+    21,
+    7
+   ],
+   "file": "integration/ItemSync.al",
+   "line": 10,
+   "origin": "health"
+  },
+  {
    "severity": "info",
    "rule": "undocumented-public-api",
    "message": "codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice",
    "nodes": [
-    21,
+    22,
     4
    ],
    "file": "core/Pricing.al",
@@ -969,7 +1000,7 @@
    "rule": "undocumented-public-api",
    "message": "codeunit 50011 CON Pricing Mgt.: 1 public procedure(s) without a /// summary: Calculate",
    "nodes": [
-    21,
+    22,
     5
    ],
    "file": "core/Pricing.al",
@@ -981,7 +1012,7 @@
    "rule": "undocumented-public-api",
    "message": "codeunit 50100 CON Quote Mgt.: 1 public procedure(s) without a /// summary: Recalculate",
    "nodes": [
-    21,
+    22,
     9
    ],
    "file": "sales/Quotes.al",
@@ -993,7 +1024,7 @@
    "rule": "undocumented-public-api",
    "message": "codeunit 50200 CON Quote Export: 1 public procedure(s) without a /// summary: Export",
    "nodes": [
-    21,
+    22,
     6
    ],
    "file": "integration/Export.al",
@@ -1005,7 +1036,7 @@
    "rule": "undocumented-public-api",
    "message": "codeunit 50201 CON Item Sync: 1 public procedure(s) without a /// summary: Sync",
    "nodes": [
-    21,
+    22,
     7
    ],
    "file": "integration/ItemSync.al",
@@ -1017,7 +1048,7 @@
    "rule": "undocumented-public-api",
    "message": "interface CON Price Calculation: 1 public procedure(s) without a /// summary: UnitPrice",
    "nodes": [
-    21,
+    22,
     3
    ],
    "file": "core/Pricing.al",
@@ -1029,7 +1060,7 @@
    "rule": "unresolved-references",
    "message": "2 reference(s) to 1 external or unresolved target(s); add .alpackages symbols to resolve them",
    "nodes": [
-    22
+    23
    ],
    "origin": "health"
   }
@@ -1121,17 +1152,18 @@
     },
     {
      "title": "Health: passed",
-     "text": "0 errors, 0 warnings, 7 info. Turn on Check to see them on the graph.",
+     "text": "0 errors, 1 warning, 7 info. Turn on Check to see them on the graph.",
      "lens": "health",
      "nodes": [
       21,
+      7,
+      22,
       4,
       5,
       9,
       6,
-      7,
       3,
-      22
+      23
      ]
     }
    ]
@@ -1140,76 +1172,17 @@
    "id": "fix",
    "kind": "check",
    "title": "What to fix",
-   "summary": "7 findings, the most severe first, each on the nodes it is about.",
+   "summary": "1 finding, the most severe first, each on the nodes it is about.",
    "steps": [
     {
-     "title": "info: undocumented-public-api",
-     "text": "codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice",
-     "lens": "health",
-     "nodes": [
-      21,
-      4
-     ],
-     "status": "info"
-    },
-    {
-     "title": "info: undocumented-public-api",
-     "text": "codeunit 50011 CON Pricing Mgt.: 1 public procedure(s) without a /// summary: Calculate",
-     "lens": "health",
-     "nodes": [
-      21,
-      5
-     ],
-     "status": "info"
-    },
-    {
-     "title": "info: undocumented-public-api",
-     "text": "codeunit 50100 CON Quote Mgt.: 1 public procedure(s) without a /// summary: Recalculate",
-     "lens": "health",
-     "nodes": [
-      21,
-      9
-     ],
-     "status": "info"
-    },
-    {
-     "title": "info: undocumented-public-api",
-     "text": "codeunit 50200 CON Quote Export: 1 public procedure(s) without a /// summary: Export",
-     "lens": "health",
-     "nodes": [
-      21,
-      6
-     ],
-     "status": "info"
-    },
-    {
-     "title": "info: undocumented-public-api",
-     "text": "codeunit 50201 CON Item Sync: 1 public procedure(s) without a /// summary: Sync",
+     "title": "warning: undeclared-app-dependency",
+     "text": "Contoso Integration uses Contoso Core (3 relations) without naming it in the dependencies of its app.json Fix: Add Contoso Core to \"dependencies\" in integration/app.json, or remove the use.",
      "lens": "health",
      "nodes": [
       21,
       7
      ],
-     "status": "info"
-    },
-    {
-     "title": "info: undocumented-public-api",
-     "text": "interface CON Price Calculation: 1 public procedure(s) without a /// summary: UnitPrice",
-     "lens": "health",
-     "nodes": [
-      21,
-      3
-     ],
-     "status": "info"
-    },
-    {
-     "title": "info: unresolved-references",
-     "text": "2 reference(s) to 1 external or unresolved target(s); add .alpackages symbols to resolve them",
-     "lens": "health",
-     "nodes": [
-      22
-     ],
-     "status": "info"
+     "status": "warning"
     }
    ]
   }

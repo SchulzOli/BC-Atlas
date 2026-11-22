@@ -17,41 +17,34 @@ No new features. Each item closes a gap that is known today.
 
 - **Release 0.28.0.** The cut is a breaking change: publish it as one release
   with the changelog as the migration note.
-- **The view is tested in a browser, in CI.** The test that opens the exported
-  view, every menu, and every lens exists, but skips where Playwright is not
-  installed. Install Chromium in one CI job so a broken page fails the build.
-- **Undeclared app dependencies are a finding.** An app that uses another
-  without naming it in `app.json` shows in the Apps lens, but `bca check`
-  passes. Add a health rule for it, and one for references that are in no app
-  and no symbol package.
-- **The same source gives the same output on every system.** Paths are made
-  uniform in one place, where the model is read, and a test compares the
-  pages of `bca layers` between Windows and Linux.
-- **What agents are told is true.** A test checks that the descriptions of the
-  MCP tools and the command catalog name only lenses, stories, and options
-  that exist, so they cannot go stale again.
-- **Loose ends of the cut.** The row "unresolved (unresolved)" in the apps
-  table of `bca layers`; `types` in `.bca.json`, which is read but not in the
-  schema; `bca export -o -`, which writes a file named `-`.
 
-Done when: 0.28.0 is published, CI runs the browser test, and none of the
-items above is open.
+Done so far: the browser test of the view runs in CI, an undeclared app
+dependency is a finding, the same source gives the same output on Windows and
+Linux, a test keeps what the command catalog and the MCP tools say true, and
+the loose ends of the cut are tied.
+
+Done when: 0.28.0 is published.
 
 ## Next: fast and small enough to trust
 
-- **Re-resolve only what a changed file affects.** Parsing is incremental
-  already; resolution is not. On a workspace the size of the Base
-  Application this is what makes the view follow the editor.
-- **Performance is measured in CI.** `scripts/benchmark.js` records time and
-  peak memory, and a regression fails the build.
-- **Answers that fit an agent's context.** `bc_atlas_inspect` returns the
-  whole model; give it a limit and a way to ask for a part. A published
-  schema for what `bca view --format json` returns, with a version.
-- **Large files are split along their seams.** `src/analyzer.js` (1,600
-  lines) and `src/app/ui/graph.js` (1,500 lines) are the two files a
-  contributor cannot read in one sitting.
-- **The overview of a large app.** Above 48 objects it shows areas; check that
-  they are the right ones on real projects, and that every area leads on.
+Done, measured on Microsoft's BCApps (System Application and Business
+Foundation, 1,441 AL files):
+
+- **The view follows the editor.** Resolution was never the cost (about
+  60 ms); the work around it was. From a saved file to an updated view now
+  takes under a second, where it took about two.
+- **Performance is measured in CI.** Time and peak memory of `check`,
+  `layers`, `export`, and a save, for a pull request and its base on the same
+  machine; a regression fails the build.
+- **Answers that fit an agent's context.** `bc_atlas_inspect` returns a page
+  of the model, about 200 KB where the whole model is 54 MB, and every JSON
+  document names its shape and version (`schemas/output.schema.json`).
+- **Large files are split along their seams.** No module of the analyzer or
+  the graph is longer than 600 lines.
+- **The overview of a large app.** Every area leads on: a namespace to its
+  objects, the rest to the Modules lens, other apps to the Apps lens. A
+  namespace too large for areas opens to its objects, and a namespace of
+  several apps is an area per app.
 
 ## Later: documentation from AL UI tests
 

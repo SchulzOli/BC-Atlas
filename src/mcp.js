@@ -16,6 +16,7 @@ import { writeView } from "./commands/view.js";
 import { viewOverview } from "./app/view.js";
 import { generateReport } from "./commands/report.js";
 import { loadProject } from "./project.js";
+import { INSPECT_LIMIT, inspectModel } from "./inspect.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
 import { documentationGlossary } from "./docs/tags.js";
 import { DOCUMENT_MODES, EXPORT_FORMATS, exportDocumentation } from "./docs/export.js";
@@ -77,10 +78,17 @@ export function createMcpServer(version = pkg.version) {
   }, tool(async () => createCapabilities(version)));
 
   server.registerTool("bc_atlas_inspect", {
-    description: "Analyze AL source and return the resolved model as JSON: every object with its members, every relation with its evidence, the diagnostics, and the insights (hubs, cycles). Large for a large project; bc_atlas_view returns a part of it.",
-    inputSchema: z.object({ ...projectFields, strict: z.boolean().optional() }),
+    description: `The resolved model, a part at a time: the objects that select names and the relations that touch them, and the diagnostics of their files, with a summary of the whole project (files, objects, relations, apps, cycles, hubs). At most limit objects (default ${INSPECT_LIMIT}); when there are more, next is the offset of the following page. detail summary (default) gives each object in a line and the relations counted by kind; full gives every member, and every relation with its evidence: ask for it for a few objects. For what the view shows, use bc_atlas_view.`,
+    inputSchema: z.object({
+      ...projectFields,
+      select: z.array(z.string()).optional().describe("Which objects: selectors as in .bca.json, such as object:codeunit:50100, object:table:Customer, type:table, namespace:Contoso.Sales, app:Contoso Core, file:src/Sales/*.al, id:50100..50199. Objects that match any of them. Without it, every object of the workspace"),
+      offset: z.number().int().min(0).optional().describe("Skip this many of the selected objects (next of the page before)"),
+      limit: z.number().int().min(1).max(500).optional().describe(`At most this many objects (default ${INSPECT_LIMIT})`),
+      detail: z.enum(["summary", "full"]).optional().describe("summary (default): each object in a line, the relations counted by kind; full: members, and relations with their evidence"),
+      strict: z.boolean().optional()
+    }),
     annotations: { readOnlyHint: true, idempotentHint: true }
-  }, tool(async ({ path: input, ...values }) => (await loadProject(input, values)).model));
+  }, tool(async ({ path: input, select, offset, limit, detail, ...values }) => inspectModel((await loadProject(input, values)).model, { select, offset, limit, detail })));
 
   // ------------------------------------------------------------- MCP App
   // The BC Atlas view inside the chat (MCP Apps, io.modelcontextprotocol/ui): the same page the

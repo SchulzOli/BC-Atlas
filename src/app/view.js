@@ -5,7 +5,9 @@
 // or PNG. `bca view` and the MCP tool bc_atlas_view call it.
 import { textWidth } from "../diagram/text.js";
 import { UsageError } from "../cli/errors.js";
-// Both register themselves, as they do in the page.
+// They register themselves, as they do in the page, and in this order.
+import "./ui/graph-layout.js";
+import "./ui/graph-draw.js";
 import "./ui/graph.js";
 import "./ui/scene.js";
 
@@ -103,6 +105,7 @@ export function viewState(atlas, options = {}) {
 export function viewOverview(atlas) {
   const found = S.index(atlas);
   return {
+    schema: "bc-atlas.overview/1",
     project: atlas.title,
     summary: atlas.summary,
     lenses: atlas.lenses.map((lens) => {
@@ -213,7 +216,7 @@ export async function renderView(workspace, options = {}) {
 
   // Every story as one document.
   if (options.stories) {
-    if (format === "json") return { content: `${JSON.stringify(atlas.stories, null, 2)}\n`, format, state, atlas };
+    if (format === "json") return { content: `${JSON.stringify({ schema: "bc-atlas.stories/1", project: atlas.title, stories: atlas.stories }, null, 2)}\n`, format, state, atlas };
     if (format === "md") return { content: `${S.documentation(atlas)}\n`, format, state, atlas };
     if (format === "text") return { content: atlas.stories.map((story) => storyText(atlas, story)).join("\n"), format, state, atlas };
     throw new UsageError(`--stories writes text, md, or json, not ${format}`);
@@ -229,7 +232,7 @@ export async function renderView(workspace, options = {}) {
   if (story && options.step === undefined && !pictures) {
     if (format === "text") return { content: storyText(atlas, story), format, state, atlas };
     if (format === "md") return { content: `${S.storyMarkdown(atlas, story)}\n`, format, state, atlas };
-    if (format === "json") return { content: `${JSON.stringify(story, null, 2)}\n`, format, state, atlas };
+    if (format === "json") return { content: `${JSON.stringify({ schema: "bc-atlas.story/1", project: atlas.title, ...story }, null, 2)}\n`, format, state, atlas };
     throw new UsageError("a story writes text, md, or json; add --step for the nodes of one step");
   }
 

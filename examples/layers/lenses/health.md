@@ -14,13 +14,15 @@ Read from the findings of `bca check` and the objects they are on.
 | CON Standard Pricing | codeunit | codeunit | 1 |
 | CON Pricing Mgt. | codeunit | codeunit | 1 |
 | CON Quote Export | codeunit | codeunit | 1 |
-| CON Item Sync | codeunit | codeunit | 1 |
+| CON Item Sync | codeunit | codeunit | 2 |
 | CON Quote Mgt. | codeunit | codeunit | 1 |
+| undeclared-app-dependency | rule | rule | 1 |
 | undocumented-public-api | rule | rule | 6 |
 | unresolved-references | rule | rule | 0 |
 
 ## Findings
 
+- **warning** `undeclared-app-dependency`: Contoso Integration uses Contoso Core (3 relations) without naming it in the dependencies of its app.json Fix: Add Contoso Core to "dependencies" in integration/app.json, or remove the use.
 - **info** `undocumented-public-api`: interface CON Price Calculation: 1 public procedure(s) without a /// summary: UnitPrice
 - **info** `undocumented-public-api`: codeunit 50010 CON Standard Pricing: 1 public procedure(s) without a /// summary: UnitPrice
 - **info** `undocumented-public-api`: codeunit 50011 CON Pricing Mgt.: 1 public procedure(s) without a /// summary: Calculate

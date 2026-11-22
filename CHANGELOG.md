@@ -6,6 +6,44 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- **An app that uses another without declaring it is a finding.**
+  `bca check` reports `undeclared-app-dependency` (a warning) on the line
+  that uses the other app, with the `app.json` to fix; set its severity with
+  `check.undeclaredDependencies`. The finding is on the graph, in the
+  Problems panel, and in the pages of `bca layers`.
+- **Answers that fit an agent's context.** `bc_atlas_inspect` returns a part
+  of the model: the objects `select` names (selectors as in `.bca.json`), a
+  page of `limit` (default 50) with `next`, the relations that touch them, and
+  a summary of the project. `detail: "summary"` (default) gives each object in
+  a line; `detail: "full"` every member and every relation with its evidence.
+- **A published, versioned schema for JSON output.** Every document of
+  `bca view --format json`, `bc_atlas_view`, and `bc_atlas_inspect` names its
+  shape and version in `schema` (`bc-atlas.view/1`, ...), as
+  `schemas/output.schema.json` publishes them.
+- **Performance in CI.** `npm run benchmark` measures time and peak memory,
+  also of a save in the editor; CI compares a pull request with its base and
+  fails on a regression.
+
+### Fixed
+
+- **The view follows a save in half the time.** On a workspace of 1,441 AL
+  files, from a saved file to an updated view took about 2 s, now under 1 s.
+- **Every area of the overview leads on.** The box of the smaller areas leads
+  to the Modules lens and "Other apps" to the Apps lens, where they led
+  nowhere. A namespace too large for areas opens to its objects instead of to
+  one box of itself per column, and a namespace of several apps is one area
+  per app, so each opens to all of its objects.
+
+- The same source gives the same output on Windows and Linux: file paths
+  are read with forward slashes, and generated files keep LF line endings on
+  checkout.
+- The apps table of `bca layers` says "objects that are not found" where it
+  said "unresolved (unresolved)".
+- `bca export -o -` is a usage error instead of writing a file named `-`.
+- `types` in `.bca.json` is part of the schema.
+
 ### Removed
 
 BC Atlas goes back to its core: read the AL source, show the architecture,
@@ -67,6 +105,11 @@ check it, and document it. Everything else is gone.
   `graphology-communities-louvain`.
 
 ### Changed
+
+- `bc_atlas_inspect` returns a page of the model, not the whole model.
+- `bca view --stories --format json` writes `{ schema, project, stories }`
+  instead of a bare list, and `atlas.json` names its schema
+  `bc-atlas.atlas/1` instead of `1`.
 
 - The layers of `bca layers` are: the system, apps, namespaces, objects, and
   the procedures inside each object. `architecture.md` shows the apps and the

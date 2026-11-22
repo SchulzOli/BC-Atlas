@@ -28,6 +28,7 @@ VS Code extension applies the schema to `.bca.json` on its own.
 | `projectRoot` | Root of the AL project, relative to the file. |
 | `paths` | Analyze only these folders (globs allowed). |
 | `namespaces` | Namespace globs to keep. |
+| `types` | Object types to keep, such as `table` or `codeunit` (like `--type`). |
 | `include`, `exclude` | File or object globs to keep or to leave out. |
 | `title` | Title of the view and the report. |
 
@@ -71,6 +72,7 @@ check; use `--fail-on warning` (or `--strict`) to fail on warnings too.
   "check": {
     "failOn": "error",
     "cycles": "warning",
+    "undeclaredDependencies": "warning",
     "maxFanIn": 25,
     "maxFanOut": 25,
     "contractExpectations": [

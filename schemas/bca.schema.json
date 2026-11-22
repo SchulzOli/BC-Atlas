@@ -28,6 +28,13 @@
         "type": "string"
       }
     },
+    "types": {
+      "description": "Analyze only objects of these types, such as table or codeunit (like --type).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "include": {
       "type": "array",
       "items": {
@@ -126,6 +133,16 @@
         },
         "contexts": {
           "type": "array"
+        },
+        "undeclaredDependencies": {
+          "description": "Severity of an app that uses another without naming it in the dependencies of its app.json.",
+          "enum": [
+            "error",
+            "warning",
+            "info",
+            "off"
+          ],
+          "default": "warning"
         }
       }
     },

@@ -1,3 +1,4 @@
+import { appKey } from "./graph/lenses/dependency.js";
 import { qualityFindings } from "./quality-rules.js";
 import { FAIL_LEVELS, SEVERITIES } from "./capabilities.js";
 import { analyzeContractFallbacks } from "./contract-analysis.js";
@@ -43,11 +44,45 @@ function finding(severity, rule, message, details = {}) {
   return { severity, rule, message, ...details };
 }
 
+const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+
+/**
+ * An app that uses another without naming it in the `dependencies` of its
+ * app.json: the AL compiler does not build it. One finding per pair of apps,
+ * on the first place that uses the other app.
+ * @param levels what depends on what (projectLevels of src/project.js)
+ */
+function undeclaredDependencies(levels, model, severity) {
+  if (!levels?.app || severity === "off") return [];
+  const apps = new Map(levels.app.nodes.map((node) => [node.id, node]));
+  const manifests = new Map((model.apps ?? []).map((app) => [appKey(app), app.path]));
+  const findings = [];
+  for (const edge of levels.app.edges.filter(({ dependency }) => dependency === "undeclared")) {
+    const [from, to] = [apps.get(edge.source), apps.get(edge.target)];
+    if (!from || !to || from.origin !== "workspace") continue;
+    const uses = levels.object.edges.filter(({ sourceApp, targetApp, dependency }) =>
+      sourceApp === edge.source && targetApp === edge.target && dependency === "undeclared");
+    const evidence = uses.flatMap(({ evidence: items }) => items ?? []).find(({ file, line }) => file && line !== undefined);
+    const objects = [...new Set(uses.map(({ source }) => levels.object.nodes.find(({ id }) => id === source)?.label).filter(Boolean))].sort();
+    findings.push(finding(severity, "undeclared-app-dependency",
+      `${from.label} uses ${to.label} (${plural(edge.weight ?? edge.objectEdges, "relation")}) without naming it in the dependencies of its app.json`, {
+        fix: `Add ${to.label} to "dependencies" in ${manifests.get(edge.source) ?? `the app.json of ${from.label}`}, or remove the use.`,
+        app: from.label,
+        dependency: to.label,
+        objects,
+        manifest: manifests.get(edge.source),
+        ...(evidence ? { file: evidence.file, line: evidence.line } : {})
+      }));
+  }
+  return findings;
+}
+
 /**
  * Builds a health report for the model of a project (src/project.js).
  * Thresholds come from CLI options or the `check` section of .bca.json.
+ * @param context { levels }: what depends on what, for the rules about apps
  */
-export function assessHealth(model, settings = {}) {
+export function assessHealth(model, settings = {}, { levels } = {}) {
   const failOn = settings.failOn ?? "error";
   if (!FAIL_LEVELS.includes(failOn)) throw new Error(`fail-on must be one of: ${FAIL_LEVELS.join(", ")}`);
   const maxFanIn = positive(settings.maxFanIn, "max-fan-in", 25);
@@ -55,6 +90,10 @@ export function assessHealth(model, settings = {}) {
   const cycleSeverity = settings.cycles ?? "warning";
   if (![...SEVERITIES, "off"].includes(cycleSeverity)) {
     throw new Error(`check.cycles must be one of: ${[...SEVERITIES, "off"].join(", ")}`);
+  }
+  const undeclaredSeverity = settings.undeclaredDependencies ?? "warning";
+  if (![...SEVERITIES, "off"].includes(undeclaredSeverity)) {
+    throw new Error(`check.undeclaredDependencies must be one of: ${[...SEVERITIES, "off"].join(", ")}`);
   }
 
   const objects = model.objects.filter(({ externalSymbol, boundaryCategory }) => !externalSymbol && !boundaryCategory);
@@ -112,6 +151,7 @@ export function assessHealth(model, settings = {}) {
       { targets }));
   }
 
+  findings.push(...undeclaredDependencies(levels, model, undeclaredSeverity));
   findings.push(...analyzeContractFallbacks(model, settings.contractExpectations));
   const contextResponsibilities = analyzeContextResponsibilities(model, settings.contexts);
   findings.push(...contextResponsibilities.findings);
@@ -142,7 +182,7 @@ export function assessHealth(model, settings = {}) {
     schemaVersion: 1,
     passed: failing.length === 0,
     failOn,
-    thresholds: { maxFanIn, maxFanOut, cycles: cycleSeverity },
+    thresholds: { maxFanIn, maxFanOut, cycles: cycleSeverity, undeclaredDependencies: undeclaredSeverity },
     summary: {
       apps: (model.apps ?? []).map(({ name, publisher, version }) => ({ name, publisher, version })),
       files: model.files,

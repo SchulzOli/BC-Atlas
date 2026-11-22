@@ -384,7 +384,8 @@ export async function createAtlas(workspace) {
     .map((lens) => ({ ...lens, relations: lens.relations === "*" ? betweenObjects : lens.relations.filter((kind) => present.has(kind)) }));
 
   return {
-    schema: 1,
+    // The shapes of the JSON the view writes are in schemas/output.schema.json.
+    schema: "bc-atlas.atlas/1",
     title: overview.title,
     version: overview.version,
     live: overview.live,
