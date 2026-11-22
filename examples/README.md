@@ -19,12 +19,6 @@ The command writes three pictures of the warehouse example to
 - `data.svg` shows the tables and the code that reads and writes them;
 - `pages.svg` shows the pages and what they show.
 
-It also writes the [report](./report/README.md) produced by
-`bca export examples/warehouse-app --view report -o examples/report`: the
-numbers, a picture of each lens, and the health summary. The
-[knowledge graph](./knowledge-graph/warehouse-app.ttl) of the same app is in
-`examples/knowledge-graph`, as Turtle and OWL.
-
 It generates the [user documentation](./docs/index.md) from the AL UI
 tests in `WarehouseUITests.al`, using real captions and tooltips from the app,
 as Markdown, a single [HTML file](./docs/index.html), DITA 1.3 tasks, and an

@@ -10,11 +10,10 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import * as z from "zod/v4";
 
-import { createCapabilities, FAIL_LEVELS, REPORT_LENSES, VIEW_FORMATS, VIEW_FORMS, VIEW_LENSES } from "./capabilities.js";
+import { createCapabilities, FAIL_LEVELS, VIEW_FORMATS, VIEW_FORMS, VIEW_LENSES } from "./capabilities.js";
 import { runHealthCheck } from "./commands/check.js";
 import { writeView } from "./commands/view.js";
 import { viewOverview } from "./app/view.js";
-import { generateReport } from "./commands/report.js";
 import { loadProject } from "./project.js";
 import { INSPECT_LIMIT, inspectModel } from "./inspect.js";
 import { planMetadataEdit, writeMetadataEdit } from "./docs/al-ui-writer.js";
@@ -168,27 +167,6 @@ export function createMcpServer(version = pkg.version) {
     }),
     annotations: { readOnlyHint: true, idempotentHint: true }
   }, tool(async ({ path: input, ...values }) => (await runHealthCheck(input, values)).report));
-
-  server.registerTool("bc_atlas_report", {
-    description: "Write a Markdown report (README.md) with the numbers of the project, a picture of each lens, and the health summary.",
-    inputSchema: z.object({
-      ...projectFields,
-      outputDir: z.string().min(1).default("docs/atlas"),
-      lenses: z.array(z.string()).optional().describe(`The lenses to draw (default ${REPORT_LENSES.join(", ")}); one the project does not have is left out`),
-      json: z.boolean().optional(),
-      title: z.string().optional()
-    }),
-    annotations: { idempotentHint: true }
-  }, tool(async ({ path: input, lenses, ...values }) => {
-    const result = await generateReport(input, { ...values, lenses: lenses?.join(",") });
-    return {
-      readme: result.readme,
-      outputDirectory: result.outputDirectory,
-      passed: result.health.passed,
-      counts: result.health.counts,
-      pictures: result.pictures.map(({ lens, file, nodes, relations }) => ({ lens, file, nodes, relations }))
-    };
-  }));
 
   server.registerTool("bc_atlas_view", {
     description: "The BC Atlas view without a window: everything read from the AL source is one graph (apps, namespaces, objects, health rules, and what they do with each other). Without lens, story, inside, or focus it returns what there is to see: the lenses and stories of the project. A lens (overview: how it works, in columns from the screens over the logic to the data; system, apps, modules, data, calls, events, contracts, pages, security, visibility, health) returns that part of the graph: nodes with their facts and findings, and relations. inside goes into one node: an object opens to its procedures and what each does, an app or a namespace to its objects; focus returns a node and what is near it; story returns a generated walk through the graph (system: what the system is; fix: what to fix). format text, md, or csv returns that text; with output it writes a file, also a picture (svg, png) in a form (2d, diagram, 3d). Reads the source; changes nothing but the output file.",

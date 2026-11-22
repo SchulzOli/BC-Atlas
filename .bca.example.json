@@ -25,19 +25,6 @@
     "maxFanIn": 25,
     "maxFanOut": 25
   },
-  "report": {
-    "outputDir": "docs/atlas",
-    "lenses": [
-      "overview",
-      "apps",
-      "modules",
-      "data",
-      "events",
-      "contracts",
-      "pages"
-    ],
-    "json": false
-  },
   "layers": {
     "outputDir": "docs/layers",
     "pictures": "auto"

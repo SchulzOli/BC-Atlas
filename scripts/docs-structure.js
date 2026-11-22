@@ -9,9 +9,7 @@ export const SECTIONS = [
   ]],
   ["Show and document", [
     ["Layered documentation, in sync with the source", "layers.md"],
-    ["Reports", "reports.md"],
-    ["Documentation from AL UI tests", "al-ui-test-documentation.md"],
-    ["Knowledge graph (RDF and OWL)", "knowledge-graph.md"]
+    ["Documentation from AL UI tests", "al-ui-test-documentation.md"]
   ]],
   ["Check", [
     ["Health checks", "health-checks.md"]
@@ -23,14 +21,11 @@ export const SECTIONS = [
   ["Reference", [
     ["CLI reference", "cli-reference.md"],
     ["Generated CLI capabilities", "reference/cli-capabilities.md"],
-    ["BC Atlas ontology", "reference/ontology.md"],
     ["Troubleshooting", "troubleshooting.md"]
   ]],
   ["Generated examples", [
-    ["Report (warehouse example)", "../examples/report/README.md"],
     ["Layered documentation (three-app example)", "../examples/layers/README.md"],
-    ["User guides from AL UI tests (warehouse example)", "../examples/docs/index.md"],
-    ["Knowledge graph (warehouse example)", "../examples/knowledge-graph/warehouse-app.ttl"]
+    ["User guides from AL UI tests (warehouse example)", "../examples/docs/index.md"]
   ]]
 ];
 

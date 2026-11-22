@@ -67,3 +67,5 @@ Removed on purpose, and not coming back without a new reason:
 - Running the AL compiler or its code analyzers.
 - A history of the documentation by commit or release, and trend reports.
 - Diagram views beside the lenses, and D2 or PDF output.
+- The Markdown report and the knowledge graph (RDF, OWL): `bca layers`
+  documents a repository.

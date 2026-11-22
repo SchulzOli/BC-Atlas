@@ -150,13 +150,7 @@ neutral contract fallbacks remain informational and do not become warnings.
 Without `check.contexts`, no context-responsibility findings or
 `contextResponsibilities` report section are produced.
 
-`report` holds the defaults of `bca export --view report`: `outputDir`
-(default `docs/atlas`), `lenses` (the lenses to draw; one the project does not
-have is left out), `title`, and `json` (also write the resolved model as
-`model.json`).
-
-See [Architecture health checks](./health-checks.md) and
-[Architecture reports](./reports.md).
+See [Architecture health checks](./health-checks.md).
 
 ## Read the AL workspace
 

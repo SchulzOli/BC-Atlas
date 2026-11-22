@@ -67,6 +67,15 @@ check it, and document it. Everything else is gone.
 - **Exports:** `bca export --view explorer` (the standalone 3D explorer with
   its Git timeline) and `--view handbook`; `--handbook` of the report. The
   view keeps its 3D form.
+- **The report and the knowledge graph:** `bca export --view report`
+  (Markdown with a picture of each lens; `bca layers` writes the
+  documentation of a repository), `--view knowledge-graph` (RDF and the OWL
+  ontology), the MCP tool `bc_atlas_report`, and the `report` section of
+  `.bca.json`. `bca export` writes the view as one HTML file and has no
+  `--view`, `--format`, `--lenses`, `--json`, `--base-iri`, or
+  `--no-evidence` any more.
+- **Unused code of the documentation:** `journey.d2` (the journey map is
+  `journey.svg`).
 - **The view:** the lenses Processes, People, Requirements, Simulation,
   Process models, Flows, and Run; the Simulate and Flow menus; the flow and
   process builders; the stories of processes, people, and runs. The overview

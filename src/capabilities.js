@@ -2,18 +2,8 @@
 // built-in help, the generated documentation, and the machine-readable
 // `bca help --format json` contract are all derived from this catalog.
 
-// What `bca export` can write.
-export const EXPORTS = Object.freeze([
-  ["app", "The BC Atlas view as one offline HTML file to share: a toolbar and the graph, with every lens, finding, and story"],
-  ["report", "Markdown report (README.md) with the numbers, a picture of each lens, and the health"],
-  ["knowledge-graph", "The analyzed project as RDF with the BC Atlas OWL ontology, for knowledge graphs and triple stores: Turtle, RDF/XML (.rdf, .owl), N-Triples, or JSON-LD"]
-]);
-// RDF syntaxes of the knowledge-graph export.
-export const KNOWLEDGE_FORMATS = Object.freeze(["ttl", "rdf", "owl", "nt", "jsonld"]);
 export const SEVERITIES = Object.freeze(["error", "warning", "info"]);
 export const FAIL_LEVELS = Object.freeze(["error", "warning", "info", "never"]);
-// The lenses the report draws, when the project has them.
-export const REPORT_LENSES = Object.freeze(["overview", "apps", "modules", "data", "events", "contracts", "pages"]);
 // What the view shows (the lenses of src/app/atlas.js), its forms, and what `bca view` writes.
 export const VIEW_LENSES = Object.freeze(["overview", "system", "apps", "modules", "data", "calls", "events", "contracts", "pages", "security", "visibility", "health"]);
 export const VIEW_FORMS = Object.freeze(["2d", "diagram", "3d"]);
@@ -69,28 +59,10 @@ const pathsOption = string("Only analyze AL files in this folder or matching thi
 });
 
 const exportOptions = {
-  view: string("What to write: app, report, or knowledge-graph.", {
-    group: OUTPUT,
-    enum: EXPORTS.map(([id]) => id),
-    default: "app"
-  }),
-  output: string("Output file or folder (default: bc-atlas.html, docs/atlas, or bc-atlas.ttl).", {
-    group: OUTPUT,
-    short: "o",
-    value: "path"
-  }),
-  format: string("app: html; report: md; knowledge-graph: ttl, rdf, owl, nt, or jsonld. Inferred from the output extension when omitted.", {
-    group: OUTPUT,
-    short: "f",
-    enum: ["html", "md", ...KNOWLEDGE_FORMATS]
-  }),
-  baseIri: string("Knowledge graph: base IRI of the exported resources (default urn:bc-atlas:).", { group: OUTPUT, value: "iri" }),
-  noEvidence: flag("Knowledge graph: leave out the bca:Relation resources with each relation's file, line, and operations; the direct relation triples stay. About a third of the size.", { group: OUTPUT }),
-  title: string("Title of the view or the report.", { group: OUTPUT, value: "text" }),
+  output: string("Output file (default: bc-atlas.html).", { group: OUTPUT, short: "o", value: "path" }),
+  title: string("Title of the view.", { group: OUTPUT, value: "text" }),
   watch: flag("Write again whenever AL source, app.json, or .bca.json changes.", { group: OUTPUT }),
   debounce: string("Delay before writing again with --watch, in milliseconds.", { group: OUTPUT, value: "ms", default: "250" }),
-  lenses: string("Report: comma-separated lenses to draw; one the project does not have is left out.", { group: "Report", value: "list", default: REPORT_LENSES.join(",") }),
-  json: flag("Report: also write the resolved model as model.json.", { group: "Report" }),
   ...filterOptions,
   paths: pathsOption,
   ...projectOptions
@@ -149,7 +121,6 @@ export function createCapabilities(version) {
       sourceOfTruth: "AL source is authoritative; generated JSON, Markdown, and SVG are outputs."
     },
     areas: FEATURE_AREAS,
-    exports: EXPORTS.map(([id, summary]) => ({ id, summary })),
     commands: [
       command({
         id: "check",
@@ -169,7 +140,7 @@ export function createCapabilities(version) {
         id: "export",
         area: "export",
         argv: ["bca", "export", "[app-root]"],
-        purpose: "Write files: the BC Atlas view as one offline HTML file, the Markdown report, or the knowledge graph.",
+        purpose: "Write the BC Atlas view as one offline HTML file to share: a toolbar and the graph, with every lens, finding, and story.",
         options: exportOptions,
         output: { type: "file", pathOption: "output", default: "bc-atlas.html" },
         rules: [
@@ -177,9 +148,6 @@ export function createCapabilities(version) {
         ],
         examples: [
           "bca export ./app -o atlas.html",
-          "bca export ./app --view report",
-          "bca export ./app --view report --lenses overview,data -o docs/architecture",
-          "bca export ./app --view knowledge-graph -o app.ttl",
           "bca export ./app -o atlas.html --watch"
         ]
       }),

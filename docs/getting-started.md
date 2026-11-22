@@ -44,21 +44,15 @@ files change. See
 ## 3. Write the overview into the repository
 
 ```sh
-bca export --view report
+bca layers
 ```
 
-This writes `docs/atlas/README.md` with:
-
-- an at-a-glance table (files, objects, relationships, cycles, health);
-- one picture each for the overview, apps, modules, data, events, contracts,
-  and pages lenses;
-- the health summary;
-- the command that regenerates the report.
-
-See [Architecture reports](./reports.md) and the
-[generated example](../examples/report/README.md). For one page per app,
-namespace, and object, run `bca layers`; see
-[Layered documentation](./layers.md).
+This writes the documentation of the repository into `docs/atlas`: how it
+works, how its apps and namespaces are connected, and one page per app,
+namespace, and object, each with a picture. `bca layers --check` says in CI
+whether the pages are still in sync with the source. See
+[Layered documentation](./layers.md) and the
+[generated example](../examples/layers/README.md).
 
 To share the BC Atlas view with people who do not use VS Code,
 `bca export -o atlas.html` writes it as one offline HTML file: the graph

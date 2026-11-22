@@ -29,7 +29,8 @@ const REMOVED = [
   [/\bpdf\b/iu, "PDF output"],
   [/\bcodegraph\b|\bobject catalog\b/iu, "the object catalog"],
   [/--at\b|--releases\b|\bhistory\//u, "the history of bca layers"],
-  [/bc_atlas_(architecture|extraction_plan|generate_diagram)/u, "removed MCP tools"]
+  [/knowledge[- ]graph|\bontology\b|\brdf\b|--view report/iu, "the report and knowledge-graph exports"],
+  [/bc_atlas_(architecture|extraction_plan|generate_diagram|report)\b/u, "removed MCP tools"]
 ];
 function assertCurrent(text, where) {
   for (const [pattern, what] of REMOVED) assert.doesNotMatch(text, pattern, `${where} speaks of ${what}`);
@@ -68,7 +69,7 @@ test("the command catalog speaks only of what exists", () => {
       ...Object.values(definition.options).map(({ description }) => description)];
     for (const text of texts) assertCurrent(text, `bca ${definition.id}`);
   }
-  for (const { summary } of [...capabilities.areas, ...capabilities.exports]) assertCurrent(summary, "the catalog");
+  for (const { summary } of capabilities.areas) assertCurrent(summary, "the catalog");
   assertCurrent(capabilities.transport.rule, "the transport rule");
 });
 

@@ -1,4 +1,4 @@
-import { EXPORTS, FEATURE_AREAS } from "../capabilities.js";
+import { FEATURE_AREAS } from "../capabilities.js";
 
 const DOCS_URL = "https://github.com/SchulzOli/BC-Atlas/tree/main/docs";
 
@@ -30,7 +30,7 @@ function topLevelName(definition) {
 // One-line summaries for the overview; the full purpose is in each command's help.
 const SHORT = {
   check: "Gate CI on health: cycles, forbidden dependencies, hot spots, diagnostics",
-  export: "Write files: the view as one offline HTML file, the report, or the knowledge graph",
+  export: "Write the view as one offline HTML file to share",
   mcp: "Start the Model Context Protocol server for AI agents",
   view: "The view without a window: any lens, story, or object as text, JSON, CSV, Markdown, SVG, or PNG",
   layers: "The documentation, in sync with the source: how it works, how it is connected, down to each procedure"
@@ -67,9 +67,6 @@ export function overviewHelp(capabilities) {
     lines.push(area.title, ...aligned(rows), "");
   }
   lines.push(
-    "What bca export writes (--view)",
-    ...aligned(EXPORTS.map(([id, summary]) => [id, summary])),
-    "",
     "Common options",
     ...aligned([
       ["-h, --help", "Show help for any command"],

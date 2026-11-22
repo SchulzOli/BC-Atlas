@@ -118,7 +118,7 @@ All commands are in the Command Palette under `BC Atlas: ...`.
 | --- | --- |
 | Open, Open a Lens… | Shows the view, or the view with one lens. |
 | Run Health Check | Analyzes again and fills the Problems panel; the same rules as `bca check` in CI. |
-| Export… | Writes the view as one offline HTML file to share, the Markdown report, or the knowledge graph. |
+| Export… | Writes the view as one offline HTML file to share. |
 | Generate Documentation from UI Tests… | Markdown, HTML, DITA, Azure DevOps CSV, or BPMN from AL UI tests. |
 | Select Project… | Chooses the app, or a folder above several apps, to analyze. |
 | Analyze Again, Show Output | |

@@ -56,7 +56,7 @@ More commands:
 ```sh
 bca check                   # health gate for CI
 bca view                    # what there is to see: the lenses and stories of the app, in the terminal
-bca export --view report    # docs/atlas/README.md: numbers, a picture of each lens, health
+bca export -o atlas.html   # the view as one offline HTML file to share
 ```
 
 In VS Code, install the **BC Atlas** extension and open an AL project:
@@ -74,7 +74,7 @@ documentation, test, and demonstration. [Guide](./docs/vscode.md)
 | Area | Command | What you get |
 | --- | --- | --- |
 | **Show** | BC Atlas extension | The view in the editor: a toolbar and the graph. Every object, app, namespace, and finding is a node of one graph; a lens shows a part of it as a 2D graph, a diagram, or a 3D graph; stories walk through it; everything exports. The graph follows the source and the editor; findings in the Problems panel; CodeLens above AL objects; the MCP server for agents. [Guide](./docs/vscode.md) |
-| | `bca export` | The same view as one offline HTML file to share (default), the Markdown report ([example](./examples/report/README.md)), or the project as a knowledge graph in RDF with an OWL ontology ([Turtle, RDF/XML, OWL, N-Triples, JSON-LD](./docs/knowledge-graph.md)). |
+| | `bca export` | The same view as one offline HTML file to share. |
 | | `bca view` | The view without a window, for the terminal, pipelines, and agents: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. `bca view --lens data --form diagram -o data.svg`, `bca view --story fix`, `bca view --inside codeunit:50100`. The same code draws the app and writes these files. [Reference](./docs/cli-reference.md#view) |
 | | MCP App (`bc_atlas_app`) | The same view inside the conversation, in every client that renders [MCP Apps](./docs/agent-integration.md#the-view-in-the-chat-mcp-app). Released together with the extension. |
 | **Document** | `bca layers` | The documentation of a repository: how it works, how its apps and namespaces are connected (`architecture.md`), and the system explained from the whole down to each procedure, one page per app, namespace, and object, each with a picture. In sync with the source (`--check`). [Guide](./docs/layers.md), [example](./examples/layers/README.md) |
@@ -180,12 +180,12 @@ Read the docs at **[schulzoli.github.io/BC-Atlas](https://schulzoli.github.io/BC
 search, or browse them here, starting with the [table of contents](./docs/_TOC_.md):
 
 - [Getting started](./docs/getting-started.md) and [BC Atlas for VS Code](./docs/vscode.md)
-- [Layered documentation](./docs/layers.md), [reports](./docs/reports.md), and [documentation from AL UI tests](./docs/al-ui-test-documentation.md)
+- [Layered documentation](./docs/layers.md) and [documentation from AL UI tests](./docs/al-ui-test-documentation.md)
 - [Health checks](./docs/health-checks.md)
 - [Configuration](./docs/configuration.md) and the complete [`.bca.example.json`](./.bca.example.json)
-- [Knowledge graph](./docs/knowledge-graph.md) and [agent integration and MCP](./docs/agent-integration.md)
+- [Agent integration and MCP](./docs/agent-integration.md)
 - [CLI reference](./docs/cli-reference.md) and [troubleshooting](./docs/troubleshooting.md)
-- Generated examples: [report](./examples/report/README.md), [layered documentation](./examples/layers/README.md), and [user guides](./examples/docs/index.md)
+- Generated examples: [layered documentation](./examples/layers/README.md) and [user guides](./examples/docs/index.md)
 
 ## AI agents and tools
 
@@ -240,7 +240,7 @@ cd BC-Atlas
 npm ci
 npm run check      # syntax check and generated-docs check
 npm test
-npm run examples   # regenerate examples/output, report, layers, docs, and knowledge-graph
+npm run examples   # regenerate examples/output, layers, and docs
 npm run site:dev   # documentation website with live reload
 ```
 
@@ -252,7 +252,7 @@ Container:
 
 ```sh
 docker build -t bc-atlas .
-docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/workspace" bc-atlas export /workspace/app --view report -o /workspace/docs/atlas
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/workspace" bc-atlas layers /workspace/app -o /workspace/docs/atlas
 ```
 
 The AL grammar is pinned in `vendor/tree-sitter-al.wasm`; update it with
