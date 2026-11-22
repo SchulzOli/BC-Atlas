@@ -3,7 +3,7 @@ import { resolvedCallEdges, subscriberAttribute } from "../calls.js";
 
 // Relation kinds that make one AL object depend on another. Every kind keeps
 // its own weight on the aggregated edge so the viewer can filter by kind.
-export const DEPENDENCY_KINDS = Object.freeze([
+const DEPENDENCY_KINDS = Object.freeze([
   "extends",
   "implements",
   "calls",
@@ -59,7 +59,7 @@ export function appKey(app) {
 }
 
 /** Root module of an app, or the nested module (app.json below the app) an object belongs to. */
-export function moduleKey(object) {
+function moduleKey(object) {
   return object.module
     ? `module::${normalizeIdentifier(object.module.id ?? object.module.name)}`
     : appKey(object.app);

@@ -14,7 +14,7 @@ let ready;
 let fonts;
 
 /** The pixel scale: twice the drawing's size when it fits the limits. */
-export function pngScale(width, height, preferred = 2) {
+function pngScale(width, height, preferred = 2) {
   return Math.min(preferred, Math.sqrt(MAX_PIXELS / (width * height)), MAX_SIDE / Math.max(width, height));
 }
 

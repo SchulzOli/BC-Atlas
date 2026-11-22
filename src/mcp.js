@@ -58,8 +58,8 @@ function tool(handler) {
 
 // The BC Atlas view as an MCP App (SEP-1865, io.modelcontextprotocol/ui): the page, and one
 // workspace per project so that the page asks on an analysis that is there, as in VS Code.
-export const APP_URI = "ui://bc-atlas/view.html";
-export const APP_MIME = "text/html;profile=mcp-app";
+const APP_URI = "ui://bc-atlas/view.html";
+const APP_MIME = "text/html;profile=mcp-app";
 const appServices = new Map();
 function appService(input) {
   const root = path.resolve(input ?? ".");
@@ -67,7 +67,7 @@ function appService(input) {
   return { root, service: appServices.get(root) };
 }
 
-export function createMcpServer(version = pkg.version) {
+function createMcpServer(version = pkg.version) {
   const server = new McpServer({ name: "bc-atlas", version });
 
   server.registerTool("bc_atlas_capabilities", {

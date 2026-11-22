@@ -9,7 +9,7 @@ import { positiveInteger } from "../project.js";
 import { UsageError } from "../cli/errors.js";
 
 /** Writes the view as one offline HTML file; returns the files written. */
-export async function runExport(input, values = {}, { log = () => {} } = {}) {
+async function runExport(input, values = {}, { log = () => {} } = {}) {
   if (values.output === "-") throw new UsageError("bca export writes a file; -o - is not supported. For JSON on stdout, use bca view --format json");
   const output = path.resolve(values.output ?? "bc-atlas.html");
   const workspace = new Workspace(input, values, { live: false });

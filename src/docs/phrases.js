@@ -350,7 +350,7 @@ function phrasebook(language = "en-US") {
   return PHRASEBOOKS[base] ?? EN;
 }
 
-export function lowerFirst(text) {
+function lowerFirst(text) {
   return text.replace(/^\p{Lu}(?!\p{Lu})/u, (letter) => letter.toLowerCase());
 }
 

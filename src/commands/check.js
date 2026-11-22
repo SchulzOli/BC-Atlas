@@ -25,7 +25,7 @@ export async function runHealthCheck(input, values = {}, context = {}) {
 
 const VERSION = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
 
-export function renderHealth(report, format, { root, fallbackFile } = {}) {
+function renderHealth(report, format, { root, fallbackFile } = {}) {
   if (format === "json") return `${JSON.stringify(report, null, 2)}\n`;
   if (format === "sarif") return renderSarif(report, { root, fallbackFile, version: VERSION });
   if (format === "markdown") return formatHealthMarkdown(report, { heading: "# Architecture health" });

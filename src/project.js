@@ -20,7 +20,7 @@ export function positiveInteger(value, name, fallback) {
 }
 
 /** The values of .bca.json with those of the call on top. */
-export function mergeOptions(config, values) {
+function mergeOptions(config, values) {
   return {
     ...config,
     ...Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined)),
@@ -37,7 +37,7 @@ export function mergeOptions(config, values) {
  * @param context { fileFilter, parseCache }; parseCache reuses parse results
  *   of unchanged files (src/parse-cache.js)
  */
-export async function analyzeProject(projectRoot, options = {}, { fileFilter, parseCache } = {}) {
+async function analyzeProject(projectRoot, options = {}, { fileFilter, parseCache } = {}) {
   // Without a cache from the caller, the one on disk: a second run parses
   // only changed files. Not for a subset of the files, whose save would drop
   // the others.
@@ -58,7 +58,7 @@ export async function analyzeProject(projectRoot, options = {}, { fileFilter, pa
  * @param input app or workspace folder, or a folder or file inside the project root (the focus)
  * @returns { config, options, projectRoot, selectedPath, filter, fileFilter }
  */
-export async function projectContext(input, values = {}) {
+async function projectContext(input, values = {}) {
   const config = await loadConfig(values.projectRoot ?? input, values.config);
   const options = mergeOptions(config.values, values);
   const requestedRoot = path.resolve(options.projectRoot ?? input);

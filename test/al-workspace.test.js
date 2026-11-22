@@ -3,14 +3,12 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { zipSync, strToU8 } from "fflate";
 import { packageCacheFolders, readAlWorkspace } from "../src/al-workspace.js";
 import { analyze } from "../src/analyzer.js";
 import { resolveModel } from "../src/resolver.js";
 import { loadSymbolPackages } from "../src/symbols.js";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function temp(prefix) {
   return mkdtempSync(path.join(os.tmpdir(), `bc-atlas-al-${prefix}-`));

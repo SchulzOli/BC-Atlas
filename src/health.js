@@ -12,7 +12,7 @@ function positive(value, name, fallback) {
   return number;
 }
 
-export function objectLabel(object) {
+function objectLabel(object) {
   if (!object) return "unknown object";
   return [object.type, object.id, object.name].filter(Boolean).join(" ");
 }

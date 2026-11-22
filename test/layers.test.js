@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,17 +12,11 @@ import { fileURLToPath } from "node:url";
 import { buildLayers, LAYERS_SCHEMA } from "../src/app/layers.js";
 import { Workspace } from "../src/app/workspace.js";
 import { createCapabilities, findCommand } from "../src/capabilities.js";
-import { syncLayers } from "../src/commands/layers.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cli = path.join(root, "src", "cli.js");
 const multi = path.join(root, "examples", "multi-app");
 const bca = (args, options = {}) => spawnSync(process.execPath, [cli, ...args], { encoding: "utf8", timeout: 180_000, ...options });
-const git = (cwd, ...args) => {
-  const result = spawnSync("git", ["-c", "user.name=Test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false", ...args], { cwd, encoding: "utf8" });
-  assert.equal(result.status, 0, `git ${args.join(" ")}: ${result.stderr}`);
-  return result.stdout.trim();
-};
 
 /** Every relative link and picture of a Markdown page that leads to a file. */
 const links = (text) => [...text.matchAll(/\]\(([^)#\s]+)(?:#[^)]*)?\)/gu)].map(([, target]) => target).filter((target) => !/^[a-z]+:/iu.test(target));

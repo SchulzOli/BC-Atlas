@@ -113,7 +113,7 @@ function representativePath(start, members, outgoing, edgesByPair) {
 }
 
 /** Provides one deterministic, evidence-backed representative path per structural cycle. */
-export function findCyclePaths(objects, edges) {
+function findCyclePaths(objects, edges) {
   const cycles = findCycles(objects, edges);
   const outgoing = new Map(objects.map(({ key }) => [key, []]));
   const edgesByPair = new Map();

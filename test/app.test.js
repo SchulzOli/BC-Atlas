@@ -7,7 +7,6 @@ import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 
-import { createAtlas } from "../src/app/atlas.js";
 import { renderAppHtml } from "../src/app/page.js";
 import { createService } from "../src/app/service.js";
 import { Workspace } from "../src/app/workspace.js";

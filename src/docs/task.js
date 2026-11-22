@@ -14,7 +14,7 @@ import { singular } from "./al-ui-source.js";
 import { label, phrase } from "./phrases.js";
 import { operationStep } from "./steps.js";
 
-export const LINK_KINDS = ["next", "related", "alternative"];
+const LINK_KINDS = ["next", "related", "alternative"];
 
 // Sentences that start like an instruction ("Create a sales order").
 const IMPERATIVE = /^(?:add|apply|approve|archive|assign|block|calculate|cancel|change|check|close|complete|configure|confirm|convert|copy|correct|create|define|delete|edit|enable|disable|enter|export|fill|filter|find|generate|get|import|insert|invoice|issue|link|look|make|manage|mark|modify|move|navigate|open|pick|post|preview|print|process|put|receive|record|register|release|remove|rename|reopen|replace|request|reverse|review|run|save|schedule|select|send|set|ship|show|sign|split|start|submit|suggest|transfer|unblock|update|use|validate|verify|view)\b/iu;
@@ -25,7 +25,7 @@ function isEnglish(language) {
 }
 
 /** Title and goal in the output language; English titles use the page caption. */
-export function titleFor(value, context = {}) {
+function titleFor(value, context = {}) {
   const english = isEnglish(context.language);
   const opener = value.creationTarget
     ? (value.guideOperations ?? []).find((op) => op.kind === "open" && op.mode === "new")
@@ -310,7 +310,7 @@ export function buildCatalog(corpus, context = {}) {
 }
 
 /** Number of clicks in a task: phases count their items. */
-export function clickCount(task) {
+function clickCount(task) {
   return task.steps.reduce((count, step) => count + (step.phase ? step.items.length : 1), 0);
 }
 

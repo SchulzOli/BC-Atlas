@@ -16,9 +16,6 @@ const GRAPH = globalThis.BCA_GRAPH;
 
 export const VIEW_FORMATS = Object.freeze(["text", "json", "md", "csv", "svg", "png", "link"]);
 export const VIEW_FORMS = S.FORMS;
-export const VIEW_COLORS = S.COLORS;
-export const VIEW_SIZES = S.SIZES;
-export const VIEW_GROUPS = S.GROUPS;
 
 // The colors of the page (ui/atlas.css), light and dark.
 const LOOKS = {

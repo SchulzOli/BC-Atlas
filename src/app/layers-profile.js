@@ -40,11 +40,11 @@ export const LAYERS_SECTIONS = Object.freeze({
   lens: Object.freeze(["Findings"]),
   story: null
 });
-export const LAYERS_SECTION_KINDS = Object.freeze(Object.keys(LAYERS_SECTIONS));
-export const LAYERS_LANGUAGES = Object.freeze(["en", "de"]);
-export const LAYERS_SCOPE_KEYS = Object.freeze(["apps", "namespaces", "types", "exclude"]);
+const LAYERS_SECTION_KINDS = Object.freeze(Object.keys(LAYERS_SECTIONS));
+const LAYERS_LANGUAGES = Object.freeze(["en", "de"]);
+const LAYERS_SCOPE_KEYS = Object.freeze(["apps", "namespaces", "types", "exclude"]);
 /** What a pattern of `names` can hold; a kind with one page has no placeholders. */
-export const LAYERS_NAME_PLACEHOLDERS = Object.freeze({
+const LAYERS_NAME_PLACEHOLDERS = Object.freeze({
   apps: Object.freeze(["name"]),
   namespaces: Object.freeze(["name", "app"]),
   objects: Object.freeze(["name", "type", "id", "app", "namespace"]),
@@ -52,7 +52,7 @@ export const LAYERS_NAME_PLACEHOLDERS = Object.freeze({
   stories: Object.freeze(["name", "id"])
 });
 /** What a template can hold: the parts of a page, and facts about what the page is of. */
-export const LAYERS_TEMPLATE_PLACEHOLDERS = Object.freeze(["title", "summary", "picture", "sections", "footer", "section \"<name>\"", "body \"<name>\"", "name", "type", "id", "app", "namespace", "system"]);
+const LAYERS_TEMPLATE_PLACEHOLDERS = Object.freeze(["title", "summary", "picture", "sections", "footer", "section \"<name>\"", "body \"<name>\"", "name", "type", "id", "app", "namespace", "system"]);
 const TEMPLATE_PARTS = new Set(["title", "summary", "picture", "sections", "footer", "name", "type", "id", "app", "namespace", "system"]);
 const TEMPLATE_SECTION_PARTS = new Set(["section", "body"]);
 /** The titles of the pages there is one of, as `titles` names them. The first page has the name of the system. */
