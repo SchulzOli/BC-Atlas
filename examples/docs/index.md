@@ -15,9 +15,9 @@
 - [Create a new Warehouse Request](./warehouse-request-create.md)
 - [Process an existing warehouse request from the request list](./warehouse-request-process.md)
 
-## Journey map
+## How the scenarios link
 
-![Journey map](./journey.svg)
+![How the scenarios link](./link-map.svg)
 
 ## Scenarios by feature
 

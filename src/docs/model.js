@@ -147,7 +147,7 @@ export function scenarioSummary(scenario) {
     id: scenario.value.id,
     idSource: scenario.value.idSource,
     title: scenario.value.title,
-    feature: scenario.value.features,
+    features: scenario.value.features,
     file: scenario.relativePath,
     procedure: scenario.value.procedure,
     links: scenario.value.links

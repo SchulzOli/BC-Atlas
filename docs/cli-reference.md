@@ -300,7 +300,7 @@ generation writes, per format:
 
 | Format | Files |
 | --- | --- |
-| `markdown` | `<document-id>.md`, `use-case-<feature>.md`, `journey-<name>.md` (one per `[JOURNEY]`), `runbook.md` (when a scenario has `[MONITOR]`, `[RECOVERY]`, or `[TROUBLESHOOT]`), `index.md`, `journey.svg`, `diagrams/<id>.svg` (scenario flows, use-case and journey processes) |
+| `markdown` | `<document-id>.md`, `use-case-<feature>.md`, `journey-<name>.md` (one per `[JOURNEY]`), `runbook.md` (when a scenario has `[MONITOR]`, `[RECOVERY]`, or `[TROUBLESHOOT]`), `index.md`, `link-map.svg`, `diagrams/<id>.svg` (scenario flows, use-case and journey processes) |
 | `html` | `index.html` with every diagram inlined |
 | `dita` | `<document-id>.dita`, `documentation.ditamap` |
 | `ado-csv` | `test-cases.csv` |

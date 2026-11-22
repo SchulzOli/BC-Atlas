@@ -46,7 +46,7 @@ th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-alig
 th{background:var(--soft)}
 .chips span{display:inline-block;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:0 8px;margin:0 4px 4px 0;font-size:12px}
 details{margin-top:12px;font-size:13px;color:var(--muted)}
-.journey svg,.diagram svg{max-width:100%;height:auto;border-radius:8px}
+.link-map svg,.diagram svg{max-width:100%;height:auto;border-radius:8px}
 .diagram{overflow-x:auto;margin:8px 0 4px}
 @media (max-width:760px){.layout{grid-template-columns:1fr}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}}
 @media print{nav,header input{display:none}.layout{display:block}article{break-before:page}main{max-width:none}}
@@ -174,7 +174,7 @@ function journeyHtml(journey, processSvg) {
   }).join("")}</ol>`;
 }
 
-function overview(catalog, journeySvg, processes) {
+function overview(catalog, linkMapSvg, processes) {
   const { language } = catalog;
   const t = (key, values) => label(language, key, values);
   const parts = [`<section id="overview">`];
@@ -187,17 +187,17 @@ function overview(catalog, journeySvg, processes) {
     parts.push(`<h2>${t("heading.journeys")}</h2>`);
     for (const journey of catalog.journeys) parts.push(journeyHtml(journey, processes?.get(journey.id)));
   }
-  parts.push(indexHtml(catalog, journeySvg));
+  parts.push(indexHtml(catalog, linkMapSvg));
   parts.push("</section>");
   return parts.join("\n");
 }
 
 /** The journey across use cases, the indexes, the runbook, and the coverage. */
-function indexHtml(catalog, journeySvg) {
+function indexHtml(catalog, linkMapSvg) {
   const { language } = catalog;
   const t = (key, values) => label(language, key, values);
   const parts = [];
-  if (journeySvg) parts.push(`<h2>${t("heading.journey")}</h2><div class="journey">${journeySvg}</div>`);
+  if (linkMapSvg) parts.push(`<h2>${t("heading.link-map")}</h2><div class="link-map">${linkMapSvg}</div>`);
   const table = (heading, rows) => rows.length
     ? `<h2>${heading}</h2><table><tbody>${rows.map(({ name, tasks }) =>
       `<tr><th>${escapeXml(name)}</th><td>${tasks.map((task) => link({ ...task, exists: true })).join(", ")}</td></tr>`).join("")}</tbody></table>`
@@ -234,12 +234,12 @@ function indexHtml(catalog, journeySvg) {
   return parts.join("\n");
 }
 
-export function renderHtml(catalog, { mode = "guide", journeySvg, flows, processes } = {}) {
+export function renderHtml(catalog, { mode = "guide", linkMapSvg, flows, processes } = {}) {
   const { language } = catalog;
   const t = (key) => label(language, key);
   const title = catalog.title ?? t("heading.documentation");
   const navUseCases = catalog.useCases.filter(({ feature }) => feature);
-  const svg = journeySvg?.replace(/^<\?xml[^>]*>\s*/u, "");
+  const svg = linkMapSvg?.replace(/^<\?xml[^>]*>\s*/u, "");
   return `<!doctype html>
 <html lang="${escapeXml(language)}">
 <head>

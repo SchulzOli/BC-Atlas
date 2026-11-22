@@ -74,8 +74,8 @@ check it, and document it. Everything else is gone.
   `.bca.json`. `bca export` writes the view as one HTML file and has no
   `--view`, `--format`, `--lenses`, `--json`, `--base-iri`, or
   `--no-evidence` any more.
-- **Unused code of the documentation:** `journey.d2` (the journey map is
-  `journey.svg`).
+- **`journey.d2`** of `bca docs generate`; the map of the links between
+  scenarios is an SVG.
 - **The view:** the lenses Processes, People, Requirements, Simulation,
   Process models, Flows, and Run; the Simulate and Flow menus; the flow and
   process builders; the stories of processes, people, and runs. The overview
@@ -127,6 +127,10 @@ check it, and document it. Everything else is gone.
 
 ### Changed
 
+- **`bca docs`:** the map of the links between scenarios is `link-map.svg`
+  (was `journey.svg`), so it is not confused with the end-to-end journeys;
+  `bca docs list --format json` and `bc_atlas_docs_list` name the features of
+  a scenario `features` (was `feature`).
 - `bc_atlas_inspect` returns a page of the model, not the whole model.
 - `bca view --stories --format json` writes `{ schema, project, stories }`
   instead of a bare list, and `atlas.json` names its schema

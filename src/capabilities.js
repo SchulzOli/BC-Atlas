@@ -289,7 +289,7 @@ export function createCapabilities(version) {
         },
         output: { type: "directory", pathOption: "outputDir", default: "docs/generated", entry: "index.md" },
         rules: [
-          "markdown writes <id>.md per scenario, use-case-<feature>.md, journey-<name>.md, runbook.md, index.md, journey.svg, and diagrams/*.svg",
+          "markdown writes <id>.md per scenario, use-case-<feature>.md, journey-<name>.md, runbook.md, index.md, link-map.svg, and diagrams/*.svg",
           "every scenario shows its clicks as a flow; every use case a process with a lane per permission set",
           "html writes one self-contained index.html; dita writes <id>.dita and documentation.ditamap",
           "ado-csv writes test-cases.csv for the Azure DevOps Test Plans grid import",

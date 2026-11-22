@@ -10,7 +10,7 @@ import { renderDitaMap, renderDitaTask } from "./render/dita.js";
 import { renderHtml } from "./render/html.js";
 import { renderGuide, renderIndex, renderJourney, renderRunbook, renderTestCase, renderUseCase } from "./render/markdown.js";
 import { renderProcessSvg } from "./render/process-svg.js";
-import { buildCatalog, journeyScene } from "./task.js";
+import { buildCatalog, linkMapScene } from "./task.js";
 import { sceneToSvg } from "../diagram/index.js";
 
 export const EXPORT_FORMATS = Object.freeze(["markdown", "html", "dita", "ado-csv", "bpmn"]);
@@ -26,8 +26,8 @@ export function parseFormats(value) {
   return [...new Set(formats.length ? formats : ["markdown"])];
 }
 
-async function renderJourneySvg(catalog) {
-  const scene = journeyScene(catalog);
+async function renderLinkMapSvg(catalog) {
+  const scene = linkMapScene(catalog);
   return scene ? sceneToSvg(scene) : undefined;
 }
 
@@ -67,18 +67,18 @@ async function prepareCatalog(corpus, options) {
   return { catalog, warnings, mode, named, processes };
 }
 
-function renderHtmlPage({ catalog, mode, processes }, journeySvg) {
+function renderHtmlPage({ catalog, mode, processes }, linkMapSvg) {
   const flows = new Map(catalog.tasks.map((task) => [task.id, renderProcessSvg(layoutProcess(scenarioProcess(task)))]));
   const processSvgs = new Map([...processes].map(([id, process]) => [id, renderProcessSvg(layoutProcess(process), {
     linkFor: (node) => (node.task ? `#${node.task.id}` : undefined)
   })]));
-  return renderHtml(catalog, { mode, journeySvg, flows, processes: processSvgs });
+  return renderHtml(catalog, { mode, linkMapSvg, flows, processes: processSvgs });
 }
 
 /** The documentation as one self-contained HTML page, without writing files. */
 export async function documentationHtml(corpus, options = {}) {
   const prepared = await prepareCatalog(corpus, options);
-  return renderHtmlPage(prepared, await renderJourneySvg(prepared.catalog));
+  return renderHtmlPage(prepared, await renderLinkMapSvg(prepared.catalog));
 }
 
 /**
@@ -101,7 +101,7 @@ export async function exportDocumentation(corpus, options = {}) {
   };
 
   const visual = formats.includes("markdown") || formats.includes("html");
-  const journeySvg = visual ? await renderJourneySvg(catalog) : undefined;
+  const linkMapSvg = visual ? await renderLinkMapSvg(catalog) : undefined;
 
   if (formats.includes("markdown")) {
     for (const task of catalog.tasks) {
@@ -121,11 +121,11 @@ export async function exportDocumentation(corpus, options = {}) {
       await write(`${item.id}.md`, renderJourney(item, catalog, { processImage: `diagrams/${item.id}.svg` }));
     }
     if (catalog.runbook.length) await write("runbook.md", renderRunbook(catalog));
-    if (journeySvg) await write("journey.svg", journeySvg);
-    await write("index.md", renderIndex(catalog, { journeyImage: journeySvg ? "journey.svg" : undefined }));
+    if (linkMapSvg) await write("link-map.svg", linkMapSvg);
+    await write("index.md", renderIndex(catalog, { linkMapImage: linkMapSvg ? "link-map.svg" : undefined }));
   }
   if (formats.includes("html")) {
-    await write("index.html", renderHtmlPage(prepared, journeySvg));
+    await write("index.html", renderHtmlPage(prepared, linkMapSvg));
   }
   if (formats.includes("dita")) {
     for (const task of catalog.tasks) await write(`${task.id}.dita`, renderDitaTask(task));

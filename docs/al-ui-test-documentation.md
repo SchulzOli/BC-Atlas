@@ -254,7 +254,7 @@ bca docs generate test/UITest --app app --export markdown,html,dita,ado-csv,bpmn
 
 | `--export` | Files | Use it for |
 | --- | --- | --- |
-| `markdown` (default) | `<id>.md`, `use-case-<feature>.md`, `journey-<name>.md`, `runbook.md`, `index.md`, `journey.svg`, `diagrams/*.svg` | Repository docs, GitHub/Azure DevOps wikis, DocFX |
+| `markdown` (default) | `<id>.md`, `use-case-<feature>.md`, `journey-<name>.md`, `runbook.md`, `index.md`, `link-map.svg`, `diagrams/*.svg` | Repository docs, GitHub/Azure DevOps wikis, DocFX |
 | `html` | `index.html` (one self-contained file) | Sharing, printing to PDF, pipeline artifacts |
 | `dita` | `<id>.dita`, `documentation.ditamap` | DITA Open Toolkit, CCMS and help-authoring tools |
 | `ado-csv` | `test-cases.csv` | Azure DevOps Test Plans: grid view → Import test cases |
@@ -303,7 +303,7 @@ Markdown and HTML include three diagrams, all derived from the same tags:
 | Scenario flow | “At a glance” on every guide or test case | Each click as a step, from start to the `[THEN]` result. A `[THEN]` between two `[WHEN]` phases is a milestone; a repeated block has a loop marker. Long flows wrap into rows. |
 | Use-case process | Top of every use-case page | One lane per permission set, one box per scenario in `[NEXT]`/`[REQUIRES]` order, and a decision where `[ALTERNATIVE]` paths branch. In HTML, a box links to its guide. |
 | End-to-end journey | Top of every journey page | The use-case process for the scenarios of one `[JOURNEY]`. |
-| Journey map | `index.md` | All linked scenarios grouped by use case, with permission set and number of steps; `[RELATED]` and `[ALTERNATIVE]` as dashed lines. |
+| Link map | `index.md` (`link-map.svg`) | All linked scenarios grouped by use case, with permission set and number of steps; `[RELATED]` and `[ALTERNATIVE]` as dashed lines. |
 
 The scenario flow and the use-case process use BPMN 2.0 notation: a thin
 circle starts, a bold circle ends, a double circle marks a reached state, a
@@ -326,7 +326,7 @@ is generated: change the AL tags and regenerate rather than editing it.
   order and the `[ALTERNATIVE]` scenarios separately, with its process
   diagram;
 - the end-to-end journeys, one per `[JOURNEY]`;
-- a journey map of `[REQUIRES]`, `[NEXT]`, `[RELATED]`, and
+- a link map of `[REQUIRES]`, `[NEXT]`, `[RELATED]`, and
   `[ALTERNATIVE]` links;
 - scenarios by feature, by role, by page, and by permission set;
 - a link to the support runbook, when a scenario has one;
