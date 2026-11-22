@@ -1,9 +1,14 @@
 # Roadmap
 
 BC Atlas does two things: it **shows** the architecture of an AL project in
-one view, and it **writes** the documentation of the repository, in sync with
-the source. `bca check` guards it in CI. The roadmap is about making that
-small core dependable before it grows again.
+one view, and it **writes** its documentation, in sync with the source:
+`bca layers` from the code, `bca docs` from the AL UI tests. `bca check`
+guards both in CI. 0.28.0 cut it down to that core and made it dependable.
+
+The two halves do not know each other yet. A page in the view does not know
+the guides that use it, and a guide does not know the objects behind its
+steps. The next releases join them into one atlas, then prove it on real
+projects.
 
 It is written for two readers: **AL developers**, who use the view in VS Code
 and read the generated pages, and **AI agents**, which read a project through
@@ -11,46 +16,49 @@ the MCP tools and `bca view`.
 
 Items are candidates, not commitments; open an issue to discuss priorities.
 
-## Now: make what is left dependable
+## Now: one atlas (0.29)
 
-Done, released as 0.28.0: the browser test of the view runs in CI, an
-undeclared app dependency is a finding, the same source gives the same output
-on Windows and Linux, a test keeps what the command catalog and the MCP tools
-say true, and the loose ends of the cut are tied.
+The UI tests are read with the source, and what they document is part of the
+one graph.
 
-## Next: fast and small enough to trust
+- **Guides in the graph.** Every documented scenario is a node, linked to the
+  pages and actions its steps use. The Pages lens shows which pages have a
+  guide, the inspector of a page lists its guides, and a story walks through
+  a journey on the graph.
+- **Coverage is a finding.** An opt-in health rule reports pages without a
+  guide and UI tests without documentation, in `bca check`, SARIF, the
+  Problems panel, and Check in the view.
+- **The pages link to each other.** The object page of `bca layers` lists the
+  guides of a page; a guide links to the layer page of each page it uses.
+- **Agents get the same.** `bc_atlas_inspect` and `bc_atlas_view` return the
+  scenarios of an object, so an agent can answer "how does a user do this?"
+  from the source.
+- **Loose ends of 0.28.0.** Open VSX receives the extension (the release step
+  passed without publishing).
 
-Done, measured on Microsoft's BCApps (System Application and Business
-Foundation, 1,441 AL files):
+Done when: the warehouse example shows its guides on the Pages lens, and a
+page without a guide is a finding.
 
-- **The view follows the editor.** Resolution was never the cost (about
-  60 ms); the work around it was. From a saved file to an updated view now
-  takes under a second, where it took about two.
-- **Performance is measured in CI.** Time and peak memory of `check`,
-  `layers`, `export`, and a save, for a pull request and its base on the same
-  machine; a regression fails the build.
-- **Answers that fit an agent's context.** `bc_atlas_inspect` returns a page
-  of the model, about 200 KB where the whole model is 54 MB, and every JSON
-  document names its shape and version (`schemas/output.schema.json`).
-- **Large files are split along their seams.** No module of BC Atlas is
-  longer than 600 lines.
-- **The overview of a large app.** Every area leads on: a namespace to its
-  objects, the rest to the Modules lens, other apps to the Apps lens. A
-  namespace too large for areas opens to its objects, and a namespace of
-  several apps is an area per app.
+## Next: proven on real projects
 
-## Later: documentation from AL UI tests
+Measured on Microsoft's BCApps, as the performance is today.
 
-Done: `bca docs` documents a business process, not only a test.
+- **Resolution you can trust.** The share of references BC Atlas resolves is
+  measured in CI on BCApps, with a floor that fails the build; every kind of
+  reference it misses is a known, tracked case.
+- **Microsoft's UI tests as input.** The share of BCApps UI tests that become
+  a guide is measured; the patterns that do not yet (handlers, helpers,
+  libraries) are read.
+- **A first draft of the tags.** `bca docs` proposes the tags of an untagged
+  UI test (`[SCENARIO]`, `[WHEN]`, `[THEN]` from its steps), as a dry run to
+  accept with `docs set`, so a team does not start from an empty page.
 
-- **End-to-end journeys.** Scenarios with the same `[JOURNEY]` are one page,
-  stage by stage, in the order of their `[REQUIRES]` and `[NEXT]` links.
-- **Indexes by feature, role, page, and permission.** `[ROLE]` names who
-  performs a scenario.
-- **Coverage.** The UI tests without documentation, and the pages without a
-  guide, in the index and in `bca docs validate`.
-- **Support runbooks.** `[MONITOR]`, `[RECOVERY]`, and `[TROUBLESHOOT]` give a
-  guide a support section and the documentation a `runbook.md`.
+## Later: documentation people use
+
+- More languages for the generated wording beyond English and German,
+  with the captions from the app's XLIFF.
+- The view in the browser for a whole team: the exported file opens at a
+  guide or a journey, not only at a lens.
 
 ## Not planned
 

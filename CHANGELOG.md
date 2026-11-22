@@ -156,8 +156,6 @@ check it, and document it. Everything else is gone.
   the procedures inside each object. `architecture.md` shows the apps and the
   namespaces and what depends on what. The schema of `layers.json` is
   `bc-atlas.layers/2`; a first run replaces the pages of the schema before.
-- `bca export --view report` draws one picture per lens (`--lenses`) in place
-  of the diagram views.
 - The view groups objects by namespace where it grouped by component, and
   holds objects of other apps together as "Other apps".
 - The command contract (`bca help --format json`) is `schemaVersion` 2.
