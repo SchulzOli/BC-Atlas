@@ -67,6 +67,15 @@ check it, and document it. Everything else is gone.
 - **Exports:** `bca export --view explorer` (the standalone 3D explorer with
   its Git timeline) and `--view handbook`; `--handbook` of the report. The
   view keeps its 3D form.
+- **The report and the knowledge graph:** `bca export --view report`
+  (Markdown with a picture of each lens; `bca layers` writes the
+  documentation of a repository), `--view knowledge-graph` (RDF and the OWL
+  ontology), the MCP tool `bc_atlas_report`, and the `report` section of
+  `.bca.json`. `bca export` writes the view as one HTML file and has no
+  `--view`, `--format`, `--lenses`, `--json`, `--base-iri`, or
+  `--no-evidence` any more.
+- **`journey.d2`** of `bca docs generate`; the map of the links between
+  scenarios is an SVG.
 - **The view:** the lenses Processes, People, Requirements, Simulation,
   Process models, Flows, and Run; the Simulate and Flow menus; the flow and
   process builders; the stories of processes, people, and runs. The overview
@@ -118,6 +127,10 @@ check it, and document it. Everything else is gone.
 
 ### Changed
 
+- **`bca docs`:** the map of the links between scenarios is `link-map.svg`
+  (was `journey.svg`), so it is not confused with the end-to-end journeys;
+  `bca docs list --format json` and `bc_atlas_docs_list` name the features of
+  a scenario `features` (was `feature`).
 - `bc_atlas_inspect` returns a page of the model, not the whole model.
 - `bca view --stories --format json` writes `{ schema, project, stories }`
   instead of a bare list, and `atlas.json` names its schema
@@ -1112,8 +1125,8 @@ files) and on the real Base Application 29 symbols:
   procedures, every relation as a property (`bca:calls`, `bca:writes`, ...)
   and as a `bca:Relation` with its evidence, objects outside the workspace,
   architecture components, and violations. Stable IRIs (`urn:bc-atlas:...`, or
-  `--base-iri`), and `SOURCE_DATE_EPOCH` for reproducible files. See
-  [Knowledge graph](./docs/knowledge-graph.md).
+  `--base-iri`), and `SOURCE_DATE_EPOCH` for reproducible files. (Removed in
+  0.28.0.)
 - Knowledge graph: `--no-evidence` writes only the direct relation triples,
   without a `bca:Relation` per relation; the Base Application's graph drops
   from 4.4 million triples (270 MB of Turtle) to 1.1 million (78 MB).

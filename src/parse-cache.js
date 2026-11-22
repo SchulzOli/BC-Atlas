@@ -42,7 +42,7 @@ export function parseCacheFile(root) {
  * hash that remembers which entries a run used, so save() keeps only those
  * (files deleted or changed since drop out).
  */
-export class ParseCache extends Map {
+class ParseCache extends Map {
   constructor(file, entries = []) {
     super();
     for (const [key, value] of entries) super.set(key, value);

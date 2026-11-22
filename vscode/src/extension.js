@@ -267,24 +267,14 @@ function withCurrentObject(context, toHash) {
 // ------------------------------------------------------------- CLI commands
 
 async function exportFiles() {
-  const target = await vscode.window.showQuickPick(logic.EXPORTS.map((item) => ({ ...item, description: item.view })), { placeHolder: "What should BC Atlas write?" });
-  if (!target) return;
-  let destination;
-  if (target.folder) {
-    const picked = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, defaultUri: vscode.Uri.file(project), openLabel: `Write ${target.folder.split("/").at(-1)} here` });
-    if (!picked) return;
-    destination = path.join(picked[0].fsPath, path.basename(target.folder));
-  } else {
-    const picked = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(path.join(project, target.file)), filters: target.filters });
-    if (!picked) return;
-    destination = picked.fsPath;
-  }
+  const target = logic.EXPORT;
+  const picked = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(path.join(project, target.file)), filters: target.filters });
+  if (!picked) return;
+  const destination = picked.fsPath;
   try {
     await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `BC Atlas: writing ${target.label}…` }, () =>
-      runCli(logic.exportArgs(target, project, destination), { cwd: project, nodePath: config().get("nodePath") || undefined, log }));
-    const open = target.folder ? "Reveal" : "Open";
-    const choice = await vscode.window.showInformationMessage(`BC Atlas wrote ${vscode.workspace.asRelativePath(destination)}.`, open);
-    if (choice === "Reveal") vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(destination));
+      runCli(logic.exportArgs(project, destination), { cwd: project, nodePath: config().get("nodePath") || undefined, log }));
+    const choice = await vscode.window.showInformationMessage(`BC Atlas wrote ${vscode.workspace.asRelativePath(destination)}.`, "Open");
     if (choice === "Open") vscode.env.openExternal(vscode.Uri.file(destination));
   } catch (error) {
     vscode.window.showErrorMessage(`BC Atlas export failed: ${error.message}`, "Show Output").then((choice) => choice && output.show());

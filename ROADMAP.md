@@ -39,8 +39,8 @@ Foundation, 1,441 AL files):
 - **Answers that fit an agent's context.** `bc_atlas_inspect` returns a page
   of the model, about 200 KB where the whole model is 54 MB, and every JSON
   document names its shape and version (`schemas/output.schema.json`).
-- **Large files are split along their seams.** No module of the analyzer or
-  the graph is longer than 600 lines.
+- **Large files are split along their seams.** No module of BC Atlas is
+  longer than 600 lines.
 - **The overview of a large app.** Every area leads on: a namespace to its
   objects, the rest to the Modules lens, other apps to the Apps lens. A
   namespace too large for areas opens to its objects, and a namespace of
@@ -67,3 +67,5 @@ Removed on purpose, and not coming back without a new reason:
 - Running the AL compiler or its code analyzers.
 - A history of the documentation by commit or release, and trend reports.
 - Diagram views beside the lenses, and D2 or PDF output.
+- The Markdown report and the knowledge graph (RDF, OWL): `bca layers`
+  documents a repository.

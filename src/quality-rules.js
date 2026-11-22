@@ -14,7 +14,7 @@
 // warning, info, or off.
 import { SEVERITIES } from "./capabilities.js";
 
-export const QUALITY_RULES = Object.freeze({
+const QUALITY_RULES = Object.freeze({
   "undocumented-public-api": "info"
 });
 
@@ -30,7 +30,7 @@ const at = (object, location = object.location) => ({
 });
 
 /** The severities of the quality rules: defaults, then check.severities. */
-export function qualitySettings(settings = {}) {
+function qualitySettings(settings = {}) {
   const severities = { ...QUALITY_RULES };
   for (const [rule, level] of Object.entries(settings.severities ?? {})) {
     if (!(rule in QUALITY_RULES)) continue;

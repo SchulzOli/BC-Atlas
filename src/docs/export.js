@@ -2,16 +2,15 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { loadCaptionIndex } from "./captions.js";
-import { label, SUPPORTED_PHRASE_LANGUAGES } from "./phrases.js";
+import { SUPPORTED_PHRASE_LANGUAGES } from "./phrases.js";
 import { layoutProcess, scenarioProcess, useCaseProcess } from "./process.js";
 import { renderBpmn } from "./render/bpmn.js";
 import { renderAzureDevOpsCsv } from "./render/csv.js";
 import { renderDitaMap, renderDitaTask } from "./render/dita.js";
-import { articleHtml, indexHtml, journeyHtml, renderHtml, useCaseHtml } from "./render/html.js";
+import { renderHtml } from "./render/html.js";
 import { renderGuide, renderIndex, renderJourney, renderRunbook, renderTestCase, renderUseCase } from "./render/markdown.js";
 import { renderProcessSvg } from "./render/process-svg.js";
-import { escapeXml } from "./render/format.js";
-import { buildCatalog, humanizeFeature, journeyD2, journeyScene, sameAsTitle } from "./task.js";
+import { buildCatalog, linkMapScene } from "./task.js";
 import { sceneToSvg } from "../diagram/index.js";
 
 export const EXPORT_FORMATS = Object.freeze(["markdown", "html", "dita", "ado-csv", "bpmn"]);
@@ -27,8 +26,8 @@ export function parseFormats(value) {
   return [...new Set(formats.length ? formats : ["markdown"])];
 }
 
-async function renderJourneySvg(catalog) {
-  const scene = journeyScene(catalog);
+async function renderLinkMapSvg(catalog) {
+  const scene = linkMapScene(catalog);
   return scene ? sceneToSvg(scene) : undefined;
 }
 
@@ -65,100 +64,21 @@ async function prepareCatalog(corpus, options) {
     ...named.map((useCase) => [useCase.id, useCaseProcess(useCase, catalog)]),
     ...catalog.journeys.map((journey) => [journey.id, useCaseProcess({ ...journey, main: journey.tasks, alternatives: [] }, catalog)])
   ]);
-  return { catalog, warnings, mode, named, processes, journey: journeyD2(catalog) };
+  return { catalog, warnings, mode, named, processes };
 }
 
-function renderHtmlPage({ catalog, mode, processes }, journeySvg) {
+function renderHtmlPage({ catalog, mode, processes }, linkMapSvg) {
   const flows = new Map(catalog.tasks.map((task) => [task.id, renderProcessSvg(layoutProcess(scenarioProcess(task)))]));
   const processSvgs = new Map([...processes].map(([id, process]) => [id, renderProcessSvg(layoutProcess(process), {
     linkFor: (node) => (node.task ? `#${node.task.id}` : undefined)
   })]));
-  return renderHtml(catalog, { mode, journeySvg, flows, processes: processSvgs });
+  return renderHtml(catalog, { mode, linkMapSvg, flows, processes: processSvgs });
 }
 
 /** The documentation as one self-contained HTML page, without writing files. */
 export async function documentationHtml(corpus, options = {}) {
   const prepared = await prepareCatalog(corpus, options);
-  const journeySvg = prepared.journey ? await renderJourneySvg(prepared.catalog) : undefined;
-  return renderHtmlPage(prepared, journeySvg);
-}
-
-/**
- * The documentation page by page, for the BC Atlas app: a table of contents
- * and, per page (the overview under "", every use case, every scenario), its
- * HTML and what it can be downloaded as.
- */
-export async function documentationBrowser(corpus, options = {}) {
-  const prepared = await prepareCatalog(corpus, options);
-  const { catalog, mode, named, processes, journey } = prepared;
-  const { language } = catalog;
-  const t = (key, values) => label(language, key, values);
-  const journeySvg = journey ? await renderJourneySvg(catalog) : undefined;
-  const items = {};
-  const overview = [`<p class="muted">${escapeXml(t("label.generated"))}</p>`];
-  if (named.length) {
-    overview.push(`<h2>${t("heading.use-cases")}</h2><ul>${catalog.useCases.map((useCase) =>
-      `<li><a href="#${escapeXml(useCase.id)}">${escapeXml(useCase.title)}</a> <span class="muted">(${useCase.main.length + useCase.alternatives.length})</span></li>`).join("")}</ul>`);
-  }
-  overview.push(indexHtml(catalog, journeySvg));
-  items[""] = { kind: "overview", title: catalog.title ?? t("heading.documentation"), html: overview.join("\n"), markdown: renderIndex(catalog, {}) };
-  for (const useCase of named) {
-    const process = processes.get(useCase.id);
-    const svg = renderProcessSvg(layoutProcess(process), { linkFor: (node) => (node.task ? `#${node.task.id}` : undefined) });
-    items[useCase.id] = {
-      kind: "use-case",
-      title: useCase.title,
-      html: useCaseHtml(useCase, catalog, svg, { heading: false }),
-      markdown: renderUseCase(useCase, catalog, {}),
-      svg,
-      bpmn: renderBpmn(process, { version: options.version })
-    };
-  }
-  for (const journey of catalog.journeys) {
-    const process = processes.get(journey.id);
-    const svg = renderProcessSvg(layoutProcess(process), { linkFor: (node) => (node.task ? `#${node.task.id}` : undefined) });
-    items[journey.id] = {
-      kind: "journey",
-      title: journey.title,
-      html: journeyHtml(journey, catalog, svg, { heading: false }),
-      markdown: renderJourney(journey, catalog, {}),
-      svg,
-      bpmn: renderBpmn(process, { version: options.version })
-    };
-  }
-  for (const task of catalog.tasks) {
-    const svg = renderProcessSvg(layoutProcess(scenarioProcess(task)));
-    items[task.id] = {
-      kind: "scenario",
-      title: mode === "testcase" ? `${t("testcase.title", { id: task.id })}: ${task.title}` : task.title,
-      html: articleHtml(task, mode, svg, { heading: false }),
-      markdown: mode === "testcase" ? renderTestCase(task, {}) : renderGuide(task, {}),
-      svg,
-      dita: renderDitaTask(task)
-    };
-  }
-  return {
-    title: items[""].title,
-    language,
-    mode,
-    warnings: prepared.warnings,
-    useCases: named.map((useCase) => ({
-      id: useCase.id,
-      title: useCase.title,
-      scenarios: useCase.main.map(({ id }) => id),
-      alternatives: useCase.alternatives.map(({ id }) => id)
-    })),
-    journeys: catalog.journeys.map((journey) => ({ id: journey.id, title: journey.title, scenarios: journey.tasks.map(({ id }) => id) })),
-    scenarios: catalog.tasks.map((task) => ({
-      id: task.id,
-      title: task.title,
-      goal: sameAsTitle(task) ? undefined : task.goal,
-      features: task.features.map(humanizeFeature),
-      steps: task.steps.length,
-      source: { file: task.source.file, procedure: task.source.procedure }
-    })),
-    items
-  };
+  return renderHtmlPage(prepared, await renderLinkMapSvg(prepared.catalog));
 }
 
 /**
@@ -168,7 +88,7 @@ export async function documentationBrowser(corpus, options = {}) {
 export async function exportDocumentation(corpus, options = {}) {
   const formats = parseFormats(options.formats);
   const prepared = await prepareCatalog(corpus, options);
-  const { catalog, warnings, mode, named, processes, journey } = prepared;
+  const { catalog, warnings, mode, named, processes } = prepared;
 
   const directory = path.resolve(options.outputDirectory ?? process.env.BC_DOCS_OUTPUT ?? "docs/generated");
   await fs.mkdir(directory, { recursive: true });
@@ -181,10 +101,7 @@ export async function exportDocumentation(corpus, options = {}) {
   };
 
   const visual = formats.includes("markdown") || formats.includes("html");
-  let journeySvg;
-  if (journey && visual) {
-    journeySvg = await renderJourneySvg(catalog);
-  }
+  const linkMapSvg = visual ? await renderLinkMapSvg(catalog) : undefined;
 
   if (formats.includes("markdown")) {
     for (const task of catalog.tasks) {
@@ -204,14 +121,11 @@ export async function exportDocumentation(corpus, options = {}) {
       await write(`${item.id}.md`, renderJourney(item, catalog, { processImage: `diagrams/${item.id}.svg` }));
     }
     if (catalog.runbook.length) await write("runbook.md", renderRunbook(catalog));
-    if (journey) {
-      await write("journey.d2", journey);
-      if (journeySvg) await write("journey.svg", journeySvg);
-    }
-    await write("index.md", renderIndex(catalog, { journeyImage: journeySvg ? "journey.svg" : undefined }));
+    if (linkMapSvg) await write("link-map.svg", linkMapSvg);
+    await write("index.md", renderIndex(catalog, { linkMapImage: linkMapSvg ? "link-map.svg" : undefined }));
   }
   if (formats.includes("html")) {
-    await write("index.html", renderHtmlPage(prepared, journeySvg));
+    await write("index.html", renderHtmlPage(prepared, linkMapSvg));
   }
   if (formats.includes("dita")) {
     for (const task of catalog.tasks) await write(`${task.id}.dita`, renderDitaTask(task));

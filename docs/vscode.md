@@ -183,7 +183,7 @@ fonts, including high contrast and custom themes. An exported file
 | --- | --- |
 | BC Atlas: Open, Open a Lens… | Shows the view, or the view with one lens. |
 | BC Atlas: Run Health Check | Analyzes again and fills the Problems panel. |
-| BC Atlas: Export… | Writes the view as one offline HTML file, the Markdown report, or the knowledge graph in RDF and OWL (`bca export`). |
+| BC Atlas: Export… | Writes the view as one offline HTML file to share (`bca export`). |
 | BC Atlas: Generate Documentation from UI Tests… | Markdown, HTML, DITA, Azure DevOps CSV, or BPMN (`bca docs generate`). |
 | BC Atlas: Select Project… | The app, or a folder above several apps, to analyze. |
 | BC Atlas: Analyze Again, Show Output | |

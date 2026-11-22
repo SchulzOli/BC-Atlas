@@ -63,11 +63,8 @@ test("builds view addresses and export arguments", () => {
   assert.equal(logic.viewHash({ lens: "modules", form: "diagram" }), "#lens=modules&form=diagram");
   assert.equal(logic.viewHash({ sel: "app::Contoso.Core::table::50000", form: undefined }), "#sel=app%3A%3AContoso.Core%3A%3Atable%3A%3A50000");
   assert.equal(logic.viewHash(), "#");
-  const app = logic.EXPORTS.find(({ view }) => view === "app");
-  assert.deepEqual(logic.exportArgs(app, "/p", "/p/atlas.html"), ["export", "/p", "--view", "app", "-o", "/p/atlas.html"]);
-  assert.ok(logic.EXPORTS.some(({ view, folder }) => view === "report" && folder));
-  const graph = logic.EXPORTS.find(({ view }) => view === "knowledge-graph");
-  assert.deepEqual(Object.values(graph.filters).flat(), ["ttl", "owl", "rdf", "nt", "jsonld"]);
+  assert.deepEqual(logic.exportArgs("/p", "/p/atlas.html"), ["export", "/p", "-o", "/p/atlas.html"]);
+  assert.equal(logic.EXPORT.file, "bc-atlas.html");
 });
 
 test("resolves ${workspaceFolder} in al.* settings to the VS Code workspace folder", () => {

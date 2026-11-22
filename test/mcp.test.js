@@ -56,7 +56,6 @@ test("serves BC Atlas tools over MCP stdio", async () => {
         "bc_atlas_docs_validate",
         "bc_atlas_inspect",
         "bc_atlas_layers",
-        "bc_atlas_report",
         "bc_atlas_view"
       ]
     );

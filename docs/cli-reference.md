@@ -13,7 +13,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 | Area | Command | Purpose |
 | --- | --- | --- |
 | Analyze | `check` | Assess the health of the code and fail CI on cycles, forbidden dependencies, or diagnostics. |
-| Export | `export` | Write files: the BC Atlas view as one offline HTML file, the Markdown report, or the knowledge graph. |
+| Export | `export` | Write the BC Atlas view as one offline HTML file to share. |
 | Export | `view` | The BC Atlas view without a window: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. |
 | Export | `docs list` | List documented UI-test scenarios. |
 | Export | `docs show` | Show one scenario, its prerequisites, and its diagnostics. |
@@ -28,7 +28,7 @@ Command-line values override values loaded from `.bca.json`. An omitted
 
 ```text
 bca check [app-root] [options]
-bca export [app-root] [--view <what>] [-o <path>] [options]
+bca export [app-root] [-o <path>] [options]
 bca view [app-root] [options]
 bca layers [app-root] [options]
 bca docs <command> <test-root> [options]
@@ -84,25 +84,16 @@ bca check ./app --format sarif -o bca.sarif
 ### `export`
 
 ```text
-bca export [app-root] [--view <what>] [-o <path>] [options]
+bca export [app-root] [-o <path>] [options]
 ```
 
-Writes what the VS Code extension shows as files. `--view` selects what:
-
-| `--view` | Writes | Default output | Formats |
-| --- | --- | --- | --- |
-| `app` (default) | The BC Atlas view as one self-contained, offline HTML file to share: a toolbar and the graph, with every lens, finding, and story. | `bc-atlas.html` | `html` |
-| `report` | Markdown report: `README.md` with the numbers, a picture of each lens, and the health summary. See [Architecture reports](./reports.md). | `docs/atlas` | `md` |
-| `knowledge-graph` | The project as RDF with the BC Atlas OWL ontology, for triple stores, graph databases, and ontology editors. See [Knowledge graph](./knowledge-graph.md). | `bc-atlas.ttl` | `ttl`, `rdf`, `owl` (RDF/XML), `nt`, `jsonld` |
-
-A picture or a list of one lens, story, or object is what [`bca view`](#view)
-writes.
+Writes the BC Atlas view as one self-contained, offline HTML file to share: a
+toolbar and the graph, with every lens, finding, and story. A picture or a list
+of one lens, story, or object is what [`bca view`](#view) writes; Markdown
+pages of the project are what [`bca layers`](#layers) writes.
 
 ```text
 bca export ./app -o atlas.html
-bca export ./app --view report
-bca export ./app --view report --lenses overview,data -o docs/architecture
-bca export ./app --view knowledge-graph -o app.ttl
 bca export ./app -o atlas.html --watch
 ```
 
@@ -110,21 +101,10 @@ bca export ./app -o atlas.html --watch
 
 | Option | Value | Description |
 | --- | --- | --- |
-| `--view` | what | What to write: `app`, `report`, or `knowledge-graph`. Default: `app`. |
-| `-o`, `--output` | path | Output file or folder (defaults above). |
-| `-f`, `--format` | format | `app`: `html`; `report`: `md`; `knowledge-graph`: `ttl`, `rdf`, `owl`, `nt`, or `jsonld`. Inferred from the output extension when omitted. |
-| `--base-iri` | IRI | Knowledge graph: base IRI of the exported resources. Default: `urn:bc-atlas:`. |
-| `--no-evidence` | flag | Knowledge graph: leave out the `bca:Relation` resources with each relation's file, line, and operations; the direct relation triples stay. About a third of the size. |
-| `--title` | text | Title of the view or the report. |
+| `-o`, `--output` | path | Output file. Default: `bc-atlas.html`. |
+| `--title` | text | Title of the view. |
 | `--watch` | flag | Write again whenever AL source, `app.json`, or `.bca.json` changes. Stop with `Ctrl+C`. |
 | `--debounce` | milliseconds | Delay before writing again with `--watch`. Default: `250`. |
-
-#### Report
-
-| Option | Value | Description |
-| --- | --- | --- |
-| `--lenses` | list | Comma-separated lenses to draw; one the project does not have is left out. Default: `overview,apps,modules,data,events,contracts,pages`. |
-| `--json` | flag | Also write the resolved model as `model.json`. |
 
 #### Filters
 
@@ -320,7 +300,7 @@ generation writes, per format:
 
 | Format | Files |
 | --- | --- |
-| `markdown` | `<document-id>.md`, `use-case-<feature>.md`, `journey-<name>.md` (one per `[JOURNEY]`), `runbook.md` (when a scenario has `[MONITOR]`, `[RECOVERY]`, or `[TROUBLESHOOT]`), `index.md`, `journey.d2`, `journey.svg`, `diagrams/<id>.svg` (scenario flows, use-case and journey processes) |
+| `markdown` | `<document-id>.md`, `use-case-<feature>.md`, `journey-<name>.md` (one per `[JOURNEY]`), `runbook.md` (when a scenario has `[MONITOR]`, `[RECOVERY]`, or `[TROUBLESHOOT]`), `index.md`, `link-map.svg`, `diagrams/<id>.svg` (scenario flows, use-case and journey processes) |
 | `html` | `index.html` with every diagram inlined |
 | `dita` | `<document-id>.dita`, `documentation.ditamap` |
 | `ado-csv` | `test-cases.csv` |

@@ -22,10 +22,3 @@ export async function writeDocumentation(source, outputDirectory, options = {}) 
   await fs.writeFile(filename, renderDocumentation(source, options));
   return filename;
 }
-
-/** Writes Markdown guides, use-case pages, and the index for a whole corpus. */
-export async function writeCorpusDocumentation(corpus, outputDirectory, options = {}) {
-  const { exportDocumentation } = await import("./export.js");
-  const result = await exportDocumentation(corpus, { ...options, outputDirectory, formats: ["markdown"] });
-  return result.files;
-}

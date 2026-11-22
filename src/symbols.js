@@ -263,7 +263,7 @@ function copyPackage({ app, objects }) {
 }
 
 /** 26.0.12345.0 > 26.0.9999.0 > 25.5: numeric parts, left to right. */
-export function compareVersions(a, b) {
+function compareVersions(a, b) {
   const parts = (value) => String(value ?? "").split(/[.\-+]/u).map((part) => /^\d+$/u.test(part) ? Number(part) : part);
   const left = parts(a);
   const right = parts(b);

@@ -13,7 +13,7 @@
 // modeler opens looks like the picture in the documentation.
 import { label, plainText } from "./phrases.js";
 
-export const SIZE = Object.freeze({
+const SIZE = Object.freeze({
   task: { width: 140, height: 72 },
   subprocess: { width: 160, height: 84 },
   event: { width: 36, height: 36 },

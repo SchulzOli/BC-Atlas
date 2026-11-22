@@ -8,15 +8,12 @@ import { normalizeIdentifier } from "./resolver.js";
 import { createCallResolver } from "./call-analysis.js";
 
 export const LEVELS = Object.freeze(["public", "internal", "local"]);
-export const LEVEL_REACH = Object.freeze({ public: "other apps", internal: "this app", local: "this object" });
 // Categorical, colorblind-safe (validated light and dark); the same on every surface of BC Atlas.
 export const LEVEL_COLORS = Object.freeze({
   public: { color: "#D55E00", dark: "#d95926", fill: "#FDEBDD" },
   internal: { color: "#0072B2", dark: "#3987e5", fill: "#DDEBF6" },
   local: { color: "#009E73", dark: "#199e70", fill: "#DDF3EB" }
 });
-/** The relation kind of a use in the visibility view: its level and what it crosses. */
-export const reachKind = (level) => `${level} (${LEVEL_REACH[level]})`;
 
 const rank = (level) => LEVELS.indexOf(level);
 const narrower = (a, b) => (rank(a) >= rank(b) ? a : b);
@@ -281,12 +278,4 @@ export function analyzeVisibility(model) {
       uses: Object.fromEntries(LEVELS.map((level) => [level, uses.filter((entry) => entry.level === level).length]))
     }
   };
-}
-
-/** `3 public, 1 internal, 7 local` for the members of one object; levels without members are left out. */
-export function levelCounts(points) {
-  return LEVELS.map((level) => [level, points.filter((point) => point.level === level).length])
-    .filter(([, total]) => total)
-    .map(([level, total]) => `${total} ${level}`)
-    .join(", ");
 }

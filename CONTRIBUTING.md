@@ -54,12 +54,11 @@ src/
   analyzer.js          parse: objects, members, relations
   resolver.js          resolve references across apps and symbol packages
   project.js           one project: read, selected, with insights; every command starts here
-  health.js            health rules used by check, the view, and the report
+  health.js            health rules used by check, the view, and bca layers
   graph/               what depends on what: objects, namespaces, apps
   app/                 the atlas (one graph), the view, the layered documentation
   diagram/             layout and SVG/PNG drawing
   docs/                AL UI-test documentation pipeline
-  knowledge/           RDF/OWL export
   mcp.js               MCP stdio server
 ```
 

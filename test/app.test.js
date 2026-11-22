@@ -7,7 +7,6 @@ import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 
-import { createAtlas } from "../src/app/atlas.js";
 import { renderAppHtml } from "../src/app/page.js";
 import { createService } from "../src/app/service.js";
 import { Workspace } from "../src/app/workspace.js";
@@ -302,7 +301,8 @@ test("the view is the same page in VS Code, as an MCP App, and as a file: every 
   assert.equal(body(mcpPage), body(vscodePage));
   // Every method the page calls is one the service has, or one the host answers itself.
   const service = createService(new Workspace(fileURLToPath(new URL("../examples/warehouse-app", import.meta.url)), {}, { live: true }));
-  const called = [...new Set([...readFileSync(new URL("../src/app/ui/atlas.js", import.meta.url), "utf8").matchAll(/\bcall\("(\w+)"/gu)].map(([, method]) => method))];
+  const page = ["atlas.js", "host.js"].map((name) => readFileSync(new URL(`../src/app/ui/${name}`, import.meta.url), "utf8")).join("\n");
+  const called = [...new Set([...page.matchAll(/\bcall\("(\w+)"/gu)].map(([, method]) => method))];
   const hostOnly = ["openFile", "saveFile"];
   assert.deepEqual(called.slice().sort(), ["atlas", "inside", "openFile", "refresh", "saveFile"]);
   for (const method of called) assert.ok(service.methods.includes(method) || hostOnly.includes(method), `the view calls ${method}, which no host answers`);

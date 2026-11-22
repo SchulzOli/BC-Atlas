@@ -10,11 +10,11 @@
 //
 // Every renderer (Markdown guide, test case, HTML, DITA, CSV) reads this model.
 import path from "node:path";
-import { singular } from "./al-ui-source.js";
+import { singular } from "./al-ui-operations.js";
 import { label, phrase } from "./phrases.js";
 import { operationStep } from "./steps.js";
 
-export const LINK_KINDS = ["next", "related", "alternative"];
+const LINK_KINDS = ["next", "related", "alternative"];
 
 // Sentences that start like an instruction ("Create a sales order").
 const IMPERATIVE = /^(?:add|apply|approve|archive|assign|block|calculate|cancel|change|check|close|complete|configure|confirm|convert|copy|correct|create|define|delete|edit|enable|disable|enter|export|fill|filter|find|generate|get|import|insert|invoice|issue|link|look|make|manage|mark|modify|move|navigate|open|pick|post|preview|print|process|put|receive|record|register|release|remove|rename|reopen|replace|request|reverse|review|run|save|schedule|select|send|set|ship|show|sign|split|start|submit|suggest|transfer|unblock|update|use|validate|verify|view)\b/iu;
@@ -25,7 +25,7 @@ function isEnglish(language) {
 }
 
 /** Title and goal in the output language; English titles use the page caption. */
-export function titleFor(value, context = {}) {
+function titleFor(value, context = {}) {
   const english = isEnglish(context.language);
   const opener = value.creationTarget
     ? (value.guideOperations ?? []).find((op) => op.kind === "open" && op.mode === "new")
@@ -205,7 +205,7 @@ function pageLabel(name, captions) {
 /**
  * Builds the documentation catalog: tasks plus use cases (per [FEATURE]),
  * end-to-end journeys (per [JOURNEY]), indexes by feature, role, page, and
- * permission set, the journey graph, the support runbook, and coverage: UI
+ * permission set, the links between scenarios, the support runbook, and coverage: UI
  * tests without documentation and pages without a guide.
  */
 export function buildCatalog(corpus, context = {}) {
@@ -260,11 +260,12 @@ export function buildCatalog(corpus, context = {}) {
   }));
 
   const ids = new Set(tasks.map(({ id }) => id));
-  const journey = [];
+  // The links between scenarios: [REQUIRES], [NEXT], [RELATED], [ALTERNATIVE].
+  const links = [];
   for (const task of tasks) {
-    for (const { id } of task.requires) if (ids.has(id)) journey.push({ from: task.id, to: id, kind: "requires" });
+    for (const { id } of task.requires) if (ids.has(id)) links.push({ from: task.id, to: id, kind: "requires" });
     for (const kind of LINK_KINDS) {
-      for (const { id } of task.links[kind]) if (ids.has(id)) journey.push({ from: task.id, to: id, kind });
+      for (const { id } of task.links[kind]) if (ids.has(id)) links.push({ from: task.id, to: id, kind });
     }
   }
 
@@ -303,22 +304,22 @@ export function buildCatalog(corpus, context = {}) {
     byRole,
     byPage,
     byPermission,
-    journey,
+    links,
     runbook: tasks.filter(hasRunbook),
     coverage
   };
 }
 
 /** Number of clicks in a task: phases count their items. */
-export function clickCount(task) {
+function clickCount(task) {
   return task.steps.reduce((count, step) => count + (step.phase ? step.items.length : 1), 0);
 }
 
-// The journey between scenarios, grouped by use case: [NEXT] and [REQUIRES]
+// The link map between scenarios, grouped by use case: [NEXT] and [REQUIRES]
 // read as one flow, alternatives and related guides as their own links.
-function journeyGraph(catalog) {
+function linkGraph(catalog) {
   const { language } = catalog;
-  const linked = new Set(catalog.journey.flatMap(({ from, to }) => [from, to]));
+  const linked = new Set(catalog.links.flatMap(({ from, to }) => [from, to]));
   const owner = new Map();
   const useCases = [];
   for (const useCase of catalog.useCases) {
@@ -346,58 +347,25 @@ function journeyGraph(catalog) {
     seen.add(`${kind}\u0000${key}`);
     edges.push({ from, to, kind, text });
   };
-  for (const { from, to, kind } of catalog.journey) {
+  for (const { from, to, kind } of catalog.links) {
     if (kind === "next") edge(from, to, "flow");
     else if (kind === "requires") edge(to, from, "flow");
-    else if (kind === "alternative") edge(from, to, "alternative", label(language, "journey.alternative"));
-    else edge(from, to, "related", label(language, "journey.related"));
+    else if (kind === "alternative") edge(from, to, "alternative", label(language, "link.alternative"));
+    else edge(from, to, "related", label(language, "link.related"));
   }
   return { useCases, owner, edges };
 }
 
-/**
- * D2 source for the journey between scenarios, grouped by use case. Every
- * scenario is a card with its permission set and number of steps; [NEXT] and
- * [REQUIRES] read as one flow arrow, alternatives and related guides as
- * dashed lines.
- */
-export function journeyD2(catalog) {
-  if (!catalog.journey.length) return undefined;
-  const quote = (value) => `"${String(value).replaceAll("\\", "\\\\").replaceAll("\"", "\\\"").replace(/\r?\n/gu, "\\n")}"`;
-  const lines = [
-    "direction: right",
-    "classes: {",
-    "  use-case: { style: { fill: \"#f6f8fa\"; stroke: \"#c9d1d9\"; border-radius: 12; font-color: \"#1b1f24\"; font-size: 18 } }",
-    "  scenario: { style: { fill: \"#eef4fd\"; stroke: \"#0b62d6\"; stroke-width: 2; border-radius: 10; font-color: \"#1b1f24\"; font-size: 15 } }",
-    "  flow: { style: { stroke: \"#0b62d6\"; stroke-width: 2 } }",
-    "  alternative: { style: { stroke: \"#e09400\"; stroke-width: 2; stroke-dash: 5; font-color: \"#8a5a00\" } }",
-    "  related: { style: { stroke: \"#9aa4b0\"; stroke-dash: 3; font-color: \"#5b6470\" } }",
-    "}",
-    ""
-  ];
-  const { useCases, owner, edges } = journeyGraph(catalog);
-  for (const useCase of useCases) {
-    lines.push(`${quote(useCase.id)}: ${quote(useCase.title)} {`, "  class: use-case");
-    for (const task of useCase.tasks) lines.push(`  ${quote(task.id)}: ${quote(`${task.title}\n${task.details}`)} { class: scenario }`);
-    lines.push("}", "");
-  }
-  const ref = (id) => (owner.has(id) ? `${quote(owner.get(id))}.${quote(id)}` : quote(id));
-  for (const { from, to, kind, text } of edges) {
-    lines.push(`${ref(from)} ${kind === "flow" ? "->" : "--"} ${ref(to)}${text ? `: ${quote(text)}` : ""} { class: ${kind} }`);
-  }
-  return `${lines.join("\n")}\n`;
-}
-
-const JOURNEY_EDGES = {
+const LINK_EDGES = {
   flow: { color: "#0b62d6", width: 2, arrow: "->" },
   alternative: { color: "#e09400", width: 2, dash: 5, arrow: "none" },
   related: { color: "#9aa4b0", dash: 3, arrow: "none" }
 };
 
-/** The journey as a diagram scene for the SVG renderer (src/diagram). */
-export function journeyScene(catalog) {
-  if (!catalog.journey.length) return undefined;
-  const { useCases, owner, edges } = journeyGraph(catalog);
+/** The link map as a diagram scene for the SVG renderer (src/diagram). */
+export function linkMapScene(catalog) {
+  if (!catalog.links.length) return undefined;
+  const { useCases, owner, edges } = linkGraph(catalog);
   const tasks = new Map(catalog.tasks.map((task) => [task.id, task]));
   const path = (id) => (owner.has(id) ? `${owner.get(id)}.${id}` : `loose.${id}`);
   const node = (id, title, details) => ({ key: id, path: path(id), label: details ? `${title}\n${details}` : title, titleFirst: true, fill: "#eef4fd", stroke: "#0b62d6", strokeWidth: 2 });
@@ -407,7 +375,7 @@ export function journeyScene(catalog) {
   return {
     direction: "right",
     groups,
-    edges: edges.map(({ from, to, kind, text }) => ({ from: path(from), to: path(to), kind, label: text, ...JOURNEY_EDGES[kind] })),
+    edges: edges.map(({ from, to, kind, text }) => ({ from: path(from), to: path(to), kind, label: text, ...LINK_EDGES[kind] })),
     omitted: 0
   };
 }

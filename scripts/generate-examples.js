@@ -45,7 +45,6 @@ for (const [name] of pictures) {
   await fs.writeFile(path.join(images, `${name}-lens.png`), await svgToPng(svg, { scale: 1.5 }));
 }
 
-await run(["export", input, "--view", "report", "-o", path.join("examples", "report")]);
 await run([
   "docs", "generate", input,
   "--app", input,
@@ -55,13 +54,3 @@ await run([
 
 // The layered documentation of the example with three apps: the system down to each procedure.
 await run(["layers", path.join("examples", "multi-app"), "-o", path.join("examples", "layers")]);
-
-// The knowledge graph of the warehouse example, with a fixed date so it only changes with the source.
-process.env.SOURCE_DATE_EPOCH = "1735689600";
-const { writeKnowledgeGraph } = await import("../src/knowledge/index.js");
-const knowledge = path.join(root, "examples", "knowledge-graph");
-for (const format of ["ttl", "owl"]) {
-  const result = await writeKnowledgeGraph(input, { output: path.join(knowledge, `warehouse-app.${format}`), title: "BC Atlas Warehouse Example" });
-  console.log(`Wrote examples/knowledge-graph/warehouse-app.${format} (${result.triples} triples)`);
-}
-delete process.env.SOURCE_DATE_EPOCH;

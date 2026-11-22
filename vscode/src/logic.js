@@ -84,16 +84,12 @@ function statusFor(overview) {
   return { text, tone: errors ? "error" : warnings ? "warning" : "ok", tooltip };
 }
 
-// What `bca export` can write, for the Export command.
-const EXPORTS = [
-  { view: "app", label: "BC Atlas (one offline HTML file)", detail: "The graph with every lens, finding, and story, to share or publish", file: "bc-atlas.html", filters: { HTML: ["html"] } },
-  { view: "report", label: "Markdown report", detail: "README.md with the numbers, a picture of each lens, and the health", folder: "docs/atlas" },
-  { view: "knowledge-graph", label: "Knowledge graph (RDF, OWL)", detail: "For triple stores, graph databases, and Protégé: Turtle, RDF/XML, N-Triples, or JSON-LD", file: "bc-atlas.ttl", filters: { Turtle: ["ttl"], OWL: ["owl"], "RDF/XML": ["rdf"], "N-Triples": ["nt"], "JSON-LD": ["jsonld"] } }
-];
+// What `bca export` writes, for the Export command.
+const EXPORT = { label: "BC Atlas (one offline HTML file)", file: "bc-atlas.html", filters: { HTML: ["html"] } };
 
-/** `bca export` arguments for one export target. */
-function exportArgs(target, project, output) {
-  return ["export", project, "--view", target.view, "-o", output];
+/** `bca export` arguments: the view of the project as one HTML file. */
+function exportArgs(project, output) {
+  return ["export", project, "-o", output];
 }
 
 /**
@@ -146,7 +142,7 @@ function editorAlSettings(inspect, { workspaceFolder, multiRoot = false } = {}) 
 module.exports = {
   AL_SETTINGS,
   editorAlSettings,
-  EXPORTS,
+  EXPORT,
   expandWorkspaceFolder,
   exportArgs,
   findingsToProblems,

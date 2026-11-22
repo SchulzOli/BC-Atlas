@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { parseAlUiTest, tagLine } from "./al-ui-source.js";
+import { tagLine } from "./al-tags.js";
+import { parseAlUiTest } from "./al-ui-source.js";
 import { loadCorpus, validateCorpus } from "./model.js";
 import { canonicalTag, DOCUMENTATION_TAGS, PREREQUISITE_TYPES } from "./tags.js";
 

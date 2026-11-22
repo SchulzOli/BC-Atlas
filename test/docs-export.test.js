@@ -8,7 +8,8 @@ import { fileURLToPath } from "node:url";
 import { loadCaptionIndex, parseXliff } from "../src/docs/captions.js";
 import { exportDocumentation } from "../src/docs/export.js";
 import { renderAzureDevOpsCsv } from "../src/docs/render/csv.js";
-import { loadCorpus } from "../src/docs/model.js";
+import { loadCorpus, scenarioSummary } from "../src/docs/model.js";
+import { linkMapScene } from "../src/docs/task.js";
 
 const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
 
@@ -193,7 +194,7 @@ test("exports guides with captions, step results, use cases, journey, and covera
     });
     const names = result.files.map((file) => path.basename(file)).sort();
     assert.deepEqual(names, [
-      "index.md", "journey.d2", "journey.svg", "use-case-widget-lifecycle.md", "use-case-widget-lifecycle.svg",
+      "index.md", "link-map.svg", "use-case-widget-lifecycle.md", "use-case-widget-lifecycle.svg",
       "widget-archive.md", "widget-archive.svg", "widget-create.md", "widget-create.svg"
     ]);
 
@@ -224,10 +225,12 @@ test("exports guides with captions, step results, use cases, journey, and covera
     assert.match(useCase, /!\[Widget lifecycle\]\(\.\/diagrams\/use-case-widget-lifecycle\.svg\)/u);
     assert.doesNotMatch(useCase, /\.bpmn/u, "BPMN is linked only when exported");
     assert.match(guide, /## At a glance\n\n!\[Create a new Widget List\]\(\.\/diagrams\/widget-create\.svg\)/u);
-    const journey = readFileSync(path.join(output, "journey.d2"), "utf8");
-    assert.match(journey, /"widget-create" -> .*"widget-archive" \{ class: flow \}/u);
-    assert.equal(journey.match(/ -> /gu).length, 1, "[NEXT] and [REQUIRES] between the same scenarios are one arrow");
-    assert.match(journey, /"Create a new Widget List\\nWIDGET EDIT · 6 steps"/u);
+    const map = linkMapScene(result.catalog);
+    assert.deepEqual(map.edges.map(({ from, to, kind }) => [from, to, kind]),
+      [["use-case-widget-lifecycle.widget-create", "use-case-widget-lifecycle.widget-archive", "flow"]],
+      "[NEXT] and [REQUIRES] between the same scenarios are one arrow");
+    assert.equal(map.groups[0].nodes[0].label, "Create a new Widget List\nWIDGET EDIT · 6 steps");
+    assert.match(readFileSync(path.join(output, "link-map.svg"), "utf8"), /Create a new Widget List/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -336,6 +339,7 @@ test("documents end-to-end journeys, indexes by feature and role, a support runb
   const corpus = await loadCorpus(example);
   assert.deepEqual(corpus.undocumented.map(({ procedure }) => procedure), ["WarehouseRequests_OpenList_ShowsRequests"],
     "a UI test without [SCENARIO] is not documented, and is counted");
+  assert.deepEqual(scenarioSummary(corpus.scenarios[0]).features, ["warehouse-requests"], "docs list names the features of a scenario");
   const output = mkdtempSync(path.join(os.tmpdir(), "bca-docs-journey-"));
   try {
     const { catalog } = await exportDocumentation(corpus, { outputDirectory: output, formats: "markdown,html,dita", appRoot: example });

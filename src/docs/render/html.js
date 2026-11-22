@@ -46,7 +46,7 @@ th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-alig
 th{background:var(--soft)}
 .chips span{display:inline-block;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:0 8px;margin:0 4px 4px 0;font-size:12px}
 details{margin-top:12px;font-size:13px;color:var(--muted)}
-.journey svg,.diagram svg{max-width:100%;height:auto;border-radius:8px}
+.link-map svg,.diagram svg{max-width:100%;height:auto;border-radius:8px}
 .diagram{overflow-x:auto;margin:8px 0 4px}
 @media (max-width:760px){.layout{grid-template-columns:1fr}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}}
 @media print{nav,header input{display:none}.layout{display:block}article{break-before:page}main{max-width:none}}
@@ -138,13 +138,14 @@ function diagram(svg) {
 }
 
 /** One scenario as a guide or test case, with its flow. */
-export function articleHtml(task, mode, flow, { heading = true } = {}) {
+function articleHtml(task, mode, flow) {
   const { language } = task;
   const search = [task.id, task.title, task.goal, ...task.features, ...task.roles, ...task.permissions].join(" ").toLowerCase();
   const tags = [...task.features.map(humanizeFeature), ...task.roles];
   const chips = tags.length ? `<p class="chips">${tags.map((tag) => `<span>${escapeXml(tag)}</span>`).join("")}</p>` : "";
   return `<article id="${escapeXml(task.id)}" data-search="${escapeXml(search)}">
-${heading ? `<h2>${mode === "testcase" ? `${escapeXml(label(language, "testcase.title", { id: task.id }))}: ` : ""}${escapeXml(task.title)}</h2>\n` : ""}${chips}${mode === "testcase" ? "" : `<p class="short">${html(task.shortdesc)}</p>`}
+<h2>${mode === "testcase" ? `${escapeXml(label(language, "testcase.title", { id: task.id }))}: ` : ""}${escapeXml(task.title)}</h2>
+${chips}${mode === "testcase" ? "" : `<p class="short">${html(task.shortdesc)}</p>`}
 ${diagram(flow)}
 ${mode === "testcase" ? testCaseBody(task) : guideBody(task)}
 <details><summary>${label(language, "heading.source")}</summary>
@@ -153,10 +154,10 @@ ${label(language, "label.file")}: <code>${escapeXml(task.source.file)}</code> ·
 </article>`;
 }
 
-/** A use case: its process, main scenarios, and alternatives; heading is the tag of its title. */
-export function useCaseHtml(useCase, catalog, processSvg, { heading = "h3" } = {}) {
+/** A use case: its process, main scenarios, and alternatives. */
+function useCaseHtml(useCase, catalog, processSvg) {
   const t = (key, values) => label(catalog.language, key, values);
-  const parts = [`${heading ? `<${heading} id="${escapeXml(useCase.id)}">${escapeXml(useCase.title)}</${heading}>` : ""}${diagram(processSvg)}<ol>${useCase.main.map((task) =>
+  const parts = [`<h3 id="${escapeXml(useCase.id)}">${escapeXml(useCase.title)}</h3>${diagram(processSvg)}<ol>${useCase.main.map((task) =>
     `<li>${link({ ...task, exists: true })}${sameAsTitle(task) ? "" : ` <span class="muted">${escapeXml(task.goal)}</span>`}</li>`).join("")}</ol>`];
   if (useCase.alternatives.length) {
     parts.push(`<p class="muted">${t("heading.alternatives")}</p><ul>${useCase.alternatives.map((task) =>
@@ -166,14 +167,14 @@ export function useCaseHtml(useCase, catalog, processSvg, { heading = "h3" } = {
 }
 
 /** An end-to-end journey: its process and its stages, in order, with who does each. */
-export function journeyHtml(journey, catalog, processSvg, { heading = "h3" } = {}) {
-  return `${heading ? `<${heading} id="${escapeXml(journey.id)}">${escapeXml(journey.title)}</${heading}>` : ""}${diagram(processSvg)}<ol>${journey.tasks.map((task) => {
+function journeyHtml(journey, processSvg) {
+  return `<h3 id="${escapeXml(journey.id)}">${escapeXml(journey.title)}</h3>${diagram(processSvg)}<ol>${journey.tasks.map((task) => {
     const who = [...task.roles, ...task.permissions];
     return `<li>${link({ ...task, exists: true })}${who.length ? ` <span class="muted">${escapeXml(who.join(", "))}</span>` : ""}</li>`;
   }).join("")}</ol>`;
 }
 
-function overview(catalog, journeySvg, processes) {
+function overview(catalog, linkMapSvg, processes) {
   const { language } = catalog;
   const t = (key, values) => label(language, key, values);
   const parts = [`<section id="overview">`];
@@ -184,19 +185,19 @@ function overview(catalog, journeySvg, processes) {
   }
   if (catalog.journeys.length) {
     parts.push(`<h2>${t("heading.journeys")}</h2>`);
-    for (const journey of catalog.journeys) parts.push(journeyHtml(journey, catalog, processes?.get(journey.id)));
+    for (const journey of catalog.journeys) parts.push(journeyHtml(journey, processes?.get(journey.id)));
   }
-  parts.push(indexHtml(catalog, journeySvg));
+  parts.push(indexHtml(catalog, linkMapSvg));
   parts.push("</section>");
   return parts.join("\n");
 }
 
 /** The journey across use cases, the indexes, the runbook, and the coverage. */
-export function indexHtml(catalog, journeySvg) {
+function indexHtml(catalog, linkMapSvg) {
   const { language } = catalog;
   const t = (key, values) => label(language, key, values);
   const parts = [];
-  if (journeySvg) parts.push(`<h2>${t("heading.journey")}</h2><div class="journey">${journeySvg}</div>`);
+  if (linkMapSvg) parts.push(`<h2>${t("heading.link-map")}</h2><div class="link-map">${linkMapSvg}</div>`);
   const table = (heading, rows) => rows.length
     ? `<h2>${heading}</h2><table><tbody>${rows.map(({ name, tasks }) =>
       `<tr><th>${escapeXml(name)}</th><td>${tasks.map((task) => link({ ...task, exists: true })).join(", ")}</td></tr>`).join("")}</tbody></table>`
@@ -233,12 +234,12 @@ export function indexHtml(catalog, journeySvg) {
   return parts.join("\n");
 }
 
-export function renderHtml(catalog, { mode = "guide", journeySvg, flows, processes } = {}) {
+export function renderHtml(catalog, { mode = "guide", linkMapSvg, flows, processes } = {}) {
   const { language } = catalog;
   const t = (key) => label(language, key);
   const title = catalog.title ?? t("heading.documentation");
   const navUseCases = catalog.useCases.filter(({ feature }) => feature);
-  const svg = journeySvg?.replace(/^<\?xml[^>]*>\s*/u, "");
+  const svg = linkMapSvg?.replace(/^<\?xml[^>]*>\s*/u, "");
   return `<!doctype html>
 <html lang="${escapeXml(language)}">
 <head>

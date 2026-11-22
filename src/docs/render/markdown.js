@@ -294,7 +294,7 @@ function indexTable(heading, column, rows, t) {
 }
 
 /** Catalog landing page: use cases, journeys, scenarios, journey graph, indexes, runbook, coverage. */
-export function renderIndex(catalog, { journeyImage } = {}) {
+export function renderIndex(catalog, { linkMapImage } = {}) {
   const { language } = catalog;
   const t = (key, values) => label(language, key, values);
   const lines = [
@@ -317,7 +317,7 @@ export function renderIndex(catalog, { journeyImage } = {}) {
       ...catalog.journeys.map((journey) => `- [${escapeMarkdown(journey.title)}](./${journey.id}.md) (${journey.tasks.length})`), "");
   }
   lines.push(`## ${t("heading.scenarios")}`, "", ...catalog.tasks.map((task) => `- ${taskLink(task)}`), "");
-  if (journeyImage) lines.push(`## ${t("heading.journey")}`, "", `![${t("heading.journey")}](./${journeyImage})`, "");
+  if (linkMapImage) lines.push(`## ${t("heading.link-map")}`, "", `![${t("heading.link-map")}](./${linkMapImage})`, "");
   lines.push(
     ...indexTable("heading.by-feature", "column.feature", catalog.byFeature, t),
     ...indexTable("heading.by-role", "column.role", catalog.byRole, t),

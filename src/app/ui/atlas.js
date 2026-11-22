@@ -8,58 +8,20 @@
   "use strict";
 
   const BOOT = window.BCA_APP ?? { mode: "static" };
-  // Live: something answers the requests of the view. In VS Code the extension, as an MCP App
-  // the MCP server (vendor/mcp-app.js); both take { type: "request", id, method, params }.
-  const MCP = BOOT.mode === "mcp";
-  const LIVE = BOOT.mode === "vscode" || MCP;
-  const vscode = MCP ? window.BCA_MCP_HOST : LIVE ? acquireVsCodeApi() : undefined;
+  // Where the view runs, and what answers its requests (host.js).
+  const { MCP, LIVE, vscode, inflate, call, toast, message, download, fileName } = BCA_HOST.connect(BOOT);
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-  const esc = (value) => String(value ?? "").replace(/[&<>"']/gu, (character) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
-  const fmt = (value) => Number(value ?? 0).toLocaleString("en-US");
-  const plural = (count, word, many = `${word}s`) => `${fmt(count)} ${count === 1 ? word : many}`;
-  // `code` and **bold** in generated text.
-  const rich = (text) => esc(text).replace(/`([^`]+)`/gu, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/gu, "<b>$1</b>");
+  // The markup of the panels and menus (panels.js).
+  const P = BCA_PANELS;
+  const { esc, fmt, plural } = P;
 
   // What shows and how it reads as text is shared with the terminal (scene.js).
   const S = BCA_SCENE;
   const { KIND_NAMES } = S;
-  const FACTS = [
-    ["objectId", "ID"], ["namespace", "Namespace"], ["app", "App"], ["origin", "Origin"],
-    ["publisher", "Publisher"], ["version", "Version"], ["access", "Access"], ["obsolete", "Obsolete"], ["severity", "Severity"],
-    ["objects", "Objects"], ["procedures", "Procedures"], ["lines", "Lines"], ["complexity", "Complexity"], ["uses", "Uses"], ["usedBy", "Used by"],
-    ["header", "Declaration"]
-  ];
-
-  async function inflate(base64) {
-    const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-    return new Response(stream).text();
-  }
 
   // ------------------------------------------------------------------ data
   const SNAPSHOT = LIVE ? undefined : JSON.parse(await inflate(window.BCA_SNAPSHOT_GZIP));
-
-  // Requests to the extension: { type: "request", id, method, params } is
-  // answered with { type: "response", id, result } or { id, error }.
-  let nextRequest = 0;
-  const pending = new Map();
-  addEventListener("message", (event) => {
-    const message = event.data;
-    if (message?.type !== "response" || !pending.has(message.id)) return;
-    const { resolve, reject } = pending.get(message.id);
-    pending.delete(message.id);
-    if (message.error) reject(new Error(message.error));
-    else resolve(message.result);
-  });
-  function call(method, params = {}) {
-    return new Promise((resolve, reject) => {
-      const id = ++nextRequest;
-      pending.set(id, { resolve, reject });
-      vscode.postMessage({ type: "request", id, method, params });
-    });
-  }
 
   let atlas;
   let found;
@@ -118,57 +80,7 @@
     return [...items].join("|");
   };
 
-  // ----------------------------------------------------------------- theme
-  const THEME_KEY = "bca-theme";
-  const storedTheme = (() => { try { return localStorage.getItem(THEME_KEY); } catch { return undefined; } })();
-  // In VS Code the view follows the editor's color theme.
-  const editorTheme = () => (document.body.classList.contains("vscode-light") || document.body.classList.contains("vscode-high-contrast-light") ? "light" : "dark");
-  let theme = LIVE ? editorTheme() : storedTheme ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-  const applyTheme = () => { document.documentElement.dataset.theme = theme; };
-  applyTheme();
-  if (LIVE) {
-    $("#theme-toggle").hidden = true;
-    new MutationObserver(() => {
-      if (editorTheme() === theme) return;
-      theme = editorTheme();
-      applyTheme();
-    }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
-  }
-  $("#theme-toggle").addEventListener("click", () => {
-    theme = theme === "dark" ? "light" : "dark";
-    try { localStorage.setItem(THEME_KEY, theme); } catch { /* optional */ }
-    applyTheme();
-  });
-
-  // ------------------------------------------------------------ ui helpers
-  let toastTimer;
-  function toast(message) {
-    const element = $("#toast");
-    element.textContent = message;
-    element.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => element.classList.remove("show"), 2600);
-  }
-  const message = (html = "") => { $("#message").innerHTML = html; };
-
-  function download(name, content, type = "text/plain") {
-    if (LIVE) {
-      const binary = content instanceof Uint8Array;
-      const text = binary ? btoa(Array.from(content, (byte) => String.fromCharCode(byte)).join("")) : content;
-      // The extension asks where to save; the MCP server saves into the project and says where.
-      return call("saveFile", { name, content: text, encoding: binary ? "base64" : undefined }).then((saved) => (saved?.path ? toast(`Saved ${saved.path}`) : undefined), (error) => toast(error.message));
-    }
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([content], { type }));
-    link.download = name;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-    return undefined;
-  }
-  const fileName = (text) => String(text).toLowerCase().replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "") || "bc-atlas";
-
   // ----------------------------------------------------------------- scene
-  const lensOf = (id) => atlas.lenses.find((lens) => lens.id === id) ?? atlas.lenses[0];
   const storyOf = (id) => atlas.stories.find((story) => story.id === id);
 
   /** The part of the atlas the state asks for (scene.js); an object that is opened is read first. */
@@ -188,7 +100,6 @@
   let rendering = Promise.resolve();
   let told = false;
 
-  const SIZES = [["", "Same size"], ["relations", "Relations"], ["usedBy", "Used by"], ["uses", "Uses"], ["lines", "Lines of code"], ["complexity", "Complexity"], ["objects", "Objects"], ["findings", "Findings"]];
   function render() {
     rendering = rendering.then(draw).catch((error) => {
       message(`<b>BC Atlas could not show this.</b><span>${esc(error.message)}</span>`);
@@ -364,16 +275,9 @@
   function legend() {
     const element = $("#legend");
     element.hidden = !scene.entries.length;
-    const hidden = list(state.hide);
-    const off = list(state.off);
-    const counts = new Map();
-    for (const edge of scene.edges) counts.set(edge[2], (counts.get(edge[2]) ?? 0) + 1);
     // The overview explains itself by its columns: its legend starts folded.
     const fold = folded ?? (innerWidth < 720 || Boolean(scene.flow));
-    element.innerHTML = `
-      <div class="where"><b>${esc(scene.title)}</b><span>${plural(scene.entries.length, "node")}, ${plural(scene.edges.length, "relation")}</span><button class="fold" data-fold aria-expanded="${!fold}" title="${fold ? "Show the legend" : "Hide the legend"}" aria-label="Legend"></button>${fold ? "" : `<p>${esc(scene.summary)}</p>`}</div>
-      ${fold ? "" : `<div class="chips">${scene.classes.map((entry) => `<button class="chip ${hidden.has(String(entry.key)) ? "off" : ""}" data-class="${esc(entry.key)}" title="Show or hide"><i style="color:${esc(entry.color)}"></i>${esc(entry.label)} <small>${fmt(entry.count)}</small></button>`).join("")}</div>
-      ${scene.kinds.length && !scene.flow ? `<div class="chips">${scene.kinds.map((kind, index) => `<button class="chip ${off.has(kind.kind) ? "off" : ""}" data-kind="${esc(kind.kind)}" title="Show or hide"><i class="line ${kind.dash ? "dash" : ""}" style="color:${esc(kind.color)}"></i>${esc(kind.kind)} <small>${fmt(counts.get(index) ?? 0)}</small></button>`).join("")}</div>` : ""}`}`;
+    element.innerHTML = P.legend(scene, { hidden: list(state.hide), off: list(state.off), fold });
     element.dataset.folded = String(fold);
   }
   $("#legend").addEventListener("click", (event) => {
@@ -395,43 +299,20 @@
     element.hidden = index < 0;
     if (index < 0) return;
     const { node, at } = scene.entries[index];
-    const findings = at >= 0 ? findingsOf.get(at) ?? [] : [];
-    const facts = FACTS.filter(([key]) => node[key] !== undefined && node[key] !== "").map(([key, label]) => [label, node[key]]);
-    if (node.level) facts.splice(3, 0, ["Visibility", `${node.level}${node.canBe ? `; can be ${node.canBe}` : ""}${node.why ? ` (${node.why})` : ""}`]);
-    if (node.file) facts.push(["Source", `${node.file}${node.line ? `:${node.line}` : ""}`]);
-    const out = new Map();
-    const into = new Map();
-    const off = list(state.off);
-    for (const [from, to, kind] of scene.edges) {
-      if (off.has(scene.kinds[kind].kind)) continue;
-      if (from === index) (out.get(kind) ?? out.set(kind, []).get(kind)).push(to);
-      if (to === index) (into.get(kind) ?? into.set(kind, []).get(kind)).push(from);
-    }
-    const rows = (groups, arrow) => [...groups].map(([kind, others]) => others.slice(0, 12).map((other) =>
-      `<li><small>${arrow} ${esc(scene.kinds[kind].kind)}</small><button data-go="${esc(scene.entries[other].node.id)}">${esc(scene.entries[other].node.label)}</button></li>`).join("")
-      + (others.length > 12 ? `<li><small>and ${fmt(others.length - 12)} more</small></li>` : "")).join("");
-    const kind = node.kind === "object" || node.kind === "member" ? node.type : KIND_NAMES[node.kind] ?? node.kind;
     // A large export leaves out what is inside each object: there is nothing to open then.
     const canOpen = Boolean(S.into(atlas, node, state)?.inside) && (node.kind !== "object" || LIVE || Boolean(SNAPSHOT.inside?.[node.id]));
-    // The same node from another side: the lenses it is in.
-    const sides = at >= 0 ? S.lensesOf(atlas, found, node.id).filter(({ id }) => id !== state.lens || state.inside || state.focus) : [];
-    element.innerHTML = `
-      <header>
-        <div style="flex:1;min-width:0"><div class="kind"><i style="background:${esc(scene.nodes[index].color)}"></i>${esc(kind)}${node.external ? " · other app" : ""}</div><h2>${esc(node.label)}</h2></div>
-        <button class="close" data-close aria-label="Close" title="Close (Esc)">×</button>
-      </header>
-      ${node.about || node.caption ? `<p class="about">${rich(node.about ?? node.caption)}</p>` : ""}
-      ${facts.length ? `<dl class="facts">${facts.map(([label, value]) => `<dt>${esc(label)}</dt><dd>${esc(value)}</dd>`).join("")}</dl>` : ""}
-      <div class="actions">
-        ${canOpen ? `<button class="btn primary" data-act="inside" title="${node.kind === "object" ? "Its procedures and what each does" : "Its objects and what they do with each other"} (double click)">Open</button>` : ""}
-        <button class="btn" data-act="focus">${state.focus === node.id ? "Show all" : "Neighbors"}</button>
-        ${node.file ? `<button class="btn" data-act="source">${LIVE ? "Go to source" : "Source"}</button>` : ""}
-        <button class="btn" data-act="link">Link</button>
-      </div>
-      ${sides.length ? `<h3>See in</h3><div class="chips sides">${sides.map((lens) => `<button class="chip" data-side="${esc(lens.id)}" title="${esc(lens.summary)}">${esc(lens.title)}</button>`).join("")}</div>` : ""}
-      ${findings.length ? `<h3>${plural(findings.length, "finding")}</h3>${findings.slice(0, 20).map((finding) => `<div class="finding ${esc(finding.severity)}"><b>${esc(finding.severity)} · ${esc(finding.rule)}</b><p>${rich(finding.message)}</p>${finding.fix ? `<p class="fix">${rich(finding.fix)}</p>` : ""}</div>`).join("")}` : ""}
-      ${out.size ? `<h3>From here</h3><ul class="rows">${rows(out, "→")}</ul>` : ""}
-      ${into.size ? `<h3>To here</h3><ul class="rows">${rows(into, "←")}</ul>` : ""}`;
+    element.innerHTML = P.inspector({
+      scene,
+      index,
+      findings: at >= 0 ? findingsOf.get(at) ?? [] : [],
+      off: list(state.off),
+      kindNames: KIND_NAMES,
+      canOpen,
+      // The same node from another side: the lenses it is in.
+      sides: at >= 0 ? S.lensesOf(atlas, found, node.id).filter(({ id }) => id !== state.lens || state.inside || state.focus) : [],
+      focus: state.focus,
+      live: LIVE
+    });
   }
   $("#inspector").addEventListener("click", (event) => {
     const index = scene.place.get(state.sel);
@@ -492,17 +373,7 @@
     $("#stage").classList.toggle("telling", Boolean(step));
     if (!step) return stop();
     const at = Math.min(Number(state.step) || 0, story.steps.length - 1);
-    element.innerHTML = `
-      <i class="progress" style="width:${((at + 1) / story.steps.length) * 100}%"></i>
-      <div class="head"><h2>${esc(step.title)}</h2>${step.status ? `<span class="state ${esc(step.status)}">${esc(step.status)}</span>` : ""}<small>${at + 1} / ${story.steps.length}</small><button class="close" data-story="end" aria-label="End the story" title="End the story (Esc)">×</button></div>
-      <p>${rich(step.text)}</p>
-      <div class="controls">
-        <button class="btn" data-story="previous" ${at ? "" : "disabled"} title="Previous step (←)">←</button>
-        <button class="btn primary" data-story="play" title="Play or pause (Space)">${playing ? "Pause" : "Play"}</button>
-        <button class="btn" data-story="next" ${at < story.steps.length - 1 ? "" : "disabled"} title="Next step (→)">→</button>
-        <span class="title">${esc(story.title)}</span>
-        <button class="btn" data-story="save" title="This story as a document">Markdown</button>
-      </div>`;
+    element.innerHTML = P.storyBar(story, step, at, playing);
     return undefined;
   }
   function storyAct(action) {
@@ -549,34 +420,6 @@
   ];
 
   // --------------------------------------------------------------- popover
-  const MENUS = {
-    // The lenses by what they answer; each in one line, its full text on hover.
-    lens: () => {
-      const sections = new Map();
-      for (const lens of atlas.lenses) (sections.get(lens.section ?? "More") ?? sections.set(lens.section ?? "More", []).get(lens.section ?? "More")).push(lens);
-      return [...sections].map(([section, lenses]) => `<h3>${esc(section)}</h3>${lenses.map((lens) =>
-        `<button class="item line" role="menuitem" data-set-lens="${esc(lens.id)}" title="${esc(lens.summary)}" ${lens.id === state.lens && !state.inside ? 'aria-current="true"' : ""}><b>${esc(lens.title)}</b><small>${esc(lens.hint ?? lens.summary)}</small></button>`).join("")}`).join("");
-    },
-    story: () => `${atlas.stories.map((story) => `<button class="item" role="menuitem" data-set-story="${esc(story.id)}" ${story.id === state.story ? 'aria-current="true"' : ""}><b>${esc(story.title)}</b><span>${plural(story.steps.length, "step")}</span><small>${esc(story.summary)}</small></button>`).join("")}
-      <hr><p class="text" style="color:var(--muted);font-size:12.5px">A story is generated from the source. It explains, documents, tests, or demonstrates the system on the graph, and saves as Markdown.</p>`,
-    view: () => {
-      const colors = [["", "As the lens does"], ["type", "Type"], ["namespace", "Namespace"], ["app", "App"], ["level", "Visibility"], ["findings", "Findings"]];
-      const groups = [["", "As the lens does"], ["namespace", "Namespace"], ["app", "App"], ["kind", "Type"], ["none", "Nothing"]];
-      const select = (name, options, value) => `<label class="field"><span>${name}</span><select data-view="${name.toLowerCase()}">${options.map(([key, label]) => `<option value="${key}" ${key === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>`;
-      return `${select("Color", colors, state.color)}${select("Size", SIZES, state.size)}${select("Group", groups, state.group)}
-        ${state.focus ? `<label class="field"><span>Depth</span><select data-view="depth">${[1, 2, 3].map((depth) => `<option ${String(depth) === state.depth ? "selected" : ""}>${depth}</option>`).join("")}</select></label>` : ""}
-        <hr><div class="actions"><button class="btn" data-view-act="arrange">Arrange again</button><button class="btn" data-view-act="reset">Reset the view</button></div>`;
-    },
-    export: () => EXPORTS.map(([id, title, text]) => `<button class="item" role="menuitem" data-export="${id}"><b>${title}</b><small>${text}</small></button>`).join(""),
-    sync: () => `
-      <p class="text"><b>${LIVE ? "Live." : "A snapshot."}</b> ${LIVE
-        ? "The graph follows the AL source of this workspace: save a file and it is read again."
-        : `Read on ${esc(new Date(SNAPSHOT.generatedAt).toLocaleString())} with BC Atlas ${esc(atlas.version)}. Run <code>bca export</code> again to bring it up to date.`}</p>
-      <p class="text" style="color:var(--muted)">The source code is the only fact. Everything you see is generated from it.</p>
-      <h3>Read from</h3>
-      <dl class="facts">${[["This lens", scene.lens.reads], ...atlas.sources].map(([name, value]) => `<dt>${esc(name)}</dt><dd>${rich(value)}</dd>`).join("")}</dl>
-      ${LIVE ? `<div class="actions"><button class="btn" data-sync="refresh">Read the source again</button></div>` : ""}`
-  };
   let openMenu;
   function closeMenu() {
     if (!openMenu) return;
@@ -589,7 +432,7 @@
     closeMenu();
     if (!atlas || !scene) return undefined;
     const popover = $("#popover");
-    popover.innerHTML = MENUS[button.dataset.menu]();
+    popover.innerHTML = P.menus[button.dataset.menu]({ atlas, scene, state, live: LIVE, snapshot: SNAPSHOT, exports: EXPORTS });
     popover.hidden = false;
     const box = button.getBoundingClientRect();
     const width = popover.offsetWidth;
@@ -718,7 +561,7 @@
           return render();
         }).catch(() => {});
       }
-      if (data?.type === "host-missing") message("<b>This page is the BC Atlas view as an MCP App.</b><span>It shows a project inside a chat client that renders MCP Apps. Open it from there, or use <code>bca export --view app</code> for a file that stands alone.</span>");
+      if (data?.type === "host-missing") message("<b>This page is the BC Atlas view as an MCP App.</b><span>It shows a project inside a chat client that renders MCP Apps. Open it from there, or use <code>bca export</code> for a file that stands alone.</span>");
       if (data?.type === "navigate" && typeof data.hash === "string") {
         location.hash = data.hash;
         state = readState();

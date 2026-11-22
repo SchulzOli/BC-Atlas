@@ -3,7 +3,7 @@
 // Copies standalone HTML samples into the built website. Markdown pages are
 // rendered by VitePress; self-contained HTML files are published as they are,
 // under <folder>/html/<name>.html so they never collide with index.md pages.
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,12 +37,4 @@ for (const name of ["warehouse-app", "multi-app", "purchasing-app"]) {
   writeFileSync(target, html);
   copied++;
 }
-// The ontology at its IRI: /ontology is the page (docs/reference/ontology.md),
-// /ontology.ttl and the other files next to it are the RDF.
-const { ONTOLOGY_FILES, ontologyFile } = await import("../src/knowledge/ontology.js");
-const { version } = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
-for (const extension of Object.keys(ONTOLOGY_FILES)) {
-  writeFileSync(path.join(dist, `ontology.${extension}`), ontologyFile(extension, version));
-  copied++;
-}
-console.log(`Copied ${copied} standalone HTML and ontology file(s) into the website.`);
+console.log(`Copied ${copied} standalone HTML file(s) into the website.`);

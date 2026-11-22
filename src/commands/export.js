@@ -1,32 +1,16 @@
-// `bca export`: writes what the app shows as files. One command for the
-// view as one offline file, the Markdown report, and the knowledge graph.
+// `bca export`: the BC Atlas view as one offline HTML file to share.
 import { watch as fsWatch } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { renderSnapshotHtml } from "../app/snapshot.js";
 import { Workspace } from "../app/workspace.js";
-import { healthResultLine } from "../health.js";
 import { displayPath } from "../output.js";
 import { positiveInteger } from "../project.js";
 import { UsageError } from "../cli/errors.js";
-import { writeKnowledgeGraph } from "../knowledge/index.js";
-import { generateReport } from "./report.js";
 
-// Formats each kind of export accepts; the first one is the default.
-const FORMATS = {
-  app: ["html"],
-  report: ["md"],
-  "knowledge-graph": ["ttl", "rdf", "owl", "nt", "jsonld"]
-};
-
-function checkFormat(view, format) {
-  if (!FORMATS[view]) throw new UsageError(`unknown view "${view}"; use ${Object.keys(FORMATS).join(", ")}. A picture of a lens: bca view --lens <id> -o <file>.svg`);
-  if (format && !FORMATS[view].includes(format)) {
-    throw new UsageError(`--view ${view} writes ${FORMATS[view].join(" or ")}, not ${format}`);
-  }
-}
-
-async function exportApp(input, values, log) {
+/** Writes the view as one offline HTML file; returns the files written. */
+async function runExport(input, values = {}, { log = () => {} } = {}) {
+  if (values.output === "-") throw new UsageError("bca export writes a file; -o - is not supported. For JSON on stdout, use bca view --format json");
   const output = path.resolve(values.output ?? "bc-atlas.html");
   const workspace = new Workspace(input, values, { live: false });
   const { html, snapshot } = await renderSnapshotHtml(workspace, { log, title: values.title });
@@ -35,29 +19,6 @@ async function exportApp(input, values, log) {
   const { title, summary } = snapshot.atlas;
   log(`${title}: ${summary.objects} object(s), health ${summary.health.passed ? "passed" : "failed"}.`);
   return [output];
-}
-
-async function exportReport(input, values, log) {
-  const result = await generateReport(input, { ...values, outputDir: values.output }, { log });
-  log(healthResultLine(result.health));
-  log(`${result.pictures.length} picture(s) in the report`);
-  return [result.readme];
-}
-
-async function exportKnowledgeGraph(input, values, log) {
-  const result = await writeKnowledgeGraph(input, values);
-  log(`Knowledge graph: ${result.objects} object(s), ${result.relations} relation(s), ${result.triples} triple(s) as ${result.format}.`);
-  return [result.file];
-}
-
-const EXPORTERS = { app: exportApp, report: exportReport, "knowledge-graph": exportKnowledgeGraph };
-
-/** Writes one export; returns the files written. */
-export async function runExport(input, values = {}, { log = () => {} } = {}) {
-  const view = values.view ?? "app";
-  checkFormat(view, values.format);
-  if (values.output === "-") throw new UsageError("bca export writes files; -o - is not supported. For JSON on stdout, use bca view --format json");
-  return EXPORTERS[view](input, { ...values, view }, log);
 }
 
 async function watchExport(input, values, build) {

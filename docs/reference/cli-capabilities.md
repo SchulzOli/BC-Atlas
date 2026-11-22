@@ -21,7 +21,7 @@ Write what the app shows as files, look at any part of it from the terminal, and
 
 | Command | Invocation | Purpose |
 | --- | --- | --- |
-| `export` | `bca export [app-root]` | Write files: the BC Atlas view as one offline HTML file, the Markdown report, or the knowledge graph. |
+| `export` | `bca export [app-root]` | Write the BC Atlas view as one offline HTML file to share: a toolbar and the graph, with every lens, finding, and story. |
 | `view` | `bca view [app-root]` | The BC Atlas view without a window: any lens, story, or object of the one graph as text, JSON, CSV, Markdown, SVG, or PNG. What the toolbar of the app does, from the terminal. |
 | `layers` | `bca layers [app-root]` | The layered documentation, in sync with the source: the system explained from the whole down to each procedure, one page per app, namespace, and object, each with a picture. |
 | `docs.list` | `bca docs list <test-root>` | List documented UI-test scenarios. |
@@ -41,14 +41,6 @@ Connect BC Atlas to AI agents.
 | --- | --- | --- |
 | `mcp` | `bca mcp` | Start the Model Context Protocol server on stdio for AI agents. |
 
-## What `bca export` writes
-
-| `--view` | Writes |
-| --- | --- |
-| `app` | The BC Atlas view as one offline HTML file to share: a toolbar and the graph, with every lens, finding, and story |
-| `report` | Markdown report (README.md) with the numbers, a picture of each lens, and the health |
-| `knowledge-graph` | The analyzed project as RDF with the BC Atlas OWL ontology, for knowledge graphs and triple stores: Turtle, RDF/XML (.rdf, .owl), N-Triples, or JSON-LD |
-
 ## Lenses of the view
 
 What `bca view --lens` and the view show; a lens with nothing in it does not exist for a project.
@@ -65,16 +57,6 @@ What `bca view --lens` and the view show; a lens with nothing in it does not exi
 - `security`
 - `visibility`
 - `health`
-
-## Export formats
-
-- `html`
-- `md`
-- `ttl`
-- `rdf`
-- `owl`
-- `nt`
-- `jsonld`
 
 ## Exit codes
 

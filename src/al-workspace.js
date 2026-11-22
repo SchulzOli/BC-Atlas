@@ -27,7 +27,7 @@ async function isDirectory(directory) {
 }
 
 /** Folders with an app.json below `root`; a nested app.json is a module of the outer app. */
-export async function findAppFolders(root) {
+async function findAppFolders(root) {
   const folders = [];
   async function visit(directory) {
     let entries;
@@ -51,7 +51,7 @@ export async function findAppFolders(root) {
 }
 
 /** The `.code-workspace` file of a root: the configured one, else the only or first one. */
-export async function findWorkspaceFile(root, configured) {
+async function findWorkspaceFile(root, configured) {
   if (configured) return path.resolve(root, configured);
   try {
     const files = (await fs.readdir(root)).filter((name) => name.toLowerCase().endsWith(".code-workspace")).sort();
@@ -72,7 +72,7 @@ function list(value) {
  * to), `${userHome}`, `${env:NAME}`, and a leading `~`. Analyzer names such as
  * `${CodeCop}` and `${AnalyzerFolder}` are left for the toolchain.
  */
-export function expandVariables(value, { workspaceFolder, env = process.env, home = os.homedir() } = {}) {
+function expandVariables(value, { workspaceFolder, env = process.env, home = os.homedir() } = {}) {
   if (Array.isArray(value)) return value.map((item) => expandVariables(item, { workspaceFolder, env, home }));
   if (typeof value !== "string") return value;
   return value
@@ -98,7 +98,7 @@ function alSettings(values = {}, workspaceFolder) {
  * Settings that apply to one AL project. Relative paths resolve against the
  * project folder, as the AL Language extension resolves them.
  */
-export function projectSettings(folder, ...layers) {
+function projectSettings(folder, ...layers) {
   const merged = Object.assign({}, ...layers.filter(Boolean));
   const resolve = (value) => path.resolve(folder, value);
   return { packageCachePaths: list(merged.packageCachePath ?? ".alpackages").map(resolve) };

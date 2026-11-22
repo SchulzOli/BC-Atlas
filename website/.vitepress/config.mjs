@@ -6,7 +6,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitepress";
 import { PROJECT_PAGES, REPOSITORY, SECTIONS, WEBSITE } from "../../scripts/docs-structure.js";
-import { ONTOLOGY_FILES } from "../../src/knowledge/ontology.js";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const BASE = "/BC-Atlas/";
@@ -19,10 +18,7 @@ const EXCLUDE = [
 // README.md files become the index page of their folder.
 const REWRITES = {
   "README.md": "index.md",
-  "examples/README.md": "examples/index.md",
-  "examples/report/README.md": "examples/report/index.md",
-  // The ontology's IRI is https://schulzoli.github.io/BC-Atlas/ontology.
-  "docs/reference/ontology.md": "ontology.md"
+  "examples/README.md": "examples/index.md"
 };
 
 const SOURCES = Object.fromEntries(Object.entries(REWRITES).map(([from, to]) => [to, from]));
@@ -124,10 +120,6 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
   head: [["meta", { name: "theme-color", content: "#0b62d6" }], ["link", { rel: "icon", href: LOGO }]],
-  // The ontology page points tools to its RDF files.
-  transformHead: ({ pageData }) => pageData.filePath === "docs/reference/ontology.md"
-    ? Object.entries(ONTOLOGY_FILES).map(([extension, [, type]]) => ["link", { rel: "alternate", type, href: `${BASE}ontology.${extension}` }])
-    : [],
   markdown: {
     config: repositoryLinks,
     // AL is a Pascal-family language; this keeps code samples highlighted.

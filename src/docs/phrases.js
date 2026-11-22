@@ -70,8 +70,8 @@ const EN = {
   "process.user": "User",
   "process.steps": "{count} steps",
   "process.step": "1 step",
-  "journey.related": "related",
-  "journey.alternative": "alternative",
+  "link.related": "related",
+  "link.alternative": "alternative",
   "heading.flow": "At a glance",
   "heading.process": "Process",
   "label.bpmn": "Open {file} in a BPMN modeler such as Camunda Modeler or bpmn.io to edit the process; double-click a scenario to see its steps.",
@@ -87,7 +87,7 @@ const EN = {
   "heading.scenarios": "Scenarios",
   "heading.by-page": "Scenarios by page",
   "heading.by-permission": "Scenarios by permission set",
-  "heading.journey": "Journey map",
+  "heading.link-map": "How the scenarios link",
   "heading.coverage": "Coverage",
   "heading.untouched-pages": "Pages without a guide",
   "heading.unused-actions": "Actions not used in any scenario",
@@ -238,8 +238,8 @@ const DE = {
   "process.user": "Benutzer",
   "process.steps": "{count} Schritte",
   "process.step": "1 Schritt",
-  "journey.related": "verwandt",
-  "journey.alternative": "Alternative",
+  "link.related": "verwandt",
+  "link.alternative": "Alternative",
   "heading.flow": "Auf einen Blick",
   "heading.process": "Prozess",
   "label.bpmn": "Öffnen Sie {file} in einem BPMN-Modellierer wie Camunda Modeler oder bpmn.io, um den Prozess zu bearbeiten; ein Doppelklick auf ein Szenario zeigt seine Schritte.",
@@ -255,7 +255,7 @@ const DE = {
   "heading.scenarios": "Szenarien",
   "heading.by-page": "Szenarien nach Seite",
   "heading.by-permission": "Szenarien nach Berechtigungssatz",
-  "heading.journey": "Ablaufkarte",
+  "heading.link-map": "Wie die Szenarien zusammenhängen",
   "heading.coverage": "Abdeckung",
   "heading.untouched-pages": "Seiten ohne Anleitung",
   "heading.unused-actions": "Aktionen ohne Szenario",
@@ -350,7 +350,7 @@ function phrasebook(language = "en-US") {
   return PHRASEBOOKS[base] ?? EN;
 }
 
-export function lowerFirst(text) {
+function lowerFirst(text) {
   return text.replace(/^\p{Lu}(?!\p{Lu})/u, (letter) => letter.toLowerCase());
 }
 

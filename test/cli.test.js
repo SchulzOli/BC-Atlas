@@ -68,10 +68,8 @@ test("rejects unknown commands, removed commands, and invalid enum values as usa
     ["inspect", fixtures],
     ["capabilities"],
     ["architecture", fixtures],
-    ["export", fixtures, "--view", "nope"],
+    ["export", fixtures, "--view", "report"],
     ["export", fixtures, "--port", "0"],
-    ["export", fixtures, "--view", "explorer", "--format", "svg"],
-    ["export", fixtures, "--view", "project", "--format", "html"],
     ["help", "--format", "yaml"]
   ]) {
     const result = spawnSync(process.execPath, [cli, ...args], { encoding: "utf8" });
@@ -312,31 +310,6 @@ test("export and check read .bca.json: what it excludes is not analyzed", () => 
   }
 });
 
-test("the report export writes an overview, a picture of each lens, and the health summary", () => {
-  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
-  const fixtures = fileURLToPath(new URL("./fixtures", import.meta.url));
-  const directory = mkdtempSync(path.join(os.tmpdir(), "bc-atlas-report-"));
-  const output = path.join(directory, "atlas");
-  try {
-    const result = spawnSync(process.execPath, [
-      cli, "export", fixtures, "--view", "report", "-o", output, "--lenses", "overview,data,nope", "--json"
-    ], { encoding: "utf8", timeout: 120_000 });
-    assert.equal(result.status, 0, result.stderr);
-    const readme = readFileSync(path.join(output, "README.md"), "utf8");
-    assert.match(readme, /^# BC Atlas Fixture architecture$/mu);
-    assert.match(readme, /^## At a glance$/mu);
-    assert.match(readme, /^## Architecture health$/mu);
-    assert.match(readme, /!\[Data\]\(data\.svg\)/u);
-    assert.match(readFileSync(path.join(output, "overview.svg"), "utf8"), /^<svg /u);
-    assert.ok(!existsSync(path.join(output, "nope.svg")), "a lens the project does not have is left out");
-    assert.ok(existsSync(path.join(output, "model.json")));
-    assert.match(readme, /bca export \S+ --view report -o /u);
-
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
 test("package exposes the BC Atlas CLI and MCP server", () => {
   const pkg = JSON.parse(
     readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8")
@@ -365,8 +338,7 @@ test("exposes a versioned machine-readable CLI contract for agents", () => {
     argv.join(" ") === "bca docs validate <test-root>"));
   assert.ok(!contract.commands.some(({ id }) => id === "app"), "the app lives in the VS Code extension");
   const exporter = contract.commands.find(({ id }) => id === "export");
-  assert.equal(exporter.options.view.default, "app");
-  assert.deepEqual(exporter.options.view.enum, ["app", "report", "knowledge-graph"]);
+  assert.equal(exporter.options.view, undefined, "bca export writes the view; nothing else");
   assert.equal(exporter.options.output.short, "-o");
   assert.equal(exporter.options.watch.type, "boolean");
   assert.equal(exporter.options.history, undefined);

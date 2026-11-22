@@ -6,7 +6,7 @@ import { appKey } from "./graph/lenses/dependency.js";
 import { normalizeIdentifier } from "./resolver.js";
 import { compileSelector } from "./selectors.js";
 
-export const INSPECT_SCHEMA = "bc-atlas.inspect/1";
+const INSPECT_SCHEMA = "bc-atlas.inspect/1";
 export const INSPECT_LIMIT = 50;
 
 /**

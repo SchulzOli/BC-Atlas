@@ -156,40 +156,6 @@
         }
       }
     },
-    "report": {
-      "description": "The Markdown report (bca export --view report).",
-      "type": "object",
-      "properties": {
-        "outputDir": {
-          "type": "string",
-          "default": "docs/atlas"
-        },
-        "lenses": {
-          "description": "The lenses to draw; one the project does not have is left out.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [
-            "overview",
-            "apps",
-            "modules",
-            "data",
-            "events",
-            "contracts",
-            "pages"
-          ]
-        },
-        "title": {
-          "type": "string"
-        },
-        "json": {
-          "description": "Also write the resolved model as model.json.",
-          "type": "boolean",
-          "default": false
-        }
-      }
-    },
     "layers": {
       "description": "The layered documentation (bca layers): the system explained from the whole down to each procedure, kept in sync with the source.",
       "type": "object",

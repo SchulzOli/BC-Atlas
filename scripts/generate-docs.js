@@ -4,7 +4,6 @@ import path from "node:path";
 import process from "node:process";
 
 import { createCapabilities, VIEW_LENSES } from "../src/capabilities.js";
-import { ontologyFile, ontologyMarkdown } from "../src/knowledge/ontology.js";
 import { SECTIONS, WEBSITE } from "./docs-structure.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -29,7 +28,7 @@ const toc = [
 for (const [heading, entries] of sections) {
   toc.push(`## ${heading}`, "");
   for (const [label, relativePath] of entries) {
-    if (!["reference/cli-capabilities.md", "reference/ontology.md"].includes(relativePath)) {
+    if (relativePath !== "reference/cli-capabilities.md") {
       await readFile(path.join(docsRoot, relativePath));
     }
     toc.push(`- [${label}](./${relativePath.replaceAll("\\", "/")})`);
@@ -50,10 +49,7 @@ const areaSections = capabilities.areas.flatMap((area) => [
     .map(({ id, argv, purpose }) => `| \`${id}\` | \`${argv.join(" ")}\` | ${purpose} |`),
   ""
 ]);
-const exporter = capabilities.commands.find(({ id }) => id === "export");
-const exports = capabilities.exports.map(({ id, summary }) => `| \`${id}\` | ${summary} |`);
 const lenses = VIEW_LENSES.map((id) => `- \`${id}\``);
-const formats = exporter.options.format.enum.map((format) => `- \`${format}\``);
 
 const capabilityReference = [
   "# Generated CLI capabilities",
@@ -66,21 +62,11 @@ const capabilityReference = [
   "## Commands by feature area",
   "",
   ...areaSections,
-  "## What `bca export` writes",
-  "",
-  "| `--view` | Writes |",
-  "| --- | --- |",
-  ...exports,
-  "",
   "## Lenses of the view",
   "",
   "What `bca view --lens` and the view show; a lens with nothing in it does not exist for a project.",
   "",
   ...lenses,
-  "",
-  "## Export formats",
-  "",
-  ...formats,
   "",
   "## Exit codes",
   "",
@@ -94,11 +80,7 @@ const capabilityReference = [
 
 const outputs = new Map([
   [path.join(docsRoot, "_TOC_.md"), toc.join("\n")],
-  [path.join(docsRoot, "reference", "cli-capabilities.md"), capabilityReference],
-  // The ontology, published by the website at its IRI (scripts/site-assets.js).
-  [path.join(docsRoot, "reference", "ontology.md"), ontologyMarkdown(packageJson.version, WEBSITE)],
-  [path.join(docsRoot, "reference", "ontology.ttl"), ontologyFile("ttl", packageJson.version)],
-  [path.join(docsRoot, "reference", "ontology.owl"), ontologyFile("owl", packageJson.version)]
+  [path.join(docsRoot, "reference", "cli-capabilities.md"), capabilityReference]
 ]);
 
 const check = process.argv.includes("--check");

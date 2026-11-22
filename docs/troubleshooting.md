@@ -22,7 +22,7 @@ Node.js 22: VS Code 1.101 or later brings it; for older versions set
 ## "serve" is no longer available
 
 The documentation server (`bca serve`, `bca docs serve`) was removed in 0.6.0.
-Use the BC Atlas extension in VS Code for a browsable overview, `bca export --view report` for a
+Use the BC Atlas extension in VS Code for a browsable overview, `bca layers` for a
 static one in any Markdown viewer and your repository host, and
 `bca docs ...` for documentation metadata.
 

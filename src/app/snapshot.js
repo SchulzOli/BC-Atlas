@@ -9,7 +9,7 @@ const MAX_INSIDES = 2500;
 /**
  * @returns { generatedAt, atlas, inside: { [object id]: inside } }
  */
-export async function createSnapshot(workspace, { log = () => {}, title, generatedAt } = {}) {
+async function createSnapshot(workspace, { log = () => {}, title, generatedAt } = {}) {
   const atlas = { ...await workspace.atlas(), live: false, ...(title ? { title } : {}) };
   const objects = atlas.nodes.filter((node) => node.kind === "object" && !node.external);
   const inside = {};

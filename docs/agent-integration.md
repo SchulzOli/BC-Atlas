@@ -96,7 +96,6 @@ Every JSON document BC Atlas writes for agents names its shape and version in `s
   match the source.
 - `bc_atlas_view` is the [BC Atlas view](./vscode.md#the-bc-atlas-view) without a window: without arguments it returns the lenses and stories of the project; `lens` returns that part of the one graph (nodes with their facts and findings, and relations), `inside` an object's procedures and what each does, `focus` a node and what is near it, `story` a generated walk through the graph (`system`: what the system is; `fix`: what to fix). `format` `text`, `md`, or `csv` returns that text; `output` writes a file, also a picture (`svg`, `png`) in a `form`. The same as `bca view`.
 - `bc_atlas_app` shows the BC Atlas view itself inside the chat, in clients that render MCP Apps; see [The view in the chat](#the-view-in-the-chat-mcp-app).
-- `bc_atlas_report` writes the Markdown report with a picture of each lens and the health summary (`bca export --view report`).
 - `bc_atlas_docs_list` lists documented scenarios.
 - `bc_atlas_docs_show` reads one scenario and its source hash.
 - `bc_atlas_docs_validate` validates a documentation corpus.

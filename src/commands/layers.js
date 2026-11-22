@@ -17,10 +17,10 @@ import { UsageError } from "../cli/errors.js";
 import { loadConfig } from "../config.js";
 import { displayPath } from "../output.js";
 
-export const LAYERS_DEFAULTS = Object.freeze({ outputDir: "docs/layers", pictures: "auto", view: false });
+const LAYERS_DEFAULTS = Object.freeze({ outputDir: "docs/layers", pictures: "auto", view: false });
 /** Files that hold the BC Atlas that wrote them: written, but not what "in sync" is measured by. */
 const NOT_COMPARED = new Set(["view.html"]);
-export const LAYERS_PICTURES = Object.freeze(["auto", "all", "none"]);
+const LAYERS_PICTURES = Object.freeze(["auto", "all", "none"]);
 
 const digest = (content) => createHash("sha256").update(content).digest("hex");
 const readJson = async (file) => JSON.parse(await fs.readFile(file, "utf8"));

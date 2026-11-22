@@ -20,7 +20,7 @@ export const COLORS = Object.freeze({
 const FONT = "'Segoe UI', system-ui, -apple-system, sans-serif";
 
 /** Greedy word wrap by an average glyph width; long words are split. */
-export function wrapText(value, width, fontSize = 12, maxLines = 4) {
+function wrapText(value, width, fontSize = 12, maxLines = 4) {
   const perLine = Math.max(4, Math.floor(width / (fontSize * 0.56)));
   const words = String(value ?? "").split(/\s+/u).filter(Boolean)
     .flatMap((word) => word.length > perLine ? word.match(new RegExp(`.{1,${perLine}}`, "gu")) : [word]);
