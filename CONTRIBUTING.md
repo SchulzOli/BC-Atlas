@@ -128,3 +128,8 @@ version number.
 3. Merge the release pull request, then run the **Release** workflow on
    `main` with the same version. It publishes the npm package and the VS Code
    extension and creates the GitHub release.
+
+The extension goes to Open VSX only when the repository secret `OVSX_PAT`
+holds a token of open-vsx.org (with the `SchulzOli` namespace created there);
+without it the Release workflow warns. To publish a release there afterwards,
+run the **Open VSX** workflow with its version.

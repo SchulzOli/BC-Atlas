@@ -258,6 +258,7 @@ AL UI-test files are the only persisted scenario source. See
 | `--title` | `generate` | text | Title of the index, HTML page, and DITA map. Default: the app name. |
 | `--procedure` | `generate` | name | Test procedure; required when a file contains several tests. |
 | `--output-dir` | `generate`, `automation` | path | Markdown directory. Default: `docs/generated`. |
+| `--layers` | `generate` | path | Folder of `bca layers`: each guide links to the pages of the system it uses, when the folder holds `layers.json`. Default: `docs/layers`. |
 | `--strict` | `validate` | flag | Treat warnings as failures. |
 | `--tag` | `set`, `unset` | tag | Metadata tag. Required. |
 | `--value` | `set`, `unset` | text | Tag value (required for `set`); matching value for `unset`. |

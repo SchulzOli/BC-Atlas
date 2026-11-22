@@ -41,6 +41,8 @@ Result: PASSED - 0 error(s), 0 warning(s), 2 info (fail on: error)
 | `contract-fallback` | info; warning for configured expectations | A resolved enum implementation or inherited interface default has an empty body, a constant `true` return, or a conditional path that can complete without an error. Configure `check.contractExpectations` to make the selected methods warnings. |
 | `context-responsibility` | info; warning for direct effects forbidden by policy | An explicitly selected context has record reads/writes, temporary writes, commits, resolved calls, selected role responsibilities, in-memory global assignments, or bounded indirect effect candidates. Configure `check.contexts` and its `forbid` list to assert selected responsibilities. |
 | `undocumented-public-api` | info | Public procedures of public codeunits and interfaces without a `///` summary. `Access = Internal` objects and test codeunits are not API. |
+| `page-without-guide` | off; opt in with `check.documentation` | A page a user opens (not a part, an API page, or a role center) that no user guide from the AL UI tests shows. On the page, with what to write. |
+| `undocumented-ui-test` | off; opt in with `check.documentation` | A UI test that drives a `TestPage` but has no `// [SCENARIO]`, so it documents nothing. On the test. |
 | `orphan-objects` | info | Objects without any relationship. |
 | `unresolved-references` | info | References to objects outside the analyzed source. Add `.alpackages` symbols to resolve them. A wildcard permission (`tabledata * = R`) is not one. |
 

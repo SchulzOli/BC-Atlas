@@ -103,6 +103,9 @@ function guideBody(task) {
   }
   parts.push(`<h3>${label(language, "heading.result")}</h3><ul>${task.result.map((item) => `<li>${escapeXml(item)}</li>`).join("")}</ul>`);
   if (hasRunbook(task)) parts.push(`<h3>${label(language, "heading.support")}</h3>${runbookHtml(task)}`);
+  if (task.system?.length) {
+    parts.push(`<h3>${label(language, "heading.in-system")}</h3><ul>${task.system.map(({ title, href }) => `<li><a href="${escapeXml(href)}">${escapeXml(title)}</a></li>`).join("")}</ul>`);
+  }
   for (const [kind, heading] of Object.entries(LINK_HEADINGS)) {
     if (task.links[kind].length) {
       parts.push(`<h3>${label(language, heading)}</h3><ul>${task.links[kind].map((target) => `<li>${link(target)}</li>`).join("")}</ul>`);

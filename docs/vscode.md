@@ -106,12 +106,21 @@ select an object in one, switch, and it is still selected.
 | Calls | objects | calls and runs | `calls` |
 | Events | publishers and subscribers | publishes, subscribes | `events` |
 | Contracts | interfaces and what implements them | implements, selects | `contracts` |
-| Pages | pages, reports, and what they show | source tables, parts, actions | `pages` |
+| Pages | pages, reports, and what they show; the user guides from the AL UI tests | source tables, parts, actions; documents (a guide and the pages its steps use) | `pages` |
 | Permissions | permission sets and what they cover | permits, includes | `security` |
 | Visibility | every object, colored public, internal, or local | everything | `visibility` |
 | Findings | the rules of the health check and the objects they found | one per finding, in its severity | `health` |
 
 A lens with nothing in it is left out: Findings needs a finding.
+
+**User guides.** When the project has documented AL UI tests
+([Documentation from AL UI tests](./al-ui-test-documentation.md)), every
+scenario is a node of the Pages lens, a *user guide*, with a `documents`
+relation to each page its steps use. Select a page to see its guides and how
+many steps of each happen there; select a guide for its goal, roles,
+permission sets, journeys, and actions, and **Go to source** opens its test.
+The tests are found in `docs.tests` of `.bca.json`, or in the folder with the
+most scenarios.
 
 ### Stories
 
@@ -124,6 +133,7 @@ nodes it is about, which stand out while the rest steps back. **←** and
 | --- | --- | --- |
 | What the system is | How it works, the apps, what everything depends on, the data, events, contracts, the user interface, permissions, health | explain and demonstrate the system |
 | What to fix | Every finding, the most severe first, on the nodes it is about, with the fix | work through the health check |
+| An end-to-end journey | One story per `[JOURNEY]` of the UI tests: every stage on its user guide and the pages it uses, with who performs it | show how a business process runs through the app |
 
 **Export › Documentation** writes every story as one Markdown document.
 

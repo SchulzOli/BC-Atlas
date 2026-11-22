@@ -85,5 +85,78 @@
     "stories/fix.md",
     "stories/system.md",
     "system.svg"
+  ],
+  "objects": [
+    {
+      "type": "codeunit",
+      "id": "50010",
+      "name": "CON Standard Pricing",
+      "page": "objects/codeunit-50010-con-standard-pricing.md"
+    },
+    {
+      "type": "codeunit",
+      "id": "50011",
+      "name": "CON Pricing Mgt.",
+      "page": "objects/codeunit-50011-con-pricing-mgt.md"
+    },
+    {
+      "type": "codeunit",
+      "id": "50100",
+      "name": "CON Quote Mgt.",
+      "page": "objects/codeunit-50100-con-quote-mgt.md"
+    },
+    {
+      "type": "codeunit",
+      "id": "50200",
+      "name": "CON Quote Export",
+      "page": "objects/codeunit-50200-con-quote-export.md"
+    },
+    {
+      "type": "codeunit",
+      "id": "50201",
+      "name": "CON Item Sync",
+      "page": "objects/codeunit-50201-con-item-sync.md"
+    },
+    {
+      "type": "interface",
+      "name": "CON Price Calculation",
+      "page": "objects/interface-con-price-calculation.md"
+    },
+    {
+      "type": "page",
+      "id": "50000",
+      "name": "CON Item Card",
+      "page": "objects/page-50000-con-item-card.md"
+    },
+    {
+      "type": "page",
+      "id": "50100",
+      "name": "CON Sales Quote",
+      "page": "objects/page-50100-con-sales-quote.md"
+    },
+    {
+      "type": "permissionset",
+      "id": "50100",
+      "name": "CON Sales",
+      "page": "objects/permissionset-50100-con-sales.md"
+    },
+    {
+      "type": "table",
+      "id": "50000",
+      "name": "CON Item",
+      "page": "objects/table-50000-con-item.md"
+    },
+    {
+      "type": "table",
+      "id": "50001",
+      "name": "CON Price Group",
+      "page": "objects/table-50001-con-price-group.md"
+    },
+    {
+      "type": "table",
+      "id": "50100",
+      "name": "CON Sales Quote",
+      "page": "objects/table-50100-con-sales-quote.md"
+    }
   ]
 }

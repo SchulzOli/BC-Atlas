@@ -25,7 +25,7 @@ function isEnglish(language) {
 }
 
 /** Title and goal in the output language; English titles use the page caption. */
-function titleFor(value, context = {}) {
+export function titleFor(value, context = {}) {
   const english = isEnglish(context.language);
   const opener = value.creationTarget
     ? (value.guideOperations ?? []).find((op) => op.kind === "open" && op.mode === "new")

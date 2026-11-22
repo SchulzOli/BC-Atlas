@@ -335,7 +335,19 @@ is generated: change the AL tags and regenerate rather than editing it.
   guide and the actions no scenario uses.
 
 `bca docs validate` lists the UI tests without documentation too, without
-failing.
+failing. To make them a finding of `bca check` (and of the Problems panel and
+**Check** in the view), set `check.documentation` in `.bca.json` to `info`,
+`warning`, or `error`: it reports every UI test without `[SCENARIO]`
+(`undocumented-ui-test`) and every page a user opens that no guide shows
+(`page-without-guide`).
+
+### In the view and the layers
+
+The guides are part of the BC Atlas view: every scenario is a node of the
+Pages lens that `documents` the pages its steps use, and every `[JOURNEY]` is
+a story through its stages. The page of a page in `bca layers` lists its
+guides, and with `--layers <folder>` (default `docs/layers`) every guide gets
+an **In the system** section with links to the pages of the system it uses.
 
 ## Inspect and edit metadata
 

@@ -149,7 +149,7 @@ test("sections: the named sections, in the named order, and a name that is not a
   assertLinks(files);
 
   assert.throws(() => layersProfile({ sections: { object: ["Inside", "Usage"] } }),
-    /layers\.sections\.object in \.bca\.json: "Usage" is not a section of the page of an object; it has: Inside, Uses, Used by, Findings/u);
+    /layers\.sections\.object in \.bca\.json: "Usage" is not a section of the page of an object; it has: Inside, Uses, Used by, User guides, Findings/u);
   assert.throws(() => layersProfile({ sections: { objects: ["Inside"] } }), /layers\.sections\.objects in \.bca\.json is not known; layers\.sections has: readme, architecture, findings, app, namespace, object, lens, story/u);
   // The catalog names every section the pages have.
   for (const [file, text] of plain.files) {

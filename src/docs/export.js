@@ -31,6 +31,26 @@ async function renderLinkMapSvg(catalog) {
   return scene ? sceneToSvg(scene) : undefined;
 }
 
+/**
+ * The pages of `bca layers` of each guide: the page objects its steps use,
+ * from layers.json of that folder, as links from the output directory.
+ */
+async function linkLayers(catalog, { layersDirectory, outputDirectory }) {
+  if (!layersDirectory || !outputDirectory) return;
+  const manifest = await fs.readFile(path.resolve(layersDirectory, "layers.json"), "utf8").then(JSON.parse).catch(() => undefined);
+  if (!Array.isArray(manifest?.objects)) return;
+  const key = (name) => String(name).toLowerCase().replace(/[^a-z0-9]+/gu, "");
+  const pages = new Map(manifest.objects.filter(({ type }) => type === "page").map((object) => [key(object.name), object]));
+  const from = path.resolve(outputDirectory);
+  for (const task of catalog.tasks) {
+    const used = [...new Set(task.pages)].map((name) => pages.get(key(name))).filter(Boolean);
+    task.system = used.map((object) => ({
+      title: `${object.type} ${object.id ? `${object.id} ` : ""}${object.name}`,
+      href: path.relative(from, path.resolve(layersDirectory, object.page)).replaceAll("\\", "/")
+    }));
+  }
+}
+
 async function prepareCatalog(corpus, options) {
   if (corpus.diagnostics.some(({ severity }) => severity === "error")) {
     throw new Error("documentation corpus has errors; run docs validate for details");
@@ -57,6 +77,7 @@ async function prepareCatalog(corpus, options) {
     captions,
     title: options.title ?? (captions?.appName ? `${captions.appName}` : undefined)
   });
+  await linkLayers(catalog, options);
   // Every scenario gets a BPMN-style flow of its clicks; every use case and
   // every end-to-end journey a process with one lane per permission set.
   const named = catalog.useCases.filter(({ feature }) => feature);

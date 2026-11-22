@@ -43,7 +43,7 @@ The pages of the example with three apps are in
 | 0 System | `README.md` | What the system is in numbers, its picture, the way to every other layer, lenses, stories, findings, and what it was read from |
 | 1 Apps | `apps/<app>.md` | The objects of an app, the apps it depends on, and its namespaces |
 | 2 Namespaces | `namespaces/<name>.md` | The objects of a namespace and what it uses |
-| 3 Objects | `objects/<type>-<id>-<name>.md` | What an object is, its facts, what it uses and what uses it, its findings with the fix, and its place in the source |
+| 3 Objects | `objects/<type>-<id>-<name>.md` | What an object is, its facts, what it uses and what uses it, the user guides that show a page, its findings with the fix, and its place in the source |
 | 4 Procedures | inside the page of the object | Every procedure, trigger, and event with its signature, size, and what it reads, writes, and calls |
 
 Across the layers:
@@ -55,11 +55,19 @@ Across the layers:
 | `architecture.md` | [How it is connected](#how-it-is-connected): apps and namespaces, each with a picture |
 | `findings.md` | Everything the checks found, the most severe first, each linked to the objects it is about |
 | `atlas.json` | The graph itself: every node, relation, lens, finding, and story |
-| `layers.json` | What the folder holds, and the numbers of the system |
+| `layers.json` | What the folder holds, the numbers of the system, and the page of every object |
 
 Every page links one layer up and one layer down: an object names its app
 and namespace; an app and a namespace list their objects; a procedure links
 to the objects it touches. Pictures are SVG diagrams, drawn by BC Atlas itself.
+
+**User guides.** The page of a page lists the user guides from the AL UI
+tests that show it, with the steps that happen there and who performs them.
+Once `bca docs generate` has written the guides (to `docs.outputDir`,
+default `docs/generated`), each is a link; and
+`bca docs generate --layers <folder>` (default `docs/layers`) links every
+guide back to the pages of the system it uses, through `layers.json`. Write the layers first, then the
+guides, then the layers again, and both sides link.
 
 ## What is written, and how: the documentation profile
 

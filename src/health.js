@@ -78,11 +78,38 @@ function undeclaredDependencies(levels, model, severity) {
 }
 
 /**
+ * What the user guides do not cover yet (opt-in, `check.documentation`):
+ * a page a user opens that no guide shows, and a UI test without a
+ * [SCENARIO]. The guides come from src/guides.js.
+ */
+function documentationFindings(guides, model, severity) {
+  if (!guides || severity === "off") return [];
+  const byKey = new Map(model.objects.map((object) => [object.key, object]));
+  return [
+    ...guides.uncovered.map((key) => {
+      const page = byKey.get(key);
+      return finding(severity, "page-without-guide", `${objectLabel(page)} is shown in no user guide`, {
+        fix: `Write a UI test that opens ${page?.name ?? "the page"}, with a // [SCENARIO] comment, in ${guides.path}.`,
+        object: objectLabel(page),
+        ...(page?.file ? { file: page.file, line: page.location?.line } : {})
+      });
+    }),
+    ...guides.undocumented.map(({ file, line, procedure }) => finding(severity, "undocumented-ui-test",
+      `The UI test ${procedure} has no documentation`, {
+        fix: `Add // [SCENARIO] with what the user achieves, and [WHEN] and [THEN] for the steps (bca docs glossary).`,
+        file,
+        line
+      }))
+  ];
+}
+
+/**
  * Builds a health report for the model of a project (src/project.js).
  * Thresholds come from CLI options or the `check` section of .bca.json.
- * @param context { levels }: what depends on what, for the rules about apps
+ * @param context { levels, guides }: what depends on what, for the rules
+ *   about apps; the guides of src/guides.js, for `check.documentation`
  */
-export function assessHealth(model, settings = {}, { levels } = {}) {
+export function assessHealth(model, settings = {}, { levels, guides } = {}) {
   const failOn = settings.failOn ?? "error";
   if (!FAIL_LEVELS.includes(failOn)) throw new Error(`fail-on must be one of: ${FAIL_LEVELS.join(", ")}`);
   const maxFanIn = positive(settings.maxFanIn, "max-fan-in", 25);
@@ -90,6 +117,10 @@ export function assessHealth(model, settings = {}, { levels } = {}) {
   const cycleSeverity = settings.cycles ?? "warning";
   if (![...SEVERITIES, "off"].includes(cycleSeverity)) {
     throw new Error(`check.cycles must be one of: ${[...SEVERITIES, "off"].join(", ")}`);
+  }
+  const documentationSeverity = settings.documentation ?? "off";
+  if (![...SEVERITIES, "off"].includes(documentationSeverity)) {
+    throw new Error(`check.documentation must be one of: ${[...SEVERITIES, "off"].join(", ")}`);
   }
   const undeclaredSeverity = settings.undeclaredDependencies ?? "warning";
   if (![...SEVERITIES, "off"].includes(undeclaredSeverity)) {
@@ -152,6 +183,7 @@ export function assessHealth(model, settings = {}, { levels } = {}) {
   }
 
   findings.push(...undeclaredDependencies(levels, model, undeclaredSeverity));
+  findings.push(...documentationFindings(guides, model, documentationSeverity));
   findings.push(...analyzeContractFallbacks(model, settings.contractExpectations));
   const contextResponsibilities = analyzeContextResponsibilities(model, settings.contexts);
   findings.push(...contextResponsibilities.findings);
@@ -182,7 +214,7 @@ export function assessHealth(model, settings = {}, { levels } = {}) {
     schemaVersion: 1,
     passed: failing.length === 0,
     failOn,
-    thresholds: { maxFanIn, maxFanOut, cycles: cycleSeverity, undeclaredDependencies: undeclaredSeverity },
+    thresholds: { maxFanIn, maxFanOut, cycles: cycleSeverity, undeclaredDependencies: undeclaredSeverity, documentation: documentationSeverity },
     summary: {
       apps: (model.apps ?? []).map(({ name, publisher, version }) => ({ name, publisher, version })),
       files: model.files,

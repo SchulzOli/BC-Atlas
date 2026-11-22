@@ -191,13 +191,18 @@ jobs:
         working-directory: vscode
         run: npx vsce publish --azure-credential --packagePath bc-atlas.vsix
 
-      # Open VSX serves VSCodium, Cursor, and other editors; skipped without a token.
+      # Open VSX serves VSCodium, Cursor, and other editors. Without a token
+      # the step warns on the run instead of passing silently; publish the
+      # release there later with the Open VSX workflow.
       - name: Publish to Open VSX
         working-directory: vscode
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
-          if [ -z "$OVSX_PAT" ]; then echo "OVSX_PAT is not set; skipping Open VSX."; exit 0; fi
+          if [ -z "$OVSX_PAT" ]; then
+            echo "::warning title=Open VSX skipped::The secret OVSX_PAT is not set, so the extension is not on Open VSX. Add the secret, then run the Open VSX workflow for this version."
+            exit 0
+          fi
           npx --yes ovsx@1.2.0 publish bc-atlas.vsix
 
   # Tags the release once npm has it, so `uses: SchulzOli/BC-Atlas@v<version>`

@@ -6,6 +6,25 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- **User guides in the graph.** Every documented AL UI test is a node of the
+  Pages lens that `documents` the pages its steps use; a page counts its
+  guides, the inspector shows goal, roles, permission sets, and actions, and
+  every `[JOURNEY]` is a story through its stages.
+- **What the guides do not cover is a finding.** `check.documentation`
+  (off by default) reports `page-without-guide` and `undocumented-ui-test`
+  in `bca check`, SARIF, the Problems panel, and Check in the view.
+- **Layer pages and guides link to each other.** The page of a page in
+  `bca layers` lists its guides; `layers.json` names the page of every
+  object; `bca docs generate --layers` gives every guide an "In the system"
+  section with links to the pages it uses.
+- **Agents get the guides.** `bc_atlas_inspect` lists the guides of a page
+  (with `detail: "full"` their goal, roles, steps, and actions), and
+  `bc_atlas_view` returns them in the Pages lens and the journeys as stories.
+- **Open VSX:** the Release workflow warns when `OVSX_PAT` is missing, and
+  the Open VSX workflow publishes the extension of a release afterwards.
+
 ## 0.28.0 - 2026-11-22
 
 BC Atlas goes back to its core: the view of an AL project, the
@@ -156,8 +175,6 @@ check it, and document it. Everything else is gone.
   the procedures inside each object. `architecture.md` shows the apps and the
   namespaces and what depends on what. The schema of `layers.json` is
   `bc-atlas.layers/2`; a first run replaces the pages of the schema before.
-- `bca export --view report` draws one picture per lens (`--lenses`) in place
-  of the diagram views.
 - The view groups objects by namespace where it grouped by component, and
   holds objects of other apps together as "Other apps".
 - The command contract (`bca help --format json`) is `schemaVersion` 2.

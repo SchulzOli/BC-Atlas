@@ -107,7 +107,8 @@ async function generate(input, values) {
     ...options,
     formats,
     appRoot: values.app,
-    outputDirectory: values.outputDir
+    outputDirectory: values.outputDir,
+    layersDirectory: values.layers ?? "docs/layers"
   });
   for (const warning of result.warnings) console.error(`bca: warning: ${warning}`);
   if (values.format === "json") return printJson(result.files);

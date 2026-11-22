@@ -17,6 +17,13 @@ function runbookLines(task, level) {
   return lines;
 }
 
+/** The pages of `bca layers` this guide uses (export.js links them). */
+function systemLines(task) {
+  if (!task.system?.length) return [];
+  return [`## ${label(task.language, "heading.in-system")}`, "", label(task.language, "label.in-system"), "",
+    ...task.system.map(({ title, href }) => `- [${escapeMarkdown(title)}](${href})`), ""];
+}
+
 function performedBy(task) {
   return task.roles.length ? [label(task.language, "label.performed-by", { who: task.roles.join(", ") }), ""] : [];
 }
@@ -112,6 +119,7 @@ export function renderGuide(task, { flowImage } = {}) {
   }
   lines.push(`## ${label(language, "heading.result")}`, "", ...task.result.map((item) => `- ${escapeMarkdown(item)}`), "");
   if (hasRunbook(task)) lines.push(`## ${label(language, "heading.support")}`, "", ...runbookLines(task, 3));
+  lines.push(...systemLines(task));
   for (const [kind, heading] of Object.entries(LINK_HEADINGS)) {
     if (task.links[kind].length) {
       lines.push(`## ${label(language, heading)}`, "", ...task.links[kind].map((target) => `- ${link(target)}`), "");

@@ -36,7 +36,7 @@ export const LAYERS_SECTIONS = Object.freeze({
   findings: Object.freeze(["Error", "Warning", "Info"]),
   app: Object.freeze(["Namespaces", "Depends on", "Used by", "Objects", "Findings"]),
   namespace: Object.freeze(["Depends on", "Used by", "Objects", "Findings"]),
-  object: Object.freeze(["Inside", "Uses", "Used by", "Findings"]),
+  object: Object.freeze(["Inside", "Uses", "Used by", "User guides", "Findings"]),
   lens: Object.freeze(["Findings"]),
   story: null
 });
@@ -260,7 +260,7 @@ export function profileInScope(profile, node) {
 const DE_HEADINGS = {
   "Start here": "Einstieg", Layers: "Ebenen", Apps: "Apps", Namespaces: "Namespaces", Lenses: "Sichten", Stories: "Rundgänge", Findings: "Befunde",
   "Read from": "Gelesen aus",
-  "Depends on": "Hängt ab von", "Used by": "Verwendet von", Uses: "Verwendet", Inside: "Innenleben", Objects: "Objekte", Error: "Fehler", Warning: "Warnungen", Info: "Hinweise",
+  "Depends on": "Hängt ab von", "Used by": "Verwendet von", Uses: "Verwendet", Inside: "Innenleben", "User guides": "Anleitungen", Objects: "Objekte", Error: "Fehler", Warning: "Warnungen", Info: "Hinweise",
   "How it is connected": "Wie es zusammenhängt"
 };
 const DE_HOLDERS = { App: "App", Namespace: "Namespace" };
@@ -394,11 +394,14 @@ function fileOf(pattern, facts) {
  * @param pages Map<path, { kind, name, type?, id?, app?, namespace? }>: what each Markdown page is of; kind is a kind of LAYERS_PAGE_KINDS
  * @param pictures Map<path of a picture, { page, suffix }>: the page each picture belongs to
  * @param options { system }: the name of the system
- * @returns { files: Map<path, text>, fixed: { readme?, architecture?, findings? } } the paths of the pages there is one of
+ * @returns { files: Map<path, text>, fixed: { readme?, architecture?, findings? }, moved: Map<path, path> } the paths of the pages there is one of, and where each page went
  */
 export function applyProfile(files, pages, pictures, profile, { system = "" } = {}) {
   const fixedOf = (to) => Object.fromEntries([...pages].filter(([file, page]) => SINGLE.has(page.kind) && to.has(file)).map(([file, page]) => [page.kind, to.get(file)]));
-  if (!profile || profile.plain) return { files, fixed: fixedOf(new Map([...files.keys()].map((file) => [file, file]))) };
+  if (!profile || profile.plain) {
+    const same = new Map([...files.keys()].map((file) => [file, file]));
+    return { files, fixed: fixedOf(same), moved: same };
+  }
   const words = LANGUAGES[profile.language];
 
   // Where each file goes, and which are left out.
@@ -493,5 +496,5 @@ export function applyProfile(files, pages, pictures, profile, { system = "" } = 
     }
     result.set(target, `${lines.join("\n").replace(/\n{3,}/gu, "\n\n").replace(/^\n+|\s+$/gu, "")}\n`);
   }
-  return { files: result, fixed: fixedOf(to) };
+  return { files: result, fixed: fixedOf(to), moved: to };
 }

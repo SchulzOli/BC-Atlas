@@ -15,6 +15,7 @@
 //   findings:  [{ severity, rule, message, fix?, nodes: [index], file?, line? }]
 //   stories:   [{ id, title, summary, kind, steps: [{ title, text, lens, nodes: [index] }] }]
 // }
+import { addGuides, GUIDE_COLOR, journeyStories, withGuides } from "./atlas-guides.js";
 import path from "node:path";
 import { RELATION_STYLES, TYPE_STYLES } from "../styles.js";
 import { analyzeVisibility, LEVEL_COLORS } from "../visibility.js";
@@ -36,7 +37,8 @@ const ATLAS_RELATIONS = {
   error: { color: SEVERITY_COLORS.error },
   warning: { color: SEVERITY_COLORS.warning },
   info: { color: SEVERITY_COLORS.info },
-  source: { color: "#31783B" }
+  source: { color: "#31783B" },
+  documents: { color: GUIDE_COLOR }
 };
 
 
@@ -368,6 +370,9 @@ export async function createAtlas(workspace) {
   const graph = builder();
   const findings = [];
   const { model, context } = await structure(workspace, graph);
+  // The user guides: a project without documented UI tests has none.
+  const guides = await workspace.guides().catch(() => undefined);
+  addGuides(graph, guides);
   const report = await health(workspace, graph, findings);
   const overview = await workspace.overview();
 
@@ -403,9 +408,9 @@ export async function createAtlas(workspace) {
     nodes: graph.nodes,
     relations: graph.relations,
     edges: graph.edges,
-    lenses,
+    lenses: withGuides(lenses, graph),
     findings,
-    stories: stories({ graph, findings, report, title: overview.title })
+    stories: [...stories({ graph, findings, report, title: overview.title }), ...journeyStories(graph, guides)]
   };
 }
 
