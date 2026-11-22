@@ -20,15 +20,15 @@ const posix = (file) => file.replaceAll("\\", "/");
  * @param options the merged options of a project (projectRoot, docs)
  * @returns { path, corpus } or undefined when the project has none
  */
-export async function loadGuideCorpus(options) {
+export async function loadGuideCorpus(options, { cache } = {}) {
   const root = options.projectRoot;
   let relative = options.docs?.tests;
   if (!relative) {
-    const found = await findUiTests(root, await findGitRoot(root)).catch(() => undefined);
+    const found = await findUiTests(root, await findGitRoot(root), { cache }).catch(() => undefined);
     if (!found?.scenarios) return undefined;
     relative = found.path;
   }
-  const corpus = await loadCorpus(path.resolve(root, relative)).catch(() => undefined);
+  const corpus = await loadCorpus(path.resolve(root, relative), { cache }).catch(() => undefined);
   if (!corpus?.scenarios.length && !corpus?.undocumented.length) return undefined;
   return { path: relative, corpus };
 }

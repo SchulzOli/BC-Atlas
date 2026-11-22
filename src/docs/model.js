@@ -118,13 +118,29 @@ export function validateCorpus(scenarios) {
 
 const byProcedure = (a, b) => a.path.localeCompare(b.path) || a.procedure.localeCompare(b.procedure);
 
-export async function loadCorpus(input) {
+/** One file of the corpus; with a cache, read again only when its size or time changed. */
+async function loadFile(file, cache) {
+  const stamp = cache && await fs.stat(file).then(({ size, mtimeMs }) => `${size}:${mtimeMs}`, () => undefined);
+  const hit = stamp && cache.get(file);
+  if (hit && hit.stamp === stamp) return hit;
+  const entry = { stamp, skipped: [], undocumented: [] };
+  entry.scenarios = await loadAlUiTests(file, entry.skipped, entry.undocumented);
+  if (stamp) cache.set(file, entry);
+  return entry;
+}
+
+/**
+ * The documented UI tests of a folder.
+ * @param options { cache }: a Map kept between calls (an editor session), so
+ *   only the files that changed are read again
+ */
+export async function loadCorpus(input, { cache } = {}) {
   const root = path.resolve(input);
   const files = await collectAlFiles(root);
-  const skipped = [];
-  const undocumented = [];
-  const scenarios = (await Promise.all(files.map((file) => loadAlUiTests(file, skipped, undocumented))))
-    .flat()
+  const read = await Promise.all(files.map((file) => loadFile(file, cache)));
+  const skipped = read.flatMap((entry) => entry.skipped);
+  const undocumented = read.flatMap((entry) => entry.undocumented);
+  const scenarios = read.flatMap((entry) => entry.scenarios)
     .sort((left, right) =>
       left.value.id.localeCompare(right.value.id) || left.reference.localeCompare(right.reference)
     );
@@ -168,7 +184,7 @@ async function directories(root, depth = 0, relative = "") {
 }
 
 /** Finds the folder with the most documented UI-test scenarios. */
-export async function findUiTests(root, gitRoot) {
+export async function findUiTests(root, gitRoot, { cache } = {}) {
   const candidates = new Set(["."]);
   for (const directory of await directories(root)) if (/test/iu.test(path.basename(directory))) candidates.add(directory);
   if (gitRoot && gitRoot !== root) {
@@ -176,10 +192,16 @@ export async function findUiTests(root, gitRoot) {
       if (/test/iu.test(path.basename(directory))) candidates.add(path.relative(root, path.join(gitRoot, directory)).replaceAll("\\", "/") || ".");
     }
   }
+  // The tests under the project are read once, and a candidate there counts the ones under it;
+  // a candidate outside it (elsewhere in the repository) is read on its own.
+  const all = [];
+  for (const folder of [".", ...[...candidates].filter((candidate) => candidate.startsWith(".."))]) {
+    all.push(...((await loadCorpus(path.resolve(root, folder), { cache }).catch(() => undefined))?.scenarios ?? []));
+  }
   let best = { path: undefined, scenarios: 0 };
   for (const candidate of candidates) {
-    const corpus = await loadCorpus(path.join(root, candidate)).catch(() => undefined);
-    const count = corpus?.scenarios.length ?? 0;
+    const folder = path.resolve(root, candidate);
+    const count = all.filter((scenario) => scenario.path === folder || scenario.path.startsWith(`${folder}${path.sep}`)).length;
     // Prefer the most specific folder when counts tie.
     if (count > best.scenarios || (count && count === best.scenarios && candidate.length > (best.path ?? "").length)) {
       best = { path: candidate, scenarios: count };

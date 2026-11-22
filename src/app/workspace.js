@@ -243,7 +243,10 @@ export class Workspace {
    */
   guideCorpus(options) {
     return this.remember("guide-corpus", async () => {
-      const found = await loadGuideCorpus(this.testsPath && !options.docs?.tests ? { ...options, docs: { ...options.docs, tests: this.testsPath } } : options);
+      // A save reads again only the test files that changed; the folder is looked for once.
+      this.testFiles ??= new Map();
+      const tests = options.docs?.tests ?? this.testsPath;
+      const found = await loadGuideCorpus(tests ? { ...options, docs: { ...options.docs, tests } } : options, { cache: this.testFiles });
       if (found) this.testsPath = found.path;
       return found;
     });

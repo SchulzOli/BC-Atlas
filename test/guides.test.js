@@ -103,3 +103,25 @@ test("the pages of bca layers and the user guides link to each other", async () 
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("in an editor, a save reads again only the UI tests that changed", async () => {
+  const { loadCorpus } = await import("../src/docs/model.js");
+  const { utimesSync } = await import("node:fs");
+  const directory = mkdtempSync(path.join(os.tmpdir(), "bca-guides-cache-"));
+  try {
+    cpSync(warehouse, directory, { recursive: true });
+    const cache = new Map();
+    const first = await loadCorpus(directory, { cache });
+    const file = path.join(directory, "WarehouseUITests.al");
+    const entry = cache.get(file);
+    assert.ok(entry && first.scenarios.length === 2);
+    const again = await loadCorpus(directory, { cache });
+    assert.equal(cache.get(file), entry, "an unchanged file is not read again");
+    assert.deepEqual(again.scenarios.map(({ value }) => value.id), first.scenarios.map(({ value }) => value.id));
+    utimesSync(file, new Date(), new Date(Date.now() + 5000));
+    await loadCorpus(directory, { cache });
+    assert.notEqual(cache.get(file), entry, "a changed file is");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
