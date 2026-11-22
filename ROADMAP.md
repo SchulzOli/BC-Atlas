@@ -55,8 +55,6 @@ Measured on Microsoft's BCApps, as the performance is today.
 
 ## Later: documentation people use
 
-- More languages for the generated wording beyond English and German,
-  with the captions from the app's XLIFF.
 - The view in the browser for a whole team: the exported file opens at a
   guide or a journey, not only at a lens.
 
