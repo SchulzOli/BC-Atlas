@@ -6,6 +6,12 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 0.29.0 - 2026-11-23
+
+One atlas: the architecture of the source and the user guides from its AL
+UI tests are one graph, and the documentation of both links to each other.
+No breaking change.
+
 ### Added
 
 - **User guides in the graph.** Every documented AL UI test is a node of the

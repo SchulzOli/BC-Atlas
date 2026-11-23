@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.29.0 - 2026-11-23
+
+- **User guides in the view.** The Pages lens shows the user guides from the
+  AL UI tests and the pages they use; a page counts its guides, the inspector
+  shows a guide's goal, roles, permission sets, and actions, and **Go to
+  source** opens its test. Every `[JOURNEY]` is a story.
+- With `check.documentation` in `.bca.json`, pages without a guide and UI
+  tests without documentation are findings in the Problems panel and Check.
+- A save reads again only the UI tests that changed.
+
 ## 0.28.0 - 2026-11-22
 
 - Back to the core: the view shows the architecture of the source and
