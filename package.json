@@ -1,6 +1,6 @@
 {
   "name": "bc-atlas",
-  "version": "0.28.0",
+  "version": "0.29.0",
   "description": "BC Atlas reads Microsoft Dynamics 365 Business Central AL projects and shows, checks, and documents their architecture, straight from source.",
   "homepage": "https://github.com/SchulzOli/BC-Atlas#readme",
   "bugs": {
